@@ -188,7 +188,7 @@ export default function App() {
         <small>{demo ? 'Data saved on this device' : `${state.pending.length} pending changes`}</small>
         {supabase && <button className="secondary" disabled={busy} onClick={async () => {
           if (demo) { setDemo(false); return; }
-          const { error } = await supabase.auth.signOut({ scope: 'local' });
+          const { error } = await supabase!.auth.signOut({ scope: 'local' });
           if (error) setMessage(error.message); else { setSession(null); setShop(null); setMessage('Signed out.'); }
         }}>{demo ? 'Business sign in' : 'Sign out'}</button>}
       </div>
