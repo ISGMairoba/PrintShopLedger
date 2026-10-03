@@ -55,7 +55,7 @@ export function applyEvent(ledger, event) {
       seen.add(allocation.jobId);
       const job = ledger.jobs.find(item => item.id === allocation.jobId);
       if (!job || job.customerId !== data.customerId) throw new Error('Every allocated job must belong to the selected customer.');
-      if (allocation.amount > jobBalance(ledger, job).outstanding) throw new Error('An allocation exceeds the job's outstanding balance.');
+      if (allocation.amount > jobBalance(ledger, job).outstanding) throw new Error('The allocated amount exceeds the outstanding job balance.');
       allocated += allocation.amount;
     }
     if (allocated !== data.amount) throw new Error('Allocated amounts must equal the payment total.');
