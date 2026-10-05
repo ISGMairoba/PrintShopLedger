@@ -29,7 +29,7 @@ export default function Modal({ title, children, onClose, busy = false, wide = f
       const first = controls[0], last = controls[controls.length - 1];
       if (event.shiftKey && (document.activeElement === first || !element.contains(document.activeElement))) { event.preventDefault(); last.focus(); }
       else if (!event.shiftKey && (document.activeElement === last || !element.contains(document.activeElement))) { event.preventDefault(); first.focus(); }
-    }
+    }}
     onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}>
     <div className="modal-header"><h2 id={titleId}>{title}</h2><button type="button" className="secondary modal-close" disabled={busy} onClick={onClose}>Close</button></div>
     <div className="modal-body">{children}</div>
