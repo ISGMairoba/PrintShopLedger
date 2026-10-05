@@ -5,10 +5,11 @@ import { applyEvent, customerBalance, emptyLedger, jobBalance, money } from './d
 import { supabase, syncLedger, MaterialSyncConflict, resolveCloudMaterial } from './cloud';
 import { readState, saveEvent } from './storage';
 import MaterialsPage from './MaterialsPage';
+import StockHistoryPage from './StockHistoryPage';
 import type { LedgerEvent, LocalState, Payment, MaterialEvent } from './types';
 
 type Shop = { id: string; name: string; role: string };
-type Page = 'Jobs' | 'Customers' | 'Payments' | 'Materials';
+type Page = 'Jobs' | 'Customers' | 'Payments' | 'Materials' | 'Stock History';
 const currency = (amount: number) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount / 100);
 const shortId = (id: string) => id.slice(0, 8).toUpperCase();
 const today = () => {
@@ -199,8 +200,8 @@ export default function App() {
         <><label>Business<select disabled={busy} value={shop?.id ?? ''} onChange={e => setShop(shops.find(item => item.id === e.target.value) ?? null)}>
           {shops.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><small>{shop?.role ?? 'No workspace assigned'}</small></>}
       </div>
-      <nav aria-label="Main">{(['Jobs', 'Customers', 'Payments', 'Materials'] as Page[]).map((item, index) => <button key={item} className={page === item ? 'active' : ''}
-        onClick={() => { setPage(item); setSelectedJob(null); setForm(null); setQuery(''); }}><span>{['J', 'C', 'P', 'M'][index]}</span>{item}</button>)}</nav>
+      <nav aria-label="Main">{(['Jobs', 'Customers', 'Payments', 'Materials', 'Stock History'] as Page[]).map((item, index) => <button key={item} className={page === item ? 'active' : ''}
+        onClick={() => { setPage(item); setSelectedJob(null); setForm(null); setQuery(''); }}><span>{['J', 'C', 'P', 'M', 'H'][index]}</span>{item}</button>)}</nav>
       <div className="sidebar-bottom"><span className={`connection ${online ? 'online' : ''}`}>{online ? 'Online' : 'Offline'}</span>
         <small>{demo ? 'Data saved on this device' : `${state.pending.length} pending changes`}</small>
         {supabase && <button className="secondary" disabled={busy} onClick={async () => {
@@ -210,7 +211,7 @@ export default function App() {
         }}>{demo ? 'Business sign in' : 'Sign out'}</button>}
       </div>
     </aside>
-    <main><header><div><span className="eyebrow">{demo ? 'LOCAL TRIAL' : shop?.name ?? 'BUSINESS WORKSPACE'}</span><h1>{page}</h1><p>{page === 'Materials' ? 'Manage materials, quantities and pricing requirements.' : 'Track work and keep every payment attached to its job.'}</p></div>
+    <main><header><div><span className="eyebrow">{demo ? 'LOCAL TRIAL' : shop?.name ?? 'BUSINESS WORKSPACE'}</span><h1>{page}</h1><p>{page === 'Materials' ? 'Manage materials, quantities and pricing requirements.' : page === 'Stock History' ? 'Review every material change and stock adjustment.' : 'Track work and keep every payment attached to its job.'}</p></div>
       {!demo && <button className="secondary" onClick={sync} disabled={busy || !online || !shop || !ready}>{busy ? 'Working.' : 'Sync workspace'}</button>}</header>
       {needRefresh && <div className="notice">An app update is ready. <button className="secondary" disabled={busy} onClick={() => void updateServiceWorker(true)}>Update app</button></div>}
       {message && <div className="notice" role="status">{message}</div>}
@@ -226,9 +227,9 @@ export default function App() {
         <div className="material-actions"><button disabled={busy} onClick={() => void resolveConflict('local')}>Keep this device's version</button><button className="secondary" disabled={busy} onClick={() => void resolveConflict('cloud')}>Keep business version</button></div>
       </section>}
       {!demo && !shop ? <section className="auth-card"><h2>Create your business workspace</h2><p>Each business gets its own customers, jobs and payments.</p><form onSubmit={createWorkspace}><label>Business name<input name="businessName" maxLength={160} required /></label><button disabled={busy || !online}>Create workspace</button></form><p className="muted">If you should join an existing business, ask its administrator to add your account.</p></section> : <>
-        {page === 'Materials' ? <MaterialsPage key={scope} materials={ledger.materials} ready={ready} busy={busy || !!conflict}
+        {page === 'Materials' ? <MaterialsPage key={scope} materials={ledger.materials} history={ledger.materialHistory} ready={ready} busy={busy || !!conflict}
           actor={{ id: demo ? 'local-trial' : session!.user.id, label: demo ? 'Local trial user' : session!.user.user_metadata.full_name || session!.user.email || session!.user.id }}
-          onSave={saveMaterial} /> : <>
+          onSave={saveMaterial} /> : page === 'Stock History' ? <StockHistoryPage key={scope} history={ledger.materialHistory} materials={ledger.materials} pending={state.pending} ready={ready} demo={demo} /> : <>
         <section className="stats"><article><span>Total job value</span><strong>{currency(total)}</strong><small>{ledger.jobs.length} jobs</small></article>
           <article><span>Payments received</span><strong>{currency(paid)}</strong><small>Allocated to individual jobs</small></article>
           <article><span>Outstanding</span><strong>{currency(total - paid)}</strong><small>{ledger.jobs.filter(job => jobBalance(ledger, job).outstanding > 0).length} jobs awaiting payment</small></article></section>

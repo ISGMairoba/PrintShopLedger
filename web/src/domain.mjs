@@ -1,7 +1,7 @@
 import { applyMaterialEvent, normalizeLedger } from './materials.mjs';
 
 // Money is stored as integer kobo. Customer balances are derived from jobs.
-export const emptyLedger = () => ({ customers: [], jobs: [], payments: [], materials: [] });
+export const emptyLedger = () => ({ customers: [], jobs: [], payments: [], materials: [], materialHistory: [] });
 export function money(value) {
   const text = String(value).trim();
   if (!/^\d+(\.\d{1,2})?$/.test(text)) throw new Error('Enter an amount with at most two decimal places.');

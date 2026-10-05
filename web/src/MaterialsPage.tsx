@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from 'react';
-import type { Material, MaterialEvent } from './types';
+import { materialCode, stockReasonDefaults, stockReasonSuggestions } from './material-display.mjs';
+import type { Material, MaterialEvent, MaterialHistoryEntry } from './types';
 
-type Props = { materials: Material[]; ready: boolean; busy: boolean; actor: { id: string; label: string }; onSave: (event: MaterialEvent) => Promise<void> };
+type Props = { history: MaterialHistoryEntry[]; materials: Material[]; ready: boolean; busy: boolean; actor: { id: string; label: string }; onSave: (event: MaterialEvent) => Promise<void> };
 const timestamp = (value: string) => new Date(value).toLocaleString();
-export default function MaterialsPage({ materials, ready, busy, actor, onSave }: Props) {
+export default function MaterialsPage({ materials, history, ready, busy, actor, onSave }: Props) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('active');
   const [editor, setEditor] = useState<Material | 'new' | null>(null);
@@ -11,9 +12,11 @@ export default function MaterialsPage({ materials, ready, busy, actor, onSave }:
   const [error, setError] = useState('');
   const [audit, setAudit] = useState(false);
   const [stock, setStock] = useState<{ material: Material; mode: 'add' | 'set' } | null>(null);
+  const [stockReason, setStockReason] = useState('');
+  const noteSuggestions = stockReasonSuggestions(history);
   const editing = editor && editor !== 'new' ? editor : null;
   const visible = materials.filter(material => (filter === 'all' || material.archived === (filter === 'archived'))
-    && `${material.name} ${material.id} ${material.measurementUnit}`.toLowerCase().includes(query.toLowerCase()));
+    && `${material.name} ${material.id} ${materialCode(material.id, materials)} ${material.measurementUnit}`.toLowerCase().includes(query.toLowerCase()));
   async function commit(kind: MaterialEvent['kind'], data: MaterialEvent['data']) {
     setError('');
     try {
@@ -44,15 +47,16 @@ export default function MaterialsPage({ materials, ready, busy, actor, onSave }:
         <button disabled={!ready || busy} onClick={() => { setEditor('new'); setConfirmation(null); setStock(null); setError(''); }}>+ Add material</button></div>
       {!ready ? <div className="empty">Loading materials.</div> : !visible.length ? <div className="empty"><h2>{query ? 'No matching materials' : filter === 'archived' ? 'No archived materials' : 'No materials yet'}</h2><p>{query ? 'Try another name, ID or unit.' : 'Add materials to manage stock and define how each one is priced.'}</p></div> :
         <div className="table-wrap"><table className="materials-table"><thead><tr><th>Material / unique ID</th>
-          {audit ? <><th>Created by</th><th>Created at</th><th>Modified by</th><th>Modified at</th></> : <><th>Available</th><th>Measurement unit</th><th>Require size</th><th>Status</th></>}<th>Actions</th></tr></thead><tbody>
-          {visible.map(material => <tr key={material.id}><td><strong>{material.name}</strong><small className="material-id">{material.id}</small></td>
-            {audit ? <><td>{material.createdByLabel}<small className="material-id">{material.createdBy}</small></td><td>{timestamp(material.createdAt)}</td><td>{material.modifiedByLabel}<small className="material-id">{material.modifiedBy}</small></td><td>{timestamp(material.modifiedAt)}</td></> :
-              <><td>{material.available.toLocaleString(undefined, { maximumFractionDigits: 3 })}</td><td>{material.measurementUnit}</td><td>{material.requireSize ? 'Yes' : 'No'}</td><td><span className={`badge ${material.archived ? 'unpaid' : 'paid'}`}>{material.archived ? 'Archived' : 'Active'}</span></td></>}
+          <th>Available</th><th>Measurement unit</th><th>Require size</th><th>Status</th>{audit && <><th>Created by</th><th>Created at</th><th>Modified by</th><th>Modified at</th></>}<th>Actions</th></tr></thead><tbody>
+          {visible.map(material => <tr key={material.id}><td><strong>{material.name}</strong><small className="material-id">{materialCode(material.id, materials)}</small></td>
+
+              <td>{material.available.toLocaleString(undefined, { maximumFractionDigits: 3 })}</td><td>{material.measurementUnit}</td><td>{material.requireSize ? 'Yes' : 'No'}</td><td><span className={`badge ${material.archived ? 'unpaid' : 'paid'}`}>{material.archived ? 'Archived' : 'Active'}</span></td>
+            {audit && <><td>{material.createdByLabel}</td><td>{timestamp(material.createdAt)}</td><td>{material.modifiedByLabel}</td><td>{timestamp(material.modifiedAt)}</td></>}
             <td><div className="material-actions">{!material.archived && <>
               <button className="text-button" disabled={busy} onClick={() => { setEditor(material); setConfirmation(null); setStock(null); setError(''); }}>Edit</button>
-              <button className="text-button" disabled={busy} onClick={() => { setStock({ material, mode: 'add' }); setEditor(null); setConfirmation(null); setError(''); }}>Add to stock</button>
-              <button className="text-button" disabled={busy} onClick={() => { setStock({ material, mode: 'set' }); setEditor(null); setConfirmation(null); setError(''); }}>Set quantity</button></>}
-              <button className="text-button" disabled={busy} onClick={() => { setConfirmation(material); setEditor(null); setStock(null); setError(''); }}>{material.archived ? 'Restore' : 'Archive'}</button></div></td></tr>)}
+              <button className="text-button" disabled={busy} onClick={() => { setStock({ material, mode: 'add' }); setStockReason('Restocking'); setEditor(null); setConfirmation(null); setError(''); }}>Add to stock</button>
+              <button className="text-button" disabled={busy} onClick={() => { setStock({ material, mode: 'set' }); setStockReason('Stock Count Correction'); setEditor(null); setConfirmation(null); setError(''); }}>Set quantity</button></>}
+              <button className={`text-button ${material.archived ? '' : 'danger-text'}`} disabled={busy} onClick={() => { setConfirmation(material); setEditor(null); setStock(null); setError(''); }}>{material.archived ? 'Restore' : 'Archive'}</button></div></td></tr>)}
         </tbody></table></div>}
     </section>
     {stock && <section className="panel editor" aria-label="Stock editor"><div className="toolbar"><h2>{stock.mode === 'add' ? 'Add to stock' : 'Set quantity'}: {stock.material.name}</h2><button className="secondary" disabled={busy} onClick={() => setStock(null)}>Cancel</button></div>
@@ -63,16 +67,18 @@ export default function MaterialsPage({ materials, ready, busy, actor, onSave }:
         await commit(stock.mode === 'add' ? 'material.stock_added' : 'material.stock_set', { id: stock.material.id, baseVersion: stock.material.version,
           quantity: Number(data.get('quantity')), reason: String(data.get('reason') ?? '').trim(), modifiedBy: actor.id, modifiedByLabel: actor.label, modifiedAt: '' });
       }}><fieldset disabled={busy}><div className="form-grid"><label>{stock.mode === 'add' ? 'Quantity to add' : 'New available quantity'}<input name="quantity" type="number" inputMode="decimal" min={stock.mode === 'add' ? '0.001' : '0'} max="1000000000000" step="0.001" defaultValue={stock.mode === 'set' ? stock.material.available : ''} required /></label>
-        <label>Reason / note<input name="reason" maxLength={500} placeholder="e.g. Delivery or stock count correction" /></label></div>
+        <label>Reason / note<input name="reason" list="stock-reason-suggestions" maxLength={500} value={stockReason} onChange={e => setStockReason(e.target.value)} placeholder="Choose a suggestion or enter your own note" /></label></div>
+        <datalist id="stock-reason-suggestions">{noteSuggestions.map(reason => <option key={reason} value={reason} />)}</datalist>
+        <div className="reason-options" aria-label="Suggested stock notes">{stockReasonDefaults.map(reason => <button type="button" className="secondary" key={reason} onClick={() => setStockReason(reason)}>{reason}</button>)}</div>
         <p className="muted">{stock.mode === 'add' ? 'This quantity will be added to the existing stock.' : 'This will replace the available quantity with the number you enter.'}</p>
         <button type="submit">{busy ? 'Saving...' : stock.mode === 'add' ? 'Add to stock' : 'Set quantity'}</button></fieldset></form></section>}
     {confirmation && <section className="panel editor" aria-label="Confirm material status change"><h2>{confirmation.archived ? 'Restore' : 'Archive'} {confirmation.name}?</h2>
       <p>{confirmation.archived ? 'The material will be active again.' : 'Its quantity and audit information will be kept. You can restore it later.'}</p>
-      <div className="material-actions"><button disabled={busy} onClick={() => void commit(confirmation.archived ? 'material.restored' : 'material.archived', { id: confirmation.id, baseVersion: confirmation.version, modifiedBy: actor.id, modifiedByLabel: actor.label, modifiedAt: '' })}>{busy ? 'Saving...' : confirmation.archived ? 'Restore material' : 'Archive material'}</button>
+      <div className="material-actions"><button className={confirmation.archived ? '' : 'danger-button'} disabled={busy} onClick={() => void commit(confirmation.archived ? 'material.restored' : 'material.archived', { id: confirmation.id, baseVersion: confirmation.version, modifiedBy: actor.id, modifiedByLabel: actor.label, modifiedAt: '' })}>{busy ? 'Saving...' : confirmation.archived ? 'Restore material' : 'Archive material'}</button>
         <button className="secondary" disabled={busy} onClick={() => setConfirmation(null)}>Cancel</button></div></section>}
     {editor && <section className="panel editor" aria-label="Material editor"><div className="toolbar"><h2>{editing ? 'Edit material' : 'Add material'}</h2><button className="secondary" disabled={busy} onClick={() => setEditor(null)}>Cancel</button></div>
       <form key={editing ? `${editing.id}:${editing.version}` : 'new'} onSubmit={submit}>
-        {editing ? <p className="material-id">Unique ID: {editing.id}</p> : <p className="muted">A permanent unique ID is generated when you save. New materials start with zero stock; use Add to stock afterwards.</p>}
+        {editing ? <p className="material-id">Material ID: {materialCode(editing.id, materials)}</p> : <p className="muted">A permanent unique ID is generated when you save. New materials start with zero stock; use Add to stock afterwards.</p>}
         <fieldset disabled={busy}><div className="form-grid"><label>Name<input name="name" defaultValue={editing?.name ?? ''} maxLength={160} required /></label>
           <label>Measurement unit<input name="measurementUnit" list="material-units" placeholder="e.g. sheet, metre, square metre" maxLength={40} defaultValue={editing?.measurementUnit ?? ''} required /></label>
           <label className="material-checkbox"><span><input name="requireSize" type="checkbox" defaultChecked={editing?.requireSize ?? false} /> Require size</span><small>Enable when the service price depends on dimensions. Otherwise pricing uses quantity only. Checkout calculations will be added in a later step.</small></label></div>

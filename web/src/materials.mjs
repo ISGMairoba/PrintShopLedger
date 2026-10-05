@@ -1,5 +1,6 @@
+import { materialSnapshot } from './material-display.mjs';
 export function normalizeLedger(ledger) {
-  return { ...ledger, materials: ledger.materials ?? [] };
+  return { ...ledger, materials: ledger.materials ?? [], materialHistory: ledger.materialHistory ?? [] };
 }
 export function validateMaterial(data) {
   if (typeof data.name !== 'string' || !data.name.trim() || data.name.trim().length > 160) throw new Error('Enter a material name (up to 160 characters).');
@@ -12,16 +13,21 @@ export function applyMaterialEvent(input, event) {
   const ledger = normalizeLedger(input);
   const data = event.data;
   if (!event.id || !data.id || !data.modifiedBy || !data.modifiedAt || Number.isNaN(Date.parse(data.modifiedAt))) throw new Error('Material identity and audit information are required.');
+  if (ledger.materialHistory.some(entry => entry.id === event.id)) return ledger;
   const existing = ledger.materials.find(material => material.id === data.id);
   if (existing?.lastEventId === event.id) return ledger;
   const audit = { modifiedBy: data.modifiedBy, modifiedByLabel: data.modifiedByLabel ?? data.modifiedBy, modifiedAt: data.modifiedAt, lastEventId: event.id };
+  const record = (next) => ({ id: event.id, materialId: next.id, materialName: next.name, measurementUnit: next.measurementUnit,
+    action: event.kind, beforeAvailable: existing?.available ?? null, afterAvailable: next.available,
+    reason: data.reason?.trim() ?? '', changedBy: next.modifiedBy, changedByLabel: next.modifiedByLabel, changedAt: next.modifiedAt,
+    before: materialSnapshot(existing), after: materialSnapshot(next), detailsComplete: true });
   let next;
   if (event.kind === 'material.created') {
     if (existing) throw new Error('This material ID is already in use.');
     validateMaterial(data);
     next = { id: data.id, name: data.name.trim(), available: data.available, measurementUnit: data.measurementUnit.trim(), requireSize: data.requireSize,
       archived: false, version: 1, createdBy: data.modifiedBy, createdByLabel: audit.modifiedByLabel, createdAt: data.modifiedAt, ...audit };
-    return { ...ledger, materials: [...ledger.materials, next] };
+    return { ...ledger, materials: [...ledger.materials, next], materialHistory: [...ledger.materialHistory, record(next)] };
   }
   if (!existing) throw new Error('Material not found.');
   if (data.baseVersion !== existing.version) throw new Error('This material changed elsewhere. Sync and reopen it before editing.');
@@ -42,5 +48,5 @@ export function applyMaterialEvent(input, event) {
     if (archived === existing.archived) throw new Error(archived ? 'Material is already archived.' : 'Material is already active.');
     next = { ...existing, archived, ...audit, version: existing.version + 1 };
   } else throw new Error('Unknown material operation.');
-  return { ...ledger, materials: ledger.materials.map(material => material.id === data.id ? next : material) };
+  return { ...ledger, materials: ledger.materials.map(material => material.id === data.id ? next : material), materialHistory: [...ledger.materialHistory, record(next)] };
 }

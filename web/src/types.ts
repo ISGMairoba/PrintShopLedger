@@ -5,6 +5,8 @@ export interface Payment { id: string; customerId: string; amount: number; metho
 export interface Material { id: string; name: string; available: number; measurementUnit: string; requireSize: boolean; archived: boolean; version: number; createdBy: string; createdByLabel: string; createdAt: string; modifiedBy: string; modifiedByLabel: string; modifiedAt: string; lastEventId: string }
 export interface MaterialCommand { id: string; name?: string; available?: number; measurementUnit?: string; requireSize?: boolean; baseVersion?: number; quantity?: number; reason?: string; modifiedBy: string; modifiedByLabel: string; modifiedAt: string }
 export type MaterialEvent = { id: string; kind: 'material.created' | 'material.updated' | 'material.archived' | 'material.restored' | 'material.stock_added' | 'material.stock_set'; data: MaterialCommand };
-export interface Ledger { materials: Material[]; customers: Customer[]; jobs: Job[]; payments: Payment[] }
+export interface MaterialSnapshot { name?: string; available?: number; measurementUnit?: string; requireSize?: boolean; archived?: boolean }
+export interface MaterialHistoryEntry { id: string; materialId: string; materialName: string; measurementUnit: string; action: MaterialEvent['kind']; beforeAvailable: number | null; afterAvailable: number; reason: string; changedBy: string; changedByLabel: string; changedAt: string; before: MaterialSnapshot | null; after: MaterialSnapshot; detailsComplete: boolean }
+export interface Ledger { materialHistory: MaterialHistoryEntry[]; materials: Material[]; customers: Customer[]; jobs: Job[]; payments: Payment[] }
 export type LedgerEvent = { id: string; kind: 'customer.created'; data: Customer } | { id: string; kind: 'job.created'; data: Job } | { id: string; kind: 'payment.recorded'; data: Payment } | MaterialEvent;
 export interface LocalState { ledger: Ledger; pending: LedgerEvent[]; lastSynced?: string }
