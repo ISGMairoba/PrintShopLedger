@@ -6,7 +6,7 @@ let previousOverflow = '';
 export default function Modal({ title, children, onClose, busy = false, wide = false }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const titleId = useId();
-  useEffect(() => {
+  useLayoutEffect(() => {
     const element = dialog.current!;
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     if (openModals++ === 0) { previousOverflow = document.body.style.overflow; document.body.style.overflow = 'hidden'; }
