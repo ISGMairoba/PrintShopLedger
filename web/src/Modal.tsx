@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useLayoutEffect, useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 type Props = { title: string; children: ReactNode; onClose: () => void; busy?: boolean; wide?: boolean };
 let openModals = 0;
@@ -8,6 +8,7 @@ export default function Modal({ title, children, onClose, busy = false, wide = f
   const titleId = useId();
   useEffect(() => {
     const element = dialog.current!;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     if (openModals++ === 0) { previousOverflow = document.body.style.overflow; document.body.style.overflow = 'hidden'; }
     element.showModal();
     const input = element.querySelector<HTMLElement>('input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])');
@@ -15,6 +16,7 @@ export default function Modal({ title, children, onClose, busy = false, wide = f
     return () => {
       element.close();
       if (--openModals === 0) document.body.style.overflow = previousOverflow;
+      queueMicrotask(() => { if (opener?.isConnected && !document.querySelector('dialog[open]')) opener.focus(); });
     };
   }, []);
   return createPortal(<dialog ref={dialog} className={`modal ${wide ? 'modal-wide' : ''}`} aria-labelledby={titleId} aria-modal="true" aria-busy={busy}

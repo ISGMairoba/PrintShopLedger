@@ -214,7 +214,7 @@ export default function App() {
           {shops.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><small>{shop?.role ?? 'No workspace assigned'}</small></>}
       </div>
       <nav aria-label="Main">{(['Jobs', 'Customers', 'Payments', 'Materials', 'Services', 'Stock History'] as Page[]).map((item, index) => <button key={item} className={page === item ? 'active' : ''}
-        onClick={() => { setPage(item); setSelectedJob(null); setForm(null); setQuery(''); }}><span>{['J', 'C', 'P', 'M', 'S', 'H'][index]}</span>{item}</button>)}</nav>
+        onClick={() => { setPage(item); setSelectedJob(null); setForm(null); setQuery(''); }}><span aria-hidden="true">{['J', 'C', 'P', 'M', 'S', 'H'][index]}</span>{item}</button>)}</nav>
       <div className="sidebar-bottom"><span className={`connection ${online ? 'online' : ''}`}>{online ? 'Online' : 'Offline'}</span>
         <small>{demo ? 'Data saved on this device' : `${state.pending.length} pending changes`}</small>
         {supabase && <button className="secondary" disabled={busy} onClick={async () => {

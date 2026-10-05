@@ -14,6 +14,7 @@ try {
   assert.ok(ready,'Preview server starts');
   browser=await chromium.launch({headless:true});
   const page=await browser.newPage({viewport:{width:1280,height:800}});
+  page.setDefaultTimeout(10000);
   await page.goto('http://127.0.0.1:4173');
   await page.getByRole('button',{name:'Try locally on this device'}).click();
   await page.getByRole('button',{name:'Materials',exact:true}).click();
