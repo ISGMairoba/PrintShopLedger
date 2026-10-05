@@ -1,3 +1,4 @@
+import Icon from './Icon';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import { useRegisterSW } from 'virtual:pwa-register/react';
@@ -232,7 +233,7 @@ export default function App() {
           {shops.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><small>{shop?.role ?? 'No workspace assigned'}</small></>}
       </div>
       <nav aria-label="Main">{(['Jobs', 'Customers', 'Payments', 'Materials', 'Services', 'Stock History'] as Page[]).map((item, index) => <button key={item} className={page === item ? 'active' : ''}
-        onClick={() => { setPage(item); setSelectedJob(null); setForm(null); setQuery(''); }}><span aria-hidden="true">{['J', 'C', 'P', 'M', 'S', 'H'][index]}</span>{item}</button>)}</nav>
+        onClick={() => { setPage(item); setSelectedJob(null); setForm(null); setQuery(''); }}><Icon name={(['jobs','customers','payments','materials','services','history'] as const)[index]}/>{item}</button>)}</nav>
       <div className="sidebar-bottom"><span className={`connection ${online ? 'online' : ''}`}>{online ? 'Online' : 'Offline'}</span>
         <small>{demo ? 'Data saved on this device' : `${state.pending.length} pending changes`}</small>
         {supabase && <button className="secondary" disabled={busy} onClick={async () => {
@@ -243,7 +244,7 @@ export default function App() {
       </div>
     </aside>
     <main><header><div><span className="eyebrow">{demo ? 'LOCAL TRIAL' : shop?.name ?? 'BUSINESS WORKSPACE'}</span><h1>{page}</h1><p>{page === 'Customers' ? 'Manage customer details and credit limits.' : page === 'Materials' ? 'Manage materials, quantities and pricing requirements.' : page === 'Stock History' ? 'Review every material change and stock adjustment.' : page === 'Services' ? 'Define services, their base materials and prices.' : 'Track work and keep every payment attached to its job.'}</p></div>
-      {!demo && <button className="secondary" onClick={sync} disabled={busy || !online || !shop || !ready}>{busy ? 'Working.' : 'Sync workspace'}</button>}</header>
+      {!demo && <button className="secondary" onClick={sync} disabled={busy || !online || !shop || !ready}><Icon name="sync"/> {busy ? 'Working.' : 'Sync workspace'}</button>}</header>
       {needRefresh && <div className="notice">An app update is ready. <button className="secondary" disabled={busy} onClick={() => void updateServiceWorker(true)}>Update app</button></div>}
       {message && <div className="notice" role="status">{message}</div>}
       {customerConflict && <Modal title="Review conflicting customer edits" wide busy={busy} onClose={() => setCustomerConflict(null)}>
@@ -283,7 +284,7 @@ export default function App() {
         </select></label><button className="secondary" onClick={()=>{const sorting=page==='Jobs'?jobSorting:paymentSorting;sorting.toggle(sorting.key);}}>{(page==='Jobs'?jobSorting:paymentSorting).direction==='asc'?'Ascending ↑':'Descending ↓'}</button><input aria-label={`Search ${page.toLowerCase()}`} placeholder={`Search ${page.toLowerCase()}.`} value={query} onChange={e => setQuery(e.target.value)} />
           <button disabled={!ready || busy || !ledger.customers.length} onClick={() => {
             setMessage(''); if (page === 'Payments') openPayment(); else setForm('job');
-          }}>+ {page === 'Jobs' ? 'New job' : 'Record payment'}</button></div>
+          }}><Icon name="add"/> {page === 'Jobs' ? 'New job' : 'Record payment'}</button></div>
           {!ready ? <div className="empty">Loading saved records.</div> : page === 'Jobs' ? <>
             {!ledger.jobs.length ? <div className="empty"><div className="empty-icon">?</div><h2>Your jobs start here</h2><p>Add a customer, create their job, then record payments against it.</p>
               {!ledger.customers.length && <button onClick={() => setForm('customer')}>Add your first customer</button>}</div> : <div className="table-wrap"><table><thead><tr><SortHeader label="Job / service" column="description" sort={jobSorting}/><SortHeader label="Customer" column="customer" sort={jobSorting}/><SortHeader label="Job amount" column="amount" sort={jobSorting}/><SortHeader label="Paid" column="paid" sort={jobSorting}/><SortHeader label="Outstanding" column="outstanding" sort={jobSorting}/><SortHeader label="Status" column="status" sort={jobSorting}/></tr></thead><tbody>

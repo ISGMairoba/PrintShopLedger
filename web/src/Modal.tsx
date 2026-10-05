@@ -1,3 +1,4 @@
+import Icon from './Icon';
 import { useLayoutEffect, useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 type Props = { title: string; children: ReactNode; onClose: () => void; busy?: boolean; wide?: boolean };
@@ -31,7 +32,7 @@ export default function Modal({ title, children, onClose, busy = false, wide = f
       else if (!event.shiftKey && (document.activeElement === last || !element.contains(document.activeElement))) { event.preventDefault(); first.focus(); }
     }}
     onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}>
-    <div className="modal-header"><h2 id={titleId}>{title}</h2><button type="button" className="secondary modal-close" disabled={busy} onClick={onClose}>Close</button></div>
+    <div className="modal-header"><h2 id={titleId}>{title}</h2><button type="button" className="secondary modal-close" aria-label="Close" title="Close" disabled={busy} onClick={onClose}><Icon name="close"/></button></div>
     <div className="modal-body">{children}</div>
   </dialog>, document.body);
 }

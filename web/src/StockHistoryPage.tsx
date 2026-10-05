@@ -1,3 +1,4 @@
+import Icon from './Icon';
 import { useState } from 'react';
 import Modal from './Modal';
 import { SortHeader, useTableSort } from './TableSort';
@@ -49,7 +50,7 @@ export default function StockHistoryPage({ history, materials, pending, ready, d
           <td>{entry.beforeAvailable == null ? '-' : `${entry.afterAvailable > entry.beforeAvailable ? '+' : ''}${quantity(Math.round((entry.afterAvailable - entry.beforeAvailable) * 1000) / 1000)}`}</td>
           <td>{materialActionLabels[entry.action]}<small>{demo ? 'On this device' : pendingIds.has(entry.id) ? 'Pending sync' : 'Synced'}</small></td>
           <td>{entry.reason || '-'}</td><td>{entry.changedByLabel}</td><td>{dateLabel(entry.changedAt)}</td>
-          <td><button className="text-button" onClick={() => setSelected(entry)}>Details</button></td></tr>)}
+          <td><button className="text-button" onClick={() => setSelected(entry)}><Icon name="details"/> Details</button></td></tr>)}
       </tbody></table></div>}
       {ready && matching.length > 0 && <div className="toolbar history-pagination"><span>{activePage * 50 + 1}-{Math.min((activePage + 1) * 50, matching.length)} of {matching.length} changes</span>
         <button className="secondary" disabled={activePage === 0} onClick={() => setPage(activePage - 1)}>Previous</button>

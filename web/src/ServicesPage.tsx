@@ -1,3 +1,4 @@
+import Icon from './Icon';
 import { useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import { SortHeader, useTableSort } from './TableSort';
@@ -45,8 +46,8 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
     {ready && !activeMaterials.length && <div className="notice">Add or restore a material on the Materials page before creating a service.</div>}
     <section className="panel"><div className="toolbar service-toolbar"><input aria-label="Search services" placeholder="Search description, ID, material or price" value={query} onChange={e => setQuery(e.target.value)} />
       <select aria-label="Service status" value={filter} onChange={e => setFilter(e.target.value)}><option value="active">Active</option><option value="archived">Archived</option><option value="all">All services</option></select>
-      <button className="secondary" aria-pressed={audit} onClick={() => setAudit(!audit)}>{audit ? 'Normal view' : 'Audit view'}</button>
-      <button disabled={!ready || busy || !activeMaterials.length} onClick={() => { setEditor('new'); setConfirmation(null); setError(''); }}>+ Add service</button></div>
+      <button className="secondary" aria-pressed={audit} onClick={() => setAudit(!audit)}><Icon name={audit?'table':'audit'}/> {audit ? 'Normal view' : 'Audit view'}</button>
+      <button disabled={!ready || busy || !activeMaterials.length} onClick={() => { setEditor('new'); setConfirmation(null); setError(''); }}><Icon name="add"/> Add service</button></div>
       {!ready ? <div className="empty">Loading services.</div> : !visible.length ? <div className="empty"><h2>{query ? 'No matching services' : filter === 'archived' ? 'No archived services' : 'No services yet'}</h2>
         <p>{query ? 'Search by service description, ID, base material or price.' : 'Create services such as Colour printing and Black printing, each with its own price.'}</p></div> :
         <div className="table-wrap"><table><thead><tr><SortHeader label="Service ID" column="id" sort={sorting} /><SortHeader label="Description" column="description" sort={sorting} /><SortHeader label="Base material" column="material" sort={sorting} /><SortHeader label="Price" column="price" sort={sorting} /><SortHeader label="Status" column="status" sort={sorting} />
@@ -56,8 +57,8 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
             <td>{material?.name ?? 'Material unavailable'}<small>{material ? materialCode(material.id, materials) : ''}{material?.archived ? ' · Archived material' : ''}</small></td>
             <td>{servicePrice(service.price)}</td><td><span className={`badge ${service.archived ? 'unpaid' : 'paid'}`}>{service.archived ? 'Archived' : 'Active'}</span></td>
             {audit && <><td>{service.createdByLabel}</td><td>{timestamp(service.createdAt)}</td><td>{service.modifiedByLabel}</td><td>{timestamp(service.modifiedAt)}</td></>}
-            <td><div className="material-actions">{!service.archived && <button className="text-button" disabled={busy} onClick={() => { setEditor(service); setConfirmation(null); setError(''); }}>Edit</button>}
-              <button className={`text-button ${service.archived ? '' : 'danger-text'}`} disabled={busy} onClick={() => { setConfirmation(service); setEditor(null); setError(''); }}>{service.archived ? 'Restore' : 'Archive'}</button></div></td>
+            <td><div className="material-actions">{!service.archived && <button className="text-button" disabled={busy} onClick={() => { setEditor(service); setConfirmation(null); setError(''); }}><Icon name="edit"/> Edit</button>}
+              <button className={`text-button ${service.archived ? '' : 'danger-text'}`} disabled={busy} onClick={() => { setConfirmation(service); setEditor(null); setError(''); }}><Icon name={service.archived?'restore':'archive'}/> {service.archived ? 'Restore' : 'Archive'}</button></div></td>
           </tr>; })}</tbody></table></div>}
     </section>
     {confirmation && <Modal title={`${confirmation.archived ? 'Restore' : 'Archive'} ${confirmation.description}?`} busy={busy} onClose={() => setConfirmation(null)}>
@@ -73,6 +74,6 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
         <label>Base material<select name="material" defaultValue={editing?.materialId ?? ''} required><option value="" disabled>Select material</option>{options.map(item => <option key={item.id} value={item.id}>{item.name} ({materialCode(item.id, materials)}){item.archived ? ' · Archived' : ''}</option>)}</select></label>
         <label>Price (₦)<input name="price" type="number" inputMode="decimal" min="0" max="1000000000" step="0.01" defaultValue={editing ? (editing.price / 100).toFixed(2) : ''} required /></label></div>
         <p className="muted">Several services can share the same base material. Checkout pricing will use that material's Require Size setting.</p>
-        <button type="submit">{busy ? 'Saving...' : 'Save service'}</button></fieldset></form></Modal>}
+        <button type="submit"><Icon name="save"/> {busy ? 'Saving...' : 'Save service'}</button></fieldset></form></Modal>}
   </>;
 }

@@ -18,7 +18,7 @@ try {
   await page.goto('http://127.0.0.1:4173');
   await page.getByRole('button',{name:'Try locally on this device'}).click();
   await page.getByRole('button',{name:'Materials',exact:true}).click();
-  const add=page.getByRole('button',{name:'+ Add material',exact:true});
+  const add=page.getByRole('button',{name:'Add material',exact:true});
   await add.click();
   let dialog=page.getByRole('dialog',{name:'Add material',exact:true});
   await dialog.waitFor();
@@ -50,7 +50,7 @@ try {
   await page.getByRole('button',{name:'Archive',exact:true}).click();
   await page.getByRole('dialog',{name:'Archive Modal test paper?'}).getByRole('button',{name:'Cancel',exact:true}).click();
   await page.getByRole('button',{name:'Services',exact:true}).click();
-  await page.getByRole('button',{name:'+ Add service',exact:true}).click();
+  await page.getByRole('button',{name:'Add service',exact:true}).click();
   dialog=page.getByRole('dialog',{name:'Add service'});
   await dialog.getByLabel('Service description').fill('Modal test printing');
   await dialog.getByLabel('Base material').selectOption({index:1});
@@ -60,7 +60,7 @@ try {
   await page.getByRole('button',{name:'Edit',exact:true}).click();
   await page.getByRole('dialog',{name:'Edit service'}).getByRole('button',{name:'Close',exact:true}).click();
   await page.getByRole('button',{name:'Customers',exact:true}).click();
-  await page.getByRole('button',{name:'+ Add customer',exact:true}).click();
+  await page.getByRole('button',{name:'Add customer',exact:true}).click();
   dialog=page.getByRole('dialog',{name:'Add customer'});
   await dialog.getByLabel('Full name').fill('Modal test customer');
   await dialog.getByLabel('Phone number').fill('08012345678');
@@ -95,7 +95,7 @@ try {
   await page.getByLabel('Search customers').fill('');
   await page.getByRole('button',{name:'Audit view',exact:true}).click();
   assert.equal(await page.locator('thead th').count(),13,'Audit contains normal and audit columns');
-  await page.getByRole('button',{name:'+ Add customer',exact:true}).click();
+  await page.getByRole('button',{name:'Add customer',exact:true}).click();
   dialog=page.getByRole('dialog',{name:'Add customer'});
   await dialog.getByLabel('Full name').fill('Alpha customer');
   await dialog.getByLabel('Phone number').fill('080999');
@@ -107,12 +107,12 @@ try {
   await page.getByRole('button',{name:'Credit limit',exact:true}).click();
   assert.match(await page.locator('tbody tr').first().innerText(),/Alpha customer/,'Numeric ascending credit sort');
   await page.getByRole('navigation',{name:'Main'}).getByRole('button',{name:'Jobs',exact:true}).click();
-  await page.getByRole('button',{name:'+ New job',exact:true}).click();
+  await page.getByRole('button',{name:'New job',exact:true}).click();
   dialog=page.getByRole('dialog',{name:'Create a job'});
   await dialog.getByLabel('Customer').selectOption({index:1});
   await dialog.getByRole('button',{name:'Close',exact:true}).click();
   await page.getByRole('button',{name:'Payments',exact:true}).click();
-  await page.getByRole('button',{name:'+ Record payment',exact:true}).click();
+  await page.getByRole('button',{name:'Record payment',exact:true}).click();
   dialog=page.getByRole('dialog',{name:'Record a payment'});
   await dialog.getByLabel('Customer').selectOption({index:1});
   await page.keyboard.press('Escape');

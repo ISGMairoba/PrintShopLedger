@@ -1,3 +1,4 @@
+import Icon from './Icon';
 import { useState } from 'react';
 import { sortRows } from './table-sort.mjs';
 type Value = string | number | boolean | null | undefined;
@@ -13,7 +14,7 @@ export function SortHeader({ column, label, sort }: { column: string; label: str
   const active=sort.key===column;
   return <th scope="col" aria-sort={active ? sort.direction==='asc' ? 'ascending' : 'descending' : 'none'}>
     <button type="button" className="sort-button" onClick={()=>sort.toggle(column)} title={`Sort by ${label}`}>
-      {label}<span aria-hidden="true">{active ? sort.direction==='asc' ? ' ↑' : ' ↓' : ' ↕'}</span>
+      {label}<Icon name={active ? sort.direction==='asc' ? 'ascending':'descending':'sort'}/>
     </button>
   </th>;
 }
