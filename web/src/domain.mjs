@@ -1,3 +1,4 @@
+import { applyCustomerEvent } from './customers.mjs';
 import { applyServiceEvent } from './services.mjs';
 import { applyMaterialEvent, normalizeLedger } from './materials.mjs';
 
@@ -25,16 +26,11 @@ function positiveAmount(value) {
 }
 export function applyEvent(ledger, event) {
   ledger = normalizeLedger(ledger);
+  if (event.kind.startsWith('customer.')) return applyCustomerEvent(ledger,event);
   if (event.kind.startsWith('service.')) return applyServiceEvent(ledger, event);
   if (event.kind.startsWith('material.')) return applyMaterialEvent(ledger, event);
   const data = event.data;
   if (!event.id || !data.id) throw new Error('Missing record identifier.');
-  if (event.kind === 'customer.created') {
-    if (!data.name?.trim()) throw new Error('Customer name is required.');
-    if (data.name.length > 160 || (data.phone ?? '').length > 40) throw new Error('Customer name or phone is too long.');
-    if (ledger.customers.some(customer => customer.id === data.id)) return ledger;
-    return { ...ledger, customers: [...ledger.customers, data] };
-  }
   if (event.kind === 'job.created') {
     if (ledger.jobs.some(job => job.id === data.id)) return ledger;
     if (!ledger.customers.some(customer => customer.id === data.customerId)) throw new Error('Customer does not exist.');

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Modal from './Modal';
+import { SortHeader, useTableSort } from './TableSort';
 import { materialActionLabels, materialCode } from './material-display.mjs';
 import type { LedgerEvent, Material, MaterialHistoryEntry, MaterialSnapshot } from './types';
 
@@ -19,12 +20,15 @@ export default function StockHistoryPage({ history, materials, pending, ready, d
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<MaterialHistoryEntry | null>(null);
   const pendingIds = new Set(pending.map(item => item.id));
-  const matching = [...history].filter(entry => {
+  const sorting = useTableSort<MaterialHistoryEntry>('date','desc');
+  const historySorting = { ...sorting, toggle: (key:string) => { sorting.toggle(key);setPage(0); } };
+  const matching = sorting.sortRows([...history].filter(entry => {
     const currentName = materials.find(item => item.id === entry.materialId)?.name ?? '';
     const text = `${entry.materialName} ${currentName} ${materialCode(entry.materialId, materials)} ${materialActionLabels[entry.action]} ${entry.reason} ${entry.changedByLabel}`.toLowerCase();
     const day = dateKey(entry.changedAt);
     return text.includes(search.toLowerCase()) && (!action || entry.action === action) && (!materialId || entry.materialId === materialId) && (!from || day >= from) && (!to || day <= to);
-  }).sort((a, b) => b.changedAt.localeCompare(a.changedAt) || b.id.localeCompare(a.id));
+  }), { material:item=>item.materialName, before:item=>item.beforeAvailable, after:item=>item.afterAvailable,
+    change:item=>item.beforeAvailable==null?null:item.afterAvailable-item.beforeAvailable, action:item=>materialActionLabels[item.action],reason:item=>item.reason,by:item=>item.changedByLabel,date:item=>Date.parse(item.changedAt) });
   const maxPage = Math.max(0, Math.ceil(matching.length / 50) - 1);
   const activePage = Math.min(page, maxPage);
   const visible = matching.slice(activePage * 50, activePage * 50 + 50);
@@ -39,7 +43,7 @@ export default function StockHistoryPage({ history, materials, pending, ready, d
       <button className="secondary" onClick={() => { setSearch(''); setAction(''); setMaterialId(''); setFrom(''); setTo(''); setPage(0); }}>Reset filters</button>
     </div>
     {!ready ? <div className="empty">Loading stock history.</div> : !matching.length ? <div className="empty"><h2>{history.length ? 'No matching changes' : 'No material changes yet'}</h2><p>{history.length ? 'Adjust the filters to find a record.' : 'Material creation, editing, stock changes, archive and restore will appear here.'}</p></div> :
-      <div className="table-wrap"><table><thead><tr><th>Material</th><th>Available before</th><th>Available after</th><th>Change</th><th>Action</th><th>Reason / note</th><th>Changed by</th><th>Date</th><th></th></tr></thead><tbody>
+      <div className="table-wrap"><table><thead><tr><SortHeader label="Material" column="material" sort={historySorting} /><SortHeader label="Available before" column="before" sort={historySorting} /><SortHeader label="Available after" column="after" sort={historySorting} /><SortHeader label="Change" column="change" sort={historySorting} /><SortHeader label="Action" column="action" sort={historySorting} /><SortHeader label="Reason / note" column="reason" sort={historySorting} /><SortHeader label="Changed by" column="by" sort={historySorting} /><SortHeader label="Date" column="date" sort={historySorting} /><th></th></tr></thead><tbody>
         {visible.map(entry => <tr key={entry.id}><td><strong>{entry.materialName}</strong><small>{materialCode(entry.materialId, materials)}</small></td>
           <td>{quantity(entry.beforeAvailable)}</td><td>{quantity(entry.afterAvailable)}<small>{entry.measurementUnit}</small></td>
           <td>{entry.beforeAvailable == null ? '-' : `${entry.afterAvailable > entry.beforeAvailable ? '+' : ''}${quantity(Math.round((entry.afterAvailable - entry.beforeAvailable) * 1000) / 1000)}`}</td>

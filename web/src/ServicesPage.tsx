@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import Modal from './Modal';
+import { SortHeader, useTableSort } from './TableSort';
 import { money } from './domain.mjs';
 import { materialCode } from './material-display.mjs';
 import { serviceCode, serviceMatches, servicePrice } from './services.mjs';
@@ -16,8 +17,10 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
   const editing = editor && editor !== 'new' ? editor : null;
   const activeMaterials = materials.filter(item => !item.archived);
   const options = materials.filter(item => !item.archived || item.id === editing?.materialId);
-  const visible = services.filter(item => (filter === 'all' || item.archived === (filter === 'archived')) && serviceMatches(item, materials, services, query))
-    .sort((a, b) => a.description.localeCompare(b.description));
+  const sorting = useTableSort<Service>('description');
+  const visible = sorting.sortRows(services.filter(item => (filter === 'all' || item.archived === (filter === 'archived')) && serviceMatches(item, materials, services, query)), {
+      id:item=>serviceCode(item.id,services),description:item=>item.description,material:item=>materials.find(material=>material.id===item.materialId)?.name,price:item=>item.price,
+      status:item=>item.archived?'Archived':'Active',createdBy:item=>item.createdByLabel,createdAt:item=>Date.parse(item.createdAt),modifiedBy:item=>item.modifiedByLabel,modifiedAt:item=>Date.parse(item.modifiedAt) });
   async function commit(kind: ServiceEvent['kind'], values: Omit<ServiceEvent['data'], 'modifiedBy' | 'modifiedByLabel' | 'modifiedAt'>) {
     setError('');
     try {
@@ -46,8 +49,8 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
       <button disabled={!ready || busy || !activeMaterials.length} onClick={() => { setEditor('new'); setConfirmation(null); setError(''); }}>+ Add service</button></div>
       {!ready ? <div className="empty">Loading services.</div> : !visible.length ? <div className="empty"><h2>{query ? 'No matching services' : filter === 'archived' ? 'No archived services' : 'No services yet'}</h2>
         <p>{query ? 'Search by service description, ID, base material or price.' : 'Create services such as Colour printing and Black printing, each with its own price.'}</p></div> :
-        <div className="table-wrap"><table><thead><tr><th>Service ID</th><th>Description</th><th>Base material</th><th>Price</th><th>Status</th>
-          {audit && <><th>Created by</th><th>Created at</th><th>Modified by</th><th>Modified at</th></>}<th>Actions</th></tr></thead><tbody>
+        <div className="table-wrap"><table><thead><tr><SortHeader label="Service ID" column="id" sort={sorting} /><SortHeader label="Description" column="description" sort={sorting} /><SortHeader label="Base material" column="material" sort={sorting} /><SortHeader label="Price" column="price" sort={sorting} /><SortHeader label="Status" column="status" sort={sorting} />
+          {audit && <><SortHeader label="Created by" column="createdBy" sort={sorting} /><SortHeader label="Created at" column="createdAt" sort={sorting} /><SortHeader label="Modified by" column="modifiedBy" sort={sorting} /><SortHeader label="Modified at" column="modifiedAt" sort={sorting} /></>}<th>Actions</th></tr></thead><tbody>
           {visible.map(service => { const material = materials.find(item => item.id === service.materialId); return <tr key={service.id}>
             <td className="material-id">{serviceCode(service.id, services)}</td><td><strong>{service.description}</strong></td>
             <td>{material?.name ?? 'Material unavailable'}<small>{material ? materialCode(material.id, materials) : ''}{material?.archived ? ' · Archived material' : ''}</small></td>

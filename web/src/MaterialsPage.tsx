@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import Modal from './Modal';
+import { SortHeader, useTableSort } from './TableSort';
 import { materialCode, stockReasonDefaults, stockReasonSuggestions } from './material-display.mjs';
 import type { Material, MaterialEvent, MaterialHistoryEntry } from './types';
 
@@ -16,8 +17,10 @@ export default function MaterialsPage({ materials, history, ready, busy, actor, 
   const [stockReason, setStockReason] = useState('');
   const noteSuggestions = stockReasonSuggestions(history);
   const editing = editor && editor !== 'new' ? editor : null;
-  const visible = materials.filter(material => (filter === 'all' || material.archived === (filter === 'archived'))
-    && `${material.name} ${material.id} ${materialCode(material.id, materials)} ${material.measurementUnit}`.toLowerCase().includes(query.toLowerCase()));
+  const sorting = useTableSort<Material>('name');
+  const visible = sorting.sortRows(materials.filter(material => (filter === 'all' || material.archived === (filter === 'archived'))
+    && `${material.name} ${material.id} ${materialCode(material.id, materials)} ${material.measurementUnit}`.toLowerCase().includes(query.toLowerCase())), { name: item=>item.name, id:item=>materialCode(item.id,materials), available:item=>item.available, unit:item=>item.measurementUnit,
+    requireSize:item=>item.requireSize, status:item=>item.archived?'Archived':'Active', createdBy:item=>item.createdByLabel,createdAt:item=>Date.parse(item.createdAt),modifiedBy:item=>item.modifiedByLabel,modifiedAt:item=>Date.parse(item.modifiedAt) });
   async function commit(kind: MaterialEvent['kind'], data: MaterialEvent['data']) {
     setError('');
     try {
@@ -47,9 +50,9 @@ export default function MaterialsPage({ materials, history, ready, busy, actor, 
         <button className="secondary" aria-pressed={audit} onClick={() => setAudit(!audit)}>{audit ? 'Normal view' : 'Audit view'}</button>
         <button disabled={!ready || busy} onClick={() => { setEditor('new'); setConfirmation(null); setStock(null); setError(''); }}>+ Add material</button></div>
       {!ready ? <div className="empty">Loading materials.</div> : !visible.length ? <div className="empty"><h2>{query ? 'No matching materials' : filter === 'archived' ? 'No archived materials' : 'No materials yet'}</h2><p>{query ? 'Try another name, ID or unit.' : 'Add materials to manage stock and define how each one is priced.'}</p></div> :
-        <div className="table-wrap"><table className="materials-table"><thead><tr><th>Material / unique ID</th>
-          <th>Available</th><th>Measurement unit</th><th>Require size</th><th>Status</th>{audit && <><th>Created by</th><th>Created at</th><th>Modified by</th><th>Modified at</th></>}<th>Actions</th></tr></thead><tbody>
-          {visible.map(material => <tr key={material.id}><td><strong>{material.name}</strong><small className="material-id">{materialCode(material.id, materials)}</small></td>
+        <div className="table-wrap"><table className="materials-table"><thead><tr><SortHeader label="Material" column="name" sort={sorting}/><SortHeader label="Material ID" column="id" sort={sorting}/>
+          <SortHeader label="Available" column="available" sort={sorting} /><SortHeader label="Measurement unit" column="unit" sort={sorting} /><SortHeader label="Require size" column="requireSize" sort={sorting} /><SortHeader label="Status" column="status" sort={sorting} />{audit && <><SortHeader label="Created by" column="createdBy" sort={sorting} /><SortHeader label="Created at" column="createdAt" sort={sorting} /><SortHeader label="Modified by" column="modifiedBy" sort={sorting} /><SortHeader label="Modified at" column="modifiedAt" sort={sorting} /></>}<th>Actions</th></tr></thead><tbody>
+          {visible.map(material => <tr key={material.id}><td><strong>{material.name}</strong></td><td className="material-id">{materialCode(material.id, materials)}</td>
 
               <td>{material.available.toLocaleString(undefined, { maximumFractionDigits: 3 })}</td><td>{material.measurementUnit}</td><td>{material.requireSize ? 'Yes' : 'No'}</td><td><span className={`badge ${material.archived ? 'unpaid' : 'paid'}`}>{material.archived ? 'Archived' : 'Active'}</span></td>
             {audit && <><td>{material.createdByLabel}</td><td>{timestamp(material.createdAt)}</td><td>{material.modifiedByLabel}</td><td>{timestamp(material.modifiedAt)}</td></>}

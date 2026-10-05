@@ -1,0 +1,58 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { applyEvent, emptyLedger, customerBalance } from '../src/domain.mjs';
+import { createCustomerEvent, customerMatches, normalizeCustomer } from '../src/customers.mjs';
+import { resolveCustomerState } from '../src/customer-conflicts.mjs';
+import { sortRows } from '../src/table-sort.mjs';
+const actor={id:'test-user',label:'Test User'},now='2026-10-05T12:00:00.000Z';
+const create=()=>createCustomerEvent({name:' Jane Doe ',phone:'08012345678',address:'Market Road',creditLimit:12345},actor,(()=>{let i=0;return()=>String(++i)})(),now);
+const edit=(kind,version,values={})=>({id:kind+version,kind,data:{id:'2',baseVersion:version,modifiedBy:actor.id,modifiedByLabel:actor.label,modifiedAt:now,...values}});
+test('customer creation trims fields and keeps audit, cents and distinct IDs',()=>{
+ const event=create(),ledger=applyEvent(emptyLedger(),event),c=ledger.customers[0];
+ assert.notEqual(event.id,event.data.id);assert.equal(c.name,'Jane Doe');assert.equal(c.creditLimit,12345);assert.equal(c.createdByLabel,'Test User');assert.equal(c.version,1);
+ assert.deepEqual(applyEvent(ledger,event),ledger);
+});
+test('name and phone required; optional address; limits reject negative and fractional kobo',()=>{
+ for(const values of [{name:''},{phone:''},{creditLimit:-1},{creditLimit:0.5},{creditLimit:100000000001}])
+ assert.throws(()=>createCustomerEvent({...create().data,...values},actor));
+ assert.equal(createCustomerEvent({name:'A',phone:'1'},actor,()=> 'id',now).data.address,'');
+});
+test('edits preserve creation audit; archive and restore retain jobs and payments',()=>{
+ let ledger=applyEvent(emptyLedger(),create());
+ ledger=applyEvent(ledger,{id:'job-event',kind:'job.created',data:{id:'job',customerId:'2',description:'Job',service:'Print',amount:10000,createdAt:now}});
+ const original=ledger.customers[0],jobs=ledger.jobs,payments=ledger.payments;
+ ledger=applyEvent(ledger,edit('customer.updated',1,{name:'Jane Updated',phone:'123',address:'New Road',creditLimit:0}));
+ assert.equal(ledger.customers[0].createdAt,original.createdAt);assert.equal(ledger.customers[0].createdBy,original.createdBy);
+ ledger=applyEvent(ledger,edit('customer.archived',2));assert.equal(ledger.customers[0].archived,true);
+ assert.equal(ledger.jobs,jobs);assert.equal(ledger.payments,payments);assert.equal(customerBalance(ledger,'2'),10000);
+ assert.throws(()=>applyEvent(ledger,edit('customer.updated',3,{name:'Jane',phone:'1'})),/Restore/);
+ ledger=applyEvent(ledger,edit('customer.restored',3));assert.equal(ledger.customers[0].archived,false);
+ assert.throws(()=>applyEvent(ledger,edit('customer.archived',1)),/changed elsewhere/);
+});
+test('legacy customers and queued creates remain usable',()=>{
+ const old={id:'old',name:'Old customer',phone:'',createdAt:now};
+ const ledger=applyEvent(emptyLedger(),{id:'legacy',kind:'customer.created',data:old});
+ assert.equal(ledger.customers[0].creditLimit,0);assert.equal(normalizeCustomer(old).modifiedByLabel,'Unknown (older record)');
+});
+test('search includes ID, address, phone, credit and hidden audit fields',()=>{
+ const c=applyEvent(emptyLedger(),create()).customers[0];
+ for(const q of ['jane','market','080123','123.45','test user','2026-10-05','active'])assert.ok(customerMatches(c,q,[c]),q);
+ assert.equal(customerMatches(c,'missing',[c]),false);
+});
+test('conflict choices preserve unrelated work and regenerate versioned edits',()=>{
+ const cloud=applyEvent(emptyLedger(),create());
+ const local=applyEvent(cloud,edit('customer.updated',1,{name:'Local',phone:'1',creditLimit:400}));
+ const remote=applyEvent(cloud,edit('customer.updated',1,{name:'Remote',phone:'2',creditLimit:500}));
+ const state={ledger:local,pending:[edit('customer.updated',1,{name:'Local',phone:'1',creditLimit:400})]};
+ const kept=resolveCustomerState(state,remote,'2','local',()=> 'fresh',now);
+ assert.equal(kept.ledger.customers[0].name,'Local');assert.equal(kept.pending[0].data.baseVersion,2);
+ const discarded=resolveCustomerState(state,remote,'2','cloud',()=> 'fresh',now);
+ assert.equal(discarded.ledger.customers[0].name,'Remote');assert.equal(discarded.pending.length,0);
+});
+test('sorting compares numeric quantities and prices, is stable and leaves input unchanged',()=>{
+ const rows=[{v:10,id:'a'},{v:2,id:'b'},{v:2,id:'c'},{v:null,id:'d'}];
+ assert.deepEqual(sortRows(rows,r=>r.v,'asc').map(r=>r.id),['b','c','a','d']);
+ assert.deepEqual(sortRows(rows,r=>r.v,'desc').map(r=>r.id),['a','b','c','d']);
+ assert.deepEqual(rows.map(r=>r.id),['a','b','c','d']);
+ assert.deepEqual(sortRows(['Item 10','item 2'],v=>v),['item 2','Item 10']);
+});

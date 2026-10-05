@@ -42,3 +42,11 @@ const serviceRpc = await fetch(url + '/rest/v1/rpc/apply_service_event', {
 const serviceBody = await serviceRpc.json();
 if (![401, 403].includes(serviceRpc.status) || serviceBody.code !== '42501') throw new Error('Services RPC is missing or permits anonymous execution.');
 console.log('Services RPC exists and requires sign-in.');
+
+const customerRpc = await fetch(url + '/rest/v1/rpc/apply_customer_event', {
+  method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ p_shop: null, p_event: {} }), signal: AbortSignal.timeout(20000)
+});
+const customerBody = await customerRpc.json();
+if (![401, 403].includes(customerRpc.status) || customerBody.code !== '42501') throw new Error('Customers RPC is missing or permits anonymous execution.');
+console.log('Customers RPC exists and requires sign-in.');

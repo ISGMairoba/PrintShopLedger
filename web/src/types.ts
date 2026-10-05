@@ -1,4 +1,6 @@
-export interface Customer { id: string; name: string; phone: string; createdAt: string }
+export interface Customer { id: string; name: string; phone: string; address: string; creditLimit: number; archived: boolean; version: number; createdAt: string; createdBy: string | null; createdByLabel: string; modifiedBy: string | null; modifiedByLabel: string; modifiedAt: string; lastEventId: string | null }
+export interface CustomerCommand { id: string; name?: string; phone?: string; address?: string; creditLimit?: number; createdAt?: string; baseVersion?: number; modifiedBy?: string; modifiedByLabel?: string; modifiedAt?: string }
+export type CustomerEvent = { id: string; kind: 'customer.created' | 'customer.updated' | 'customer.archived' | 'customer.restored'; data: CustomerCommand };
 export interface Job { id: string; customerId: string; service: string; description: string; amount: number; createdAt: string }
 export interface Allocation { jobId: string; amount: number }
 export interface Payment { id: string; customerId: string; amount: number; method: 'Cash' | 'POS' | 'Transfer'; paidOn: string; reference: string; allocations: Allocation[]; createdAt: string }
@@ -11,5 +13,5 @@ export interface Service { id: string; description: string; materialId: string; 
 export interface ServiceCommand { id: string; description?: string; materialId?: string; price?: number; baseVersion?: number; modifiedBy: string; modifiedByLabel: string; modifiedAt: string }
 export type ServiceEvent = { id: string; kind: 'service.created' | 'service.updated' | 'service.archived' | 'service.restored'; data: ServiceCommand };
 export interface Ledger { services: Service[]; materialHistory: MaterialHistoryEntry[]; materials: Material[]; customers: Customer[]; jobs: Job[]; payments: Payment[] }
-export type LedgerEvent = { id: string; kind: 'customer.created'; data: Customer } | { id: string; kind: 'job.created'; data: Job } | { id: string; kind: 'payment.recorded'; data: Payment } | MaterialEvent | ServiceEvent;
+export type LedgerEvent = CustomerEvent | { id: string; kind: 'job.created'; data: Job } | { id: string; kind: 'payment.recorded'; data: Payment } | MaterialEvent | ServiceEvent;
 export interface LocalState { ledger: Ledger; pending: LedgerEvent[]; lastSynced?: string }
