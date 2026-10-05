@@ -54,7 +54,7 @@ export async function syncLedger(scope: string, shopId: string) {
   return navigator.locks.request(`printshopledger-sync:${scope}`, () => synchronize(scope, shopId));
 }
 
-export async function resolveCloudMaterial(scope: string, shopId: string, materialId: string, choice: 'local' | 'cloud') {
+export async function resolveCloudMaterial(scope: string, shopId: string, materialId: string, choice: 'local' | 'cloud', reviewedLocalEvent: string, reviewedRemoteEvent: string) {
   if (!supabase || !navigator.onLine || !navigator.locks) throw new Error('Connect to the internet to resolve this edit.');
   return navigator.locks.request(`printshopledger-sync:${scope}`, async () => {
     const { data: auth, error: authError } = await supabase!.auth.getSession();
@@ -63,6 +63,12 @@ export async function resolveCloudMaterial(scope: string, shopId: string, materi
     if (error) throw new Error(error.message);
     const { data: checked } = await supabase!.auth.getSession();
     if (checked.session?.user.id !== scope.split(':')[0]) throw new Error('Your sign-in changed. Sign in again.');
-    return mutateState(scope, state => resolveMaterialState(state, normalizeLedger(data as Ledger), materialId, choice, () => crypto.randomUUID(), new Date().toISOString()));
+    return mutateState(scope, state => {
+      const remote = (data as Ledger).materials.find(item => item.id === materialId);
+      const local = state.ledger.materials.find(item => item.id === materialId);
+      if (!remote || !local) throw new Error('Material no longer available. Sync again.');
+      if (remote.lastEventId !== reviewedRemoteEvent || local.lastEventId !== reviewedLocalEvent) throw new MaterialSyncConflict(local, remote);
+      return resolveMaterialState(state, normalizeLedger(data as Ledger), materialId, choice, () => crypto.randomUUID(), new Date().toISOString());
+    });
   });
 }

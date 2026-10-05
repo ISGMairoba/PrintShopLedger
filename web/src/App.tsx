@@ -146,9 +146,9 @@ export default function App() {
     const target = scope;
     setBusy(true);
     try {
-      const next = await resolveCloudMaterial(target, shop.id, conflict.local.id, choice);
+      const next = await resolveCloudMaterial(target, shop.id, conflict.local.id, choice, conflict.local.lastEventId, conflict.remote.lastEventId);
       if (activeScope.current === target) { setState(next); setConflict(null); channel.current?.postMessage('changed'); setMessage('Choice saved. Sync workspace to continue sending pending changes.'); }
-    } catch (error) { if (activeScope.current === target) setMessage(errorMessage(error)); }
+    } catch (error) { if (activeScope.current === target) { setMessage(errorMessage(error)); if (error instanceof MaterialSyncConflict) setConflict(error); } }
     finally { setBusy(false); }
   }
   function openPayment(customerId = '', jobId = '') {
@@ -226,7 +226,7 @@ export default function App() {
         <div className="material-actions"><button disabled={busy} onClick={() => void resolveConflict('local')}>Keep this device's version</button><button className="secondary" disabled={busy} onClick={() => void resolveConflict('cloud')}>Keep business version</button></div>
       </section>}
       {!demo && !shop ? <section className="auth-card"><h2>Create your business workspace</h2><p>Each business gets its own customers, jobs and payments.</p><form onSubmit={createWorkspace}><label>Business name<input name="businessName" maxLength={160} required /></label><button disabled={busy || !online}>Create workspace</button></form><p className="muted">If you should join an existing business, ask its administrator to add your account.</p></section> : <>
-        {page === 'Materials' ? <MaterialsPage key={scope} materials={ledger.materials} ready={ready} busy={busy}
+        {page === 'Materials' ? <MaterialsPage key={scope} materials={ledger.materials} ready={ready} busy={busy || !!conflict}
           actor={{ id: demo ? 'local-trial' : session!.user.id, label: demo ? 'Local trial user' : session!.user.user_metadata.full_name || session!.user.email || session!.user.id }}
           onSave={saveMaterial} /> : <>
         <section className="stats"><article><span>Total job value</span><strong>{currency(total)}</strong><small>{ledger.jobs.length} jobs</small></article>
