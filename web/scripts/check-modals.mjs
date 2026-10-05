@@ -68,12 +68,12 @@ try {
   await page.getByRole('button',{name:'Jobs',exact:true}).click();
   await page.getByRole('button',{name:'+ New job',exact:true}).click();
   dialog=page.getByRole('dialog',{name:'Create a job'});
-  await dialog.getByLabel('Customer',{exact:true}).selectOption({index:1});
+  await dialog.getByLabel('Customer').selectOption({index:1});
   await dialog.getByRole('button',{name:'Close',exact:true}).click();
   await page.getByRole('button',{name:'Payments',exact:true}).click();
   await page.getByRole('button',{name:'+ Record payment',exact:true}).click();
   dialog=page.getByRole('dialog',{name:'Record a payment'});
-  await dialog.getByLabel('Customer',{exact:true}).selectOption({index:1});
+  await dialog.getByLabel('Customer').selectOption({index:1});
   await page.keyboard.press('Escape');
   await dialog.waitFor({state:'detached'});
   await page.getByRole('button',{name:'Stock History',exact:true}).click();
