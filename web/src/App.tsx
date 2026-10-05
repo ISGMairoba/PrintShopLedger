@@ -2,14 +2,16 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import type { Session } from '@supabase/supabase-js';
 import { applyEvent, customerBalance, emptyLedger, jobBalance, money } from './domain.mjs';
-import { supabase, syncLedger, MaterialSyncConflict, resolveCloudMaterial } from './cloud';
+import { supabase, syncLedger, MaterialSyncConflict, resolveCloudMaterial, ServiceSyncConflict, resolveCloudService } from './cloud';
 import { readState, saveEvent } from './storage';
 import MaterialsPage from './MaterialsPage';
+import ServicesPage from './ServicesPage';
+import ServiceConflictReview from './ServiceConflictReview';
 import StockHistoryPage from './StockHistoryPage';
-import type { LedgerEvent, LocalState, Payment, MaterialEvent } from './types';
+import type { LedgerEvent, LocalState, Payment, MaterialEvent, ServiceEvent } from './types';
 
 type Shop = { id: string; name: string; role: string };
-type Page = 'Jobs' | 'Customers' | 'Payments' | 'Materials' | 'Stock History';
+type Page = 'Jobs' | 'Customers' | 'Payments' | 'Materials' | 'Stock History' | 'Services';
 const currency = (amount: number) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount / 100);
 const shortId = (id: string) => id.slice(0, 8).toUpperCase();
 const today = () => {
@@ -37,6 +39,7 @@ export default function App() {
   const [allocations, setAllocations] = useState<Record<string, string>>({});
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [serviceConflict, setServiceConflict] = useState<ServiceSyncConflict | null>(null);
   const [conflict, setConflict] = useState<MaterialSyncConflict | null>(null);
   const [online, setOnline] = useState(navigator.onLine);
   const scope = demo ? 'local-trial' : session && shop ? `${session.user.id}:${shop.id}` : '';
@@ -88,7 +91,7 @@ export default function App() {
 
   useEffect(() => {
     setReady(false); setState({ ledger: emptyLedger(), pending: [] });
-    setForm(null); setSelectedJob(null); setQuery(''); setConflict(null);
+    setForm(null); setSelectedJob(null); setQuery(''); setConflict(null); setServiceConflict(null);
     if (!scope) return;
     let active = true;
     const refresh = () => readState(scope).then(value => { if (active) { setState(value); setReady(true); } })
@@ -106,7 +109,7 @@ export default function App() {
     setState(next); channel.current?.postMessage('changed'); setForm(null);
     setMessage(demo ? 'Saved on this device.' : 'Saved on this device. Sync to send it to your business workspace.');
   }
-  async function saveMaterial(operation: MaterialEvent) {
+  async function saveCatalogue(operation: MaterialEvent | ServiceEvent) {
     if (busy || !ready) throw new Error('Please wait until the workspace is ready.');
     setBusy(true); setMessage('');
     try { await save(operation); } finally { setBusy(false); }
@@ -139,7 +142,7 @@ export default function App() {
     try {
       const next = await syncLedger(target, shop.id);
       if (activeScope.current === target) { setState(next); channel.current?.postMessage('changed'); setMessage('Business workspace synced.'); }
-    } catch (error) { if (activeScope.current === target) { setMessage(errorMessage(error)); if (error instanceof MaterialSyncConflict) setConflict(error); } }
+    } catch (error) { if (activeScope.current === target) { setMessage(errorMessage(error)); if (error instanceof MaterialSyncConflict) setConflict(error); if (error instanceof ServiceSyncConflict) setServiceConflict(error); } }
     finally { setBusy(false); }
   }
   async function resolveConflict(choice: 'local' | 'cloud') {
@@ -150,6 +153,15 @@ export default function App() {
       const next = await resolveCloudMaterial(target, shop.id, conflict.local.id, choice, conflict.local.lastEventId, conflict.remote.lastEventId);
       if (activeScope.current === target) { setState(next); setConflict(null); channel.current?.postMessage('changed'); setMessage('Choice saved. Sync workspace to continue sending pending changes.'); }
     } catch (error) { if (activeScope.current === target) { setMessage(errorMessage(error)); if (error instanceof MaterialSyncConflict) setConflict(error); } }
+    finally { setBusy(false); }
+  }
+  async function resolveServiceConflict(choice: 'local' | 'cloud', materialId: string) {
+    if (!serviceConflict || !shop || busy) return;
+    const target = scope; setBusy(true);
+    try {
+      const next = await resolveCloudService(target, shop.id, serviceConflict.local.id, choice, serviceConflict.local.lastEventId, serviceConflict.remote?.lastEventId ?? null, materialId);
+      if (activeScope.current === target) { setState(next); setServiceConflict(null); channel.current?.postMessage('changed'); setMessage('Choice saved. Sync workspace to continue sending pending changes.'); }
+    } catch (error) { if (activeScope.current === target) { setMessage(errorMessage(error)); if (error instanceof ServiceSyncConflict) setServiceConflict(error); } }
     finally { setBusy(false); }
   }
   function openPayment(customerId = '', jobId = '') {
@@ -200,8 +212,8 @@ export default function App() {
         <><label>Business<select disabled={busy} value={shop?.id ?? ''} onChange={e => setShop(shops.find(item => item.id === e.target.value) ?? null)}>
           {shops.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><small>{shop?.role ?? 'No workspace assigned'}</small></>}
       </div>
-      <nav aria-label="Main">{(['Jobs', 'Customers', 'Payments', 'Materials', 'Stock History'] as Page[]).map((item, index) => <button key={item} className={page === item ? 'active' : ''}
-        onClick={() => { setPage(item); setSelectedJob(null); setForm(null); setQuery(''); }}><span>{['J', 'C', 'P', 'M', 'H'][index]}</span>{item}</button>)}</nav>
+      <nav aria-label="Main">{(['Jobs', 'Customers', 'Payments', 'Materials', 'Services', 'Stock History'] as Page[]).map((item, index) => <button key={item} className={page === item ? 'active' : ''}
+        onClick={() => { setPage(item); setSelectedJob(null); setForm(null); setQuery(''); }}><span>{['J', 'C', 'P', 'M', 'S', 'H'][index]}</span>{item}</button>)}</nav>
       <div className="sidebar-bottom"><span className={`connection ${online ? 'online' : ''}`}>{online ? 'Online' : 'Offline'}</span>
         <small>{demo ? 'Data saved on this device' : `${state.pending.length} pending changes`}</small>
         {supabase && <button className="secondary" disabled={busy} onClick={async () => {
@@ -211,10 +223,11 @@ export default function App() {
         }}>{demo ? 'Business sign in' : 'Sign out'}</button>}
       </div>
     </aside>
-    <main><header><div><span className="eyebrow">{demo ? 'LOCAL TRIAL' : shop?.name ?? 'BUSINESS WORKSPACE'}</span><h1>{page}</h1><p>{page === 'Materials' ? 'Manage materials, quantities and pricing requirements.' : page === 'Stock History' ? 'Review every material change and stock adjustment.' : 'Track work and keep every payment attached to its job.'}</p></div>
+    <main><header><div><span className="eyebrow">{demo ? 'LOCAL TRIAL' : shop?.name ?? 'BUSINESS WORKSPACE'}</span><h1>{page}</h1><p>{page === 'Materials' ? 'Manage materials, quantities and pricing requirements.' : page === 'Stock History' ? 'Review every material change and stock adjustment.' : page === 'Services' ? 'Define services, their base materials and prices.' : 'Track work and keep every payment attached to its job.'}</p></div>
       {!demo && <button className="secondary" onClick={sync} disabled={busy || !online || !shop || !ready}>{busy ? 'Working.' : 'Sync workspace'}</button>}</header>
       {needRefresh && <div className="notice">An app update is ready. <button className="secondary" disabled={busy} onClick={() => void updateServiceWorker(true)}>Update app</button></div>}
       {message && <div className="notice" role="status">{message}</div>}
+      {serviceConflict && <ServiceConflictReview key={serviceConflict.local.lastEventId + (serviceConflict.remote?.lastEventId ?? '') + serviceConflict.materials.map(item => item.lastEventId).join('')} conflict={serviceConflict} busy={busy} onResolve={resolveServiceConflict} />}
       {conflict && <section className="panel editor" aria-label="Resolve material edit"><h2>Review conflicting material edits</h2>
         <div className="table-wrap"><table><thead><tr><th>Field</th><th>This device</th><th>Business workspace</th></tr></thead><tbody>
           <tr><td>Name</td><td>{conflict.local.name}</td><td>{conflict.remote.name}</td></tr>
@@ -227,9 +240,10 @@ export default function App() {
         <div className="material-actions"><button disabled={busy} onClick={() => void resolveConflict('local')}>Keep this device's version</button><button className="secondary" disabled={busy} onClick={() => void resolveConflict('cloud')}>Keep business version</button></div>
       </section>}
       {!demo && !shop ? <section className="auth-card"><h2>Create your business workspace</h2><p>Each business gets its own customers, jobs and payments.</p><form onSubmit={createWorkspace}><label>Business name<input name="businessName" maxLength={160} required /></label><button disabled={busy || !online}>Create workspace</button></form><p className="muted">If you should join an existing business, ask its administrator to add your account.</p></section> : <>
-        {page === 'Materials' ? <MaterialsPage key={scope} materials={ledger.materials} history={ledger.materialHistory} ready={ready} busy={busy || !!conflict}
+        {page === 'Materials' ? <MaterialsPage key={scope} materials={ledger.materials} history={ledger.materialHistory} ready={ready} busy={busy || !!conflict || !!serviceConflict}
           actor={{ id: demo ? 'local-trial' : session!.user.id, label: demo ? 'Local trial user' : session!.user.user_metadata.full_name || session!.user.email || session!.user.id }}
-          onSave={saveMaterial} /> : page === 'Stock History' ? <StockHistoryPage key={scope} history={ledger.materialHistory} materials={ledger.materials} pending={state.pending} ready={ready} demo={demo} /> : <>
+          onSave={saveCatalogue} /> : page === 'Services' ? <ServicesPage key={scope} services={ledger.services} materials={ledger.materials} ready={ready} busy={busy || !!conflict || !!serviceConflict}
+          actor={{ id: demo ? 'local-trial' : session!.user.id, label: demo ? 'Local trial user' : session!.user.user_metadata.full_name || session!.user.email || session!.user.id }} onSave={saveCatalogue} /> : page === 'Stock History' ? <StockHistoryPage key={scope} history={ledger.materialHistory} materials={ledger.materials} pending={state.pending} ready={ready} demo={demo} /> : <>
         <section className="stats"><article><span>Total job value</span><strong>{currency(total)}</strong><small>{ledger.jobs.length} jobs</small></article>
           <article><span>Payments received</span><strong>{currency(paid)}</strong><small>Allocated to individual jobs</small></article>
           <article><span>Outstanding</span><strong>{currency(total - paid)}</strong><small>{ledger.jobs.filter(job => jobBalance(ledger, job).outstanding > 0).length} jobs awaiting payment</small></article></section>

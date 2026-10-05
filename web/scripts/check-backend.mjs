@@ -6,7 +6,7 @@ const headers = { apikey: key };
 const settings = await fetch(url + '/auth/v1/settings', { headers, signal: AbortSignal.timeout(20000) });
 if (!settings.ok) throw new Error('Supabase Auth is unreachable or the publishable key was rejected: HTTP ' + settings.status);
 console.log('Supabase URL and publishable key accepted.');
-for (const table of ['shops', 'shop_members', 'customers', 'jobs', 'payments', 'payment_allocations', 'ledger_events', 'materials', 'material_stock_changes']) {
+for (const table of ['shops', 'shop_members', 'customers', 'jobs', 'payments', 'payment_allocations', 'ledger_events', 'materials', 'material_stock_changes', 'services']) {
   const response = await fetch(url + '/rest/v1/' + table + '?select=*&limit=1', { headers, signal: AbortSignal.timeout(20000) });
   const body = await response.json();
   if (![401, 403].includes(response.status) || body.code !== '42501') {
@@ -34,3 +34,11 @@ if (![401, 403].includes(materialRpc.status) || materialBody.code !== '42501') {
   throw new Error('Materials RPC is missing or permits anonymous execution.');
 }
 console.log('Materials RPC exists and requires sign-in.');
+
+const serviceRpc = await fetch(url + '/rest/v1/rpc/apply_service_event', {
+  method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ p_shop: null, p_event: {} }), signal: AbortSignal.timeout(20000)
+});
+const serviceBody = await serviceRpc.json();
+if (![401, 403].includes(serviceRpc.status) || serviceBody.code !== '42501') throw new Error('Services RPC is missing or permits anonymous execution.');
+console.log('Services RPC exists and requires sign-in.');

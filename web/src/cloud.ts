@@ -3,12 +3,18 @@ import { applyEvent } from './domain.mjs';
 import { mutateState, readState } from './storage';
 import { normalizeLedger } from './materials.mjs';
 import { resolveMaterialState } from './material-conflicts.mjs';
-import type { Ledger, Material } from './types';
+import { resolveServiceState } from './service-conflicts.mjs';
+import type { Ledger, Material, Service } from './types';
 
 export class MaterialSyncConflict extends Error {
   constructor(public local: Material, public remote: Material) { super('This material was changed on another device. Choose which version to keep.'); }
 }
 
+export class ServiceSyncConflict extends Error {
+  constructor(public local: Service, public remote: Service | null, public materials: Material[]) {
+    super('Review this service against the latest business version and base materials before continuing sync.');
+  }
+}
 const url = import.meta.env.VITE_SUPABASE_URL;
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 export const supabase = url && key ? createClient(url, key) : null;
@@ -25,7 +31,16 @@ async function synchronize(scope: string, shopId: string) {
   // Stable UUIDs make retries safe. Failed operations remain in the outbox.
   for (const event of state.pending) {
     await requireSameUser();
-    const { error } = await supabase.rpc(event.kind.startsWith('material.') ? 'apply_material_event' : 'apply_ledger_event', { p_shop: shopId, p_event: event });
+    const { error } = await supabase.rpc(event.kind.startsWith('material.') ? 'apply_material_event' : event.kind.startsWith('service.') ? 'apply_service_event' : 'apply_ledger_event', { p_shop: shopId, p_event: event });
+    if (error && ['40001', 'P0002'].includes(error.code) && event.kind.startsWith('service.')) {
+      await requireSameUser();
+      const { data, error: readError } = await supabase.rpc('get_ledger', { p_shop: shopId });
+      if (readError) throw new Error(readError.message);
+      await requireSameUser();
+      const remote = (data as Ledger).services.find(item => item.id === event.data.id) ?? null;
+      const local = (await readState(scope)).ledger.services.find(item => item.id === event.data.id);
+      if (local) throw new ServiceSyncConflict(local, remote, (data as Ledger).materials);
+    }
     if (error?.code === '40001' && event.kind.startsWith('material.')) {
       await requireSameUser();
       const { data, error: readError } = await supabase.rpc('get_ledger', { p_shop: shopId });
@@ -69,6 +84,31 @@ export async function resolveCloudMaterial(scope: string, shopId: string, materi
       if (!remote || !local) throw new Error('Material no longer available. Sync again.');
       if (remote.lastEventId !== reviewedRemoteEvent || local.lastEventId !== reviewedLocalEvent) throw new MaterialSyncConflict(local, remote);
       return resolveMaterialState(state, normalizeLedger(data as Ledger), materialId, choice, () => crypto.randomUUID(), new Date().toISOString());
+    });
+  });
+}
+
+export async function resolveCloudService(scope: string, shopId: string, serviceId: string, choice: 'local' | 'cloud',
+  reviewedLocalEvent: string, reviewedRemoteEvent: string | null, materialId: string) {
+  if (!supabase || !navigator.onLine || !navigator.locks) throw new Error('Connect to the internet to resolve this service.');
+  return navigator.locks.request(`printshopledger-sync:${scope}`, async () => {
+    const { data: auth, error: authError } = await supabase!.auth.getSession();
+    if (authError || auth.session?.user.id !== scope.split(':')[0]) throw new Error('Your sign-in changed. Sign in again.');
+    const { data, error } = await supabase!.rpc('get_ledger', { p_shop: shopId });
+    if (error) throw new Error(error.message);
+    const { data: checked, error: checkError } = await supabase!.auth.getSession();
+    if (checkError || checked.session?.user.id !== scope.split(':')[0]) throw new Error('Your sign-in changed. Sign in again.');
+    const cloud = normalizeLedger(data as Ledger);
+    return mutateState(scope, state => {
+      const local = state.ledger.services.find(item => item.id === serviceId);
+      const remote = cloud.services.find((item: Service) => item.id === serviceId) ?? null;
+      if (!local) throw new Error('Local service is no longer available. Sync again.');
+      if (local.lastEventId !== reviewedLocalEvent || (remote?.lastEventId ?? null) !== reviewedRemoteEvent) throw new ServiceSyncConflict(local, remote, cloud.materials);
+      try { return resolveServiceState(state, cloud, serviceId, choice, materialId, () => crypto.randomUUID(), new Date().toISOString()); }
+      catch (cause) {
+        if (cause instanceof Error && /Choose.*(base material|active)/.test(cause.message)) throw new ServiceSyncConflict(local, remote, cloud.materials);
+        throw cause;
+      }
     });
   });
 }

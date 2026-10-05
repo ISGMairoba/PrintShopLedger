@@ -1,7 +1,8 @@
+import { applyServiceEvent } from './services.mjs';
 import { applyMaterialEvent, normalizeLedger } from './materials.mjs';
 
 // Money is stored as integer kobo. Customer balances are derived from jobs.
-export const emptyLedger = () => ({ customers: [], jobs: [], payments: [], materials: [], materialHistory: [] });
+export const emptyLedger = () => ({ customers: [], jobs: [], payments: [], materials: [], materialHistory: [], services: [] });
 export function money(value) {
   const text = String(value).trim();
   if (!/^\d+(\.\d{1,2})?$/.test(text)) throw new Error('Enter an amount with at most two decimal places.');
@@ -24,6 +25,7 @@ function positiveAmount(value) {
 }
 export function applyEvent(ledger, event) {
   ledger = normalizeLedger(ledger);
+  if (event.kind.startsWith('service.')) return applyServiceEvent(ledger, event);
   if (event.kind.startsWith('material.')) return applyMaterialEvent(ledger, event);
   const data = event.data;
   if (!event.id || !data.id) throw new Error('Missing record identifier.');
