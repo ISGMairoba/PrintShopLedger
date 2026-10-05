@@ -21,12 +21,13 @@ test('keeping cloud removes only conflicting material changes and preserves unre
 });
 test('keeping local rebases reviewed values on current version with new event ID', () => {
   const { state, cloud } = fixture();
-  const next = resolveMaterialState(state, cloud, 'm', 'local', () => 'resolved', '2026-10-05T11:00:00Z');
+  let id = 0;
+  const next = resolveMaterialState(state, cloud, 'm', 'local', () => 'resolved-' + ++id, '2026-10-05T11:00:00Z');
   assert.equal(next.ledger.materials[0].available, 20);
   assert.equal(next.ledger.materials[0].version, 4);
   assert.equal(next.ledger.materials[0].createdBy, 'u');
   assert.equal(next.pending[1].data.baseVersion, 2);
-  assert.equal(next.pending[1].id, 'resolved');
+  assert.equal(next.pending[1].id, 'resolved-1');
 });
 test('keeping a local archived material works when cloud also archived it', () => {
   const { state, cloud } = fixture();
