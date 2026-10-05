@@ -6,7 +6,7 @@ const headers = { apikey: key };
 const settings = await fetch(url + '/auth/v1/settings', { headers, signal: AbortSignal.timeout(20000) });
 if (!settings.ok) throw new Error('Supabase Auth is unreachable or the publishable key was rejected: HTTP ' + settings.status);
 console.log('Supabase URL and publishable key accepted.');
-for (const table of ['shops', 'shop_members', 'customers', 'jobs', 'payments', 'payment_allocations', 'ledger_events']) {
+for (const table of ['shops', 'shop_members', 'customers', 'jobs', 'payments', 'payment_allocations', 'ledger_events', 'materials']) {
   const response = await fetch(url + '/rest/v1/' + table + '?select=*&limit=1', { headers, signal: AbortSignal.timeout(20000) });
   const body = await response.json();
   if (![401, 403].includes(response.status) || body.code !== '42501') {
@@ -24,3 +24,13 @@ if (![401, 403].includes(rpc.status) || rpcBody.code !== '42501') {
 }
 console.log('Workspace RPC exists and requires sign-in.');
 console.log('Backend connectivity checks passed. Authenticated payment and isolation tests still require a test account.');
+
+const materialRpc = await fetch(url + '/rest/v1/rpc/apply_material_event', {
+  method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ p_shop: null, p_event: {} }), signal: AbortSignal.timeout(20000)
+});
+const materialBody = await materialRpc.json();
+if (![401, 403].includes(materialRpc.status) || materialBody.code !== '42501') {
+  throw new Error('Materials RPC is missing or permits anonymous execution.');
+}
+console.log('Materials RPC exists and requires sign-in.');

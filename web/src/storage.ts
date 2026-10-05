@@ -1,6 +1,8 @@
 import { applyEvent, emptyLedger } from './domain.mjs';
+import { normalizeLedger } from './materials.mjs';
 import type { LedgerEvent, LocalState } from './types';
 
+const normalizeState = (state: LocalState): LocalState => ({ ...state, ledger: normalizeLedger(state.ledger) });
 const fresh = (): LocalState => ({ ledger: emptyLedger(), pending: [] });
 const openDatabase = () => new Promise<IDBDatabase>((resolve, reject) => {
   const request = indexedDB.open('printshopledger-v1', 1);
@@ -13,7 +15,7 @@ export async function readState(scope: string): Promise<LocalState> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction('ledgers');
     const request = tx.objectStore('ledgers').get(scope);
-    request.onsuccess = () => resolve(request.result ?? fresh());
+    request.onsuccess = () => resolve(normalizeState(request.result ?? fresh()));
     request.onerror = () => reject(request.error);
     tx.oncomplete = () => db.close();
   });
@@ -29,7 +31,7 @@ export async function mutateState(scope: string, mutate: (state: LocalState) => 
     let next: LocalState;
     let failure: unknown;
     request.onsuccess = () => {
-      try { next = mutate(request.result ?? fresh()); store.put(next, scope); }
+      try { next = mutate(normalizeState(request.result ?? fresh())); store.put(next, scope); }
       catch (error) { failure = error; tx.abort(); }
     };
     tx.oncomplete = () => { db.close(); resolve(next); };

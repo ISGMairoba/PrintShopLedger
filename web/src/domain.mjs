@@ -1,5 +1,7 @@
+import { applyMaterialEvent, normalizeLedger } from './materials.mjs';
+
 // Money is stored as integer kobo. Customer balances are derived from jobs.
-export const emptyLedger = () => ({ customers: [], jobs: [], payments: [] });
+export const emptyLedger = () => ({ customers: [], jobs: [], payments: [], materials: [] });
 export function money(value) {
   const text = String(value).trim();
   if (!/^\d+(\.\d{1,2})?$/.test(text)) throw new Error('Enter an amount with at most two decimal places.');
@@ -21,6 +23,8 @@ function positiveAmount(value) {
   if (!Number.isSafeInteger(value) || value <= 0 || value > 100_000_000_000) throw new Error('Amount must be greater than zero and within the supported limit.');
 }
 export function applyEvent(ledger, event) {
+  ledger = normalizeLedger(ledger);
+  if (event.kind.startsWith('material.')) return applyMaterialEvent(ledger, event);
   const data = event.data;
   if (!event.id || !data.id) throw new Error('Missing record identifier.');
   if (event.kind === 'customer.created') {

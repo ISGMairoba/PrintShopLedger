@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { applyEvent } from './domain.mjs';
 import { mutateState, readState } from './storage';
+import { normalizeLedger } from './materials.mjs';
 import type { Ledger } from './types';
 
 const url = import.meta.env.VITE_SUPABASE_URL;
@@ -19,7 +20,7 @@ async function synchronize(scope: string, shopId: string) {
   // Stable UUIDs make retries safe. Failed operations remain in the outbox.
   for (const event of state.pending) {
     await requireSameUser();
-    const { error } = await supabase.rpc('apply_ledger_event', { p_shop: shopId, p_event: event });
+    const { error } = await supabase.rpc(event.kind.startsWith('material.') ? 'apply_material_event' : 'apply_ledger_event', { p_shop: shopId, p_event: event });
     if (error) throw new Error(`Sync paused: ${error.message}. Your pending work is still saved locally.`);
     await mutateState(scope, current => ({ ...current, pending: current.pending.filter(item => item.id !== event.id) }));
   }
@@ -28,7 +29,7 @@ async function synchronize(scope: string, shopId: string) {
   if (error) throw new Error(error.message);
   await requireSameUser();
   state = await mutateState(scope, current => {
-    let ledger = data as Ledger;
+    let ledger: Ledger = normalizeLedger(data as Ledger);
     // Preserve work added by another tab while the download was in flight.
     for (const event of current.pending) ledger = applyEvent(ledger, event);
     return { ...current, ledger, lastSynced: new Date().toISOString() };
