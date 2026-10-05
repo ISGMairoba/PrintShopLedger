@@ -82,6 +82,30 @@ try {
   dialog=page.getByRole('dialog');
   await dialog.getByRole('button',{name:'Archive customer',exact:true}).click();
   await dialog.waitFor({state:'detached'});
+  await page.getByLabel('Customer status').selectOption('archived');
+  await page.getByRole('button',{name:'Restore',exact:true}).click();
+  dialog=page.getByRole('dialog');
+  await dialog.getByRole('button',{name:'Restore customer',exact:true}).click();
+  await dialog.waitFor({state:'detached'});
+  await page.getByLabel('Customer status').selectOption('active');
+  for(const query of ['Market Road','08012345678','500.25','Local trial user']){
+    await page.getByLabel('Search customers').fill(query);
+    assert.equal(await page.locator('tbody tr').count(),1,'Search includes '+query);
+  }
+  await page.getByLabel('Search customers').fill('');
+  await page.getByRole('button',{name:'Audit view',exact:true}).click();
+  assert.equal(await page.locator('thead th').count(),13,'Audit contains normal and audit columns');
+  await page.getByRole('button',{name:'+ Add customer',exact:true}).click();
+  dialog=page.getByRole('dialog',{name:'Add customer'});
+  await dialog.getByLabel('Full name').fill('Alpha customer');
+  await dialog.getByLabel('Phone number').fill('080999');
+  await dialog.getByLabel('Credit limit (₦)').fill('20');
+  await dialog.getByRole('button',{name:'Save customer',exact:true}).click();
+  await dialog.waitFor({state:'detached'});
+  await page.getByRole('button',{name:'Credit limit',exact:true}).click();
+  assert.match(await page.locator('tbody tr').first().innerText(),/Updated customer/,'Numeric descending credit sort');
+  await page.getByRole('button',{name:'Credit limit',exact:true}).click();
+  assert.match(await page.locator('tbody tr').first().innerText(),/Alpha customer/,'Numeric ascending credit sort');
   await page.getByRole('navigation',{name:'Main'}).getByRole('button',{name:'Jobs',exact:true}).click();
   await page.getByRole('button',{name:'+ New job',exact:true}).click();
   dialog=page.getByRole('dialog',{name:'Create a job'});

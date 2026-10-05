@@ -4,7 +4,7 @@ import { applyEvent, customerBalance, emptyLedger, jobBalance, money } from '../
 
 function fixture() {
   let ledger = emptyLedger();
-  for (const id of ['c1', 'c2']) ledger = applyEvent(ledger, { id: `e-${id}`, kind: 'customer.created', data: { id, name: id } });
+  for (const id of ['c1', 'c2']) ledger = applyEvent(ledger, { id: `e-${id}`, kind: 'customer.created', data: { id, name: id, createdAt: '2026-10-03T12:00:00.000Z' } });
   for (const [id, customerId, amount] of [['banner', 'c1', 2000000], ['cards', 'c1', 1000000], ['other', 'c2', 500000]]) {
     ledger = applyEvent(ledger, { id: `e-${id}`, kind: 'job.created', data: { id, customerId, amount, service: id, description: id } });
   }
