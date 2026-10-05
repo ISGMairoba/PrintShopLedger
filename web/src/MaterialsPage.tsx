@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import Modal from './Modal';
 import { materialCode, stockReasonDefaults, stockReasonSuggestions } from './material-display.mjs';
 import type { Material, MaterialEvent, MaterialHistoryEntry } from './types';
 
@@ -39,7 +40,7 @@ export default function MaterialsPage({ materials, history, ready, busy, actor, 
     <section className="stats"><article><span>Active materials</span><strong>{materials.filter(item => !item.archived).length}</strong><small>Available for future jobs</small></article>
       <article><span>Require size</span><strong>{materials.filter(item => !item.archived && item.requireSize).length}</strong><small>Size-based pricing</small></article>
       <article><span>Archived materials</span><strong>{materials.filter(item => item.archived).length}</strong><small>Records and quantities retained</small></article></section>
-    {error && <div className="notice" role="alert">{error}</div>}
+    {error && !stock && !confirmation && !editor && <div className="notice" role="alert">{error}</div>}
     <section className="panel">
       <div className="toolbar material-toolbar"><input aria-label="Search materials" placeholder="Search name, ID or unit" value={query} onChange={e => setQuery(e.target.value)} />
         <select aria-label="Material status" value={filter} onChange={e => setFilter(e.target.value)}><option value="active">Active</option><option value="archived">Archived</option><option value="all">All materials</option></select>
@@ -59,7 +60,8 @@ export default function MaterialsPage({ materials, history, ready, busy, actor, 
               <button className={`text-button ${material.archived ? '' : 'danger-text'}`} disabled={busy} onClick={() => { setConfirmation(material); setEditor(null); setStock(null); setError(''); }}>{material.archived ? 'Restore' : 'Archive'}</button></div></td></tr>)}
         </tbody></table></div>}
     </section>
-    {stock && <section className="panel editor" aria-label="Stock editor"><div className="toolbar"><h2>{stock.mode === 'add' ? 'Add to stock' : 'Set quantity'}: {stock.material.name}</h2><button className="secondary" disabled={busy} onClick={() => setStock(null)}>Cancel</button></div>
+    {stock && <Modal title={`${stock.mode === 'add' ? 'Add to stock' : 'Set quantity'}: ${stock.material.name}`} busy={busy} onClose={() => setStock(null)}>
+      {error && <div className="notice" role="alert">{error}</div>}
       <p>Current available: {stock.material.available} {stock.material.measurementUnit}</p>
       <form key={stock.material.id + stock.mode} onSubmit={async e => {
         e.preventDefault(); if (busy) return;
@@ -71,12 +73,14 @@ export default function MaterialsPage({ materials, history, ready, busy, actor, 
         <datalist id="stock-reason-suggestions">{noteSuggestions.map(reason => <option key={reason} value={reason} />)}</datalist>
         <div className="reason-options" aria-label="Suggested stock notes">{stockReasonDefaults.map(reason => <button type="button" className="secondary" key={reason} onClick={() => setStockReason(reason)}>{reason}</button>)}</div>
         <p className="muted">{stock.mode === 'add' ? 'This quantity will be added to the existing stock.' : 'This will replace the available quantity with the number you enter.'}</p>
-        <button type="submit">{busy ? 'Saving...' : stock.mode === 'add' ? 'Add to stock' : 'Set quantity'}</button></fieldset></form></section>}
-    {confirmation && <section className="panel editor" aria-label="Confirm material status change"><h2>{confirmation.archived ? 'Restore' : 'Archive'} {confirmation.name}?</h2>
+        <button type="submit">{busy ? 'Saving...' : stock.mode === 'add' ? 'Add to stock' : 'Set quantity'}</button></fieldset></form></Modal>}
+    {confirmation && <Modal title={`${confirmation.archived ? 'Restore' : 'Archive'} ${confirmation.name}?`} busy={busy} onClose={() => setConfirmation(null)}>
+      {error && <div className="notice" role="alert">{error}</div>}
       <p>{confirmation.archived ? 'The material will be active again.' : 'Its quantity and audit information will be kept. You can restore it later.'}</p>
       <div className="material-actions"><button className={confirmation.archived ? '' : 'danger-button'} disabled={busy} onClick={() => void commit(confirmation.archived ? 'material.restored' : 'material.archived', { id: confirmation.id, baseVersion: confirmation.version, modifiedBy: actor.id, modifiedByLabel: actor.label, modifiedAt: '' })}>{busy ? 'Saving...' : confirmation.archived ? 'Restore material' : 'Archive material'}</button>
-        <button className="secondary" disabled={busy} onClick={() => setConfirmation(null)}>Cancel</button></div></section>}
-    {editor && <section className="panel editor" aria-label="Material editor"><div className="toolbar"><h2>{editing ? 'Edit material' : 'Add material'}</h2><button className="secondary" disabled={busy} onClick={() => setEditor(null)}>Cancel</button></div>
+        <button className="secondary" disabled={busy} onClick={() => setConfirmation(null)}>Cancel</button></div></Modal>}
+    {editor && <Modal title={editing ? 'Edit material' : 'Add material'} busy={busy} onClose={() => setEditor(null)}>
+      {error && <div className="notice" role="alert">{error}</div>}
       <form key={editing ? `${editing.id}:${editing.version}` : 'new'} onSubmit={submit}>
         {editing ? <p className="material-id">Material ID: {materialCode(editing.id, materials)}</p> : <p className="muted">A permanent unique ID is generated when you save. New materials start with zero stock; use Add to stock afterwards.</p>}
         <fieldset disabled={busy}><div className="form-grid"><label>Name<input name="name" defaultValue={editing?.name ?? ''} maxLength={160} required /></label>
@@ -84,6 +88,6 @@ export default function MaterialsPage({ materials, history, ready, busy, actor, 
           <label className="material-checkbox"><span><input name="requireSize" type="checkbox" defaultChecked={editing?.requireSize ?? false} /> Require size</span><small>Enable when the service price depends on dimensions. Otherwise pricing uses quantity only. Checkout calculations will be added in a later step.</small></label></div>
           <datalist id="material-units">{['sheet', 'piece', 'metre', 'square metre', 'roll', 'kilogram', 'litre'].map(unit => <option key={unit} value={unit} />)}</datalist>
           <button type="submit">{busy ? 'Saving...' : 'Save material'}</button></fieldset>
-      </form></section>}
+      </form></Modal>}
   </>;
 }

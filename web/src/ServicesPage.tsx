@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import Modal from './Modal';
 import { money } from './domain.mjs';
 import { materialCode } from './material-display.mjs';
 import { serviceCode, serviceMatches, servicePrice } from './services.mjs';
@@ -37,7 +38,7 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
     <section className="stats"><article><span>Active services</span><strong>{services.filter(item => !item.archived).length}</strong><small>Services in your catalogue</small></article>
       <article><span>Base materials</span><strong>{new Set(services.filter(item => !item.archived).map(item => item.materialId)).size}</strong><small>One material can support several services</small></article>
       <article><span>Archived services</span><strong>{services.filter(item => item.archived).length}</strong><small>Records retained</small></article></section>
-    {error && <div className="notice" role="alert">{error}</div>}
+    {error && !editor && !confirmation && <div className="notice" role="alert">{error}</div>}
     {ready && !activeMaterials.length && <div className="notice">Add or restore a material on the Materials page before creating a service.</div>}
     <section className="panel"><div className="toolbar service-toolbar"><input aria-label="Search services" placeholder="Search description, ID, material or price" value={query} onChange={e => setQuery(e.target.value)} />
       <select aria-label="Service status" value={filter} onChange={e => setFilter(e.target.value)}><option value="active">Active</option><option value="archived">Archived</option><option value="all">All services</option></select>
@@ -56,17 +57,19 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
               <button className={`text-button ${service.archived ? '' : 'danger-text'}`} disabled={busy} onClick={() => { setConfirmation(service); setEditor(null); setError(''); }}>{service.archived ? 'Restore' : 'Archive'}</button></div></td>
           </tr>; })}</tbody></table></div>}
     </section>
-    {confirmation && <section className="panel editor" aria-label="Confirm service status change"><h2>{confirmation.archived ? 'Restore' : 'Archive'} {confirmation.description}?</h2>
+    {confirmation && <Modal title={`${confirmation.archived ? 'Restore' : 'Archive'} ${confirmation.description}?`} busy={busy} onClose={() => setConfirmation(null)}>
+      {error && <div className="notice" role="alert">{error}</div>}
       <p>{confirmation.archived ? 'This service will be active again.' : 'Its price, base material link and audit details will be retained. You can restore it later.'}</p>
       <div className="material-actions"><button className={confirmation.archived ? '' : 'danger-button'} disabled={busy} onClick={() => void commit(confirmation.archived ? 'service.restored' : 'service.archived', { id: confirmation.id, baseVersion: confirmation.version })}>{busy ? 'Saving...' : confirmation.archived ? 'Restore service' : 'Archive service'}</button>
-        <button className="secondary" disabled={busy} onClick={() => setConfirmation(null)}>Cancel</button></div></section>}
-    {editor && <section className="panel editor" aria-label="Service editor"><div className="toolbar"><h2>{editing ? 'Edit service' : 'Add service'}</h2><button className="secondary" disabled={busy} onClick={() => setEditor(null)}>Cancel</button></div>
+        <button className="secondary" disabled={busy} onClick={() => setConfirmation(null)}>Cancel</button></div></Modal>}
+    {editor && <Modal title={editing ? 'Edit service' : 'Add service'} busy={busy} onClose={() => setEditor(null)}>
+      {error && <div className="notice" role="alert">{error}</div>}
       {editing ? <p className="material-id">Service ID: {serviceCode(editing.id, services)}</p> : <p className="muted">A permanent service ID is generated when you save.</p>}
       <form key={editing ? editing.id + ':' + editing.version : 'new'} onSubmit={submit}><fieldset disabled={busy}><div className="form-grid">
         <label>Service description<input name="description" maxLength={500} defaultValue={editing?.description ?? ''} placeholder="e.g. A4 colour printing" required /></label>
         <label>Base material<select name="material" defaultValue={editing?.materialId ?? ''} required><option value="" disabled>Select material</option>{options.map(item => <option key={item.id} value={item.id}>{item.name} ({materialCode(item.id, materials)}){item.archived ? ' · Archived' : ''}</option>)}</select></label>
         <label>Price (₦)<input name="price" type="number" inputMode="decimal" min="0" max="1000000000" step="0.01" defaultValue={editing ? (editing.price / 100).toFixed(2) : ''} required /></label></div>
         <p className="muted">Several services can share the same base material. Checkout pricing will use that material's Require Size setting.</p>
-        <button type="submit">{busy ? 'Saving...' : 'Save service'}</button></fieldset></form></section>}
+        <button type="submit">{busy ? 'Saving...' : 'Save service'}</button></fieldset></form></Modal>}
   </>;
 }

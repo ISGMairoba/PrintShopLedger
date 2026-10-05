@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import Modal from './Modal';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import type { Session } from '@supabase/supabase-js';
 import { applyEvent, customerBalance, emptyLedger, jobBalance, money } from './domain.mjs';
@@ -165,7 +166,7 @@ export default function App() {
     finally { setBusy(false); }
   }
   function openPayment(customerId = '', jobId = '') {
-    setPaymentCustomer(customerId); setAllocations(jobId ? { [jobId]: '' } : {}); setForm('payment'); setMessage('');
+    setSelectedJob(null); setPaymentCustomer(customerId); setAllocations(jobId ? { [jobId]: '' } : {}); setForm('payment'); setMessage('');
   }
   async function login(e: FormEvent<HTMLFormElement>) {
     e.preventDefault(); setBusy(true);
@@ -227,8 +228,9 @@ export default function App() {
       {!demo && <button className="secondary" onClick={sync} disabled={busy || !online || !shop || !ready}>{busy ? 'Working.' : 'Sync workspace'}</button>}</header>
       {needRefresh && <div className="notice">An app update is ready. <button className="secondary" disabled={busy} onClick={() => void updateServiceWorker(true)}>Update app</button></div>}
       {message && <div className="notice" role="status">{message}</div>}
-      {serviceConflict && <ServiceConflictReview key={serviceConflict.local.lastEventId + (serviceConflict.remote?.lastEventId ?? '') + serviceConflict.materials.map(item => item.lastEventId).join('')} conflict={serviceConflict} busy={busy} onResolve={resolveServiceConflict} />}
-      {conflict && <section className="panel editor" aria-label="Resolve material edit"><h2>Review conflicting material edits</h2>
+      {serviceConflict && <ServiceConflictReview key={serviceConflict.local.lastEventId + (serviceConflict.remote?.lastEventId ?? '') + serviceConflict.materials.map(item => item.lastEventId).join('')} conflict={serviceConflict} busy={busy} message={message} onClose={() => setServiceConflict(null)} onResolve={resolveServiceConflict} />}
+      {conflict && <Modal title="Review conflicting material edits" wide busy={busy} onClose={() => setConflict(null)}>
+        {message && <div className="notice" role="status">{message}</div>}
         <div className="table-wrap"><table><thead><tr><th>Field</th><th>This device</th><th>Business workspace</th></tr></thead><tbody>
           <tr><td>Name</td><td>{conflict.local.name}</td><td>{conflict.remote.name}</td></tr>
           <tr><td>Available</td><td>{conflict.local.available}</td><td>{conflict.remote.available}</td></tr>
@@ -238,7 +240,7 @@ export default function App() {
           <tr><td>Modified by</td><td>{conflict.local.modifiedByLabel}</td><td>{conflict.remote.modifiedByLabel}</td></tr>
         </tbody></table></div><p>Keeping the business version discards pending changes to this material on this device. Other pending records are kept.</p>
         <div className="material-actions"><button disabled={busy} onClick={() => void resolveConflict('local')}>Keep this device's version</button><button className="secondary" disabled={busy} onClick={() => void resolveConflict('cloud')}>Keep business version</button></div>
-      </section>}
+      </Modal>}
       {!demo && !shop ? <section className="auth-card"><h2>Create your business workspace</h2><p>Each business gets its own customers, jobs and payments.</p><form onSubmit={createWorkspace}><label>Business name<input name="businessName" maxLength={160} required /></label><button disabled={busy || !online}>Create workspace</button></form><p className="muted">If you should join an existing business, ask its administrator to add your account.</p></section> : <>
         {page === 'Materials' ? <MaterialsPage key={scope} materials={ledger.materials} history={ledger.materialHistory} ready={ready} busy={busy || !!conflict || !!serviceConflict}
           actor={{ id: demo ? 'local-trial' : session!.user.id, label: demo ? 'Local trial user' : session!.user.user_metadata.full_name || session!.user.email || session!.user.id }}
@@ -270,14 +272,15 @@ export default function App() {
         </>}
         <p className="footnote">{demo ? 'Local trial � This device only � No cloud uploads' : `Last synced: ${state.lastSynced ? new Date(state.lastSynced).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' }) : 'Not yet synced'}`} � Currency: NGN</p>
       </>}
-      {currentJob && <section className="panel detail"><div className="toolbar"><div><span className="eyebrow">JOB #{shortId(currentJob.id)}</span><h2>{currentJob.description}</h2><p>{customerName(currentJob.customerId)} � {currentJob.service}</p></div><button className="secondary" onClick={() => setSelectedJob(null)}>Close details</button></div>
+      {currentJob && <Modal title={currentJob.description} wide busy={busy} onClose={() => setSelectedJob(null)}><span className="eyebrow">JOB #{shortId(currentJob.id)}</span><p>{customerName(currentJob.customerId)} · {currentJob.service}</p>
         <div className="detail-summary"><span>Job amount <strong>{currency(currentJob.amount)}</strong></span><span>Paid <strong>{currency(jobBalance(ledger, currentJob).paid)}</strong></span><span>Outstanding <strong>{currency(jobBalance(ledger, currentJob).outstanding)}</strong></span></div>
         <h3>Payment history</h3>{ledger.payments.filter(payment => payment.allocations.some(allocation => allocation.jobId === currentJob.id)).map(payment => <div className="history" key={payment.id}>
           <span>{dateLabel(payment.paidOn)} � {payment.method}<small>{payment.reference || `Payment #${shortId(payment.id)}`}</small></span><strong>{currency(payment.allocations.find(allocation => allocation.jobId === currentJob.id)!.amount)}</strong></div>)}
         {!ledger.payments.some(payment => payment.allocations.some(allocation => allocation.jobId === currentJob.id)) && <p className="muted">No payments recorded yet.</p>}
         <button disabled={busy || jobBalance(ledger, currentJob).outstanding <= 0} onClick={() => openPayment(currentJob.customerId, currentJob.id)}>Record payment for this job</button>
-      </section>}
-      {form && <section className="panel editor" aria-label="Record editor"><div className="toolbar"><h2>{form === 'customer' ? 'Add customer' : form === 'job' ? 'Create a job' : 'Record a payment'}</h2><button className="secondary" disabled={busy} onClick={() => setForm(null)}>Cancel</button></div>
+      </Modal>}
+      {form && <Modal title={form === 'customer' ? 'Add customer' : form === 'job' ? 'Create a job' : 'Record a payment'} wide={form === 'payment'} busy={busy} onClose={() => setForm(null)}>
+        {message && <div className="notice" role="status">{message}</div>}
         <form onSubmit={submit} key={form}>
           {form === 'customer' ? <div className="form-grid"><label>Customer name<input name="name" maxLength={160} required /></label><label>Phone number<input name="phone" type="tel" maxLength={40} /></label></div>
           : form === 'job' ? <div className="form-grid"><label>Customer<select name="customer" required defaultValue=""><option value="" disabled>Select customer</option>{ledger.customers.map(customer => <option key={customer.id} value={customer.id}>{customer.name}</option>)}</select></label>
@@ -293,7 +296,7 @@ export default function App() {
             <div className="allocation-total">Total allocated <strong>{currency(allocated)}</strong></div></>}
           <button type="submit" disabled={busy}>{busy ? 'Saving.' : form === 'payment' ? 'Save payment & allocations' : 'Save record'}</button>
         </form>
-      </section>}
+      </Modal>}
     </main>
   </div>;
 }

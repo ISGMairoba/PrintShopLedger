@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Modal from './Modal';
 import { materialActionLabels, materialCode } from './material-display.mjs';
 import type { LedgerEvent, Material, MaterialHistoryEntry, MaterialSnapshot } from './types';
 
@@ -50,11 +51,11 @@ export default function StockHistoryPage({ history, materials, pending, ready, d
         <button className="secondary" disabled={activePage === 0} onClick={() => setPage(activePage - 1)}>Previous</button>
         <button className="secondary" disabled={activePage === maxPage} onClick={() => setPage(activePage + 1)}>Next</button></div>}
     </section>
-    {selected && <section className="panel editor" aria-label="Material change details"><div className="toolbar"><div><h2>{materialActionLabels[selected.action]}</h2><p>{selected.materialName} · {materialCode(selected.materialId, materials)}</p></div><button className="secondary" onClick={() => setSelected(null)}>Close details</button></div>
+    {selected && <Modal title={materialActionLabels[selected.action]} wide onClose={() => setSelected(null)}><p>{selected.materialName} · {materialCode(selected.materialId, materials)}</p>
       <p>{selected.changedByLabel} · {dateLabel(selected.changedAt)}</p>
       {selected.reason && <p>Reason / note: {selected.reason}</p>}
       {!selected.detailsComplete && <p className="notice">This older record predates detailed change tracking. Only information recorded at the time is shown.</p>}
       <div className="table-wrap"><table><thead><tr><th>Field</th><th>Before</th><th>After</th></tr></thead><tbody>{fields.map(field => <tr key={field.key}><td>{field.label}</td><td>{valueLabel(selected.before?.[field.key])}</td><td>{valueLabel(selected.after[field.key])}</td></tr>)}</tbody></table></div>
-    </section>}
+    </Modal>}
   </>;
 }
