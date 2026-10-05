@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import type { Session } from '@supabase/supabase-js';
 import { applyEvent, customerBalance, emptyLedger, jobBalance, money } from './domain.mjs';
-import { supabase, syncLedger } from './cloud';
+import { supabase, syncLedger, MaterialSyncConflict, resolveCloudMaterial } from './cloud';
 import { readState, saveEvent } from './storage';
 import MaterialsPage from './MaterialsPage';
 import type { LedgerEvent, LocalState, Payment, MaterialEvent } from './types';
@@ -36,6 +36,7 @@ export default function App() {
   const [allocations, setAllocations] = useState<Record<string, string>>({});
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [conflict, setConflict] = useState<MaterialSyncConflict | null>(null);
   const [online, setOnline] = useState(navigator.onLine);
   const scope = demo ? 'local-trial' : session && shop ? `${session.user.id}:${shop.id}` : '';
   const activeScope = useRef(scope);
@@ -86,7 +87,7 @@ export default function App() {
 
   useEffect(() => {
     setReady(false); setState({ ledger: emptyLedger(), pending: [] });
-    setForm(null); setSelectedJob(null); setQuery('');
+    setForm(null); setSelectedJob(null); setQuery(''); setConflict(null);
     if (!scope) return;
     let active = true;
     const refresh = () => readState(scope).then(value => { if (active) { setState(value); setReady(true); } })
@@ -137,6 +138,16 @@ export default function App() {
     try {
       const next = await syncLedger(target, shop.id);
       if (activeScope.current === target) { setState(next); channel.current?.postMessage('changed'); setMessage('Business workspace synced.'); }
+    } catch (error) { if (activeScope.current === target) { setMessage(errorMessage(error)); if (error instanceof MaterialSyncConflict) setConflict(error); } }
+    finally { setBusy(false); }
+  }
+  async function resolveConflict(choice: 'local' | 'cloud') {
+    if (!conflict || !shop || busy) return;
+    const target = scope;
+    setBusy(true);
+    try {
+      const next = await resolveCloudMaterial(target, shop.id, conflict.local.id, choice);
+      if (activeScope.current === target) { setState(next); setConflict(null); channel.current?.postMessage('changed'); setMessage('Choice saved. Sync workspace to continue sending pending changes.'); }
     } catch (error) { if (activeScope.current === target) setMessage(errorMessage(error)); }
     finally { setBusy(false); }
   }
@@ -203,6 +214,17 @@ export default function App() {
       {!demo && <button className="secondary" onClick={sync} disabled={busy || !online || !shop || !ready}>{busy ? 'Working.' : 'Sync workspace'}</button>}</header>
       {needRefresh && <div className="notice">An app update is ready. <button className="secondary" disabled={busy} onClick={() => void updateServiceWorker(true)}>Update app</button></div>}
       {message && <div className="notice" role="status">{message}</div>}
+      {conflict && <section className="panel editor" aria-label="Resolve material edit"><h2>Review conflicting material edits</h2>
+        <div className="table-wrap"><table><thead><tr><th>Field</th><th>This device</th><th>Business workspace</th></tr></thead><tbody>
+          <tr><td>Name</td><td>{conflict.local.name}</td><td>{conflict.remote.name}</td></tr>
+          <tr><td>Available</td><td>{conflict.local.available}</td><td>{conflict.remote.available}</td></tr>
+          <tr><td>Measurement unit</td><td>{conflict.local.measurementUnit}</td><td>{conflict.remote.measurementUnit}</td></tr>
+          <tr><td>Require size</td><td>{conflict.local.requireSize ? 'Yes' : 'No'}</td><td>{conflict.remote.requireSize ? 'Yes' : 'No'}</td></tr>
+          <tr><td>Status</td><td>{conflict.local.archived ? 'Archived' : 'Active'}</td><td>{conflict.remote.archived ? 'Archived' : 'Active'}</td></tr>
+          <tr><td>Modified by</td><td>{conflict.local.modifiedByLabel}</td><td>{conflict.remote.modifiedByLabel}</td></tr>
+        </tbody></table></div><p>Keeping the business version discards pending changes to this material on this device. Other pending records are kept.</p>
+        <div className="material-actions"><button disabled={busy} onClick={() => void resolveConflict('local')}>Keep this device's version</button><button className="secondary" disabled={busy} onClick={() => void resolveConflict('cloud')}>Keep business version</button></div>
+      </section>}
       {!demo && !shop ? <section className="auth-card"><h2>Create your business workspace</h2><p>Each business gets its own customers, jobs and payments.</p><form onSubmit={createWorkspace}><label>Business name<input name="businessName" maxLength={160} required /></label><button disabled={busy || !online}>Create workspace</button></form><p className="muted">If you should join an existing business, ask its administrator to add your account.</p></section> : <>
         {page === 'Materials' ? <MaterialsPage key={scope} materials={ledger.materials} ready={ready} busy={busy}
           actor={{ id: demo ? 'local-trial' : session!.user.id, label: demo ? 'Local trial user' : session!.user.user_metadata.full_name || session!.user.email || session!.user.id }}

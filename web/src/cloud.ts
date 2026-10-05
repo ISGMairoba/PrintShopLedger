@@ -2,7 +2,12 @@ import { createClient } from '@supabase/supabase-js';
 import { applyEvent } from './domain.mjs';
 import { mutateState, readState } from './storage';
 import { normalizeLedger } from './materials.mjs';
-import type { Ledger } from './types';
+import { resolveMaterialState } from './material-conflicts.mjs';
+import type { Ledger, Material } from './types';
+
+export class MaterialSyncConflict extends Error {
+  constructor(public local: Material, public remote: Material) { super('This material was changed on another device. Choose which version to keep.'); }
+}
 
 const url = import.meta.env.VITE_SUPABASE_URL;
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -21,6 +26,14 @@ async function synchronize(scope: string, shopId: string) {
   for (const event of state.pending) {
     await requireSameUser();
     const { error } = await supabase.rpc(event.kind.startsWith('material.') ? 'apply_material_event' : 'apply_ledger_event', { p_shop: shopId, p_event: event });
+    if (error?.code === '40001' && event.kind.startsWith('material.')) {
+      await requireSameUser();
+      const { data, error: readError } = await supabase.rpc('get_ledger', { p_shop: shopId });
+      if (readError) throw new Error(readError.message);
+      const remote = (data as Ledger).materials.find(item => item.id === event.data.id);
+      const local = (await readState(scope)).ledger.materials.find(item => item.id === event.data.id);
+      if (remote && local) throw new MaterialSyncConflict(local, remote);
+    }
     if (error) throw new Error(`Sync paused: ${error.message}. Your pending work is still saved locally.`);
     await mutateState(scope, current => ({ ...current, pending: current.pending.filter(item => item.id !== event.id) }));
   }
@@ -39,4 +52,17 @@ async function synchronize(scope: string, shopId: string) {
 export async function syncLedger(scope: string, shopId: string) {
   if (!navigator.locks) throw new Error('Cloud sync requires a browser with Web Locks support.');
   return navigator.locks.request(`printshopledger-sync:${scope}`, () => synchronize(scope, shopId));
+}
+
+export async function resolveCloudMaterial(scope: string, shopId: string, materialId: string, choice: 'local' | 'cloud') {
+  if (!supabase || !navigator.onLine || !navigator.locks) throw new Error('Connect to the internet to resolve this edit.');
+  return navigator.locks.request(`printshopledger-sync:${scope}`, async () => {
+    const { data: auth, error: authError } = await supabase!.auth.getSession();
+    if (authError || auth.session?.user.id !== scope.split(':')[0]) throw new Error('Your sign-in changed. Sign in again.');
+    const { data, error } = await supabase!.rpc('get_ledger', { p_shop: shopId });
+    if (error) throw new Error(error.message);
+    const { data: checked } = await supabase!.auth.getSession();
+    if (checked.session?.user.id !== scope.split(':')[0]) throw new Error('Your sign-in changed. Sign in again.');
+    return mutateState(scope, state => resolveMaterialState(state, normalizeLedger(data as Ledger), materialId, choice, () => crypto.randomUUID(), new Date().toISOString()));
+  });
 }

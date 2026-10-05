@@ -40,7 +40,7 @@ begin
   e := jsonb_build_object('id',gen_random_uuid(),'kind','material.archived','data',jsonb_build_object('id',m,'baseVersion',2,'modifiedBy',u));
   perform public.apply_material_event(s,e);
   select * into actual from public.materials where id=m;
-  if not actual.archived or actual.available <> 20 or actual.version <> 3 then raise exception 'Archive lost quantity'; end if;
+  if not actual.archived or actual.available <> 12.375 or actual.version <> 3 then raise exception 'Archive lost quantity'; end if;
   e := jsonb_build_object('id',gen_random_uuid(),'kind','material.restored','data',jsonb_build_object('id',m,'baseVersion',3,'modifiedBy',u));
   perform public.apply_material_event(s,e);
   if (public.get_ledger(s)->'materials'->0->>'archived')::boolean then raise exception 'Restore failed'; end if;
@@ -65,7 +65,18 @@ begin
   rejected := false;
   begin update public.materials set available=999 where id=m; exception when insufficient_privilege then rejected := true; end;
   if not rejected then raise exception 'Direct material write accepted'; end if;
-  perform set_config('request.jwt.claim.sub',current_setting('test.material_outsider'),true);
+  e := jsonb_build_object('id',gen_random_uuid(),'kind','material.stock_added','data',jsonb_build_object('id',m,'baseVersion',4,'quantity',2.625,'reason','Delivery','modifiedBy',u));
+  perform public.apply_material_event(s,e);
+  perform public.apply_material_event(s,e);
+  select * into actual from public.materials where id=m;
+  if actual.available <> 15 or actual.version <> 5 then raise exception 'Stock addition or retry failed'; end if;
+  if (select count(*) from public.material_stock_changes where material_id=m) <> 1 then raise exception 'Stock history retry duplicated'; end if;
+  if not exists(select 1 from public.material_stock_changes where material_id=m and before_available=12.375 and after_available=15 and reason='Delivery' and actor_id=u) then raise exception 'Stock history missing'; end if;
+  e := jsonb_build_object('id',gen_random_uuid(),'kind','material.stock_set','data',jsonb_build_object('id',m,'baseVersion',5,'quantity',0,'modifiedBy',u));
+  perform public.apply_material_event(s,e);
+  select * into actual from public.materials where id=m;
+  if actual.available <> 0 or actual.version <> 6 or actual.created_at <> original.created_at then raise exception 'Direct stock count replacement failed'; end if;
+    perform set_config('request.jwt.claim.sub',current_setting('test.material_outsider'),true);
   if exists(select 1 from public.materials where shop_id=s) then raise exception 'Cross-business material read allowed'; end if;
   rejected := false;
   begin perform public.apply_material_event(s,e); exception when others then rejected := true; end;

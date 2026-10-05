@@ -69,3 +69,24 @@ test('one material edit leaves other materials untouched', () => {
   ledger = applyEvent(ledger, command('material.updated', { baseVersion: 1, available: 3 }, 'event-3'));
   assert.equal(ledger.materials[1], other);
 });
+
+test('detail edits cannot change stock quantity', () => {
+  const created = applyEvent(emptyLedger(), command());
+  const edited = applyEvent(created, command('material.updated', { baseVersion: 1, available: 999 }, 'event-2'));
+  assert.equal(edited.materials[0].available, 12.375);
+});
+test('add to stock adds a decimal quantity and set stock replaces it', () => {
+  let ledger = applyEvent(emptyLedger(), command());
+  ledger = applyEvent(ledger, command('material.stock_added', { baseVersion: 1, quantity: 2.625 }, 'event-2'));
+  assert.equal(ledger.materials[0].available, 15);
+  ledger = applyEvent(ledger, command('material.stock_set', { baseVersion: 2, quantity: 0 }, 'event-3'));
+  assert.equal(ledger.materials[0].available, 0);
+  assert.equal(ledger.materials[0].createdBy, 'user-1');
+});
+test('stock changes reject zero increments, negative values, invalid precision and archived materials', () => {
+  const created = applyEvent(emptyLedger(), command());
+  for (const quantity of [0, -1, 0.0001, Infinity]) assert.throws(() => applyEvent(created, command('material.stock_added', { baseVersion: 1, quantity }, 'bad')));
+  assert.throws(() => applyEvent(created, command('material.stock_set', { baseVersion: 1, quantity: -1 }, 'bad')));
+  const archived = applyEvent(created, command('material.archived', { baseVersion: 1 }, 'archive'));
+  assert.throws(() => applyEvent(archived, command('material.stock_set', { baseVersion: 2, quantity: 3 }, 'bad')), /Restore/);
+});

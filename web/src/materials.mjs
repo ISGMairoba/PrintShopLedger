@@ -28,7 +28,15 @@ export function applyMaterialEvent(input, event) {
   if (event.kind === 'material.updated') {
     if (existing.archived) throw new Error('Restore this material before editing it.');
     validateMaterial(data);
-    next = { ...existing, name: data.name.trim(), available: data.available, measurementUnit: data.measurementUnit.trim(), requireSize: data.requireSize, ...audit, version: existing.version + 1 };
+    next = { ...existing, name: data.name.trim(), available: existing.available, measurementUnit: data.measurementUnit.trim(), requireSize: data.requireSize, ...audit, version: existing.version + 1 };
+  } else if (event.kind === 'material.stock_added' || event.kind === 'material.stock_set') {
+    if (existing.archived) throw new Error('Restore this material before changing stock.');
+    validateMaterial({ ...existing, available: data.quantity });
+    if (event.kind === 'material.stock_added' && data.quantity <= 0) throw new Error('Enter a quantity greater than zero to add to stock.');
+    if (data.reason && (typeof data.reason !== 'string' || data.reason.length > 500)) throw new Error('Stock note must be up to 500 characters.');
+    const available = event.kind === 'material.stock_added' ? Math.round((existing.available + data.quantity) * 1000) / 1000 : data.quantity;
+    validateMaterial({ ...existing, available });
+    next = { ...existing, available, ...audit, version: existing.version + 1 };
   } else if (event.kind === 'material.archived' || event.kind === 'material.restored') {
     const archived = event.kind === 'material.archived';
     if (archived === existing.archived) throw new Error(archived ? 'Material is already archived.' : 'Material is already active.');
