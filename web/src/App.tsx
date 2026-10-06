@@ -1,3 +1,5 @@
+import Sidebar from './Sidebar';
+import ResponsiveTable from './ResponsiveTable';
 import Icon from './Icon';
 import PrintSettingsPage from './PrintSettingsPage';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
@@ -258,7 +260,7 @@ export default function App() {
   if(!demo&&businessSession&&shops.length>0&&(!session||!shop||shop.userId!==session.user.id||shop.accessLevel===0)) return <main className="auth"><section className="auth-card"><h1>Staff sign in</h1><p>The business is signed in. Enter your username and password.</p><label>Business<select value={shop?.id??''} onChange={e=>setShop(shops.find(item=>item.id===e.target.value)??null)}>{shops.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>{staffLoginForm()}{message&&<p role="alert">{message}</p>}<button className="secondary" disabled={busy} onClick={signOutBusiness}>Sign out business</button></section></main>;
 
   return <div className="app">
-    <aside><div className="brand"><div className="brand-mark">S</div><div>PrintShopLedger<small>Business workspace</small></div></div>
+    <Sidebar><div className="brand"><div className="brand-mark">S</div><div>PrintShopLedger<small>Business workspace</small></div></div>
       <div className="workspace">{demo ? <><strong>Local trial</strong><small>Explore with your own sample records</small></> :
         <><label>Business<select disabled={busy || session?.user.id !== businessSession?.user.id} value={shop?.id ?? ''} onChange={e => setShop(shops.find(item => item.id === e.target.value) ?? null)}>
           {shops.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><small>Current user: {shop?.staffName || 'Not signed in'} · {shop?.username || ''} {shop?.role ? `(${shop.role})` : ''}</small></>}
@@ -276,7 +278,7 @@ export default function App() {
         {!demo&&<button className="secondary" disabled={busy||!online} onClick={()=>{setSwitchUser(true);setMessage('');}}>Switch user</button>}
         {!demo&&<button className="secondary" disabled={busy} onClick={async()=>{const {error}=await supabase!.auth.signOut({scope:'local'});if(error)setMessage(error.message);else{setSession(null);setMessage('User signed out. Business remains signed in.');}}}>Sign out user</button>}
       </div>
-    </aside>
+    </Sidebar>
     <main><header><div><span className="eyebrow">{demo ? 'LOCAL TRIAL' : shop?.name ?? 'BUSINESS WORKSPACE'}</span><h1>{page}</h1><p>{page === 'Users' ? 'Manage staff accounts, ranks and business access.' : page === 'Print Settings' ? 'Set default printer, paper, font and margins for this device.' : page === 'Customers' ? 'Manage customer details and credit limits.' : page === 'Materials' ? 'Manage materials, quantities and pricing requirements.' : page === 'Stock History' ? 'Review every material change and stock adjustment.' : page === 'Services' ? 'Define services, their base materials and prices.' : 'Track work and keep every payment attached to its job.'}</p></div>
       {!demo && <button className="secondary" onClick={sync} disabled={busy || !online || !shop || !ready}><Icon name="sync"/> {busy ? 'Working.' : 'Sync workspace'}</button>}</header>
       {switchUser&&<Modal title="Switch user" busy={busy} onClose={()=>setSwitchUser(false)}><p>Business: {shop?.name}. Sign in with your staff username and password.</p>{staffLoginForm()}{message&&<p role="alert">{message}</p>}</Modal>}
@@ -322,15 +324,15 @@ export default function App() {
           }}><Icon name="add"/> {page === 'Jobs' ? 'New job' : 'Record payment'}</button></div>
           {!ready ? <div className="empty">Loading saved records.</div> : page === 'Jobs' ? <>
             {!ledger.jobs.length ? <div className="empty"><div className="empty-icon">?</div><h2>Your jobs start here</h2><p>Add a customer, create their job, then record payments against it.</p>
-              {!ledger.customers.length && <button onClick={() => setForm('customer')}>Add your first customer</button>}</div> : <div className="table-wrap"><table><thead><tr><SortHeader label="Job / service" column="description" sort={jobSorting}/><SortHeader label="Customer" column="customer" sort={jobSorting}/><SortHeader label="Job amount" column="amount" sort={jobSorting}/><SortHeader label="Paid" column="paid" sort={jobSorting}/><SortHeader label="Outstanding" column="outstanding" sort={jobSorting}/><SortHeader label="Status" column="status" sort={jobSorting}/></tr></thead><tbody>
+              {!ledger.customers.length && <button onClick={() => setForm('customer')}>Add your first customer</button>}</div> : <div className="table-wrap"><ResponsiveTable extraSortOptions={[{key:"createdAt",label:"Created at"},{key:"id",label:"Job ID"},{key:"service",label:"Service"}]} columns={[{index:0,label:"Job",details:[1]},{index:2,label:"Amount",details:[3,4,5]}]}><table><thead><tr><SortHeader label="Job / service" column="description" sort={jobSorting}/><SortHeader label="Customer" column="customer" sort={jobSorting}/><SortHeader label="Job amount" column="amount" sort={jobSorting}/><SortHeader label="Paid" column="paid" sort={jobSorting}/><SortHeader label="Outstanding" column="outstanding" sort={jobSorting}/><SortHeader label="Status" column="status" sort={jobSorting}/></tr></thead><tbody>
                 {matchingJobs.map(job => { const balance = jobBalance(ledger, job); return <tr key={job.id}>
                   <td><button className="text-button" onClick={() => setSelectedJob(job.id)}>{job.description}</button><small>{job.service} � #{shortId(job.id)}</small></td>
                   <td>{customerName(job.customerId)}</td><td>{currency(job.amount)}</td><td>{currency(balance.paid)}</td><td>{currency(balance.outstanding)}</td><td><span className={`badge ${balance.status === 'Fully paid' ? 'paid' : balance.status === 'Unpaid' ? 'unpaid' : 'partial'}`}>{balance.status}</span></td>
-                </tr>; })}</tbody></table>{!matchingJobs.length && <p className="empty">No matching jobs.</p>}</div>}</>
-          : <>{!ledger.payments.length ? <div className="empty"><h2>A clear payment trail</h2><p>Payments appear here with the jobs they cover.</p></div> : <div className="table-wrap"><table><thead><tr><SortHeader label="Payment" column="id" sort={paymentSorting}/><SortHeader label="Customer" column="customer" sort={paymentSorting}/><SortHeader label="Amount" column="amount" sort={paymentSorting}/><SortHeader label="Method" column="method" sort={paymentSorting}/><SortHeader label="Job allocations" column="allocations" sort={paymentSorting}/></tr></thead><tbody>
+                </tr>; })}</tbody></table></ResponsiveTable>{!matchingJobs.length && <p className="empty">No matching jobs.</p>}</div>}</>
+          : <>{!ledger.payments.length ? <div className="empty"><h2>A clear payment trail</h2><p>Payments appear here with the jobs they cover.</p></div> : <div className="table-wrap"><ResponsiveTable extraSortOptions={[{key:"createdAt",label:"Created at"},{key:"date",label:"Payment date"}]} columns={[{index:0,label:"Payment",details:[1]},{index:2,label:"Amount",details:[3]},{index:4,label:"Jobs"}]}><table><thead><tr><SortHeader label="Payment" column="id" sort={paymentSorting}/><SortHeader label="Customer" column="customer" sort={paymentSorting}/><SortHeader label="Amount" column="amount" sort={paymentSorting}/><SortHeader label="Method" column="method" sort={paymentSorting}/><SortHeader label="Job allocations" column="allocations" sort={paymentSorting}/></tr></thead><tbody>
             {matchingPayments.map(payment => <tr key={payment.id}>
               <td>#{shortId(payment.id)}<small>{dateLabel(payment.paidOn)}{payment.reference && ` � ${payment.reference}`}</small></td><td>{customerName(payment.customerId)}</td><td>{currency(payment.amount)}</td><td>{payment.method}</td>
-              <td>{payment.allocations.map(allocation => <small key={allocation.jobId}>{ledger.jobs.find(job => job.id === allocation.jobId)?.description} - {currency(allocation.amount)}</small>)}</td></tr>)}</tbody></table></div>}</>}
+              <td>{payment.allocations.map(allocation => <small key={allocation.jobId}>{ledger.jobs.find(job => job.id === allocation.jobId)?.description} - {currency(allocation.amount)}</small>)}</td></tr>)}</tbody></table></ResponsiveTable></div>}</>}
         </section>
         </>}
         <p className="footnote">{demo ? 'Local trial � This device only � No cloud uploads' : `Last synced: ${state.lastSynced ? new Date(state.lastSynced).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' }) : 'Not yet synced'}`} � Currency: NGN</p>

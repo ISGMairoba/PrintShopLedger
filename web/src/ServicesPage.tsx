@@ -1,3 +1,4 @@
+import ResponsiveTable from './ResponsiveTable';
 import Icon from './Icon';
 import { useState, type FormEvent } from 'react';
 import Modal from './Modal';
@@ -50,7 +51,7 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
       <button disabled={!ready || busy || !activeMaterials.length} onClick={() => { setEditor('new'); setConfirmation(null); setError(''); }}><Icon name="add"/> Add service</button></div>
       {!ready ? <div className="empty">Loading services.</div> : !visible.length ? <div className="empty"><h2>{query ? 'No matching services' : filter === 'archived' ? 'No archived services' : 'No services yet'}</h2>
         <p>{query ? 'Search by service description, ID, base material or price.' : 'Create services such as Colour printing and Black printing, each with its own price.'}</p></div> :
-        <div className="table-wrap"><table><thead><tr><SortHeader label="Service ID" column="id" sort={sorting} /><SortHeader label="Description" column="description" sort={sorting} /><SortHeader label="Base material" column="material" sort={sorting} /><SortHeader label="Price" column="price" sort={sorting} /><SortHeader label="Status" column="status" sort={sorting} />
+        <div className="table-wrap"><ResponsiveTable columns={[{index:1,label:"Service",details:[0,2,4]},{index:3,label:"Price"},{index:-1,label:"Actions",actions:true}]} labels={{0:"ID",2:"Material"}}><table><thead><tr><SortHeader label="Service ID" column="id" sort={sorting} /><SortHeader label="Description" column="description" sort={sorting} /><SortHeader label="Base material" column="material" sort={sorting} /><SortHeader label="Price" column="price" sort={sorting} /><SortHeader label="Status" column="status" sort={sorting} />
           {audit && <><SortHeader label="Created by" column="createdBy" sort={sorting} /><SortHeader label="Created at" column="createdAt" sort={sorting} /><SortHeader label="Modified by" column="modifiedBy" sort={sorting} /><SortHeader label="Modified at" column="modifiedAt" sort={sorting} /></>}<th>Actions</th></tr></thead><tbody>
           {visible.map(service => { const material = materials.find(item => item.id === service.materialId); return <tr key={service.id}>
             <td className="material-id">{serviceCode(service.id, services)}</td><td><strong>{service.description}</strong></td>
@@ -59,7 +60,7 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
             {audit && <><td>{service.createdByLabel}</td><td>{timestamp(service.createdAt)}</td><td>{service.modifiedByLabel}</td><td>{timestamp(service.modifiedAt)}</td></>}
             <td><div className="material-actions">{!service.archived && <button className="text-button" disabled={busy} onClick={() => { setEditor(service); setConfirmation(null); setError(''); }}><Icon name="edit"/> Edit</button>}
               <button className={`text-button ${service.archived ? '' : 'danger-text'}`} disabled={busy} onClick={() => { setConfirmation(service); setEditor(null); setError(''); }}><Icon name={service.archived?'restore':'archive'}/> {service.archived ? 'Restore' : 'Archive'}</button></div></td>
-          </tr>; })}</tbody></table></div>}
+          </tr>; })}</tbody></table></ResponsiveTable></div>}
     </section>
     {confirmation && <Modal title={`${confirmation.archived ? 'Restore' : 'Archive'} ${confirmation.description}?`} busy={busy} onClose={() => setConfirmation(null)}>
       {error && <div className="notice" role="alert">{error}</div>}
@@ -77,3 +78,4 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
         <button type="submit"><Icon name="save"/> {busy ? 'Saving...' : 'Save service'}</button></fieldset></form></Modal>}
   </>;
 }
+

@@ -1,3 +1,4 @@
+import ResponsiveTable from './ResponsiveTable';
 import { useEffect, useState, type FormEvent } from 'react';
 import { supabase } from './cloud';
 import Modal from './Modal';
@@ -118,7 +119,7 @@ export default function UsersPage({shopId,actorId,businessUserId,role,online,dem
  {!online&&<div className="notice">Connect to the internet to manage user accounts.</div>}
  {error&&<div className="notice" role="alert">{error}</div>}
  {!ready?<div className="empty">{online?'Loading users…':'User management is available online.'}</div>:!visible.length?<div className="empty">No matching users.</div>:
- <div className="table-wrap"><table><thead><tr>{heading('id','User ID')}{heading('name','Name')}{heading('username','Username')}{heading('rank','Rank')}{heading('role','Access level')}{heading('lastLogin','Last login')}{heading('status','Status')}
+ <div className="table-wrap"><ResponsiveTable columns={[{index:1,label:"User",details:[0,2,5,6]},{index:3,label:"Rank",details:[4]},{index:-1,label:"Actions",actions:true}]} labels={{0:"ID"}}><table><thead><tr>{heading('id','User ID')}{heading('name','Name')}{heading('username','Username')}{heading('rank','Rank')}{heading('role','Access level')}{heading('lastLogin','Last login')}{heading('status','Status')}
  {audit&&<>{heading('createdBy','Created by')}{heading('createdAt','Created at')}{heading('modifiedBy','Modified by')}{heading('modifiedAt','Modified at')}</>}<th>Actions</th></tr></thead><tbody>
  {visible.map(user=><tr key={user.id}><td className="material-id">{userCode(user.id)}</td><td><strong>{user.name}</strong>{user.userId===actorId?' (you)':''}</td><td>{user.username}</td><td>{accessLevels[user.role]} ({user.rank})</td><td>{user.accessLevel===0?'0 — Revoked':user.accessLevel}</td><td>{date(user.lastLogin)}</td><td><span className={`badge ${user.archived?'unpaid':'paid'}`}>{user.archived?'Archived':'Active'}</span></td>
  {audit&&<><td>{user.createdByLabel}</td><td>{date(user.createdAt)}</td><td>{user.modifiedByLabel}</td><td>{date(user.modifiedAt)}</td></>}
@@ -126,7 +127,7 @@ export default function UsersPage({shopId,actorId,businessUserId,role,online,dem
  <button className={`text-button ${user.archived?'':'danger-text'}`} disabled={busy||!online||!editable(user)} onClick={()=>{setConfirmation(user);setFormError('');}}><Icon name={user.archived?'restore':'archive'}/> {user.archived?'Restore':'Archive'}</button>
  {!user.archived&&<><button className="text-button" disabled={busy||!online||!editable(user)} onClick={()=>{setAccessChange(user);setFormError('');}}>{user.accessLevel===0?'Grant access':'Revoke access'}</button><button className="text-button" disabled={busy||!online||!editable(user)} onClick={()=>{setPasswordReset(user);setFormError('');}}>Reset password</button></>}
  </div></td></tr>)}
- </tbody></table></div>}
+ </tbody></table></ResponsiveTable></div>}
  <p className="muted">Rank: Cashier 1, Admin 2, Manager 3, Developer 4. Revoking access sets it to 0 and retains the rank. Managers cannot modify other Managers. Only Developers can modify Developer profiles.</p>
  </section>
  {editor&&<Modal title={editor==='new'?'Add user':'Edit user'} busy={busy} onClose={()=>setEditor(null)}>

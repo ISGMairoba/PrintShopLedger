@@ -110,25 +110,62 @@ try {
   await page.getByRole('button',{name:'New job',exact:true}).click();
   dialog=page.getByRole('dialog',{name:'Create a job'});
   await dialog.getByLabel('Customer').selectOption({index:1});
-  await dialog.getByRole('button',{name:'Close',exact:true}).click();
+  await dialog.getByLabel('Service',{exact:true}).fill('Printing');
+  await dialog.getByLabel('Job description').fill('Mobile test job');
+  await dialog.getByLabel('Job amount').fill('100');
+  await dialog.getByRole('button',{name:'Save record',exact:true}).click();
+  await dialog.waitFor({state:'detached'});
   await page.getByRole('button',{name:'Payments',exact:true}).click();
   await page.getByRole('button',{name:'Record payment',exact:true}).click();
   dialog=page.getByRole('dialog',{name:'Record a payment'});
   await dialog.getByLabel('Customer').selectOption({index:1});
-  await page.keyboard.press('Escape');
+  await dialog.getByLabel('Payment total').fill('20');
+  await dialog.getByLabel('Amount for Mobile test job').fill('20');
+  await dialog.getByRole('button',{name:'Save payment & allocations',exact:true}).click();
   await dialog.waitFor({state:'detached'});
   await page.getByRole('button',{name:'Stock History',exact:true}).click();
   await page.getByRole('button',{name:'Details',exact:true}).first().click();
   await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click();
   await page.setViewportSize({width:375,height:667});
+  await page.getByRole('button',{name:'Menu',exact:true}).click();
   await page.getByRole('button',{name:'Materials',exact:true}).click();
   await add.click();
   dialog=page.getByRole('dialog',{name:'Add material',exact:true});
   const mobileBox=await dialog.boundingBox();
   assert.ok(mobileBox.x>=0&&mobileBox.width<=375&&mobileBox.y>=0&&mobileBox.height<=667,'Modal fits small screen');
   await dialog.getByRole('button',{name:'Close',exact:true}).click();
+  assert.equal(await page.getByRole('navigation',{name:'Main'}).count(),0,'Mobile sidebar is closed');
+  await page.getByRole('button',{name:'Menu',exact:true}).click();
+  await page.getByRole('dialog',{name:'Navigation'}).waitFor();
+  await page.getByRole('button',{name:'Menu',exact:true}).click();
+  await page.getByRole('dialog',{name:'Navigation'}).waitFor({state:'detached'});
+  for(const width of [320,390,740]) {
+    await page.setViewportSize({width,height:844});
+    for(const name of ['Materials','Services','Customers','Stock History','Jobs','Payments']) {
+      await page.getByRole('button',{name:'Menu',exact:true}).click();
+      await page.getByRole('button',{name,exact:true}).click();
+      await page.locator('.mobile-list').waitFor();
+      assert.ok(await page.locator('.mobile-list thead th').count()<=3,name+' has at most three columns');
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),name+' fits '+width+'px');
+      await page.getByLabel('Sort list by').selectOption({index:0});
+      await page.getByRole('button',{name:'Reverse sort direction'}).click();
+    }
+  }
+  await page.getByRole('button',{name:'Menu',exact:true}).click();
+  await page.getByRole('button',{name:'Materials',exact:true}).click();
+  assert.match(await page.locator('.mobile-list').innerText(),/ID:.*MAT-/s);
+  assert.match(await page.locator('.mobile-list').innerText(),/Unit:.*sheet/s);
+  await page.getByRole('button',{name:'More',exact:true}).click();
+  await page.getByRole('dialog',{name:'More actions'}).getByRole('button',{name:'Add to stock',exact:true}).click();
+  await page.getByRole('dialog',{name:'Add to stock: Modal test paper'}).waitFor();
+  assert.equal(await page.getByRole('dialog',{name:'More actions'}).count(),0,'Action menu closes before editor');
+  await page.keyboard.press('Escape');
+  await page.setViewportSize({width:1280,height:800});
+  await page.getByRole('navigation',{name:'Main'}).waitFor();
+  assert.ok(await page.locator('thead th').count()>3,'Desktop table is restored');
   console.log('Modal browser checks passed: centred placement, blocked background, keyboard focus, Escape, focus restoration, save/close, all editors, and mobile layout.');
 } finally {
   await browser?.close();
   server.kill('SIGTERM');
 }
+

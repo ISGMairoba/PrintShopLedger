@@ -1,3 +1,4 @@
+import ResponsiveTable from './ResponsiveTable';
 import Icon from './Icon';
 import { useState, type FormEvent } from 'react';
 import Modal from './Modal';
@@ -51,7 +52,7 @@ export default function MaterialsPage({ materials, history, ready, busy, actor, 
         <button className="secondary" aria-pressed={audit} onClick={() => setAudit(!audit)}><Icon name={audit?'table':'audit'}/> {audit ? 'Normal view' : 'Audit view'}</button>
         <button disabled={!ready || busy} onClick={() => { setEditor('new'); setConfirmation(null); setStock(null); setError(''); }}><Icon name="add"/> Add material</button></div>
       {!ready ? <div className="empty">Loading materials.</div> : !visible.length ? <div className="empty"><h2>{query ? 'No matching materials' : filter === 'archived' ? 'No archived materials' : 'No materials yet'}</h2><p>{query ? 'Try another name, ID or unit.' : 'Add materials to manage stock and define how each one is priced.'}</p></div> :
-        <div className="table-wrap"><table className="materials-table"><thead><tr><SortHeader label="Material" column="name" sort={sorting}/><SortHeader label="Material ID" column="id" sort={sorting}/>
+        <div className="table-wrap"><ResponsiveTable columns={[{index:0,label:"Material",details:[1,4,5]},{index:2,label:"Available",details:[3]},{index:-1,label:"Actions",actions:true}]} labels={{1:"ID",3:"Unit"}}><table className="materials-table"><thead><tr><SortHeader label="Material" column="name" sort={sorting}/><SortHeader label="Material ID" column="id" sort={sorting}/>
           <SortHeader label="Available" column="available" sort={sorting} /><SortHeader label="Measurement unit" column="unit" sort={sorting} /><SortHeader label="Require size" column="requireSize" sort={sorting} /><SortHeader label="Status" column="status" sort={sorting} />{audit && <><SortHeader label="Created by" column="createdBy" sort={sorting} /><SortHeader label="Created at" column="createdAt" sort={sorting} /><SortHeader label="Modified by" column="modifiedBy" sort={sorting} /><SortHeader label="Modified at" column="modifiedAt" sort={sorting} /></>}<th>Actions</th></tr></thead><tbody>
           {visible.map(material => <tr key={material.id}><td><strong>{material.name}</strong></td><td className="material-id">{materialCode(material.id, materials)}</td>
 
@@ -62,7 +63,7 @@ export default function MaterialsPage({ materials, history, ready, busy, actor, 
               <button className="text-button" disabled={busy} onClick={() => { setStock({ material, mode: 'add' }); setStockReason('Restocking'); setEditor(null); setConfirmation(null); setError(''); }}><Icon name="add"/> Add to stock</button>
               <button className="text-button" disabled={busy} onClick={() => { setStock({ material, mode: 'set' }); setStockReason('Stock Count Correction'); setEditor(null); setConfirmation(null); setError(''); }}><Icon name="quantity"/> Set quantity</button></>}
               <button className={`text-button ${material.archived ? '' : 'danger-text'}`} disabled={busy} onClick={() => { setConfirmation(material); setEditor(null); setStock(null); setError(''); }}><Icon name={material.archived?'restore':'archive'}/> {material.archived ? 'Restore' : 'Archive'}</button></div></td></tr>)}
-        </tbody></table></div>}
+        </tbody></table></ResponsiveTable></div>}
     </section>
     {stock && <Modal title={`${stock.mode === 'add' ? 'Add to stock' : 'Set quantity'}: ${stock.material.name}`} busy={busy} onClose={() => setStock(null)}>
       {error && <div className="notice" role="alert">{error}</div>}
@@ -95,3 +96,4 @@ export default function MaterialsPage({ materials, history, ready, busy, actor, 
       </form></Modal>}
   </>;
 }
+

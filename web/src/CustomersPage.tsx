@@ -1,3 +1,4 @@
+import ResponsiveTable from './ResponsiveTable';
 import Icon from './Icon';
 import { useState } from 'react';
 import Modal from './Modal';
@@ -36,14 +37,14 @@ export default function CustomersPage({ledger,ready,busy,actor,onSave,onRecordPa
       <button className="secondary" aria-pressed={audit} onClick={()=>setAudit(!audit)}><Icon name={audit?'table':'audit'}/> {audit?'Normal view':'Audit view'}</button>
       <button disabled={!ready||busy} onClick={()=>{setEditor('new');setError('');}}><Icon name="add"/> Add customer</button></div>
       {!ready?<div className="empty">Loading customers.</div>:!visible.length?<div className="empty"><h2>{query?'No matching customers':filter==='archived'?'No archived customers':'No customers yet'}</h2><p>Add a customer with their full name and phone number.</p></div>:
-      <div className="table-wrap"><table><thead><tr>{heading('id','Customer ID')}{heading('name','Full name')}{heading('phone','Phone')}{heading('address','Address')}{heading('creditLimit','Credit limit')}{heading('jobs','Jobs')}{heading('outstanding','Outstanding')}{heading('status','Status')}
+      <div className="table-wrap"><ResponsiveTable columns={[{index:1,label:"Customer",details:[0,2,3,7]},{index:6,label:"Outstanding",details:[4,5]},{index:-1,label:"Actions",actions:true}]} labels={{0:"ID"}}><table><thead><tr>{heading('id','Customer ID')}{heading('name','Full name')}{heading('phone','Phone')}{heading('address','Address')}{heading('creditLimit','Credit limit')}{heading('jobs','Jobs')}{heading('outstanding','Outstanding')}{heading('status','Status')}
         {audit&&<>{heading('createdBy','Created by')}{heading('createdAt','Created at')}{heading('modifiedBy','Modified by')}{heading('modifiedAt','Modified at')}</>}<th>Actions</th></tr></thead><tbody>
         {visible.map(customer=><tr key={customer.id}><td className="material-id">{customerCode(customer.id,ledger.customers)}</td><td><strong>{customer.name}</strong></td><td>{customer.phone||'-'}</td><td>{customer.address||'-'}</td><td>{servicePrice(customer.creditLimit)}</td><td>{jobs(customer.id)}</td><td>{servicePrice(customerBalance(ledger,customer.id))}</td><td><span className={`badge ${customer.archived?'unpaid':'paid'}`}>{customer.archived?'Archived':'Active'}</span></td>
           {audit&&<><td>{customer.createdByLabel}</td><td>{date(customer.createdAt)}</td><td>{customer.modifiedByLabel}</td><td>{date(customer.modifiedAt)}</td></>}
           <td><div className="material-actions">{!customer.archived&&<button className="text-button" disabled={busy} onClick={()=>setEditor(customer)}><Icon name="edit"/> Edit</button>}
             <button className={`text-button ${customer.archived?'':'danger-text'}`} disabled={busy} onClick={()=>{setConfirmation(customer);setError('');}}><Icon name={customer.archived?'restore':'archive'}/> {customer.archived ? 'Restore' : 'Archive'}</button>
             <button className="text-button" disabled={busy||customerBalance(ledger,customer.id)<=0} onClick={()=>onRecordPayment(customer.id)}>Record payment</button></div></td></tr>)}
-      </tbody></table></div>}
+      </tbody></table></ResponsiveTable></div>}
     </section>
     {editor&&<CustomerEditor key={editor==='new'?'new':editor.id+':'+editor.version} customer={editor==='new'?undefined:editor} customers={ledger.customers} actor={actor} busy={busy} onSave={onSave} onClose={()=>setEditor(null)}/>}
     {confirmation&&<Modal title={`${confirmation.archived?'Restore':'Archive'} ${confirmation.name}?`} busy={busy} onClose={()=>setConfirmation(null)}>
@@ -52,3 +53,4 @@ export default function CustomersPage({ledger,ready,busy,actor,onSave,onRecordPa
     </Modal>}
   </>;
 }
+

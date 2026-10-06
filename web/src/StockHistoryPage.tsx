@@ -1,3 +1,4 @@
+import ResponsiveTable from './ResponsiveTable';
 import Icon from './Icon';
 import { useState } from 'react';
 import Modal from './Modal';
@@ -44,14 +45,14 @@ export default function StockHistoryPage({ history, materials, pending, ready, d
       <button className="secondary" onClick={() => { setSearch(''); setAction(''); setMaterialId(''); setFrom(''); setTo(''); setPage(0); }}>Reset filters</button>
     </div>
     {!ready ? <div className="empty">Loading stock history.</div> : !matching.length ? <div className="empty"><h2>{history.length ? 'No matching changes' : 'No material changes yet'}</h2><p>{history.length ? 'Adjust the filters to find a record.' : 'Material creation, editing, stock changes, archive and restore will appear here.'}</p></div> :
-      <div className="table-wrap"><table><thead><tr><SortHeader label="Material" column="material" sort={historySorting} /><SortHeader label="Available before" column="before" sort={historySorting} /><SortHeader label="Available after" column="after" sort={historySorting} /><SortHeader label="Change" column="change" sort={historySorting} /><SortHeader label="Action" column="action" sort={historySorting} /><SortHeader label="Reason / note" column="reason" sort={historySorting} /><SortHeader label="Changed by" column="by" sort={historySorting} /><SortHeader label="Date" column="date" sort={historySorting} /><th></th></tr></thead><tbody>
+      <div className="table-wrap"><ResponsiveTable columns={[{index:0,label:"Material",details:[4,5,6,7]},{index:2,label:"Available",details:[1,3]},{index:8,label:"Actions",actions:true}]}><table><thead><tr><SortHeader label="Material" column="material" sort={historySorting} /><SortHeader label="Available before" column="before" sort={historySorting} /><SortHeader label="Available after" column="after" sort={historySorting} /><SortHeader label="Change" column="change" sort={historySorting} /><SortHeader label="Action" column="action" sort={historySorting} /><SortHeader label="Reason / note" column="reason" sort={historySorting} /><SortHeader label="Changed by" column="by" sort={historySorting} /><SortHeader label="Date" column="date" sort={historySorting} /><th></th></tr></thead><tbody>
         {visible.map(entry => <tr key={entry.id}><td><strong>{entry.materialName}</strong><small>{materialCode(entry.materialId, materials)}</small></td>
           <td>{quantity(entry.beforeAvailable)}</td><td>{quantity(entry.afterAvailable)}<small>{entry.measurementUnit}</small></td>
           <td>{entry.beforeAvailable == null ? '-' : `${entry.afterAvailable > entry.beforeAvailable ? '+' : ''}${quantity(Math.round((entry.afterAvailable - entry.beforeAvailable) * 1000) / 1000)}`}</td>
           <td>{materialActionLabels[entry.action]}<small>{demo ? 'On this device' : pendingIds.has(entry.id) ? 'Pending sync' : 'Synced'}</small></td>
           <td>{entry.reason || '-'}</td><td>{entry.changedByLabel}</td><td>{dateLabel(entry.changedAt)}</td>
           <td><button className="text-button" onClick={() => setSelected(entry)}><Icon name="details"/> Details</button></td></tr>)}
-      </tbody></table></div>}
+      </tbody></table></ResponsiveTable></div>}
       {ready && matching.length > 0 && <div className="toolbar history-pagination"><span>{activePage * 50 + 1}-{Math.min((activePage + 1) * 50, matching.length)} of {matching.length} changes</span>
         <button className="secondary" disabled={activePage === 0} onClick={() => setPage(activePage - 1)}>Previous</button>
         <button className="secondary" disabled={activePage === maxPage} onClick={() => setPage(activePage + 1)}>Next</button></div>}
@@ -64,3 +65,4 @@ export default function StockHistoryPage({ history, materials, pending, ready, d
     </Modal>}
   </>;
 }
+

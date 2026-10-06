@@ -96,6 +96,14 @@ try {
  await page.getByRole('button',{name:'Name',exact:true}).click();
  assert.equal(await page.locator('th[aria-sort="descending"]').count(),1);
  await page.setViewportSize({width:390,height:844});
+ await page.locator('.mobile-list').waitFor();
+ assert.equal(await page.locator('.mobile-list thead th').count(),3);
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),'Users fits mobile screen');
+ assert.match(await row.innerText(),/Created by:/,'Audit data remains visible beneath user');
+ await row.getByRole('button',{name:'More',exact:true}).click();
+ await page.getByRole('dialog',{name:'More actions'}).getByRole('button',{name:'Reset password',exact:true}).click();
+ await page.getByRole('dialog',{name:'Reset password: Amina Updated'}).waitFor();
+ await page.keyboard.press('Escape');
  await page.getByRole('button',{name:'Add user',exact:true}).click();
  dialog=page.getByRole('dialog',{name:'Add user'});
  const mobile=await dialog.boundingBox();assert.ok(mobile.width<=390);
