@@ -276,6 +276,12 @@ try {
  await page.locator('tbody tr').filter({hasText:'Cashier only'}).waitFor();
  assert.equal(await page.getByText('Manager print',{exact:true}).count(),0);
  assert.equal(serverLedger.drawerClosings.length,1);
+ const outgoingCache=await page.evaluate(scope=>new Promise((resolve,reject)=>{
+  const request=indexedDB.open('printshopledger-v1',1);request.onerror=()=>reject(request.error);
+  request.onsuccess=()=>{const db=request.result,tx=db.transaction('ledgers'),read=tx.objectStore('ledgers').get(scope);read.onsuccess=()=>resolve(read.result);read.onerror=()=>reject(read.error);tx.oncomplete=()=>db.close();};
+ }),`${actor}:${shop}`);
+ assert.equal(outgoingCache.ledger.drawerClosings.length,1,'Outgoing drawer closing is available offline before switching back');
+ assert.equal(outgoingCache.ledger.checkouts.filter(r=>r.createdBy===actor&&!r.drawerClosingId).length,0,'Cached receipts retain their closed status');
  assert.equal(serverLedger.checkouts.filter(r=>r.createdBy===actor&&r.drawerClosingId).length,3);
  assert.equal(serverLedger.checkouts.find(r=>r.createdBy===cashierId).drawerClosingId,undefined);
  await page.getByRole('button',{name:'Drawer history',exact:true}).click();

@@ -16,7 +16,7 @@ import { useRegisterSW } from 'virtual:pwa-register/react';
 import type { Session } from '@supabase/supabase-js';
 import { customerBalance, emptyLedger, jobBalance } from './domain.mjs';
 import { supabase, businessAuth, syncLedger, MaterialSyncConflict, resolveCloudMaterial, ServiceSyncConflict, resolveCloudService, CustomerSyncConflict, resolveCloudCustomer, CheckoutSyncConflict, JobSyncConflict, resolvePendingWork, checkoutReviewBase } from './cloud';
-import { readState, saveEvent } from './storage';
+import { readState, saveEvent, mutateState } from './storage';
 import MaterialsPage from './MaterialsPage';
 import CustomersPage from './CustomersPage';
 import UsersPage from './UsersPage';
@@ -168,10 +168,22 @@ export default function App() {
       const {data,error}=await supabase!.functions.invoke('close-drawer',{body:{shopId,...command}});
       if(error){let message=error.message;const response=(error as {context?:Response}).context;if(response)try{message=(await response.json()).error||message;}catch{}throw Error(message);}
       if(activeScope.current!==target)throw Error('Handover saved. Sign in as the receiving user to continue.');
+      // Cache the server-confirmed closing before the outgoing staff session is replaced.
+      // Preserve any concurrent local work; this confirmation does not create an outbox event.
+      let cacheWarning='';
+      try {
+        const closedIds=new Set<string>(data.closing.checkoutIds);
+        await mutateState(target,current=>({...current,ledger:{...current.ledger,
+          drawerClosings:[...current.ledger.drawerClosings.filter(d=>d.id!==data.closing.id),data.closing],
+          checkouts:current.ledger.checkouts.map(r=>closedIds.has(r.id)?{...r,drawerClosingId:data.closing.id}:r)
+        }}));
+        channel.current?.postMessage('changed');
+      }catch{cacheWarning=' Reconnect before reviewing the outgoing user’s sales on this device.';}
+      if(activeScope.current!==target)throw Error('Handover saved. Sign in as the receiving user to continue.');
       await supabase!.auth.signOut({scope:'local'});
       const {error:sessionError}=await supabase!.auth.setSession({access_token:data.access_token,refresh_token:data.refresh_token});
       if(sessionError){await supabase!.auth.signOut({scope:'local'});throw Error('Handover saved. Sign in as the receiving user to continue.');}
-      setPage('My Sales');setStaffEpoch(value=>value+1);setMessage(`Drawer handover saved. ${data.closing.toUserLabel} is now signed in.`);
+      setPage('My Sales');setStaffEpoch(value=>value+1);setMessage(`Drawer handover saved. ${data.closing.toUserLabel} is now signed in.${cacheWarning}`);
     }catch(error){
       if(error instanceof CheckoutSyncConflict)setCheckoutConflict(error);
       if(error instanceof JobSyncConflict)setJobConflict(error);
