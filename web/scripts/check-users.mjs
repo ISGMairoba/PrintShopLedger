@@ -12,7 +12,7 @@ try {
  const actor='11111111-1111-4111-8111-111111111111',shop='22222222-2222-4222-8222-222222222222';
  const now=new Date().toISOString();
  let users=[{id:'33333333-3333-4333-8333-333333333333',userId:actor,name:'Test Manager',username:'manager',rank:3,accessLevel:3,role:'manager',archived:false,version:1,lastLogin:now,createdAt:now,modifiedAt:now,createdByLabel:'Test Manager',modifiedByLabel:'Test Manager'}];
- const makeToken=(id)=>[{alg:'HS256',typ:'JWT'},{sub:id,role:'authenticated',exp:Math.floor(Date.now()/1000)+3600},'signature'].map(part=>typeof part==='string'?part:Buffer.from(JSON.stringify(part)).toString('base64url')).join('.');
+ const makeToken=(id)=>[{alg:'HS256',typ:'JWT'},{sub:id,role:'authenticated',exp:Math.floor(Date.now()/1000)+3600},'c2lnbmF0dXJl'].map(part=>typeof part==='string'?part:Buffer.from(JSON.stringify(part)).toString('base64url')).join('.');
  const token=makeToken(actor),cashierId='55555555-5555-4555-8555-555555555555';
  const authUser={id:actor,aud:'authenticated',role:'authenticated',email:'owner@example.invalid',user_metadata:{full_name:'Test Manager'},app_metadata:{provider:'email'},created_at:now};
  await context.route('https://*.supabase.co/**',async route=>{
