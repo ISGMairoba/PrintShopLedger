@@ -8,7 +8,7 @@ type MobileColumn = { index: number; label: string; details?: number[]; actions?
 function elements(children: ReactNode): Element[] {
   return Children.toArray(children).flatMap(child => !isValidElement(child) ? [] : child.type === Fragment ? elements((child as Element).props.children) : [child as Element]);
 }
-const mobileQuery = '(max-width: 740px)';
+const mobileQuery = '(max-width: 740px), (max-width: 1024px) and (pointer: coarse)';
 const subscribe = (callback: () => void) => { const media = window.matchMedia(mobileQuery); media.addEventListener('change', callback); return () => media.removeEventListener('change', callback); };
 const mobileSnapshot = () => window.matchMedia(mobileQuery).matches;
 const serverSnapshot = () => false;
