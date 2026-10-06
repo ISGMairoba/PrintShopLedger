@@ -127,7 +127,8 @@ try {
   await page.getByRole('button',{name:'Details',exact:true}).first().click();
   await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click();
   await page.setViewportSize({width:375,height:667});
-  await page.getByRole('button',{name:'Menu',exact:true}).click();
+  const openMenu=async()=>{await page.evaluate(()=>window.scrollTo(0,0));await delay(250);await page.getByRole('button',{name:'Menu',exact:true}).click();};
+  await openMenu();
   await page.getByRole('button',{name:'Materials',exact:true}).click();
   await add.click();
   dialog=page.getByRole('dialog',{name:'Add material',exact:true});
@@ -135,14 +136,14 @@ try {
   assert.ok(mobileBox.x>=0&&mobileBox.width<=375&&mobileBox.y>=0&&mobileBox.height<=667,'Modal fits small screen');
   await dialog.getByRole('button',{name:'Close',exact:true}).click();
   assert.equal(await page.getByRole('navigation',{name:'Main'}).count(),0,'Mobile sidebar is closed');
-  await page.getByRole('button',{name:'Menu',exact:true}).click();
+  await openMenu();
   await page.getByRole('dialog',{name:'Navigation'}).waitFor();
   await page.getByRole('dialog',{name:'Navigation'}).getByRole('button',{name:'Menu',exact:true}).click();
   await page.getByRole('dialog',{name:'Navigation'}).waitFor({state:'detached'});
   for(const width of [320,390,740]) {
     await page.setViewportSize({width,height:844});
     for(const name of ['Materials','Services','Customers','Stock History','Jobs','Payments']) {
-      await page.getByRole('button',{name:'Menu',exact:true}).click();
+      await openMenu();
       await page.getByRole('button',{name,exact:true}).click();
       await page.locator('.mobile-list').waitFor();
       assert.ok(await page.locator('.mobile-list thead th').count()<=3,name+' has at most three columns');
@@ -151,7 +152,7 @@ try {
       await page.getByRole('button',{name:'Reverse sort direction'}).click();
     }
   }
-  await page.getByRole('button',{name:'Menu',exact:true}).click();
+  await openMenu();
   await page.getByRole('button',{name:'Materials',exact:true}).click();
   assert.match(await page.locator('.mobile-list').innerText(),/ID:.*MAT-/s);
   assert.match(await page.locator('.mobile-list').innerText(),/Unit:.*sheet/s);
@@ -168,4 +169,3 @@ try {
   await browser?.close();
   server.kill('SIGTERM');
 }
-
