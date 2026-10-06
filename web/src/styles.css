@@ -108,3 +108,5 @@ nav button { display: flex; align-items: center; gap: .8rem; }
 .cart-total strong{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums}
 .payment-recommendation{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap}
 .payment-recommendation p{margin:0}.payment-recommendation strong{color:#124b40}
+
+.drawer-info{padding:0 20px}.stats .app-icon{margin-right:6px}.toolbar:has([aria-label="My sales status"]){flex-wrap:wrap}

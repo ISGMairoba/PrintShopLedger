@@ -10,6 +10,8 @@ A React + TypeScript app for businesses that manage materials, services, custome
 - Cash/POS/transfer payments allocated oldest unpaid job first, with manual override across multiple jobs.
 - Excess payment becomes wallet credit, usable on later jobs. Credit limits warn without blocking orders.
 - Atomic checkout saves jobs, allocations, wallet, stock and audit records together. Retrying the same checkout never duplicates records.
+- My Sales shows the signed-in user’s checkout/payment transactions, sortable/searchable with date and closed-status filters, saved receipts and drawer history.
+- Online drawer handover verifies both staff passwords and active business access. It atomically closes all the current user’s unclosed transactions (including overnight), records actual cash, counted cash and any discrepancy, then signs in the receiving user while preserving business sign-in. Incoming counted cash becomes the receiver’s opening cash. POS/transfer/wallet usage are reported separately.
 - Production workflow: Added → In Queue → Printing → Completed → Collected.
 - Receipts use saved QZ Tray printer settings. Printing failure leaves the saved checkout intact and supports manual retry.
 - IndexedDB offline saves and automatic cloud sync on reconnection. Concurrent price, account or workflow changes require review before confirmation.

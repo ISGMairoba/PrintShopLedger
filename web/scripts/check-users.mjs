@@ -12,7 +12,7 @@ try {
  const actor='11111111-1111-4111-8111-111111111111',shop='22222222-2222-4222-8222-222222222222';
  const now=new Date().toISOString();
  let downloads=0,uploads=0,failDownload=false;
- const serverLedger={customers:[],jobs:[],payments:[],materials:[],materialHistory:[],services:[]};
+ const serverLedger={customers:[],jobs:[],payments:[],materials:[],materialHistory:[],services:[],checkouts:[],drawerClosings:[]};
  let users=[{id:'33333333-3333-4333-8333-333333333333',userId:actor,name:'Test Manager',username:'manager',rank:3,accessLevel:3,role:'manager',archived:false,version:1,lastLogin:now,createdAt:now,modifiedAt:now,createdByLabel:'Test Manager',modifiedByLabel:'Test Manager'}];
  const makeToken=(id)=>[{alg:'HS256',typ:'JWT'},{sub:id,role:'authenticated',exp:Math.floor(Date.now()/1000)+3600},'c2lnbmF0dXJl'].map(part=>typeof part==='string'?part:Buffer.from(JSON.stringify(part)).toString('base64url')).join('.');
  const token=makeToken(actor),cashierId='55555555-5555-4555-8555-555555555555';
@@ -30,6 +30,18 @@ try {
   else if(path.endsWith('/staff-login')){
    if(body.password==='wrong-password'){await route.fulfill({status:401,contentType:'application/json',body:JSON.stringify({error:'Username or password incorrect, or access is unavailable.'})});return;}
    const target=Object.keys(staff).find(id=>staff[id].username===body.username);assert.ok(target);result={access_token:makeToken(target),refresh_token:target===actor?'manager-refresh':'cashier-refresh'};
+  }
+  else if(path.endsWith('/close-drawer')){
+   const bearer=route.request().headers().authorization.slice(7),id=JSON.parse(Buffer.from(bearer.split('.')[1],'base64url').toString()).sub;
+   if(body.currentPassword!=='test-only-password'||body.nextPassword!=='new-test-only-password'){
+    await route.fulfill({status:401,contentType:'application/json',body:JSON.stringify({error:'Check both users’ credentials.'})});return;
+   }
+   assert.equal(id,actor);assert.equal(body.nextUsername,'amina.print');
+   const own=serverLedger.checkouts.filter(r=>r.createdBy===actor&&!r.drawerClosingId);
+   assert.deepEqual([...body.checkoutIds].sort(),own.map(r=>r.id).sort());assert.equal(body.countedCash,7500);
+   const closing={id:body.id,fromUserId:actor,fromUserLabel:'Test Manager',toUserId:cashierId,toUserLabel:'Amina Updated',closedAt:new Date().toISOString(),checkoutIds:body.checkoutIds,openingId:null,openingCash:0,cashCollected:8000,totalCollected:11000,posCollected:3000,transferCollected:0,walletUsed:0,jobSales:16000,expectedCash:8000,countedCash:7500,difference:-500,note:body.note};
+   serverLedger.drawerClosings.push(closing);own.forEach(r=>r.drawerClosingId=closing.id);
+   result={closing,access_token:makeToken(cashierId),refresh_token:'handover-refresh'};
   }
   else if(path.endsWith('/get_ledger')){
    downloads++;
@@ -221,8 +233,62 @@ try {
   assert.equal(await page.getByRole('button',{name:'Sign out business',exact:true}).count(),username==='admin'?0:1,username+' business sign out permission');
   assert.equal(await page.getByRole('button',{name:'Logout',exact:true}).count(),1);
  }
+ // My Sales uses receipt records, not jobs/payment rows, and always isolates the current user.
+ const receipt=(id,creator,method,cash,total,createdAt,description)=>({id,createdBy:creator,createdByLabel:staff[creator].name,customerId:serverLedger.customers[0].id,customerSnapshot:{id:serverLedger.customers[0].id,name:'Offline sync customer',phone:'08012345678',address:''},jobs:[{id:'job-'+id,description}],jobBalances:[],cashReceived:cash,total,walletUsed:0,walletAdded:0,walletAfter:0,outstandingAfter:total-cash,method,paidOn:createdAt.slice(0,10),createdAt,reference:''});
+ serverLedger.checkouts.push(receipt('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',actor,'Cash',7000,10000,now,'Manager print'),receipt('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',actor,'POS',3000,5000,now,'Manager copy'),receipt('cccccccc-cccc-4ccc-8ccc-cccccccccccc',actor,'Cash',1000,1000,new Date(Date.now()-86400000).toISOString(),'Overnight job'),receipt('dddddddd-dddd-4ddd-8ddd-dddddddddddd',cashierId,'Cash',5000,5000,now,'Cashier only'));
+ await page.reload();await page.locator('.sync-status').getByText('Saved',{exact:false}).waitFor();
+ await page.getByRole('button',{name:'My Sales',exact:true}).click();
+ await page.locator('tbody tr').filter({hasText:'Manager print'}).waitFor();
+ assert.equal(await page.locator('tbody tr').count(),2,'Today only shows this user’s receipts');
+ assert.equal(await page.getByText('Cashier only',{exact:true}).count(),0);
+ assert.match(await page.locator('.stats article').first().innerText(),/70\.00/,'Cash summary uses amount received, not 100 due');
+ await page.locator('tbody tr').filter({hasText:'Manager print'}).getByRole('button',{name:'Receipt',exact:true}).click();
+ await page.getByRole('dialog',{name:'Receipt AAAAAAAA'}).getByRole('button',{name:'Print receipt',exact:true}).waitFor();
+ await page.keyboard.press('Escape');
+ await page.getByLabel('Search my sales').fill('POS');assert.equal(await page.locator('tbody tr').count(),1);
+ await page.getByLabel('Search my sales').fill('');
+ await page.getByRole('button',{name:'All dates',exact:true}).click();assert.equal(await page.locator('tbody tr').count(),3,'Overnight unclosed receipts remain accessible');
+ await page.getByRole('button',{name:'Money received',exact:true}).click();assert.equal(await page.locator('th[aria-sort="ascending"]').count(),1);
+ await context.setOffline(true);await page.locator('.sync-status').getByText('Waiting for connection',{exact:false}).waitFor();
+ assert.equal(await page.getByRole('button',{name:'Close drawer',exact:true}).isDisabled(),true);
+ assert.equal(await page.locator('tbody tr').count(),3);await context.setOffline(false);
+ await page.locator('.sync-status').getByText('Saved',{exact:false}).waitFor();
+ await page.setViewportSize({width:390,height:844});
+ assert.equal(await page.locator('.mobile-list thead th').count(),3);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+ await page.getByRole('button',{name:'Close drawer',exact:true}).click();
+ dialog=page.getByRole('dialog',{name:'Close drawer'});assert.ok((await dialog.boundingBox()).width<=390);
+ await dialog.getByLabel('Current user password',{exact:true}).fill('wrong-password');
+ await dialog.getByLabel('Receiving username',{exact:true}).fill('amina.print');
+ await dialog.getByLabel('Receiving user password',{exact:true}).fill('new-test-only-password');
+ await dialog.getByLabel('Cash counted / handed over (₦)',{exact:true}).fill('75');
+ await dialog.getByLabel('Handover note').fill('Cash shortage');
+ await dialog.getByRole('checkbox').check();
+ await dialog.getByRole('button',{name:'Close drawer and switch user',exact:true}).click();
+ await dialog.getByRole('alert').getByText('Check both users’ credentials.',{exact:true}).waitFor();
+ assert.equal(serverLedger.drawerClosings.length,0,'Wrong password cannot close transactions');
+ await dialog.getByLabel('Current user password',{exact:true}).fill('test-only-password');
+ await dialog.getByRole('button',{name:'Close drawer and switch user',exact:true}).click();
+ await dialog.waitFor({state:'detached'});
+ await page.setViewportSize({width:1280,height:800});
+ await page.locator('.sidebar-user').getByText('@amina.print',{exact:true}).waitFor();
+ await page.locator('tbody tr').filter({hasText:'Cashier only'}).waitFor();
+ assert.equal(await page.getByText('Manager print',{exact:true}).count(),0);
+ assert.equal(serverLedger.drawerClosings.length,1);
+ assert.equal(serverLedger.checkouts.filter(r=>r.createdBy===actor&&r.drawerClosingId).length,3);
+ assert.equal(serverLedger.checkouts.find(r=>r.createdBy===cashierId).drawerClosingId,undefined);
+ await page.getByRole('button',{name:'Drawer history',exact:true}).click();
+ await page.getByRole('button',{name:'Details',exact:true}).click();
+ dialog=page.getByRole('dialog');assert.match(await dialog.innerText(),/cash shortage|Cash shortage/);assert.match(await dialog.innerText(),/75\.00/);await page.keyboard.press('Escape');
+ await page.getByRole('button',{name:'Close drawer',exact:true}).click();
+ dialog=page.getByRole('dialog',{name:'Close drawer'});assert.match(await dialog.locator('.checkout-summary').innerText(),/Opening cash.*75\.00/s,'Receiver gets counted opening cash');await page.keyboard.press('Escape');
+ await page.getByRole('button',{name:'Switch user',exact:true}).click();dialog=page.getByRole('dialog',{name:'Switch user'});
+ await dialog.getByLabel('Username',{exact:true}).fill('manager');await dialog.getByLabel('Password',{exact:true}).fill('test-only-password');await dialog.getByRole('button',{name:'Sign in user',exact:true}).click();await dialog.waitFor({state:'detached'});
+ await page.locator('.sidebar-user').getByText('@manager',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'My Sales',exact:true}).click();
+ await page.getByLabel('My sales status').selectOption('closed');await page.getByRole('button',{name:'All dates',exact:true}).click();
+ await page.locator('tbody tr').filter({hasText:'Manager print'}).waitFor();assert.equal(await page.locator('tbody tr').count(),3,'Closed receipts remain viewable');
  await page.getByRole('button',{name:'Sign out business',exact:true}).click();
  await page.getByLabel('Business email',{exact:true}).waitFor();
- console.log('Users UI checks passed (mocked API): create, edit, archive, restore, search, audit, sort, access revoke/grant, password reset, popup and mobile.');
+ console.log('My Sales / handover and Users UI checks passed (mocked API): create, edit, archive, restore, search, audit, sort, access revoke/grant, password reset, popup and mobile.');
 }finally{await browser?.close();server.kill();}
 

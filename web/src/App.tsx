@@ -1,3 +1,4 @@
+import MySalesPage from './MySalesPage';
 import PointOfServicePage from './PointOfServicePage';
 import CheckoutEditor from './CheckoutEditor';
 import ReceiptView from './ReceiptView';
@@ -24,10 +25,10 @@ import { SortHeader, useTableSort } from './TableSort';
 import ServicesPage from './ServicesPage';
 import ServiceConflictReview from './ServiceConflictReview';
 import StockHistoryPage from './StockHistoryPage';
-import type { LedgerEvent, LocalState, Payment, MaterialEvent, ServiceEvent, CustomerEvent, Job, CheckoutEvent, CheckoutRecord } from './types';
+import type { LedgerEvent, LocalState, Payment, MaterialEvent, ServiceEvent, CustomerEvent, Job, CheckoutEvent, CheckoutRecord, DrawerCommand } from './types';
 
 type Shop = { id: string; name: string; userId:string; role: string; rank: number; accessLevel: number; username: string; staffName: string };
-type Page = 'Point of Service' | 'Jobs' | 'Customers' | 'Payments' | 'Materials' | 'Stock History' | 'Services' | 'Print Settings' | 'Users';
+type Page = 'My Sales' | 'Point of Service' | 'Jobs' | 'Customers' | 'Payments' | 'Materials' | 'Stock History' | 'Services' | 'Print Settings' | 'Users';
 const currency = (amount: number) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount / 100);
 const shortId = (id: string) => id.slice(0, 8).toUpperCase();
 const dateLabel = (value: string) => new Date(value).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Africa/Lagos' });
@@ -154,6 +155,30 @@ export default function App() {
       const printed=await printAfterTransaction(target,`Receipt ${record.id.slice(0,8)}`,receiptHtml(record,demo?'PrintShopLedger — Local trial':shop?.name??'PrintShopLedger',pending),true);
       if(activeScope.current===target&&printed.status==='failed')setMessage(`Checkout saved. Receipt printing failed: ${printed.message}. Open the receipt to retry.`);
       return record;
+    }finally{setBusy(false);}
+  }
+  async function closeDrawer(command:DrawerCommand){
+    if(demo||!online||busy||!ready||!scope||!session||!shop)throw Error('Connect and sign in to close the drawer.');
+    const target=scope,shopId=shop.id;setBusy(true);setMessage('');
+    try{
+      const synced=await syncLedger(target,shopId);
+      if(activeScope.current!==target)throw Error('Your signed-in user changed. Reopen the drawer.');
+      setState(synced);channel.current?.postMessage('changed');
+      if(synced.pending.length)throw Error('Finish syncing pending sales before closing.');
+      const {data,error}=await supabase!.functions.invoke('close-drawer',{body:{shopId,...command}});
+      if(error){let message=error.message;const response=(error as {context?:Response}).context;if(response)try{message=(await response.json()).error||message;}catch{}throw Error(message);}
+      if(activeScope.current!==target)throw Error('Handover saved. Sign in as the receiving user to continue.');
+      await supabase!.auth.signOut({scope:'local'});
+      const {error:sessionError}=await supabase!.auth.setSession({access_token:data.access_token,refresh_token:data.refresh_token});
+      if(sessionError){await supabase!.auth.signOut({scope:'local'});throw Error('Handover saved. Sign in as the receiving user to continue.');}
+      setPage('My Sales');setStaffEpoch(value=>value+1);setMessage(`Drawer handover saved. ${data.closing.toUserLabel} is now signed in.`);
+    }catch(error){
+      if(error instanceof CheckoutSyncConflict)setCheckoutConflict(error);
+      if(error instanceof JobSyncConflict)setJobConflict(error);
+      if(error instanceof MaterialSyncConflict)setConflict(error);
+      if(error instanceof ServiceSyncConflict)setServiceConflict(error);
+      if(error instanceof CustomerSyncConflict)setCustomerConflict(error);
+      throw error;
     }finally{setBusy(false);}
   }
   const hasConflict=!!(conflict||serviceConflict||customerConflict||checkoutConflict||jobConflict);
@@ -289,10 +314,10 @@ export default function App() {
         if(failure)setMessage(failure.message);else{setSession(null);setBusinessSession(null);setShop(null);setMessage('Business signed out.');}
       }}>{demo ? 'Business sign in' : 'Sign out business'}</button>}
     </>}>
-      <nav aria-label="Main">{(['Point of Service', 'Jobs', 'Customers', 'Payments', 'Materials', 'Services', 'Stock History', 'Print Settings', 'Users'] as Page[]).filter(item=>item!=='Users'||demo||(shop?.accessLevel??0)>=2).map(item => <button key={item} className={page === item ? 'active' : ''}
-        onClick={() => { setPage(item); setSelectedJob(null); setForm(null); setQuery(''); }}><Icon name={({'Point of Service':'services',Jobs:'jobs',Customers:'customers',Payments:'payments',Materials:'materials',Services:'services','Stock History':'history','Print Settings':'quantity',Users:'customers'} as const)[item]}/>{item}</button>)}</nav>
+      <nav aria-label="Main">{(['Point of Service', 'My Sales', 'Jobs', 'Customers', 'Payments', 'Materials', 'Services', 'Stock History', 'Print Settings', 'Users'] as Page[]).filter(item=>item!=='Users'||demo||(shop?.accessLevel??0)>=2).map(item => <button key={item} className={page === item ? 'active' : ''}
+        onClick={() => { setPage(item); setSelectedJob(null); setForm(null); setQuery(''); }}><Icon name={({'Point of Service':'services','My Sales':'drawer',Jobs:'jobs',Customers:'customers',Payments:'payments',Materials:'materials',Services:'services','Stock History':'history','Print Settings':'quantity',Users:'customers'} as const)[item]}/>{item}</button>)}</nav>
     </Sidebar>
-    <main><header><div><span className="eyebrow">{demo ? 'LOCAL TRIAL' : shop?.name ?? 'BUSINESS WORKSPACE'}</span><h1>{page}</h1><p>{page === 'Users' ? 'Manage staff accounts, ranks and business access.' : page === 'Print Settings' ? 'Set default printer, paper, font and margins for this device.' : page === 'Customers' ? 'Manage customer details and credit limits.' : page === 'Materials' ? 'Manage materials, quantities and pricing requirements.' : page === 'Stock History' ? 'Review every material change and stock adjustment.' : page === 'Services' ? 'Define services, their base materials and prices.' : 'Track work and keep every payment attached to its job.'}</p></div>
+    <main><header><div><span className="eyebrow">{demo ? 'LOCAL TRIAL' : shop?.name ?? 'BUSINESS WORKSPACE'}</span><h1>{page}</h1><p>{page === 'My Sales' ? 'Review your transactions and record a verified drawer handover.' : page === 'Users' ? 'Manage staff accounts, ranks and business access.' : page === 'Print Settings' ? 'Set default printer, paper, font and margins for this device.' : page === 'Customers' ? 'Manage customer details and credit limits.' : page === 'Materials' ? 'Manage materials, quantities and pricing requirements.' : page === 'Stock History' ? 'Review every material change and stock adjustment.' : page === 'Services' ? 'Define services, their base materials and prices.' : 'Track work and keep every payment attached to its job.'}</p></div>
       {!demo&&scope&&<span className="sync-status" role="status" aria-live="polite"><Icon name="sync"/> {syncLabel}{state.pending.length>0&&` (${state.pending.length})`}</span>}</header>
       {switchUser&&<Modal title="Switch user" busy={busy} onClose={()=>setSwitchUser(false)}><p>Business: {shop?.name}. Sign in with your staff username and password.</p>{staffLoginForm()}{message&&<p role="alert">{message}</p>}</Modal>}
       {needRefresh && <div className="notice">An app update is ready. <button className="secondary" disabled={busy} onClick={() => void updateServiceWorker(true)}>Update app</button></div>}
@@ -324,7 +349,7 @@ export default function App() {
         <div className="material-actions"><button disabled={busy} onClick={() => void resolveConflict('local')}>Keep this device's version</button><button className="secondary" disabled={busy} onClick={() => void resolveConflict('cloud')}>Keep business version</button></div>
       </Modal>}
       {!demo && !shop ? <section className="auth-card"><h2>Create your business workspace</h2><p>Each business gets its own customers, jobs and payments.</p><form onSubmit={createWorkspace}><label>Business name<input name="businessName" maxLength={160} required /></label><button disabled={busy || !online}>Create workspace</button></form><p className="muted">If you should join an existing business, ask its administrator to add your account.</p></section> : <>
-        {page === 'Point of Service' ? <PointOfServicePage ledger={ledger} busy={busy||hasConflict} ready={ready} onCheckout={()=>{setPaymentCustomer('');setForm('job');}} onPayment={()=>openPayment()} onJob={setSelectedJob} onNext={setJobToAdvance} onReceipt={setReceipt}/> : page === 'Users' ? <UsersPage key={scope} shopId={shop?.id ?? ''} actorId={session?.user.id ?? ''} businessUserId={businessSession?.user.id ?? ''} role={shop?.role ?? ''} online={online} demo={demo} onChanged={()=>setStaffEpoch(value=>value+1)} /> : page === 'Print Settings' ? <PrintSettingsPage key={scope} scope={scope} ready={ready}/> : page === 'Customers' ? <CustomersPage key={scope} ledger={ledger} ready={ready} busy={busy || hasConflict}
+        {page === 'My Sales' ? <MySalesPage key={scope} ledger={ledger} userId={demo?'local-trial':session!.user.id} username={demo?'trial':shop?.username??''} name={demo?'Local trial user':shop?.staffName??''} ready={ready} busy={busy||hasConflict} online={online} demo={demo} pending={state.pending.length} onReceipt={setReceipt} onHandover={closeDrawer}/> : page === 'Point of Service' ? <PointOfServicePage ledger={ledger} busy={busy||hasConflict} ready={ready} onCheckout={()=>{setPaymentCustomer('');setForm('job');}} onPayment={()=>openPayment()} onJob={setSelectedJob} onNext={setJobToAdvance} onReceipt={setReceipt}/> : page === 'Users' ? <UsersPage key={scope} shopId={shop?.id ?? ''} actorId={session?.user.id ?? ''} businessUserId={businessSession?.user.id ?? ''} role={shop?.role ?? ''} online={online} demo={demo} onChanged={()=>setStaffEpoch(value=>value+1)} /> : page === 'Print Settings' ? <PrintSettingsPage key={scope} scope={scope} ready={ready}/> : page === 'Customers' ? <CustomersPage key={scope} ledger={ledger} ready={ready} busy={busy || hasConflict}
           actor={{id:demo?'local-trial':session!.user.id,label:demo?'Local trial user':shop?.staffName||session!.user.user_metadata.full_name||session!.user.email||session!.user.id}} onSave={saveCatalogue} onRecordPayment={id=>openPayment(id)} /> : page === 'Materials' ? <MaterialsPage key={scope} materials={ledger.materials} history={ledger.materialHistory} ready={ready} busy={(!demo && shop?.role === 'cashier') || busy || hasConflict}
           actor={{ id: demo ? 'local-trial' : session!.user.id, label: demo ? 'Local trial user' : shop?.staffName || session!.user.user_metadata.full_name || session!.user.email || session!.user.id }}
           onSave={saveCatalogue} /> : page === 'Services' ? <ServicesPage key={scope} services={ledger.services} materials={ledger.materials} ready={ready} busy={(!demo && shop?.role === 'cashier') || busy || hasConflict}

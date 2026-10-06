@@ -6,7 +6,7 @@ const headers = { apikey: key };
 const settings = await fetch(url + '/auth/v1/settings', { headers, signal: AbortSignal.timeout(20000) });
 if (!settings.ok) throw new Error('Supabase Auth is unreachable or the publishable key was rejected: HTTP ' + settings.status);
 console.log('Supabase URL and publishable key accepted.');
-for (const table of ['shops', 'shop_members', 'customers', 'jobs', 'payments', 'payment_allocations', 'ledger_events', 'materials', 'material_stock_changes', 'services', 'checkout_records']) {
+for (const table of ['shops', 'shop_members', 'customers', 'jobs', 'payments', 'payment_allocations', 'ledger_events', 'materials', 'material_stock_changes', 'services', 'checkout_records', 'drawer_closings']) {
   const response = await fetch(url + '/rest/v1/' + table + '?select=*&limit=1', { headers, signal: AbortSignal.timeout(20000) });
   const body = await response.json();
   if (![401, 403].includes(response.status) || body.code !== '42501') {
@@ -79,3 +79,9 @@ for (const name of ['apply_checkout_event','apply_job_status_event']) {
  const data=await response.json();if(![401,403].includes(response.status)||data.code!=='42501')throw Error(name+' must require sign-in');
  console.log(name+' exists and rejects anonymous execution.');
 }
+
+const drawerRpc=await fetch(url+'/rest/v1/rpc/finish_drawer_handover',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({p_shop:null,p_actor:null,p_receiver:null,p_id:null,p_counted:0,p_checkouts:[],p_opening:null,p_note:''}),signal:AbortSignal.timeout(20000)});
+if (![401,403].includes(drawerRpc.status)||(await drawerRpc.json()).code!=='42501')throw Error('Drawer closing RPC must reject browser/anonymous direct calls');
+const drawerEdge=await fetch(url+'/functions/v1/close-drawer',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:'{}',signal:AbortSignal.timeout(20000)});
+if(drawerEdge.status!==401||(await drawerEdge.json()).error!=='Sign in first.')throw Error('Drawer handover must verify sign-in');
+console.log('Drawer handover requires authenticated, server-verified users.');
