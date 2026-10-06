@@ -137,7 +137,7 @@ try {
   assert.equal(await page.getByRole('navigation',{name:'Main'}).count(),0,'Mobile sidebar is closed');
   await page.getByRole('button',{name:'Menu',exact:true}).click();
   await page.getByRole('dialog',{name:'Navigation'}).waitFor();
-  await page.getByRole('button',{name:'Menu',exact:true}).click();
+  await page.getByRole('dialog',{name:'Navigation'}).getByRole('button',{name:'Menu',exact:true}).click();
   await page.getByRole('dialog',{name:'Navigation'}).waitFor({state:'detached'});
   for(const width of [320,390,740]) {
     await page.setViewportSize({width,height:844});
