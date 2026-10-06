@@ -6,9 +6,9 @@ insert into auth.users(id, email) values
 insert into public.shops(id, name) values
  ('20000000-0000-4000-8000-000000000001', 'Business A'),
  ('20000000-0000-4000-8000-000000000002', 'Business B');
-insert into public.shop_members(shop_id, user_id, role) values
- ('20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', 'admin'),
- ('20000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000002', 'admin');
+insert into public.shop_members(shop_id, user_id, role, name, username, rank, access_level) values
+ ('20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', 'manager', 'Owner A', 'manager', 3, 3),
+ ('20000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000002', 'manager', 'Owner B', 'manager', 3, 3);
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000001', true);
@@ -79,3 +79,4 @@ begin
 end;
 $$;
 rollback;
+

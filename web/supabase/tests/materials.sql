@@ -5,7 +5,7 @@ declare u uuid := gen_random_uuid(); outsider uuid := gen_random_uuid(); s uuid 
 begin
   insert into auth.users(id, email, raw_user_meta_data) values (u, u::text || '@example.invalid', '{"full_name":"Material test owner"}'), (outsider, outsider::text || '@example.invalid', '{}');
   insert into public.shops(id,name) values(s,'Material test'),(other_shop,'Other material test');
-  insert into public.shop_members(shop_id,user_id,role) values(s,u,'admin'),(other_shop,outsider,'admin');
+  insert into public.shop_members(shop_id,user_id,role,name,username,rank,access_level) values(s,u,'manager','Owner','manager',3,3),(other_shop,outsider,'manager','Other owner','manager',3,3);
   perform set_config('test.material_user',u::text,true);
   perform set_config('test.material_outsider',outsider::text,true);
   perform set_config('test.material_shop',s::text,true);
@@ -91,3 +91,4 @@ begin
   if not rejected then raise exception 'Cross-business write allowed'; end if;
 end $$;
 rollback;
+

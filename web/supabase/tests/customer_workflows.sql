@@ -4,7 +4,7 @@ declare u uuid:=gen_random_uuid(); s uuid:=gen_random_uuid(); other uuid:=gen_ra
 begin
 insert into auth.users(id,email,raw_user_meta_data) values(u,'ledger-test-'||u||'@example.invalid','{"full_name":"Database Test"}');
 insert into public.shops(id,name) values(s,'Rollback test'),(other,'Other rollback test');
-insert into public.shop_members values(s,u,'admin');
+insert into public.shop_members(shop_id,user_id,role,name,username,rank,access_level) values(s,u,'manager','Database Test','manager',3,3);
 perform set_config('request.jwt.claim.sub',u::text,true);
 e:=jsonb_build_object('id',gen_random_uuid(),'kind','customer.created','data',jsonb_build_object('id',c,'name','Test Name','phone','0801','address','Road','creditLimit',12345,'modifiedBy',u,'modifiedByLabel','Forged Label'));
 perform public.apply_customer_event(s,e);perform public.apply_customer_event(s,e);

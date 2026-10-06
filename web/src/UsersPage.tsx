@@ -134,7 +134,7 @@ export default function UsersPage({shopId,actorId,businessUserId,role,online,dem
  <form className="form-grid" onSubmit={save}>
  <label>Name<input name="name" defaultValue={editor==='new'?'':editor.name} maxLength={160} required/></label>
  <label>Username<input name="username" defaultValue={editor==='new'?'':editor.username} minLength={3} maxLength={40} pattern="[a-zA-Z0-9][a-zA-Z0-9._-]{2,39}" autoComplete="off" required/></label>
- <label>Rank<select name="role" defaultValue={editor==='new'?'cashier':editor.role}>{Object.entries(accessLevels).filter(([value])=>rankValues[value as keyof typeof rankValues]<=(actor?.rank??0)).map(([value,label])=><option value={value} key={value}>{label} ({rankValues[value as keyof typeof rankValues]})</option>)}</select></label>
+ <label>Rank<select aria-label="Rank" name="role" defaultValue={editor==='new'?'cashier':editor.role}>{Object.entries(accessLevels).filter(([value])=>rankValues[value as keyof typeof rankValues]<=(actor?.rank??0)).map(([value,label])=><option value={value} key={value}>{label} ({rankValues[value as keyof typeof rankValues]})</option>)}</select></label>
  {editor==='new'&&<label>Password<input name="password" type="password" minLength={12} maxLength={128} autoComplete="new-password" required/></label>}
  <p className="muted">Staff sign in with their username and password after the business is signed in. Passwords are stored as hashes by the authentication service.</p>
  <div className="material-actions"><button disabled={busy||!online}><Icon name="save"/> {busy?'Saving…':'Save user'}</button><button type="button" className="secondary" disabled={busy} onClick={()=>setEditor(null)}>Cancel</button></div>
