@@ -1,3 +1,4 @@
+import useAutoSync from './useAutoSync';
 import Sidebar from './Sidebar';
 import ResponsiveTable from './ResponsiveTable';
 import Icon from './Icon';
@@ -54,6 +55,7 @@ export default function App() {
   const [customerConflict, setCustomerConflict] = useState<CustomerSyncConflict | null>(null);
   const [serviceConflict, setServiceConflict] = useState<ServiceSyncConflict | null>(null);
   const [conflict, setConflict] = useState<MaterialSyncConflict | null>(null);
+  const [conflictReviewHidden, setConflictReviewHidden] = useState(false);
   const [online, setOnline] = useState(navigator.onLine);
   const scope = demo ? 'local-trial' : businessSession && session && shop && shop.userId===session.user.id && shop.accessLevel>0 ? `${session.user.id}:${shop.id}` : '';
   const activeScope = useRef(scope);
@@ -110,7 +112,7 @@ export default function App() {
 
   useEffect(() => {
     setReady(false); setState({ ledger: emptyLedger(), pending: [] });
-    setForm(null); setSelectedJob(null); setQuery(''); setConflict(null); setServiceConflict(null); setCustomerConflict(null);
+    setForm(null); setSelectedJob(null); setQuery(''); setConflict(null); setServiceConflict(null); setCustomerConflict(null); setConflictReviewHidden(false);
     if (!scope) return;
     let active = true;
     const refresh = () => readState(scope).then(value => { if (active) { setState(value); setReady(true); } })
@@ -127,7 +129,7 @@ export default function App() {
     const next = await saveEvent(target, operation, !demo);
     if (activeScope.current !== target) return;
     setState(next); channel.current?.postMessage('changed'); setForm(null);
-    setMessage(demo ? 'Saved on this device.' : 'Saved on this device. Sync to send it to your business workspace.');
+    setMessage(demo ? 'Saved on this device.' : 'Saved on this device. Changes sync automatically when connected.');
   }
   async function saveCatalogue(operation: MaterialEvent | ServiceEvent | CustomerEvent) {
     if (busy || !ready || (!demo && (!session || !shop || shop.userId!==session.user.id || shop.accessLevel===0))) throw new Error('Please wait until the staff workspace is ready.');
@@ -154,23 +156,34 @@ export default function App() {
     } catch (error) { setMessage(errorMessage(error)); }
     finally { setBusy(false); }
   }
-  async function sync() {
-    if (busy || !shop) return;
-    setBusy(true); setMessage('');
-    const target = scope;
-    try {
-      const next = await syncLedger(target, shop.id);
-      if (activeScope.current === target) { setState(next); channel.current?.postMessage('changed'); setMessage('Business workspace synced.'); }
-    } catch (error) { if (activeScope.current === target) { setMessage(errorMessage(error)); if (error instanceof MaterialSyncConflict) setConflict(error); if (error instanceof ServiceSyncConflict) setServiceConflict(error); if (error instanceof CustomerSyncConflict) setCustomerConflict(error); } }
-    finally { setBusy(false); }
-  }
+  const hasConflict=!!(conflict||serviceConflict||customerConflict);
+  const syncStatus=useAutoSync({
+    scope,enabled:!demo&&!!scope&&ready&&!switchUser,online,
+    paused:busy||hasConflict,
+    pendingKey:state.pending.map(item=>item.id).join(','),
+    run:async()=>{
+      const target=scope;
+      const next=await syncLedger(target,shop!.id);
+      if(activeScope.current===target){setState(next);channel.current?.postMessage('changed');}
+    },
+    onError:(error)=>{
+      if(error instanceof MaterialSyncConflict||error instanceof ServiceSyncConflict||error instanceof CustomerSyncConflict){
+        setMessage(errorMessage(error));setConflictReviewHidden(false);
+        if(error instanceof MaterialSyncConflict)setConflict(error);
+        if(error instanceof ServiceSyncConflict)setServiceConflict(error);
+        if(error instanceof CustomerSyncConflict)setCustomerConflict(error);
+        return 'pause';
+      }
+    }
+  });
+  const syncLabel=!ready?'Loading':hasConflict?'Review changes':!online?'Waiting for connection':syncStatus==='syncing'?'Syncing…':syncStatus==='retrying'?'Waiting to retry':state.pending.length?'Changes pending':state.lastSynced?'Saved':'Connecting…';
   async function resolveConflict(choice: 'local' | 'cloud') {
     if (!conflict || !shop || busy) return;
     const target = scope;
     setBusy(true);
     try {
       const next = await resolveCloudMaterial(target, shop.id, conflict.local.id, choice, conflict.local.lastEventId, conflict.remote.lastEventId);
-      if (activeScope.current === target) { setState(next); setConflict(null); channel.current?.postMessage('changed'); setMessage('Choice saved. Sync workspace to continue sending pending changes.'); }
+      if (activeScope.current === target) { setState(next); setConflict(null); channel.current?.postMessage('changed'); setMessage('Choice saved. Remaining changes will sync automatically.'); }
     } catch (error) { if (activeScope.current === target) { setMessage(errorMessage(error)); if (error instanceof MaterialSyncConflict) setConflict(error); } }
     finally { setBusy(false); }
   }
@@ -179,7 +192,7 @@ export default function App() {
     const target = scope; setBusy(true);
     try {
       const next = await resolveCloudService(target, shop.id, serviceConflict.local.id, choice, serviceConflict.local.lastEventId, serviceConflict.remote?.lastEventId ?? null, materialId);
-      if (activeScope.current === target) { setState(next); setServiceConflict(null); channel.current?.postMessage('changed'); setMessage('Choice saved. Sync workspace to continue sending pending changes.'); }
+      if (activeScope.current === target) { setState(next); setServiceConflict(null); channel.current?.postMessage('changed'); setMessage('Choice saved. Remaining changes will sync automatically.'); }
     } catch (error) { if (activeScope.current === target) { setMessage(errorMessage(error)); if (error instanceof ServiceSyncConflict) setServiceConflict(error); if (error instanceof CustomerSyncConflict) setCustomerConflict(error); } }
     finally { setBusy(false); }
   }
@@ -188,7 +201,7 @@ export default function App() {
     const target = scope; setBusy(true);
     try {
       const next = await resolveCloudCustomer(target, shop.id, customerConflict.local.id, choice, customerConflict.local.lastEventId, customerConflict.remote?.lastEventId ?? null);
-      if (activeScope.current === target) { setState(next); setCustomerConflict(null); channel.current?.postMessage('changed'); setMessage('Choice saved. Sync workspace to continue sending pending changes.'); }
+      if (activeScope.current === target) { setState(next); setCustomerConflict(null); channel.current?.postMessage('changed'); setMessage('Choice saved. Remaining changes will sync automatically.'); }
     } catch (error) { if (activeScope.current === target) { setMessage(errorMessage(error)); if (error instanceof CustomerSyncConflict) setCustomerConflict(error); } }
     finally { setBusy(false); }
   }
@@ -280,11 +293,12 @@ export default function App() {
       </div>
     </Sidebar>
     <main><header><div><span className="eyebrow">{demo ? 'LOCAL TRIAL' : shop?.name ?? 'BUSINESS WORKSPACE'}</span><h1>{page}</h1><p>{page === 'Users' ? 'Manage staff accounts, ranks and business access.' : page === 'Print Settings' ? 'Set default printer, paper, font and margins for this device.' : page === 'Customers' ? 'Manage customer details and credit limits.' : page === 'Materials' ? 'Manage materials, quantities and pricing requirements.' : page === 'Stock History' ? 'Review every material change and stock adjustment.' : page === 'Services' ? 'Define services, their base materials and prices.' : 'Track work and keep every payment attached to its job.'}</p></div>
-      {!demo && <button className="secondary" onClick={sync} disabled={busy || !online || !shop || !ready}><Icon name="sync"/> {busy ? 'Working.' : 'Sync workspace'}</button>}</header>
+      {!demo&&scope&&<span className="sync-status" role="status" aria-live="polite"><Icon name="sync"/> {syncLabel}{state.pending.length>0&&` (${state.pending.length})`}</span>}</header>
       {switchUser&&<Modal title="Switch user" busy={busy} onClose={()=>setSwitchUser(false)}><p>Business: {shop?.name}. Sign in with your staff username and password.</p>{staffLoginForm()}{message&&<p role="alert">{message}</p>}</Modal>}
       {needRefresh && <div className="notice">An app update is ready. <button className="secondary" disabled={busy} onClick={() => void updateServiceWorker(true)}>Update app</button></div>}
       {message && <div className="notice" role="status">{message}</div>}
-      {customerConflict && <Modal title="Review conflicting customer edits" wide busy={busy} onClose={() => setCustomerConflict(null)}>
+      {hasConflict&&conflictReviewHidden&&<div className="notice">Sync is paused while you review an edit conflict. <button className="secondary" onClick={()=>setConflictReviewHidden(false)}>Review changes</button></div>}
+      {customerConflict && !conflictReviewHidden && <Modal title="Review conflicting customer edits" wide busy={busy} onClose={() => setConflictReviewHidden(true)}>
         {message && <p role="status">{message}</p>}
         <div className="table-wrap"><table><thead><tr><th>Field</th><th>This device</th><th>Business workspace</th></tr></thead><tbody>
           {(['name','phone','address','creditLimit','archived','modifiedByLabel'] as const).map(field => <tr key={field}><td>{{name:'Full name',phone:'Phone',address:'Address',creditLimit:'Credit limit',archived:'Archived',modifiedByLabel:'Modified by'}[field]}</td>
@@ -294,8 +308,8 @@ export default function App() {
         <p>Keeping the business version discards pending edits to this customer. Other pending records are kept.</p>
         <div className="material-actions"><button disabled={busy} onClick={() => void resolveCustomerConflict('local')}>Keep this device's version</button><button className="secondary" disabled={busy} onClick={() => void resolveCustomerConflict('cloud')}>Keep business version</button></div>
       </Modal>}
-      {serviceConflict && <ServiceConflictReview key={serviceConflict.local.lastEventId + (serviceConflict.remote?.lastEventId ?? '') + serviceConflict.materials.map(item => item.lastEventId).join('')} conflict={serviceConflict} busy={busy} message={message} onClose={() => setServiceConflict(null)} onResolve={resolveServiceConflict} />}
-      {conflict && <Modal title="Review conflicting material edits" wide busy={busy} onClose={() => setConflict(null)}>
+      {serviceConflict && !conflictReviewHidden && <ServiceConflictReview key={serviceConflict.local.lastEventId + (serviceConflict.remote?.lastEventId ?? '') + serviceConflict.materials.map(item => item.lastEventId).join('')} conflict={serviceConflict} busy={busy} message={message} onClose={() => setConflictReviewHidden(true)} onResolve={resolveServiceConflict} />}
+      {conflict && !conflictReviewHidden && <Modal title="Review conflicting material edits" wide busy={busy} onClose={() => setConflictReviewHidden(true)}>
         {message && <div className="notice" role="status">{message}</div>}
         <div className="table-wrap"><table><thead><tr><th>Field</th><th>This device</th><th>Business workspace</th></tr></thead><tbody>
           <tr><td>Name</td><td>{conflict.local.name}</td><td>{conflict.remote.name}</td></tr>

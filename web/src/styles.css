@@ -63,3 +63,5 @@ nav button { display: flex; align-items: center; gap: .8rem; }
 @media(max-width:740px),(max-width:1024px) and (pointer:coarse){
   .modal-body,.modal-body p,.modal-body td,.modal-body th{overflow-wrap:anywhere;word-break:break-word}
 }
+
+.sync-status{display:inline-flex;align-items:center;gap:.45rem;font-size:.85rem;color:#47645a;max-width:100%;overflow-wrap:anywhere;flex-wrap:wrap}

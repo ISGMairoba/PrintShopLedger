@@ -37,10 +37,10 @@ async function synchronize(scope: string, shopId: string) {
   // Stable UUIDs make retries safe. Failed operations remain in the outbox.
   for (const event of state.pending) {
     await requireSameUser();
-    const { error } = await supabase.rpc(event.kind.startsWith('customer.') ? 'apply_customer_event' : event.kind.startsWith('material.') ? 'apply_material_event' : event.kind.startsWith('service.') ? 'apply_service_event' : 'apply_ledger_event', { p_shop: shopId, p_event: event });
+    const { error } = await supabase.rpc(event.kind.startsWith('customer.') ? 'apply_customer_event' : event.kind.startsWith('material.') ? 'apply_material_event' : event.kind.startsWith('service.') ? 'apply_service_event' : 'apply_ledger_event', { p_shop: shopId, p_event: event }).abortSignal(AbortSignal.timeout(20000));
     if (error && ['40001', 'P0002'].includes(error.code) && event.kind.startsWith('customer.')) {
       await requireSameUser();
-      const { data, error: readError } = await supabase.rpc('get_ledger', { p_shop: shopId });
+      const { data, error: readError } = await supabase.rpc('get_ledger', { p_shop: shopId }).abortSignal(AbortSignal.timeout(20000));
       if (readError) throw new Error(readError.message);
       await requireSameUser();
       const cloud = normalizeLedger(data as Ledger);
@@ -49,7 +49,7 @@ async function synchronize(scope: string, shopId: string) {
     }
     if (error && ['40001', 'P0002'].includes(error.code) && event.kind.startsWith('service.')) {
       await requireSameUser();
-      const { data, error: readError } = await supabase.rpc('get_ledger', { p_shop: shopId });
+      const { data, error: readError } = await supabase.rpc('get_ledger', { p_shop: shopId }).abortSignal(AbortSignal.timeout(20000));
       if (readError) throw new Error(readError.message);
       await requireSameUser();
       const remote = (data as Ledger).services.find(item => item.id === event.data.id) ?? null;
@@ -58,7 +58,7 @@ async function synchronize(scope: string, shopId: string) {
     }
     if (error?.code === '40001' && event.kind.startsWith('material.')) {
       await requireSameUser();
-      const { data, error: readError } = await supabase.rpc('get_ledger', { p_shop: shopId });
+      const { data, error: readError } = await supabase.rpc('get_ledger', { p_shop: shopId }).abortSignal(AbortSignal.timeout(20000));
       if (readError) throw new Error(readError.message);
       const remote = (data as Ledger).materials.find(item => item.id === event.data.id);
       const local = (await readState(scope)).ledger.materials.find(item => item.id === event.data.id);
@@ -68,7 +68,7 @@ async function synchronize(scope: string, shopId: string) {
     await mutateState(scope, current => ({ ...current, pending: current.pending.filter(item => item.id !== event.id) }));
   }
   await requireSameUser();
-  const { data, error } = await supabase.rpc('get_ledger', { p_shop: shopId });
+  const { data, error } = await supabase.rpc('get_ledger', { p_shop: shopId }).abortSignal(AbortSignal.timeout(20000));
   if (error) throw new Error(error.message);
   await requireSameUser();
   state = await mutateState(scope, current => {
@@ -89,7 +89,7 @@ export async function resolveCloudMaterial(scope: string, shopId: string, materi
   return navigator.locks.request(`printshopledger-sync:${scope}`, async () => {
     const { data: auth, error: authError } = await supabase!.auth.getSession();
     if (authError || auth.session?.user.id !== scope.split(':')[0]) throw new Error('Your sign-in changed. Sign in again.');
-    const { data, error } = await supabase!.rpc('get_ledger', { p_shop: shopId });
+    const { data, error } = await supabase!.rpc('get_ledger', { p_shop: shopId }).abortSignal(AbortSignal.timeout(20000));
     if (error) throw new Error(error.message);
     const { data: checked } = await supabase!.auth.getSession();
     if (checked.session?.user.id !== scope.split(':')[0]) throw new Error('Your sign-in changed. Sign in again.');
@@ -109,7 +109,7 @@ export async function resolveCloudService(scope: string, shopId: string, service
   return navigator.locks.request(`printshopledger-sync:${scope}`, async () => {
     const { data: auth, error: authError } = await supabase!.auth.getSession();
     if (authError || auth.session?.user.id !== scope.split(':')[0]) throw new Error('Your sign-in changed. Sign in again.');
-    const { data, error } = await supabase!.rpc('get_ledger', { p_shop: shopId });
+    const { data, error } = await supabase!.rpc('get_ledger', { p_shop: shopId }).abortSignal(AbortSignal.timeout(20000));
     if (error) throw new Error(error.message);
     const { data: checked, error: checkError } = await supabase!.auth.getSession();
     if (checkError || checked.session?.user.id !== scope.split(':')[0]) throw new Error('Your sign-in changed. Sign in again.');
@@ -134,7 +134,7 @@ export async function resolveCloudCustomer(scope: string, shopId: string, custom
   return navigator.locks.request(`printshopledger-sync:${scope}`, async () => {
     const { data: auth, error: authError } = await supabase!.auth.getSession();
     if (authError || auth.session?.user.id !== scope.split(':')[0]) throw new Error('Your sign-in changed. Sign in again.');
-    const { data, error } = await supabase!.rpc('get_ledger', { p_shop: shopId });
+    const { data, error } = await supabase!.rpc('get_ledger', { p_shop: shopId }).abortSignal(AbortSignal.timeout(20000));
     if (error) throw new Error(error.message);
     const { data: checked, error: checkError } = await supabase!.auth.getSession();
     if (checkError || checked.session?.user.id !== scope.split(':')[0]) throw new Error('Your sign-in changed. Sign in again.');

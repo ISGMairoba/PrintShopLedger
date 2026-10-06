@@ -11,6 +11,8 @@ try {
  const context=await browser.newContext({viewport:{width:1280,height:800},serviceWorkers:'block'});
  const actor='11111111-1111-4111-8111-111111111111',shop='22222222-2222-4222-8222-222222222222';
  const now=new Date().toISOString();
+ let downloads=0,uploads=0,failDownload=false;
+ const serverLedger={customers:[],jobs:[],payments:[],materials:[],materialHistory:[],services:[]};
  let users=[{id:'33333333-3333-4333-8333-333333333333',userId:actor,name:'Test Manager',username:'manager',rank:3,accessLevel:3,role:'manager',archived:false,version:1,lastLogin:now,createdAt:now,modifiedAt:now,createdByLabel:'Test Manager',modifiedByLabel:'Test Manager'}];
  const makeToken=(id)=>[{alg:'HS256',typ:'JWT'},{sub:id,role:'authenticated',exp:Math.floor(Date.now()/1000)+3600},'c2lnbmF0dXJl'].map(part=>typeof part==='string'?part:Buffer.from(JSON.stringify(part)).toString('base64url')).join('.');
  const token=makeToken(actor),cashierId='55555555-5555-4555-8555-555555555555';
@@ -27,6 +29,17 @@ try {
   else if(path.endsWith('/staff-login')){
    if(body.password==='wrong-password'){await route.fulfill({status:401,contentType:'application/json',body:JSON.stringify({error:'Username or password incorrect, or access is unavailable.'})});return;}
    const target=body.username==='manager'?actor:cashierId;result={access_token:makeToken(target),refresh_token:target===actor?'manager-refresh':'cashier-refresh'};
+  }
+  else if(path.endsWith('/get_ledger')){
+   downloads++;
+   if(failDownload){failDownload=false;await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Temporary test outage'})});return;}
+   result=serverLedger;
+  }
+  else if(path.endsWith('/apply_customer_event')){
+   uploads++;const e=body.p_event,c=e.data;
+   assert.equal(e.kind,'customer.created');
+   if(!serverLedger.customers.some(item=>item.id===c.id))serverLedger.customers.push({...c,archived:false,version:1,createdBy:actor,createdByLabel:'Test Manager',modifiedByLabel:'Test Manager',lastEventId:e.id});
+   result=null;
   }
   else if(path.endsWith('/list_shop_users'))result=users;
   else if(path.endsWith('/manage-users')&&body.action==='reset-password'){assert.ok(body.password.length>=12);result={success:true};}
@@ -48,6 +61,32 @@ try {
  await page.getByLabel('Business email',{exact:true}).fill('owner@example.invalid');
  await page.getByLabel('Business password',{exact:true}).fill('test-only-password');
  await page.getByRole('button',{name:'Sign in',exact:true}).click();
+ await page.locator('.sync-status').getByText('Saved',{exact:false}).waitFor();
+ assert.equal(await page.getByRole('button',{name:'Sync workspace',exact:true}).count(),0,'Manual sync button removed');
+ assert.ok(downloads>0,'Workspace syncs on opening');
+ await context.setOffline(true);
+ await page.getByRole('button',{name:'Customers',exact:true}).click();
+ await page.getByRole('button',{name:'Add customer',exact:true}).click();
+ const customerDialog=page.getByRole('dialog',{name:'Add customer'});
+ await customerDialog.getByLabel('Full name').fill('Offline sync customer');
+ await customerDialog.getByLabel('Phone number').fill('08012345678');
+ await customerDialog.getByRole('button',{name:'Save customer',exact:true}).click();
+ await customerDialog.waitFor({state:'detached'});
+ await page.locator('.sync-status').getByText('Waiting for connection',{exact:false}).waitFor();
+ assert.equal(uploads,0,'Offline customer stays local');
+ failDownload=true;
+ await context.setOffline(false);
+ await page.locator('.sync-status').getByText('Waiting to retry',{exact:false}).waitFor();
+ await page.locator('.sync-status').getByText('Saved',{exact:false}).waitFor();
+ assert.equal(serverLedger.customers.length,1,'Reconnect sends offline work');
+ assert.equal(uploads,1,'Retry does not duplicate uploaded event');
+ await page.getByRole('button',{name:'Add customer',exact:true}).click();
+ await customerDialog.getByLabel('Full name').fill('Online sync customer');
+ await customerDialog.getByLabel('Phone number').fill('08099999');
+ await customerDialog.getByRole('button',{name:'Save customer',exact:true}).click();
+ await customerDialog.waitFor({state:'detached'});
+ await page.locator('.sync-status').getByText('Saved',{exact:false}).waitFor();
+ assert.equal(serverLedger.customers.length,2,'Online save syncs automatically');
  await page.getByRole('button',{name:'Users',exact:true}).click();
  await page.getByRole('button',{name:'Add user',exact:true}).click();
  let dialog=page.getByRole('dialog',{name:'Add user'});
