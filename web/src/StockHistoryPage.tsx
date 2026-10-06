@@ -42,7 +42,7 @@ export default function StockHistoryPage({ history, materials, pending, ready, d
       <select aria-label="Filter action" value={action} onChange={e => change(() => setAction(e.target.value))}><option value="">All actions</option>{Object.entries(materialActionLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
       <label>From<input type="date" value={from} max={to || undefined} onChange={e => change(() => setFrom(e.target.value))} /></label>
       <label>To<input type="date" value={to} min={from || undefined} onChange={e => change(() => setTo(e.target.value))} /></label>
-      <button className="secondary" onClick={() => { setSearch(''); setAction(''); setMaterialId(''); setFrom(''); setTo(''); setPage(0); }}>Reset filters</button>
+      <button className="secondary history-filter-reset" type="button" onClick={() => { setSearch(''); setAction(''); setMaterialId(''); setFrom(''); setTo(''); setPage(0); }}>Reset filters</button>
     </div>
     {!ready ? <div className="empty">Loading stock history.</div> : !matching.length ? <div className="empty"><h2>{history.length ? 'No matching changes' : 'No material changes yet'}</h2><p>{history.length ? 'Adjust the filters to find a record.' : 'Material creation, editing, stock changes, archive and restore will appear here.'}</p></div> :
       <div className="table-wrap"><ResponsiveTable columns={[{index:0,label:"Material",details:[4,5,6,7]},{index:2,label:"Available",details:[1,3]},{index:8,label:"Actions",actions:true}]}><table><thead><tr><SortHeader label="Material" column="material" sort={historySorting} /><SortHeader label="Available before" column="before" sort={historySorting} /><SortHeader label="Available after" column="after" sort={historySorting} /><SortHeader label="Change" column="change" sort={historySorting} /><SortHeader label="Action" column="action" sort={historySorting} /><SortHeader label="Reason / note" column="reason" sort={historySorting} /><SortHeader label="Changed by" column="by" sort={historySorting} /><SortHeader label="Date" column="date" sort={historySorting} /><th></th></tr></thead><tbody>
@@ -65,4 +65,3 @@ export default function StockHistoryPage({ history, materials, pending, ready, d
     </Modal>}
   </>;
 }
-

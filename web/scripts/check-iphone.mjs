@@ -20,7 +20,7 @@ try {
     if(overflow.wide.length) console.log('Overflow descendants',await page.evaluate(()=>[...document.querySelectorAll('dialog[open] *')].filter(node=>node.getBoundingClientRect().width>0&&node.getBoundingClientRect().right>document.documentElement.clientWidth+1).map(node=>({tag:node.tagName,class:node.className,width:node.getBoundingClientRect().width,scroll:node.scrollWidth,text:node.textContent?.slice(0,50)}))));
     assert.ok(overflow.scroll<=overflow.width+1&&overflow.wide.length===0,label+': '+JSON.stringify(overflow));
   }
-  async function navigate(name){await page.getByRole('button',{name:'Menu',exact:true}).click();await fits('Sidebar');await page.getByRole('button',{name,exact:true}).click();}
+  async function navigate(name){await page.evaluate(()=>window.scrollTo(0,0));await delay(250);await page.getByRole('button',{name:'Menu',exact:true}).click();await fits('Sidebar');await page.getByRole('button',{name,exact:true}).click();}
   await page.goto('http://127.0.0.1:4173');await fits('Business login');
   await page.getByRole('button',{name:'Try locally on this device'}).click();await fits('Empty jobs');
   await navigate('Materials');await page.getByRole('button',{name:'Add material',exact:true}).click();
@@ -41,7 +41,30 @@ try {
   await dialog.locator('select[name=customer]').selectOption({index:1});await dialog.getByLabel('Service',{exact:true}).fill('Printing');await dialog.getByLabel('Job description').fill('Large job');await dialog.getByLabel('Job amount').fill('999999999');await fits('Job editor');await dialog.getByRole('button',{name:'Save record',exact:true}).click();await dialog.waitFor({state:'detached'});await fits('Jobs with large amounts');
   await navigate('Payments');await page.getByRole('button',{name:'Record payment',exact:true}).click();dialog=page.getByRole('dialog',{name:'Record a payment'});await dialog.waitFor();
   await dialog.locator('select').first().selectOption({index:1});await dialog.getByLabel('Payment total').fill('100');await dialog.getByLabel('Amount for Large job').fill('100');await fits('Payment editor and date input');await dialog.getByRole('button',{name:'Save payment & allocations',exact:true}).click();await dialog.waitFor({state:'detached'});await fits('Payments');
-  await navigate('Stock History');await fits('Stock History filters');await page.getByRole('button',{name:'Details',exact:true}).first().click();await fits('History details');await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click();
+  await navigate('Stock History');await fits('Stock History filters');
+  const reset=page.getByRole('button',{name:'Reset filters',exact:true});
+  for(const name of ['From','To']){
+    const date=await page.getByLabel(name,{exact:true}).boundingBox(),button=await reset.boundingBox();
+    assert.ok(button.y>=date.y+date.height,'Reset is below '+name+' date picker');
+  }
+  await page.getByLabel('From',{exact:true}).fill('2020-01-01');await reset.click();
+  assert.equal(await page.getByLabel('From',{exact:true}).inputValue(),'');
+  const bar=page.locator('.mobile-app-bar');
+  assert.equal(await bar.evaluate(node=>getComputedStyle(node).position),'fixed','Menu bar is fixed');
+  await page.evaluate(()=>window.scrollTo(0,Math.min(350,document.documentElement.scrollHeight-innerHeight)));
+  await delay(300);
+  assert.ok(await bar.evaluate(node=>node.classList.contains('mobile-app-bar-hidden')),'Scrolling down hides menu bar');
+  await page.evaluate(()=>window.scrollBy(0,-50));await delay(300);
+  assert.ok(await bar.evaluate(node=>!node.classList.contains('mobile-app-bar-hidden')),'Scrolling up reveals menu bar');
+  assert.ok(Math.abs((await bar.boundingBox()).y)<1,'Revealed menu bar remains at screen top');
+  await delay(2800);
+  assert.ok(await bar.evaluate(node=>node.classList.contains('mobile-app-bar-hidden')),'Idle menu bar hides after timeout');
+  await page.evaluate(()=>window.scrollBy(0,-30));await delay(300);
+  await page.getByRole('button',{name:'Menu',exact:true}).click();await delay(2800);
+  assert.ok(await page.getByRole('dialog',{name:'Navigation'}).isVisible(),'Navigation remains open beyond hide timeout');
+  await page.getByRole('dialog',{name:'Navigation'}).getByRole('button',{name:'Menu',exact:true}).click();
+  await page.evaluate(()=>window.scrollTo(0,0));await delay(300);
+  await page.getByRole('button',{name:'Details',exact:true}).first().click();await fits('History details');await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click();
   await navigate('Print Settings');await fits('Print Settings');await page.getByRole('button',{name:'Edit settings',exact:true}).click();await fits('Print settings editor');await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click();
   await page.setViewportSize({width:844,height:390});await fits('iPhone 13 landscape');
   assert.deepEqual(errors,[]);console.log('iPhone 13 WebKit checks passed: long records, large amounts, sidebar, lists, audit, filters, date inputs, editors and landscape.');

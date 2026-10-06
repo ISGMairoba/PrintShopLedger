@@ -31,6 +31,19 @@ nav button { display: flex; align-items: center; gap: .8rem; }
 @media(max-width:740px),(max-width:1024px) and (pointer:coarse){.table-wrap{overflow:visible}table{table-layout:fixed;white-space:normal}th,td{min-width:0!important;padding:12px 9px;overflow-wrap:anywhere;white-space:normal}th .sort-button{white-space:normal}.toolbar .list-sort-select{display:none}.toolbar:has(.list-sort-select)>button.secondary{display:none}.sidebar-bottom{flex-wrap:wrap}.detail .history{gap:12px;overflow-wrap:anywhere}.history-pagination{gap:8px}.history-pagination span{flex-basis:100%}}
 @media(max-width:740px),(max-width:1024px) and (pointer:coarse){.mobile-app-bar{display:flex;align-items:center;gap:16px;background:white;border-bottom:1px solid #dfe6df;padding:12px 16px}.mobile-app-bar button{padding:9px 12px}.sidebar-drawer{inset:0 auto 0 0;margin:0;width:min(320px,90vw);height:100dvh;max-height:100dvh;border-radius:0 14px 14px 0}.sidebar-drawer .modal-body{padding:0}.sidebar-drawer aside{border:0;padding:18px;min-height:calc(100dvh - 70px)}.sidebar-drawer nav{grid-template-columns:1fr}.sidebar-drawer nav button{justify-content:flex-start;font-size:14px;padding:13px;gap:12px}.sidebar-drawer .workspace small,.sidebar-drawer .brand small{display:block}.sidebar-drawer .sidebar-bottom{display:grid;margin-top:24px}.sidebar-drawer .modal-header{padding:16px 18px}header{flex-wrap:wrap}.mobile-list .material-actions{flex-direction:column;align-items:flex-start}}
 
+/* Fixed mobile navigation: safe-area space stays reserved to prevent layout jumps. */
+@media(max-width:740px),(max-width:1024px) and (pointer:coarse){
+  .mobile-app-bar-space{height:calc(66px + env(safe-area-inset-top,0px))}
+  .mobile-app-bar{position:fixed;top:0;left:0;right:0;z-index:20;min-height:66px;box-sizing:border-box;padding-top:calc(12px + env(safe-area-inset-top,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));transition:transform .2s ease,visibility .2s;will-change:transform}
+  .mobile-app-bar-hidden{transform:translateY(-100%);visibility:hidden;pointer-events:none}
+  .history-toolbar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:end}
+  .history-toolbar>input:first-child{grid-column:1/-1;width:100%;max-width:none}
+  .history-toolbar>select,.history-toolbar>label{width:100%;min-width:0;max-width:none}
+  .history-toolbar input[type=date]{display:block;width:100%;min-width:0;max-width:100%;box-sizing:border-box;min-height:44px}
+  .history-toolbar>.history-filter-reset{grid-column:1/-1;position:static;width:100%;min-height:44px;margin:0}
+}
+@media(prefers-reduced-motion:reduce){.mobile-app-bar{transition:none}}
+
 /* iOS controls must stay within their flex/grid track; 16px avoids Safari's focus zoom. */
 @media(max-width:740px),(max-width:1024px) and (pointer:coarse){
   input,select,textarea{font-size:16px;max-width:100%;min-width:0;min-inline-size:0}
