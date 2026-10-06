@@ -29,7 +29,7 @@ try{
  await secondAllocation.fill('300');assert.equal(await firstAllocation.inputValue(),'200.00');assert.equal(await secondAllocation.inputValue(),'300','Newest allocation keeps the cashier’s entry');
  await firstAllocation.fill('350');assert.equal(await secondAllocation.inputValue(),'150.00','Re-editing the first allocation makes it newest');
  await secondAllocation.fill('500');assert.equal(await firstAllocation.inputValue(),'0.00');
- await d.getByLabel('Money received (₦)').fill('300');await page.waitForFunction(()=>document.querySelector('input[aria-label="Allocate to Unpaid second"]')?.value==='300.00');
+ await d.getByLabel('Money received (₦)').fill('300');await delay(200);console.log('Rebalanced currency fields',await d.locator('input.currency-input').evaluateAll(inputs=>inputs.map(el=>({label:el.getAttribute('aria-label'),value:el.value,focused:el===document.activeElement}))),await d.innerText());
  assert.equal(await secondAllocation.inputValue(),'300.00','Lowering the available money rebalances allocations');
  await d.getByLabel('Money received (₦)').fill('500');await d.getByLabel('Use available wallet credit when needed').check();
  await d.getByRole('button',{name:'Use automatic allocation',exact:true}).click();await finish();saved=await state();const payment=saved.ledger.payments.at(-1);assert.equal(payment.allocations.length,2);assert.equal(payment.walletUsed,20000);assert.equal(payment.allocations[0].amount,40000);assert.equal(payment.allocations[1].amount,30000);
