@@ -49,7 +49,7 @@ Sign in and sync while online before working offline. Offline access uses the pr
 
 Every local write validates and updates the ledger and outbox in one IndexedDB transaction. Sync sends commands with stable UUIDs. Supabase applies each command atomically and deduplicates retries. Payments and their allocations are written together; server serialization prevents concurrent payments from overpaying a job. Sync then downloads a consistent ledger snapshot and replays any newly queued work.
 
-Sync is explicit with **Sync workspace**. Pending counts and last-sync times are visible. If another device already paid a job, the server rejects an incompatible queued payment and stops synchronization; it is retained locally. This first version has no conflict-resolution or reversal UI, so do not use real money until those workflows are implemented. Do not clear local storage to hide a conflict.
+Sync runs automatically when connected. The status and pending count remain visible; there is no manual sync button. When a price, customer account or job status changed elsewhere, the pending transaction stays saved locally and the app opens a review dialog. Confirm revised allocations without collecting the same money again. Offline receipts are marked pending until cloud confirmation.
 
 ## Validation
 
@@ -63,7 +63,7 @@ Print Settings saves printer, paper, font, margins, copies and an automatic-prin
 
 QZ submits HTML directly without a browser print preview. Unsigned requests still show QZ security prompts. Trusted signing is not configured yet; see https://qz.io/docs/signing. Native printer properties and custom driver paper forms must be managed in the operating system. A selected font/tray must exist in the printer computer's driver.
 
-`src/printing.ts` exports `printAfterTransaction` for the later checkout workflow. Call it only after a transaction is durably saved and explicitly requires printing. Do not invoke printing during sync, refresh or event replay. Printing errors are separate from transaction persistence, and a submitted spool job is not proof of physical output. Existing job/payment actions are unchanged.
+`src/printing.ts` prints only after checkout is durably saved. Sync, refresh and event replay do not trigger another print. Printing errors are separate from checkout persistence, and a submitted spool job is not proof of physical output. Use the receipt dialog to retry a failed print.
 
 ### Responsive list pages
 

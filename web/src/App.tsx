@@ -74,7 +74,7 @@ export default function App() {
   const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW();
   const ledger = state.ledger;
   const total = ledger.jobs.reduce((sum, job) => sum + job.amount, 0);
-  const paid = ledger.payments.reduce((sum, payment) => sum + payment.amount, 0);
+  const paid = ledger.payments.reduce((sum, payment) => sum + payment.allocations.reduce((allocated,item)=>allocated+item.amount,0), 0);
 
   useEffect(() => {
     const update = () => setOnline(navigator.onLine);
@@ -338,7 +338,7 @@ export default function App() {
           onSave={saveCatalogue} /> : page === 'Services' ? <ServicesPage key={scope} services={ledger.services} materials={ledger.materials} ready={ready} busy={(!demo && shop?.role === 'cashier') || busy || hasConflict}
           actor={{ id: demo ? 'local-trial' : session!.user.id, label: demo ? 'Local trial user' : shop?.staffName || session!.user.user_metadata.full_name || session!.user.email || session!.user.id }} onSave={saveCatalogue} /> : page === 'Stock History' ? <StockHistoryPage key={scope} history={ledger.materialHistory} materials={ledger.materials} pending={state.pending} ready={ready} demo={demo} /> : <>
         <section className="stats"><article><span>Total job value</span><strong>{currency(total)}</strong><small>{ledger.jobs.length} jobs</small></article>
-          <article><span>Payments received</span><strong>{currency(paid)}</strong><small>Allocated to individual jobs</small></article>
+          <article><span>Paid against jobs</span><strong>{currency(paid)}</strong><small>Allocated to individual jobs</small></article>
           <article><span>Outstanding</span><strong>{currency(total - paid)}</strong><small>{ledger.jobs.filter(job => jobBalance(ledger, job).outstanding > 0).length} jobs awaiting payment</small></article></section>
         <section className="panel"><div className="toolbar"><label className="list-sort-select">Sort by<select aria-label={page==='Jobs'?'Sort jobs by':'Sort payments by'} value={page==='Jobs'?jobSorting.key:paymentSorting.key} onChange={e=>(page==='Jobs'?jobSorting:paymentSorting).toggle(e.target.value)}>
           {page==='Jobs'?<><option value="createdAt">Created at</option><option value="id">Job ID</option><option value="description">Description</option><option value="service">Service</option><option value="customer">Customer</option><option value="amount">Job amount</option><option value="paid">Paid</option><option value="outstanding">Outstanding</option><option value="status">Status</option></>:<><option value="createdAt">Created at</option><option value="id">Payment ID</option><option value="date">Payment date</option><option value="customer">Customer</option><option value="amount">Amount</option><option value="method">Method</option><option value="allocations">Job allocations</option></>}

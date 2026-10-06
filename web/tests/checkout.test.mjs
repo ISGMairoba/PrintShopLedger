@@ -8,7 +8,7 @@ export const actor={id:'10000000-0000-4000-8000-000000000001',label:'Cashier'};
 export const customerId='20000000-0000-4000-8000-000000000001',materialId='30000000-0000-4000-8000-000000000001',serviceId='40000000-0000-4000-8000-000000000001';
 export const fixture=()=>({...emptyLedger(),customers:[{id:customerId,name:'Customer',phone:'080111',address:'Road',creditLimit:0,archived:false,version:1}],materials:[{id:materialId,name:'Paper',available:10,measurementUnit:'sheet',requireSize:false,archived:false,version:1,createdBy:actor.id,modifiedBy:actor.id}],services:[{id:serviceId,description:'Printing',materialId,price:10000,version:1,archived:false}]});
 export const job=(quantity=1)=>({id:crypto.randomUUID(),serviceId,description:'Print job',quantity,source:'WhatsApp',sourceNote:'customer file'});
-export const checkout=(ledger,lines,cash=0,extra={})=>prepareCheckout(ledger,{customerId,lines,cashReceived:cash,useWallet:true,method:'Cash',paidOn:'2026-10-06',reference:'',...extra},actor);
+export const checkout=(ledger,lines,cash=0,extra={})=>prepareCheckout(ledger,{customerId,lines,cashReceived:cash,useWallet:true,method:'Cash',paidOn:'2026-10-06',reference:'',...extra},actor,crypto.randomUUID(),extra.createdAt??new Date().toISOString());
 test('Negative stock, overpayment wallet, retry and restocking preserve the exact ledger',()=>{
  const base=fixture(),event=checkout(base,[job(60)],700000),next=applyCheckout(base,event);
  assert.equal(next.materials[0].available,-50);assert.equal(walletBalance(next,customerId),100000);assert.equal(customerBalance(next,customerId),0);
@@ -19,7 +19,7 @@ test('Negative stock, overpayment wallet, retry and restocking preserve the exac
  const walletEvent=checkout(stocked,[job(5)]),paid=applyCheckout(stocked,walletEvent);assert.equal(walletEvent.data.walletUsed,50000);assert.equal(walletEvent.data.cashReceived,0);assert.equal(walletBalance(paid,customerId),50000);assert.equal(jobBalance(paid,paid.jobs[1]).outstanding,0);
 });
 test('One payment covers several old jobs and override changes individual allocations',()=>{
- let ledger=fixture();const a=checkout(ledger,[job(3)]);ledger=applyCheckout(ledger,a);const b=checkout(ledger,[job(4)]);ledger=applyCheckout(ledger,b);
+ let ledger=fixture();const a=checkout(ledger,[job(3)],0,{createdAt:'2026-10-06T10:00:00Z'});ledger=applyCheckout(ledger,a);const b=checkout(ledger,[job(4)],0,{createdAt:'2026-10-06T11:00:00Z'});ledger=applyCheckout(ledger,b);
  const payment=checkout(ledger,[],50000);assert.deepEqual(payment.data.allocations,[{jobId:a.data.jobs[0].id,amount:30000},{jobId:b.data.jobs[0].id,amount:20000}]);
  const updated=applyCheckout(ledger,payment);assert.equal(customerBalance(updated,customerId),20000);
  const override=checkout(ledger,[],20000,{override:[{jobId:b.data.jobs[0].id,amount:20000}]});assert.equal(override.data.allocations[0].jobId,b.data.jobs[0].id);
