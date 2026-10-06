@@ -58,19 +58,19 @@ export default function PrintSettingsPage({ scope, ready }: { scope: string; rea
     {draft && <Modal title="Edit print settings" wide busy={busy} onClose={() => { setDraft(null); setMessage(''); }}>
       {message && <p role="status">{message}</p>}
       <form onSubmit={save}><div className="form-grid">
-        <label>Default printer<select value={draft.printer} onChange={e => setDraft({ ...draft, printer: e.target.value })}>
+        <label>Default printer<select aria-label="Default printer" value={draft.printer} onChange={e => setDraft({ ...draft, printer: e.target.value })}>
           <option value="">Select a printer</option>{Array.from(new Set([...printers, ...(draft.printer ? [draft.printer] : [])])).map(name => <option key={name}>{name}</option>)}
         </select><button className="secondary" type="button" disabled={busy} onClick={connect}>Find installed printers</button></label>
-        <label>Paper size<select value={draft.paper} onChange={e => { const size = paperSizes[e.target.value as keyof typeof paperSizes]; setDraft({ ...draft, paper: e.target.value, ...(size ? { width: size[0], height: size[1] } : {}) }); }}>
+        <label>Paper size<select aria-label="Paper size" value={draft.paper} onChange={e => { const size = paperSizes[e.target.value as keyof typeof paperSizes]; setDraft({ ...draft, paper: e.target.value, ...(size ? { width: size[0], height: size[1] } : {}) }); }}>
           {Object.keys(paperSizes).map(paper => <option key={paper}>{paper}</option>)}<option>Custom</option></select></label>
         <label>Paper width (mm)<input type="number" min="20" max="1000" step="0.1" required value={draft.width} onChange={e => setDraft({ ...draft, paper: 'Custom', width: Number(e.target.value) })}/></label>
         <label>Paper height (mm)<input type="number" min="20" max="2000" step="0.1" required value={draft.height} onChange={e => setDraft({ ...draft, paper: 'Custom', height: Number(e.target.value) })}/></label>
-        <label>Orientation<select value={draft.orientation} onChange={e => setDraft({ ...draft, orientation: e.target.value })}><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></label>
-        <label>Paper source / tray<input value={draft.paperSource} maxLength={200} placeholder="Leave blank for printer default" onChange={e => setDraft({ ...draft, paperSource: e.target.value })}/><small>Use the exact tray name from your printer driver.</small></label>
-        <label>Font<input list="print-fonts" value={draft.font} maxLength={200} required onChange={e => setDraft({ ...draft, font: e.target.value })}/><datalist id="print-fonts">{fonts.map(font => <option key={font} value={font}/>)}</datalist><small>The font must be installed on this computer.</small></label>
+        <label>Orientation<select aria-label="Orientation" value={draft.orientation} onChange={e => setDraft({ ...draft, orientation: e.target.value })}><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></label>
+        <label>Paper source / tray<input aria-label="Paper source / tray" value={draft.paperSource} maxLength={200} placeholder="Leave blank for printer default" onChange={e => setDraft({ ...draft, paperSource: e.target.value })}/><small>Use the exact tray name from your printer driver.</small></label>
+        <label>Font<input aria-label="Font" list="print-fonts" value={draft.font} maxLength={200} required onChange={e => setDraft({ ...draft, font: e.target.value })}/><datalist id="print-fonts">{fonts.map(font => <option key={font} value={font}/>)}</datalist><small>The font must be installed on this computer.</small></label>
         <label>Font size (pt)<input type="number" min="6" max="72" step="0.5" required value={draft.fontSize} onChange={e => setDraft({ ...draft, fontSize: Number(e.target.value) })}/></label>
         <label>Copies<input type="number" min="1" max="20" step="1" required value={draft.copies} onChange={e => setDraft({ ...draft, copies: Number(e.target.value) })}/></label>
-        <label>Print colour<select value={draft.color ? 'color' : 'mono'} onChange={e => setDraft({ ...draft, color: e.target.value === 'color' })}><option value="mono">Monochrome</option><option value="color">Colour</option></select></label>
+        <label>Print colour<select aria-label="Print colour" value={draft.color ? 'color' : 'mono'} onChange={e => setDraft({ ...draft, color: e.target.value === 'color' })}><option value="mono">Monochrome</option><option value="color">Colour</option></select></label>
         {(['top','right','bottom','left'] as const).map(edge => <label key={edge}>{edge[0].toUpperCase() + edge.slice(1)} margin (mm)<input type="number" min="0" max="200" step="0.1" required value={draft.margins[edge]} onChange={e => setDraft({ ...draft, margins: { ...draft.margins, [edge]: Number(e.target.value) } })}/></label>)}
       </div><div className="print-checkboxes">
         <label><input type="checkbox" checked={draft.bold} onChange={e => setDraft({ ...draft, bold: e.target.checked })}/> Bold</label>
