@@ -14,3 +14,14 @@
 .sort-button { display: inline-flex; align-items: center; gap: .4rem; }
 .modal-close { min-width: 2.5rem; min-height: 2.5rem; display: inline-flex; align-items: center; justify-content: center; }
 nav button { display: flex; align-items: center; gap: .8rem; }
+
+.print-settings-panel { padding: 24px; }
+.print-setting-summary { display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px; }
+.print-setting-summary div { padding:14px;background:#f7f9fb;border-radius:8px;overflow-wrap:anywhere; }
+.print-setting-summary dt { color:#667085;font-size:.85rem; }
+.print-setting-summary dd { margin:6px 0 0;font-weight:600; }
+.print-checkboxes { display:flex;flex-wrap:wrap;gap:18px;margin:20px 0; }
+.print-checkboxes label { display:flex;align-items:center;gap:8px; }
+.print-checkboxes input { width:auto; }
+.print-layout-sample { padding:24px;border:1px solid #ddd;background:white;overflow-wrap:anywhere; }
+@media(max-width:600px){ .print-settings-panel{padding:14px;} .print-setting-summary{grid-template-columns:1fr;} }

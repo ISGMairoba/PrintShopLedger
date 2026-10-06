@@ -15,7 +15,8 @@
     "@supabase/supabase-js": "^2.57.4",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "@fortawesome/free-solid-svg-icons": "^7.0.0"
+    "@fortawesome/free-solid-svg-icons": "^7.0.0",
+    "qz-tray": "^2.2.5"
   },
   "devDependencies": {
     "@types/react": "^19.1.13",

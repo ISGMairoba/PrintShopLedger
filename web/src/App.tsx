@@ -1,4 +1,5 @@
 import Icon from './Icon';
+import PrintSettingsPage from './PrintSettingsPage';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import { useRegisterSW } from 'virtual:pwa-register/react';
@@ -16,7 +17,7 @@ import StockHistoryPage from './StockHistoryPage';
 import type { LedgerEvent, LocalState, Payment, MaterialEvent, ServiceEvent, CustomerEvent, Job } from './types';
 
 type Shop = { id: string; name: string; role: string };
-type Page = 'Jobs' | 'Customers' | 'Payments' | 'Materials' | 'Stock History' | 'Services';
+type Page = 'Jobs' | 'Customers' | 'Payments' | 'Materials' | 'Stock History' | 'Services' | 'Print Settings';
 const currency = (amount: number) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount / 100);
 const shortId = (id: string) => id.slice(0, 8).toUpperCase();
 const today = () => {
@@ -232,8 +233,8 @@ export default function App() {
         <><label>Business<select disabled={busy} value={shop?.id ?? ''} onChange={e => setShop(shops.find(item => item.id === e.target.value) ?? null)}>
           {shops.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><small>{shop?.role ?? 'No workspace assigned'}</small></>}
       </div>
-      <nav aria-label="Main">{(['Jobs', 'Customers', 'Payments', 'Materials', 'Services', 'Stock History'] as Page[]).map((item, index) => <button key={item} className={page === item ? 'active' : ''}
-        onClick={() => { setPage(item); setSelectedJob(null); setForm(null); setQuery(''); }}><Icon name={(['jobs','customers','payments','materials','services','history'] as const)[index]}/>{item}</button>)}</nav>
+      <nav aria-label="Main">{(['Jobs', 'Customers', 'Payments', 'Materials', 'Services', 'Stock History', 'Print Settings'] as Page[]).map((item, index) => <button key={item} className={page === item ? 'active' : ''}
+        onClick={() => { setPage(item); setSelectedJob(null); setForm(null); setQuery(''); }}><Icon name={(['jobs','customers','payments','materials','services','history','quantity'] as const)[index]}/>{item}</button>)}</nav>
       <div className="sidebar-bottom"><span className={`connection ${online ? 'online' : ''}`}>{online ? 'Online' : 'Offline'}</span>
         <small>{demo ? 'Data saved on this device' : `${state.pending.length} pending changes`}</small>
         {supabase && <button className="secondary" disabled={busy} onClick={async () => {
@@ -243,7 +244,7 @@ export default function App() {
         }}>{demo ? 'Business sign in' : 'Sign out'}</button>}
       </div>
     </aside>
-    <main><header><div><span className="eyebrow">{demo ? 'LOCAL TRIAL' : shop?.name ?? 'BUSINESS WORKSPACE'}</span><h1>{page}</h1><p>{page === 'Customers' ? 'Manage customer details and credit limits.' : page === 'Materials' ? 'Manage materials, quantities and pricing requirements.' : page === 'Stock History' ? 'Review every material change and stock adjustment.' : page === 'Services' ? 'Define services, their base materials and prices.' : 'Track work and keep every payment attached to its job.'}</p></div>
+    <main><header><div><span className="eyebrow">{demo ? 'LOCAL TRIAL' : shop?.name ?? 'BUSINESS WORKSPACE'}</span><h1>{page}</h1><p>{page === 'Print Settings' ? 'Set default printer, paper, font and margins for this device.' : page === 'Customers' ? 'Manage customer details and credit limits.' : page === 'Materials' ? 'Manage materials, quantities and pricing requirements.' : page === 'Stock History' ? 'Review every material change and stock adjustment.' : page === 'Services' ? 'Define services, their base materials and prices.' : 'Track work and keep every payment attached to its job.'}</p></div>
       {!demo && <button className="secondary" onClick={sync} disabled={busy || !online || !shop || !ready}><Icon name="sync"/> {busy ? 'Working.' : 'Sync workspace'}</button>}</header>
       {needRefresh && <div className="notice">An app update is ready. <button className="secondary" disabled={busy} onClick={() => void updateServiceWorker(true)}>Update app</button></div>}
       {message && <div className="notice" role="status">{message}</div>}
@@ -271,7 +272,7 @@ export default function App() {
         <div className="material-actions"><button disabled={busy} onClick={() => void resolveConflict('local')}>Keep this device's version</button><button className="secondary" disabled={busy} onClick={() => void resolveConflict('cloud')}>Keep business version</button></div>
       </Modal>}
       {!demo && !shop ? <section className="auth-card"><h2>Create your business workspace</h2><p>Each business gets its own customers, jobs and payments.</p><form onSubmit={createWorkspace}><label>Business name<input name="businessName" maxLength={160} required /></label><button disabled={busy || !online}>Create workspace</button></form><p className="muted">If you should join an existing business, ask its administrator to add your account.</p></section> : <>
-        {page === 'Customers' ? <CustomersPage key={scope} ledger={ledger} ready={ready} busy={busy || !!conflict || !!serviceConflict || !!customerConflict}
+        {page === 'Print Settings' ? <PrintSettingsPage key={scope} scope={scope} ready={ready}/> : page === 'Customers' ? <CustomersPage key={scope} ledger={ledger} ready={ready} busy={busy || !!conflict || !!serviceConflict || !!customerConflict}
           actor={{id:demo?'local-trial':session!.user.id,label:demo?'Local trial user':session!.user.user_metadata.full_name||session!.user.email||session!.user.id}} onSave={saveCatalogue} onRecordPayment={id=>openPayment(id)} /> : page === 'Materials' ? <MaterialsPage key={scope} materials={ledger.materials} history={ledger.materialHistory} ready={ready} busy={busy || !!conflict || !!serviceConflict || !!customerConflict}
           actor={{ id: demo ? 'local-trial' : session!.user.id, label: demo ? 'Local trial user' : session!.user.user_metadata.full_name || session!.user.email || session!.user.id }}
           onSave={saveCatalogue} /> : page === 'Services' ? <ServicesPage key={scope} services={ledger.services} materials={ledger.materials} ready={ready} busy={busy || !!conflict || !!serviceConflict || !!customerConflict}

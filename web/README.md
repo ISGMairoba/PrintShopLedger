@@ -58,3 +58,11 @@ Sync is explicit with **Sync workspace**. Pending counts and last-sync times are
 `npm test` exercises job-specific payments, split allocations, exact amounts, overpayment, customer isolation and retry deduplication. `supabase/tests/ledger.sql` covers server isolation and write invariants; run it against a disposable Supabase database after applying the migration. The GitHub workflow runs domain tests and a production build.
 
 Do not import the old Access database yet: its account-based balances must first be reconciled and assigned to individual jobs.
+
+## Printer defaults
+
+Print Settings saves printer, paper, font, margins, copies and an automatic-printing preference per signed-in user/business on the current device. Install QZ Tray on the printing computer, connect printers, save defaults and send a test print. Settings and the QZ client are available offline after the PWA has loaded.
+
+QZ submits HTML directly without a browser print preview. Unsigned requests still show QZ security prompts. Trusted signing is not configured yet; see https://qz.io/docs/signing. Native printer properties and custom driver paper forms must be managed in the operating system. A selected font/tray must exist in the printer computer's driver.
+
+`src/printing.ts` exports `printAfterTransaction` for the later checkout workflow. Call it only after a transaction is durably saved and explicitly requires printing. Do not invoke printing during sync, refresh or event replay. Printing errors are separate from transaction persistence, and a submitted spool job is not proof of physical output. Existing job/payment actions are unchanged.
