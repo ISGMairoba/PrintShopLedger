@@ -7,6 +7,7 @@ export default function CurrencyInput({ value, defaultValue = '', name, max = 10
   const input = useRef<HTMLInputElement>(null);
   const caret = useRef<number | null>(null);
   const [focused, setFocused] = useState(false);
+  const [revision, setRevision] = useState(0);
   const display = formatAmount(raw, !focused);
   useLayoutEffect(() => {
     const element = input.current!;
@@ -16,7 +17,7 @@ export default function CurrencyInput({ value, defaultValue = '', name, max = 10
       while (pos < display.length && digits < caret.current) { if (display[pos] !== ',') digits++; pos++; }
       element.setSelectionRange(pos, pos); caret.current = null;
     }
-  }, [raw, display, max]);
+  }, [raw, display, max, revision]);
   return <><input {...props} ref={input} type="text" inputMode="decimal" autoComplete="off" className={`currency-input ${props.className ?? ''}`} value={display}
     onFocus={event => { setFocused(true); props.onFocus?.(event); }}
     onBlur={event => { setFocused(false); if (raw.endsWith('.') && !amountError(raw, max)) { const next = raw.slice(0, -1); if (value === undefined) setLocal(next); onValueChange?.(next); } props.onBlur?.(event); }}
@@ -25,6 +26,7 @@ export default function CurrencyInput({ value, defaultValue = '', name, max = 10
       caret.current = text.slice(0, event.target.selectionStart ?? text.length).replaceAll(',', '').length;
       let next = text.replaceAll(',', '');
       if (next.startsWith('.')) { next = '0' + next; caret.current++; }
+      setRevision(current => current + 1);
       if (value === undefined) setLocal(next);
       onValueChange?.(next);
     }}/>{name && <input type="hidden" name={name} value={raw}/>}</>;
