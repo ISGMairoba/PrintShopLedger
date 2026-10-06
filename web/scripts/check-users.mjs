@@ -254,6 +254,7 @@ try {
  assert.equal(await page.locator('tbody tr').count(),3);await context.setOffline(false);
  await page.locator('.sync-status').getByText('Saved',{exact:false}).waitFor();
  await page.setViewportSize({width:390,height:844});
+ await page.locator('.mobile-list').waitFor();
  assert.equal(await page.locator('.mobile-list thead th').count(),3);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  await page.getByRole('button',{name:'Close drawer',exact:true}).click();
  dialog=page.getByRole('dialog',{name:'Close drawer'});assert.ok((await dialog.boundingBox()).width<=390);
