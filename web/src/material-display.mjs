@@ -7,7 +7,7 @@ export function materialCode(id, materials = []) {
   return 'MAT-' + compact;
 }
 export const materialActionLabels = {
-  'material.created': 'Material created', 'material.updated': 'Material edited',
+  'material.job_used': 'Job material used', 'material.created': 'Material created', 'material.updated': 'Material edited',
   'material.stock_added': 'Stock added', 'material.stock_set': 'Quantity set',
   'material.archived': 'Material archived', 'material.restored': 'Material restored'
 };
@@ -24,3 +24,4 @@ export function materialSnapshot(material) {
   if (!material) return null;
   return { name: material.name, available: material.available, measurementUnit: material.measurementUnit, requireSize: material.requireSize, archived: material.archived };
 }
+

@@ -1,3 +1,4 @@
+import { checkoutReviewBase, replacePendingCheckout, adoptJobStatus } from './checkout-conflicts.mjs';
 import { createClient } from '@supabase/supabase-js';
 import { applyEvent } from './domain.mjs';
 import { mutateState, readState } from './storage';
@@ -5,7 +6,7 @@ import { normalizeLedger } from './materials.mjs';
 import { resolveMaterialState } from './material-conflicts.mjs';
 import { resolveServiceState } from './service-conflicts.mjs';
 import { resolveCustomerState } from './customer-conflicts.mjs';
-import type { Ledger, Material, Service, Customer } from './types';
+import type { Ledger, Material, Service, Customer, CheckoutEvent, LedgerEvent } from './types';
 
 export class MaterialSyncConflict extends Error {
   constructor(public local: Material, public remote: Material) { super('This material was changed on another device. Choose which version to keep.'); }
@@ -19,6 +20,8 @@ export class ServiceSyncConflict extends Error {
 export class CustomerSyncConflict extends Error {
   constructor(public local: Customer, public remote: Customer | null) { super('This customer changed on another device. Review both versions before continuing sync.'); }
 }
+export class CheckoutSyncConflict extends Error {constructor(public event:CheckoutEvent,public cloud:Ledger){super('Review the pending checkout against the latest prices and customer account.');}}
+export class JobSyncConflict extends Error {constructor(public event:LedgerEvent,public cloud:Ledger){super('This job status changed on another device. Review the latest status.');}}
 const url = import.meta.env.VITE_SUPABASE_URL;
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 export const supabase = url && key ? createClient(url, key) : null;
@@ -37,7 +40,13 @@ async function synchronize(scope: string, shopId: string) {
   // Stable UUIDs make retries safe. Failed operations remain in the outbox.
   for (const event of state.pending) {
     await requireSameUser();
-    const { error } = await supabase.rpc(event.kind.startsWith('customer.') ? 'apply_customer_event' : event.kind.startsWith('material.') ? 'apply_material_event' : event.kind.startsWith('service.') ? 'apply_service_event' : 'apply_ledger_event', { p_shop: shopId, p_event: event }).abortSignal(AbortSignal.timeout(20000));
+    const { error } = await supabase.rpc(event.kind==='checkout.completed' ? 'apply_checkout_event' : event.kind==='job.status_changed' ? 'apply_job_status_event' : event.kind.startsWith('customer.') ? 'apply_customer_event' : event.kind.startsWith('material.') ? 'apply_material_event' : event.kind.startsWith('service.') ? 'apply_service_event' : 'apply_ledger_event', { p_shop: shopId, p_event: event }).abortSignal(AbortSignal.timeout(20000));
+    if(error?.code==='40001'&&(event.kind==='checkout.completed'||event.kind==='job.status_changed')){
+      const {data,error:readError}=await supabase.rpc('get_ledger',{p_shop:shopId}).abortSignal(AbortSignal.timeout(20000));
+      if(readError)throw Error(readError.message);await requireSameUser();
+      if(event.kind==='checkout.completed')throw new CheckoutSyncConflict(event,normalizeLedger(data));
+      throw new JobSyncConflict(event,normalizeLedger(data));
+    }
     if (error && ['40001', 'P0002'].includes(error.code) && event.kind.startsWith('customer.')) {
       await requireSameUser();
       const { data, error: readError } = await supabase.rpc('get_ledger', { p_shop: shopId }).abortSignal(AbortSignal.timeout(20000));
@@ -74,7 +83,7 @@ async function synchronize(scope: string, shopId: string) {
   state = await mutateState(scope, current => {
     let ledger: Ledger = normalizeLedger(data as Ledger);
     // Preserve work added by another tab while the download was in flight.
-    for (const event of current.pending) ledger = applyEvent(ledger, event);
+    for (const event of current.pending) {try{ledger = applyEvent(ledger, event);}catch(error){if(event.kind==='checkout.completed')throw new CheckoutSyncConflict(event,normalizeLedger(data as Ledger));if(event.kind==='job.status_changed')throw new JobSyncConflict(event,normalizeLedger(data as Ledger));throw error;}}
     return { ...current, ledger, lastSynced: new Date().toISOString() };
   });
   return state;
@@ -148,3 +157,15 @@ export async function resolveCloudCustomer(scope: string, shopId: string, custom
     });
   });
 }
+
+
+export async function resolvePendingWork(scope:string,shopId:string,eventId:string,replacement:CheckoutEvent|null,jobId?:string){
+ if(!supabase||!navigator.onLine||!navigator.locks)throw Error('Connect to the internet to review this pending work.');
+ return navigator.locks.request(`printshopledger-sync:${scope}`,async()=>{
+  const check=async()=>{const {data,error}=await supabase!.auth.getSession();if(error||data.session?.user.id!==scope.split(':')[0])throw Error('Your sign-in changed. Sign in again.');};
+  await check();const {data,error}=await supabase!.rpc('get_ledger',{p_shop:shopId}).abortSignal(AbortSignal.timeout(20000));if(error)throw Error(error.message);await check();
+  const cloud=normalizeLedger(data);
+  return mutateState(scope,state=>{try{return replacement?replacePendingCheckout(state,cloud,eventId,replacement):adoptJobStatus(state,cloud,jobId!);}catch(cause){const event=state.pending.find(e=>e.id===eventId);if(event?.kind==='checkout.completed')throw new CheckoutSyncConflict(event,cloud);throw cause;}});
+ });
+}
+export {checkoutReviewBase};

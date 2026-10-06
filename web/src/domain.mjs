@@ -1,9 +1,10 @@
+import { applyCheckout, applyJobStatus } from './checkout.mjs';
 import { applyCustomerEvent } from './customers.mjs';
 import { applyServiceEvent } from './services.mjs';
 import { applyMaterialEvent, normalizeLedger } from './materials.mjs';
 
 // Money is stored as integer kobo. Customer balances are derived from jobs.
-export const emptyLedger = () => ({ customers: [], jobs: [], payments: [], materials: [], materialHistory: [], services: [] });
+export const emptyLedger = () => ({ customers: [], jobs: [], payments: [], materials: [], materialHistory: [], services: [], checkouts: [] });
 export function money(value) {
   const text = String(value).trim();
   if (!/^\d+(\.\d{1,2})?$/.test(text)) throw new Error('Enter an amount with at most two decimal places.');
@@ -29,6 +30,8 @@ export function applyEvent(ledger, event) {
   if (event.kind.startsWith('customer.')) return applyCustomerEvent(ledger,event);
   if (event.kind.startsWith('service.')) return applyServiceEvent(ledger, event);
   if (event.kind.startsWith('material.')) return applyMaterialEvent(ledger, event);
+  if(event.kind==='checkout.completed') return applyCheckout(ledger,event);
+  if(event.kind==='job.status_changed') return applyJobStatus(ledger,event);
   const data = event.data;
   if (!event.id || !data.id) throw new Error('Missing record identifier.');
   if (event.kind === 'job.created') {
@@ -68,3 +71,4 @@ export function applyEvent(ledger, event) {
   }
   throw new Error('Unknown operation.');
 }
+

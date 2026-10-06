@@ -1,14 +1,14 @@
 import { normalizeCustomer } from './customers.mjs';
 import { materialSnapshot } from './material-display.mjs';
 export function normalizeLedger(ledger) {
-  return { ...ledger, customers: (ledger.customers ?? []).map(normalizeCustomer), materials: ledger.materials ?? [], materialHistory: ledger.materialHistory ?? [], services: ledger.services ?? [] };
+  return { ...ledger, checkouts: ledger.checkouts ?? [], customers: (ledger.customers ?? []).map(normalizeCustomer), materials: ledger.materials ?? [], materialHistory: ledger.materialHistory ?? [], services: ledger.services ?? [] };
 }
 export function validateMaterial(data) {
   if (typeof data.name !== 'string' || !data.name.trim() || data.name.trim().length > 160) throw new Error('Enter a material name (up to 160 characters).');
   if (typeof data.measurementUnit !== 'string' || !data.measurementUnit.trim() || data.measurementUnit.trim().length > 40) throw new Error('Enter a measurement unit (up to 40 characters).');
   if (typeof data.requireSize !== 'boolean') throw new Error('Require Size must be Yes or No.');
-  if (typeof data.available !== 'number' || !Number.isFinite(data.available) || data.available < 0 || data.available > 1000000000000 ||
-      Math.abs(data.available * 1000 - Math.round(data.available * 1000)) > 0.001) throw new Error('Available must be zero or greater, with at most three decimal places.');
+  if (typeof data.available !== 'number' || !Number.isFinite(data.available) || data.available < -1000000000000 || data.available > 1000000000000 ||
+      Math.abs(data.available * 1000 - Math.round(data.available * 1000)) > 0.001) throw new Error('Available must be within the supported range, with at most three decimal places.');
 }
 export function applyMaterialEvent(input, event) {
   const ledger = normalizeLedger(input);
@@ -51,3 +51,4 @@ export function applyMaterialEvent(input, event) {
   } else throw new Error('Unknown material operation.');
   return { ...ledger, materials: ledger.materials.map(material => material.id === data.id ? next : material), materialHistory: [...ledger.materialHistory, record(next)] };
 }
+

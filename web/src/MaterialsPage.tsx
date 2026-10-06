@@ -73,7 +73,7 @@ export default function MaterialsPage({ materials, history, ready, busy, actor, 
         const data = new FormData(e.currentTarget);
         await commit(stock.mode === 'add' ? 'material.stock_added' : 'material.stock_set', { id: stock.material.id, baseVersion: stock.material.version,
           quantity: Number(data.get('quantity')), reason: String(data.get('reason') ?? '').trim(), modifiedBy: actor.id, modifiedByLabel: actor.label, modifiedAt: '' });
-      }}><fieldset disabled={busy}><div className="form-grid"><label>{stock.mode === 'add' ? 'Quantity to add' : 'New available quantity'}<input name="quantity" type="number" inputMode="decimal" min={stock.mode === 'add' ? '0.001' : '0'} max="1000000000000" step="0.001" defaultValue={stock.mode === 'set' ? stock.material.available : ''} required /></label>
+      }}><fieldset disabled={busy}><div className="form-grid"><label>{stock.mode === 'add' ? 'Quantity to add' : 'New available quantity'}<input name="quantity" type="number" inputMode="decimal" min={stock.mode === 'add' ? '0.001' : '-1000000000000'} max="1000000000000" step="0.001" defaultValue={stock.mode === 'set' ? stock.material.available : ''} required /></label>
         <label>Reason / note<input name="reason" list="stock-reason-suggestions" maxLength={500} value={stockReason} onChange={e => setStockReason(e.target.value)} placeholder="Choose a suggestion or enter your own note" /></label></div>
         <datalist id="stock-reason-suggestions">{noteSuggestions.map(reason => <option key={reason} value={reason} />)}</datalist>
         <div className="reason-options" aria-label="Suggested stock notes">{stockReasonDefaults.map(reason => <button type="button" className="secondary" key={reason} onClick={() => setStockReason(reason)}>{reason}</button>)}</div>
@@ -90,10 +90,11 @@ export default function MaterialsPage({ materials, history, ready, busy, actor, 
         {editing ? <p className="material-id">Material ID: {materialCode(editing.id, materials)}</p> : <p className="muted">A permanent unique ID is generated when you save. New materials start with zero stock; use Add to stock afterwards.</p>}
         <fieldset disabled={busy}><div className="form-grid"><label>Name<input name="name" defaultValue={editing?.name ?? ''} maxLength={160} required /></label>
           <label>Measurement unit<input name="measurementUnit" list="material-units" placeholder="e.g. sheet, metre, square metre" maxLength={40} defaultValue={editing?.measurementUnit ?? ''} required /></label>
-          <label className="material-checkbox"><span><input name="requireSize" type="checkbox" defaultChecked={editing?.requireSize ?? false} /> Require size</span><small>Enable when the service price depends on dimensions. Otherwise pricing uses quantity only. Checkout calculations will be added in a later step.</small></label></div>
+          <label className="material-checkbox"><span><input name="requireSize" type="checkbox" defaultChecked={editing?.requireSize ?? false} /> Require size</span><small>Enable when the service price depends on dimensions. Otherwise pricing uses quantity only. Checkout uses quantity × width × height when size is required.</small></label></div>
           <datalist id="material-units">{['sheet', 'piece', 'metre', 'square metre', 'roll', 'kilogram', 'litre'].map(unit => <option key={unit} value={unit} />)}</datalist>
           <button type="submit"><Icon name="save"/> {busy ? 'Saving...' : 'Save material'}</button></fieldset>
       </form></Modal>}
   </>;
 }
+
 

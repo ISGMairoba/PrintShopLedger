@@ -94,7 +94,7 @@ try {
   }
   await page.getByLabel('Search customers').fill('');
   await page.getByRole('button',{name:'Audit view',exact:true}).click();
-  assert.equal(await page.locator('thead th').count(),13,'Audit contains normal and audit columns');
+  assert.equal(await page.locator('thead th').count(),14,'Audit contains normal and audit columns');
   await page.getByRole('button',{name:'Add customer',exact:true}).click();
   dialog=page.getByRole('dialog',{name:'Add customer'});
   await dialog.getByLabel('Full name').fill('Alpha customer');
@@ -108,21 +108,23 @@ try {
   assert.match(await page.locator('tbody tr').first().innerText(),/Alpha customer/,'Numeric ascending credit sort');
   await page.getByRole('navigation',{name:'Main'}).getByRole('button',{name:'Jobs',exact:true}).click();
   await page.getByRole('button',{name:'New job',exact:true}).click();
-  dialog=page.getByRole('dialog',{name:'Create a job'});
-  await dialog.getByLabel('Customer').selectOption({index:1});
-  await dialog.getByLabel('Service',{exact:true}).fill('Printing');
+  dialog=page.getByRole('dialog',{name:'New checkout'});
+  await dialog.getByRole('combobox',{name:'Customer name or phone'}).fill('Alpha');
+  await dialog.getByRole('option').first().click();
+  await dialog.getByLabel('Service',{exact:true}).selectOption({index:1});
   await dialog.getByLabel('Job description').fill('Mobile test job');
-  await dialog.getByLabel('Job amount').fill('100');
-  await dialog.getByRole('button',{name:'Save record',exact:true}).click();
+  await dialog.getByRole('button',{name:'Complete checkout',exact:true}).click();
   await dialog.waitFor({state:'detached'});
+  await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click();
   await page.getByRole('button',{name:'Payments',exact:true}).click();
   await page.getByRole('button',{name:'Record payment',exact:true}).click();
-  dialog=page.getByRole('dialog',{name:'Record a payment'});
-  await dialog.getByLabel('Customer').selectOption({index:1});
-  await dialog.getByLabel('Payment total').fill('20');
-  await dialog.getByLabel('Amount for Mobile test job').fill('20');
-  await dialog.getByRole('button',{name:'Save payment & allocations',exact:true}).click();
+  dialog=page.getByRole('dialog',{name:'Receive payment'});
+  await dialog.getByRole('combobox',{name:'Customer name or phone'}).fill('Alpha');
+  await dialog.getByRole('option').first().click();
+  await dialog.getByLabel('Money received (₦)').fill('20');
+  await dialog.getByRole('button',{name:'Complete checkout',exact:true}).click();
   await dialog.waitFor({state:'detached'});
+  await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click();
   await page.getByRole('button',{name:'Stock History',exact:true}).click();
   await page.getByRole('button',{name:'Details',exact:true}).first().click();
   await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click();
@@ -169,3 +171,4 @@ try {
   await browser?.close();
   server.kill('SIGTERM');
 }
+

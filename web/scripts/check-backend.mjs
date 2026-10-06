@@ -6,7 +6,7 @@ const headers = { apikey: key };
 const settings = await fetch(url + '/auth/v1/settings', { headers, signal: AbortSignal.timeout(20000) });
 if (!settings.ok) throw new Error('Supabase Auth is unreachable or the publishable key was rejected: HTTP ' + settings.status);
 console.log('Supabase URL and publishable key accepted.');
-for (const table of ['shops', 'shop_members', 'customers', 'jobs', 'payments', 'payment_allocations', 'ledger_events', 'materials', 'material_stock_changes', 'services']) {
+for (const table of ['shops', 'shop_members', 'customers', 'jobs', 'payments', 'payment_allocations', 'ledger_events', 'materials', 'material_stock_changes', 'services', 'checkout_records']) {
   const response = await fetch(url + '/rest/v1/' + table + '?select=*&limit=1', { headers, signal: AbortSignal.timeout(20000) });
   const body = await response.json();
   if (![401, 403].includes(response.status) || body.code !== '42501') {
@@ -72,3 +72,10 @@ const staffLogin = await fetch(url + '/functions/v1/staff-login', {method:'POST'
 const staffLoginBody=await staffLogin.json();
 if(staffLogin.status!==401||staffLoginBody.error!=='Sign in to the business first.')throw new Error('Staff login requires a verified business session.');
 console.log('Staff login rejects requests without a business session.');
+
+
+for (const name of ['apply_checkout_event','apply_job_status_event']) {
+ const response=await fetch(url+'/rest/v1/rpc/'+name,{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({p_shop:null,p_event:{}}),signal:AbortSignal.timeout(20000)});
+ const data=await response.json();if(![401,403].includes(response.status)||data.code!=='42501')throw Error(name+' must require sign-in');
+ console.log(name+' exists and rejects anonymous execution.');
+}

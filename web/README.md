@@ -1,19 +1,22 @@
 # PrintShopLedger
 
-An early React + TypeScript application for businesses that manage jobs and payments. Each job owns its payment history and outstanding amount. Customer totals are derived from jobs, never used to distribute payments implicitly.
+A React + TypeScript app for businesses that manage materials, services, customers, jobs and payments. Every payment allocation belongs to a job; customer accounts combine their job records and wallet movements.
 
-## Included in this first version
+## Included
 
-- Customers, jobs, individual job details and payment history.
-- Cash/POS/transfer payments with explicit allocations across one or more jobs.
-- Integer-kobo money calculations, overpayment protection and allocation validation.
-- Atomic local IndexedDB saves and a persistent outbox; cross-tab refresh.
-- Installable PWA app shell; first successful online load/build is required before offline use.
-- Supabase email/password sign-in, business workspaces, RLS and atomic/idempotent write RPCs.
-- Business isolation on the server and separate device caches for each user/business.
-- Separate local trial mode that never uploads sample records.
+- Material, service and customer catalogues with editing, archiving, audit fields, search and sorting.
+- Stock adjustments and per-job material usage history; negative stock is allowed.
+- Point of Service with a simple cart, size-based pricing, customer name/phone suggestions and customer creation at checkout.
+- Cash/POS/transfer payments allocated oldest unpaid job first, with manual override across multiple jobs.
+- Excess payment becomes wallet credit, usable on later jobs. Credit limits warn without blocking orders.
+- Atomic checkout saves jobs, allocations, wallet, stock and audit records together. Retrying the same checkout never duplicates records.
+- Production workflow: Added → In Queue → Printing → Completed → Collected.
+- Receipts use saved QZ Tray printer settings. Printing failure leaves the saved checkout intact and supports manual retry.
+- IndexedDB offline saves and automatic cloud sync on reconnection. Concurrent price, account or workflow changes require review before confirmation.
+- Supabase staff sign-in, business workspaces, ranks, access controls and isolated business records.
+- Responsive modal editors, sortable lists, installable PWA and a separate local trial.
 
-The currency is NGN for this first version. Services are entered as text and job prices are entered manually. Material tracking, pricing rules, workflow statuses, staff invitations, receipts, refunds and payment corrections are later modules. This is not a completed production system.
+Currency is NGN and financial amounts are stored as integer kobo. Refunds and payment corrections are not implemented yet.
 
 ## Run locally
 
@@ -32,16 +35,11 @@ Development without Supabase variables opens in a local trial. Production builds
 ## Connect Supabase
 
 1. Create a Supabase project.
-2. Apply `supabase/migrations/202610030001_job_payments.sql` using the SQL Editor or Supabase migrations.
+2. Apply the SQL files in `supabase/migrations` in filename order to a fresh database. Existing deployments must apply any migrations they have not already applied.
 3. Create tester accounts through Supabase Authentication. Disable public signup if testers should be invitation-only.
 4. Copy `.env.example` to `.env` and set the project URL and **publishable** key. Never place a service-role or secret key in a Vite environment variable.
-5. Sign in. Create a business workspace from the app. The creator becomes its admin.
-6. To let additional testers share a business, add their Auth user UUID to `shop_members` through the administrator's SQL Editor:
-
-```sql
-insert into public.shop_members(shop_id, user_id, role)
-values ('BUSINESS_UUID', 'AUTH_USER_UUID', 'cashier');
-```
+5. Sign in to the business, create a workspace, then use its default Manager staff account. Manage additional staff through the Users page.
+6. Add staff from the Users page; access is isolated by business and validated on the server.
 
 For independent businesses, each tester creates their own workspace. Server membership checks prevent cross-business reads/writes. All three roles currently have the same customer/job/payment permissions; finer role restrictions are not implemented yet. Clients cannot modify memberships or roles.
 
@@ -70,3 +68,8 @@ QZ submits HTML directly without a browser print preview. Unsigned requests stil
 ### Responsive list pages
 
 Use `src/ResponsiveTable.tsx` for every new list page. Pass the desktop table as its child and declare up to three mobile `columns`: each identifies its source cell index, heading, related `details` cell indices, and whether it contains `actions`. Use `-1` for the last cell (actions), so toggling audit fields does not move the action mapping. Unassigned fields automatically appear as prefixed details below the first main value, including audit fields. `labels` can shorten prefixes such as ID and Unit. SortHeader controls become one mobile sort dropdown and direction button; `extraSortOptions` adds fields absent from the desktop headers. Keep all handlers and permission checks in the original cells. The shared component displays one table at a time and uses the 740px sidebar breakpoint (1024px for touch devices, including iPhone landscape). The Sidebar component provides the mobile menu drawer with keyboard focus handling, Escape and scroll locking.
+
+
+## Checkout validation
+
+`npm test` checks calculation precision, allocation, wallet, stock, retries and conflict review. Browser checks include `node scripts/check-checkout.mjs`, existing modal checks, user switching and iPhone layouts. `supabase/tests/checkout.sql` uses fixtures inside a rollback-only transaction to test the real database RPCs without leaving records behind.

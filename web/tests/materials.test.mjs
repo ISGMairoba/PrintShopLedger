@@ -57,7 +57,7 @@ test('retries are idempotent and stale edits are rejected', () => {
 });
 test('invalid names, units, quantities and size flags are rejected', () => {
   for (const data of [{ name: ' ' }, { name: 'a'.repeat(161) }, { measurementUnit: '' }, { measurementUnit: 'a'.repeat(41) },
-    { available: -1 }, { available: Infinity }, { available: NaN }, { available: '2' }, { available: 0.0001 }, { requireSize: 'true' }]) {
+    { available: -1000000000001 }, { available: Infinity }, { available: NaN }, { available: '2' }, { available: 0.0001 }, { requireSize: 'true' }]) {
     assert.throws(() => applyEvent(emptyLedger(), command('material.created', data)));
   }
   assert.equal(applyEvent(emptyLedger(), command('material.created', { available: 0, requireSize: false })).materials[0].available, 0);
@@ -83,10 +83,11 @@ test('add to stock adds a decimal quantity and set stock replaces it', () => {
   assert.equal(ledger.materials[0].available, 0);
   assert.equal(ledger.materials[0].createdBy, 'user-1');
 });
-test('stock changes reject zero increments, negative values, invalid precision and archived materials', () => {
+test('stock changes reject zero increments, negative increments, invalid precision and archived materials', () => {
   const created = applyEvent(emptyLedger(), command());
   for (const quantity of [0, -1, 0.0001, Infinity]) assert.throws(() => applyEvent(created, command('material.stock_added', { baseVersion: 1, quantity }, 'bad')));
-  assert.throws(() => applyEvent(created, command('material.stock_set', { baseVersion: 1, quantity: -1 }, 'bad')));
+  assert.equal(applyEvent(created, command('material.stock_set', { baseVersion: 1, quantity: -1 }, 'negative')).materials[0].available,-1);
   const archived = applyEvent(created, command('material.archived', { baseVersion: 1 }, 'archive'));
   assert.throws(() => applyEvent(archived, command('material.stock_set', { baseVersion: 2, quantity: 3 }, 'bad')), /Restore/);
 });
+
