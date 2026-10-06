@@ -1,5 +1,5 @@
 // One scheduler per active workspace. Network writes remain serialized by cloud.ts.
-export function createAutoSync({run,canRun=()=>true,onStatus=()=>{},onError=()=>{},schedule=setTimeout,cancel=clearTimeout,pollMs=30000}) {
+export function createAutoSync({run,canRun=()=>true,onStatus=(_status)=>{},onError=(_error)=>{},schedule=setTimeout,cancel=clearTimeout,pollMs=30000}) {
  let timer=null,running=false,dirty=false,disposed=false,paused=false,failures=0;
  function arm(ms) {
   if(disposed||paused)return;
