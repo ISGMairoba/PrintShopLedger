@@ -88,10 +88,12 @@ try {
  await page.setViewportSize({width:1280,height:600});
  const wide=await sidebarScrollCheck();assert.equal(wide.left,0);
  await page.setViewportSize({width:1060,height:600});
+ await page.waitForFunction(()=>innerWidth===1060);
  assert.equal((await sidebarScrollCheck()).width,wide.width,'Desktop sidebar width stays fixed');
  await page.evaluate(()=>window.scrollTo(0,100));
  assert.equal(await page.locator('.app-sidebar').evaluate(el=>el.getBoundingClientRect().top),0,'Sidebar stays fixed while main scrolls');
  await page.setViewportSize({width:390,height:600});
+ await page.locator('.mobile-app-bar').waitFor();
  assert.equal(await page.locator('.app-sidebar').count(),0,'Mobile sidebar starts hidden');
  await page.getByRole('button',{name:'Menu',exact:true}).click();
  await page.getByRole('dialog',{name:'Navigation'}).waitFor();
