@@ -234,9 +234,6 @@ export default function App() {
     } catch (error) { setMessage(errorMessage(error)); }
     finally { setBusy(false); }
   }
-  async function signOutBusiness(){
-    setBusy(true);try{await supabase!.auth.signOut({scope:'local'});await businessAuth!.auth.signOut({scope:'local'});setSession(null);setBusinessSession(null);setShop(null);}finally{setBusy(false);}
-  }
   async function staffLogin(e:FormEvent<HTMLFormElement>){
     e.preventDefault();if(!shop||!businessAuth||busy)return;setBusy(true);setMessage('');
     const form=new FormData(e.currentTarget);
@@ -271,27 +268,29 @@ export default function App() {
   </div></main>;
 
   if(!demo&&businessSession&&!shop&&session?.user.id!==businessSession.user.id&&shops.length===0)return <main className="auth"><p>Loading business workspace…</p></main>;
-  if(!demo&&businessSession&&shops.length>0&&(!session||!shop||shop.userId!==session.user.id||shop.accessLevel===0)) return <main className="auth"><section className="auth-card"><h1>Staff sign in</h1><p>The business is signed in. Enter your username and password.</p><label>Business<select value={shop?.id??''} onChange={e=>setShop(shops.find(item=>item.id===e.target.value)??null)}>{shops.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>{staffLoginForm()}{message&&<p role="alert">{message}</p>}<button className="secondary" disabled={busy} onClick={signOutBusiness}>Sign out business</button></section></main>;
+  if(!demo&&businessSession&&shops.length>0&&(!session||!shop||shop.userId!==session.user.id||shop.accessLevel===0)) return <main className="auth"><section className="auth-card"><h1>Staff sign in</h1><p>The business is signed in. Enter your username and password.</p><label>Business<select value={shop?.id??''} onChange={e=>setShop(shops.find(item=>item.id===e.target.value)??null)}>{shops.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>{staffLoginForm()}{message&&<p role="alert">{message}</p>}</section></main>;
 
   return <div className="app">
-    <Sidebar><div className="brand"><div className="brand-mark">S</div><div>PrintShopLedger<small>Business workspace</small></div></div>
-      <div className="workspace">{demo ? <><strong>Local trial</strong><small>Explore with your own sample records</small></> :
-        <><label>Business<select disabled={busy || session?.user.id !== businessSession?.user.id} value={shop?.id ?? ''} onChange={e => setShop(shops.find(item => item.id === e.target.value) ?? null)}>
-          {shops.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><small>Current user: {shop?.staffName || 'Not signed in'} · {shop?.username || ''} {shop?.role ? `(${shop.role})` : ''}</small></>}
-      </div>
-      <nav aria-label="Main">{(['Point of Service', 'Jobs', 'Customers', 'Payments', 'Materials', 'Services', 'Stock History', 'Print Settings', 'Users'] as Page[]).filter(item=>item!=='Users'||demo||(shop?.accessLevel??0)>=2).map((item, index) => <button key={item} className={page === item ? 'active' : ''}
+    <Sidebar header={<>
+      <div className="brand"><div className="brand-mark">S</div><div className="brand-copy"><strong className="brand-title">PrintShopLedger</strong><span className={`connection ${online ? 'online' : ''}`} role="status">{online ? 'Online' : 'Offline'}</span></div></div>
+      <div className="workspace">{demo ? <><strong>Local trial</strong><small>Explore with your own sample records</small></> : <>
+        <div className="sidebar-business"><small>Business</small><strong>{shop?.name}</strong></div>
+        <div className="sidebar-user"><small>Current user</small><strong>{shop?.staffName || 'Not signed in'}</strong><small>@{shop?.username}</small><small>Rank: <span className="staff-rank">{shop?.role}</span> ({shop?.rank})</small></div>
+      </>}</div>
+    </>} footer={<>
+      <small>{demo ? 'Data saved on this device' : `${state.pending.length} pending changes`}</small>
+      {!demo&&<button className="secondary" disabled={busy||!online} onClick={()=>{setSwitchUser(true);setMessage('');}}>Switch user</button>}
+      {!demo&&<button className="secondary" disabled={busy} onClick={async()=>{const {error}=await supabase!.auth.signOut({scope:'local'});if(error)setMessage(error.message);else{setSession(null);setMessage('User signed out. Business remains signed in.');}}}>Logout</button>}
+      {supabase && (demo || (shop?.accessLevel ?? 0) >= 3) && <button className="secondary" disabled={busy} onClick={async () => {
+        if (demo) { setDemo(false); return; }
+        if ((shop?.accessLevel ?? 0) < 3) return;
+        const results = await Promise.all([supabase!.auth.signOut({scope:'local'}),businessAuth!.auth.signOut({scope:'local'})]);
+        const failure=results.find(result=>result.error)?.error;
+        if(failure)setMessage(failure.message);else{setSession(null);setBusinessSession(null);setShop(null);setMessage('Business signed out.');}
+      }}>{demo ? 'Business sign in' : 'Sign out business'}</button>}
+    </>}>
+      <nav aria-label="Main">{(['Point of Service', 'Jobs', 'Customers', 'Payments', 'Materials', 'Services', 'Stock History', 'Print Settings', 'Users'] as Page[]).filter(item=>item!=='Users'||demo||(shop?.accessLevel??0)>=2).map(item => <button key={item} className={page === item ? 'active' : ''}
         onClick={() => { setPage(item); setSelectedJob(null); setForm(null); setQuery(''); }}><Icon name={({'Point of Service':'services',Jobs:'jobs',Customers:'customers',Payments:'payments',Materials:'materials',Services:'services','Stock History':'history','Print Settings':'quantity',Users:'customers'} as const)[item]}/>{item}</button>)}</nav>
-      <div className="sidebar-bottom"><span className={`connection ${online ? 'online' : ''}`}>{online ? 'Online' : 'Offline'}</span>
-        <small>{demo ? 'Data saved on this device' : `${state.pending.length} pending changes`}</small>
-        {supabase && <button className="secondary" disabled={busy} onClick={async () => {
-          if (demo) { setDemo(false); return; }
-          const results = await Promise.all([supabase!.auth.signOut({scope:'local'}),businessAuth!.auth.signOut({scope:'local'})]);
-          const failure=results.find(result=>result.error)?.error;
-          if(failure)setMessage(failure.message);else{setSession(null);setBusinessSession(null);setShop(null);setMessage('Business signed out.');}
-        }}>{demo ? 'Business sign in' : 'Sign out business'}</button>}
-        {!demo&&<button className="secondary" disabled={busy||!online} onClick={()=>{setSwitchUser(true);setMessage('');}}>Switch user</button>}
-        {!demo&&<button className="secondary" disabled={busy} onClick={async()=>{const {error}=await supabase!.auth.signOut({scope:'local'});if(error)setMessage(error.message);else{setSession(null);setMessage('User signed out. Business remains signed in.');}}}>Sign out user</button>}
-      </div>
     </Sidebar>
     <main><header><div><span className="eyebrow">{demo ? 'LOCAL TRIAL' : shop?.name ?? 'BUSINESS WORKSPACE'}</span><h1>{page}</h1><p>{page === 'Users' ? 'Manage staff accounts, ranks and business access.' : page === 'Print Settings' ? 'Set default printer, paper, font and margins for this device.' : page === 'Customers' ? 'Manage customer details and credit limits.' : page === 'Materials' ? 'Manage materials, quantities and pricing requirements.' : page === 'Stock History' ? 'Review every material change and stock adjustment.' : page === 'Services' ? 'Define services, their base materials and prices.' : 'Track work and keep every payment attached to its job.'}</p></div>
       {!demo&&scope&&<span className="sync-status" role="status" aria-live="polite"><Icon name="sync"/> {syncLabel}{state.pending.length>0&&` (${state.pending.length})`}</span>}</header>

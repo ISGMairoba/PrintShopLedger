@@ -16,19 +16,20 @@ try {
  let users=[{id:'33333333-3333-4333-8333-333333333333',userId:actor,name:'Test Manager',username:'manager',rank:3,accessLevel:3,role:'manager',archived:false,version:1,lastLogin:now,createdAt:now,modifiedAt:now,createdByLabel:'Test Manager',modifiedByLabel:'Test Manager'}];
  const makeToken=(id)=>[{alg:'HS256',typ:'JWT'},{sub:id,role:'authenticated',exp:Math.floor(Date.now()/1000)+3600},'c2lnbmF0dXJl'].map(part=>typeof part==='string'?part:Buffer.from(JSON.stringify(part)).toString('base64url')).join('.');
  const token=makeToken(actor),cashierId='55555555-5555-4555-8555-555555555555';
+ const staff = { [actor]: {name:'Test Manager',username:'manager',role:'manager',rank:3}, [cashierId]: {name:'Amina Updated',username:'amina.print',role:'cashier',rank:1}, '66666666-6666-4666-8666-666666666666': {name:'Test Admin',username:'admin',role:'admin',rank:2}, '77777777-7777-4777-8777-777777777777': {name:'Test Developer',username:'developer',role:'developer',rank:4} };
  const authUser={id:actor,aud:'authenticated',role:'authenticated',email:'owner@example.invalid',user_metadata:{full_name:'Test Manager'},app_metadata:{provider:'email'},created_at:now};
  await context.route('https://*.supabase.co/**',async route=>{
   const path=new URL(route.request().url()).pathname;
   const body=route.request().method()==='POST'?route.request().postDataJSON():{};
   let result;
   if(path==='/auth/v1/token')result={access_token:token,token_type:'bearer',expires_in:3600,refresh_token:'mock-refresh',user:authUser};
-  else if(path==='/auth/v1/user'){const bearer=route.request().headers().authorization?.slice(7);const id=bearer?JSON.parse(Buffer.from(bearer.split('.')[1],'base64url').toString()).sub:actor;result=id===actor?authUser:{...authUser,id:cashierId,email:'internal@example.invalid',user_metadata:{full_name:'Amina Updated'}};}
+  else if(path==='/auth/v1/user'){const bearer=route.request().headers().authorization?.slice(7);const id=bearer?JSON.parse(Buffer.from(bearer.split('.')[1],'base64url').toString()).sub:actor;result={...authUser,id,user_metadata:{full_name:staff[id].name}};}
   else if(path==='/auth/v1/logout')result={};
   else if(path.endsWith('/list_business_shops'))result=[{id:shop,name:'Test business'}];
-  else if(path.endsWith('/list_my_shops')){const bearer=route.request().headers().authorization?.slice(7);const id=bearer?JSON.parse(Buffer.from(bearer.split('.')[1],'base64url').toString()).sub:actor;result=[{id:shop,name:'Test business',role:id===actor?'manager':'cashier',rank:id===actor?3:1,accessLevel:id===actor?3:1,userId:id,username:id===actor?'manager':'amina.print',staffName:id===actor?'Test Manager':'Amina Updated'}];}
+  else if(path.endsWith('/list_my_shops')){const bearer=route.request().headers().authorization?.slice(7);const id=bearer?JSON.parse(Buffer.from(bearer.split('.')[1],'base64url').toString()).sub:actor;result=[{id:shop,name:'Test business',role:staff[id].role,rank:staff[id].rank,accessLevel:staff[id].rank,userId:id,username:staff[id].username,staffName:staff[id].name}];}
   else if(path.endsWith('/staff-login')){
    if(body.password==='wrong-password'){await route.fulfill({status:401,contentType:'application/json',body:JSON.stringify({error:'Username or password incorrect, or access is unavailable.'})});return;}
-   const target=body.username==='manager'?actor:cashierId;result={access_token:makeToken(target),refresh_token:target===actor?'manager-refresh':'cashier-refresh'};
+   const target=Object.keys(staff).find(id=>staff[id].username===body.username);assert.ok(target);result={access_token:makeToken(target),refresh_token:target===actor?'manager-refresh':'cashier-refresh'};
   }
   else if(path.endsWith('/get_ledger')){
    downloads++;
@@ -64,6 +65,41 @@ try {
  await page.locator('.sync-status').getByText('Saved',{exact:false}).waitFor();
  assert.equal(await page.getByRole('button',{name:'Sync workspace',exact:true}).count(),0,'Manual sync button removed');
  assert.ok(downloads>0,'Workspace syncs on opening');
+ async function sidebarScrollCheck() {
+  const before=await page.evaluate(()=>{
+   const rect=selector=>{const r=document.querySelector(selector).getBoundingClientRect();return {top:r.top,bottom:r.bottom,left:r.left,width:r.width};};
+   const menu=document.querySelector('.sidebar-menu');menu.scrollTop=0;
+   return {header:rect('.sidebar-header'),footer:rect('.sidebar-bottom'),sidebar:rect('.app-sidebar'),mainScroll:window.scrollY,overflow:menu.scrollHeight>menu.clientHeight};
+  });
+  assert.ok(before.overflow,'Long navigation scrolls within available space');
+  const after=await page.evaluate(()=>{
+   document.querySelector('.sidebar-menu').scrollTop=200;
+   const rect=selector=>{const r=document.querySelector(selector).getBoundingClientRect();return {top:r.top,bottom:r.bottom,left:r.left,width:r.width};};
+   return {header:rect('.sidebar-header'),footer:rect('.sidebar-bottom'),mainScroll:window.scrollY,menuScroll:document.querySelector('.sidebar-menu').scrollTop};
+  });
+  assert.ok(after.menuScroll>0);assert.deepEqual(after.header,before.header);assert.deepEqual(after.footer,before.footer);assert.equal(after.mainScroll,before.mainScroll);
+  assert.ok(before.footer.bottom<=await page.evaluate(()=>innerHeight),'Account controls remain inside viewport');
+  return before.sidebar;
+ }
+ assert.equal(await page.locator('.app-sidebar select').count(),0,'Sidebar has no business selector');
+ await page.locator('.sidebar-user').getByText('@manager',{exact:true}).waitFor();
+ assert.match(await page.locator('.sidebar-user').innerText(),/Rank: Manager \(3\)/i);
+ assert.equal(await page.getByRole('button',{name:'Sign out business',exact:true}).count(),1);
+ await page.setViewportSize({width:1280,height:600});
+ const wide=await sidebarScrollCheck();assert.equal(wide.left,0);
+ await page.setViewportSize({width:1060,height:600});
+ assert.equal((await sidebarScrollCheck()).width,wide.width,'Desktop sidebar width stays fixed');
+ await page.evaluate(()=>window.scrollTo(0,100));
+ assert.equal(await page.locator('.app-sidebar').evaluate(el=>el.getBoundingClientRect().top),0,'Sidebar stays fixed while main scrolls');
+ await page.setViewportSize({width:390,height:600});
+ assert.equal(await page.locator('.app-sidebar').count(),0,'Mobile sidebar starts hidden');
+ await page.getByRole('button',{name:'Menu',exact:true}).click();
+ await page.getByRole('dialog',{name:'Navigation'}).waitFor();
+ await sidebarScrollCheck();
+ await page.getByRole('button',{name:'Customers',exact:true}).click();
+ assert.equal(await page.locator('.app-sidebar').count(),0,'Selecting a page closes mobile navigation');
+ await page.setViewportSize({width:1280,height:800});
+
  await context.setOffline(true);
  await page.getByRole('button',{name:'Customers',exact:true}).click();
  await page.getByRole('button',{name:'Add customer',exact:true}).click();
@@ -157,18 +193,34 @@ try {
  await dialog.getByLabel('Password',{exact:true}).fill('new-test-only-password');
  await dialog.getByRole('button',{name:'Sign in user',exact:true}).click();
  await dialog.waitFor({state:'detached'});
- await page.getByText('Current user: Amina Updated',{exact:false}).waitFor();
+ await page.locator('.sidebar-user').getByText('Amina Updated',{exact:true}).waitFor();
+ assert.equal(await page.getByRole('button',{name:'Sign out business',exact:true}).count(),0,'Cashier cannot sign out business');
  assert.equal(await page.getByRole('button',{name:'Users',exact:true}).count(),0,'Cashier cannot view Users');
  await page.reload();
- await page.getByText('Current user: Amina Updated',{exact:false}).waitFor();
- await page.getByRole('button',{name:'Sign out user',exact:true}).click();
+ await page.locator('.sidebar-user').getByText('Amina Updated',{exact:true}).waitFor();
+ assert.equal(await page.getByRole('button',{name:'Sign out business',exact:true}).count(),0,'Cashier cannot sign out business');
+ await page.getByRole('button',{name:'Logout',exact:true}).click();
  await page.getByRole('heading',{name:'Staff sign in',exact:true}).waitFor();
  assert.equal(await page.getByLabel('Business email',{exact:true}).count(),0,'Business remains signed in');
+ assert.equal(await page.getByRole('button',{name:'Sign out business',exact:true}).count(),0,'Business sign out requires an active manager');
  await page.getByLabel('Username',{exact:true}).fill('manager');
  await page.getByLabel('Password',{exact:true}).fill('test-only-password');
  await page.getByRole('button',{name:'Sign in user',exact:true}).click();
  await page.getByRole('button',{name:'Users',exact:true}).waitFor();
+
+ for (const username of ['admin','developer','manager']) {
+  await page.getByRole('button',{name:'Switch user',exact:true}).click();
+  const switchDialog=page.getByRole('dialog',{name:'Switch user'});
+  await switchDialog.getByLabel('Username',{exact:true}).fill(username);
+  await switchDialog.getByLabel('Password',{exact:true}).fill('test-only-password');
+  await switchDialog.getByRole('button',{name:'Sign in user',exact:true}).click();
+  await switchDialog.waitFor({state:'detached'});
+  await page.locator('.sidebar-user').getByText('@'+username,{exact:true}).waitFor();
+  assert.equal(await page.getByRole('button',{name:'Sign out business',exact:true}).count(),username==='admin'?0:1,username+' business sign out permission');
+  assert.equal(await page.getByRole('button',{name:'Logout',exact:true}).count(),1);
+ }
  await page.getByRole('button',{name:'Sign out business',exact:true}).click();
  await page.getByLabel('Business email',{exact:true}).waitFor();
  console.log('Users UI checks passed (mocked API): create, edit, archive, restore, search, audit, sort, access revoke/grant, password reset, popup and mobile.');
 }finally{await browser?.close();server.kill();}
+
