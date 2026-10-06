@@ -13,7 +13,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import type { Session } from '@supabase/supabase-js';
-import { customerBalance, emptyLedger, jobBalance, money } from './domain.mjs';
+import { customerBalance, emptyLedger, jobBalance } from './domain.mjs';
 import { supabase, businessAuth, syncLedger, MaterialSyncConflict, resolveCloudMaterial, ServiceSyncConflict, resolveCloudService, CustomerSyncConflict, resolveCloudCustomer, CheckoutSyncConflict, JobSyncConflict, resolvePendingWork, checkoutReviewBase } from './cloud';
 import { readState, saveEvent } from './storage';
 import MaterialsPage from './MaterialsPage';
@@ -30,14 +30,8 @@ type Shop = { id: string; name: string; userId:string; role: string; rank: numbe
 type Page = 'Point of Service' | 'Jobs' | 'Customers' | 'Payments' | 'Materials' | 'Stock History' | 'Services' | 'Print Settings' | 'Users';
 const currency = (amount: number) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount / 100);
 const shortId = (id: string) => id.slice(0, 8).toUpperCase();
-const today = () => {
-  const parts = new Intl.DateTimeFormat('en', { timeZone: 'Africa/Lagos', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
-  const part = (type: string) => parts.find(item => item.type === type)!.value;
-  return `${part('year')}-${part('month')}-${part('day')}`;
-};
 const dateLabel = (value: string) => new Date(value).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Africa/Lagos' });
 const errorMessage = (error: unknown) => error instanceof Error ? error.message : 'Something went wrong.';
-const event = (kind: LedgerEvent['kind'], data: LedgerEvent['data']) => ({ id: crypto.randomUUID(), kind, data }) as LedgerEvent;
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -57,7 +51,6 @@ export default function App() {
   const [jobToAdvance,setJobToAdvance]=useState<Job|null>(null);
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
   const [paymentCustomer, setPaymentCustomer] = useState('');
-  const [allocations, setAllocations] = useState<Record<string, string>>({});
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [checkoutConflict,setCheckoutConflict]=useState<CheckoutSyncConflict|null>(null);
@@ -213,8 +206,8 @@ export default function App() {
     } catch (error) { if (activeScope.current === target) { setMessage(errorMessage(error)); if (error instanceof CustomerSyncConflict) setCustomerConflict(error); } }
     finally { setBusy(false); }
   }
-  function openPayment(customerId = '', jobId = '') {
-    setSelectedJob(null); setPaymentCustomer(customerId); setAllocations(jobId ? { [jobId]: '' } : {}); setForm('payment'); setMessage('');
+  function openPayment(customerId = '') {
+    setSelectedJob(null); setPaymentCustomer(customerId); setForm('payment'); setMessage('');
   }
   async function login(e: FormEvent<HTMLFormElement>) {
     e.preventDefault(); setBusy(true);
@@ -265,7 +258,7 @@ export default function App() {
   const matchingPayments = paymentSorting.sortRows(ledger.payments.filter(payment => `${payment.id} ${customerName(payment.customerId)} ${payment.reference} ${payment.method}`.toLowerCase().includes(search)),
     {createdAt:payment=>Date.parse(payment.createdAt),id:payment=>payment.id,date:payment=>Date.parse(payment.paidOn),customer:payment=>customerName(payment.customerId),amount:payment=>payment.amount,method:payment=>payment.method,
       allocations:payment=>payment.allocations.map(allocation=>ledger.jobs.find(job=>job.id===allocation.jobId)?.description??'').join(', ')});
-  const allocated = Object.values(allocations).reduce((sum, value) => { try { return sum + money(value || '0'); } catch { return sum; } }, 0);
+
 
   if (!authReady) return <main className="auth"><p>Opening PrintShopLedger.</p></main>;
   if (!demo && !businessSession) return <main className="auth"><div className="auth-card">
@@ -367,7 +360,7 @@ export default function App() {
           <span>{dateLabel(payment.paidOn)} · {payment.method}<small>{payment.reference || `Payment #${shortId(payment.id)}`}</small></span><strong>{currency(payment.allocations.find(allocation => allocation.jobId === currentJob.id)!.amount)}</strong></div>)}
         {!ledger.payments.some(payment => payment.allocations.some(allocation => allocation.jobId === currentJob.id)) && <p className="muted">No payments recorded yet.</p>}
         {jobStatuses[jobStatuses.indexOf(currentJob.productionStatus??'Added')+1]&&<button className="secondary" disabled={busy||hasConflict} onClick={()=>setJobToAdvance(currentJob)}>Next action: {jobStatuses[jobStatuses.indexOf(currentJob.productionStatus??'Added')+1]}</button>}
-        <button disabled={busy || hasConflict || jobBalance(ledger, currentJob).outstanding <= 0} onClick={() => openPayment(currentJob.customerId, currentJob.id)}>Record payment for this job</button>
+        <button disabled={busy || hasConflict || jobBalance(ledger, currentJob).outstanding <= 0} onClick={() => openPayment(currentJob.customerId)}>Receive customer payment</button>
       </Modal>}
       {form === 'customer' && <CustomerEditor customers={ledger.customers} busy={busy} actor={{id:demo?'local-trial':session!.user.id,label:demo?'Local trial user':shop?.staffName||session!.user.user_metadata.full_name||session!.user.email||session!.user.id}} onSave={saveCatalogue} onClose={()=>setForm(null)} />}
       {form && form !== 'customer' && <CheckoutEditor ledger={ledger} actor={{id:demo?'local-trial':session!.user.id,label:demo?'Local trial user':shop?.staffName||session!.user.email||session!.user.id}} busy={busy} paymentOnly={form==='payment'} initialCustomer={form==='payment'?paymentCustomer:''} onSave={completeCheckout} onClose={()=>setForm(null)} onReceipt={setReceipt}/>}
