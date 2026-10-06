@@ -103,3 +103,8 @@ nav button { display: flex; align-items: center; gap: .8rem; }
 .customer-section-toggle{display:flex;gap:10px;align-items:center;width:100%;text-align:left;border:0!important;border-radius:0}
 .customer-section-toggle span:first-of-type{flex:1;font-weight:400;overflow-wrap:anywhere}
 #checkout-customer-fields{padding:16px}
+
+.cart-total{text-align:center;padding:18px 12px;margin:18px 0 0;border-top:1px solid #e2e8e2;color:#124b40}
+.cart-total strong{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums}
+.payment-recommendation{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.payment-recommendation p{margin:0}.payment-recommendation strong{color:#124b40}

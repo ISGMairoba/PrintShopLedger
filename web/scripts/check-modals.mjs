@@ -113,6 +113,7 @@ try {
   await dialog.getByRole('listbox',{name:'Customer suggestions'}).getByRole('option').first().click();
   await dialog.getByLabel('Service',{exact:true}).selectOption({index:1});
   await dialog.getByLabel('Job description').fill('Mobile test job');
+  await dialog.getByLabel('Money received (₦)').fill('0');
   await dialog.getByRole('button',{name:'Complete checkout',exact:true}).click();
   await dialog.waitFor({state:'detached'});
   await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click();
