@@ -248,6 +248,7 @@ try {
  await page.getByLabel('Search my sales').fill('POS');assert.equal(await page.locator('tbody tr').count(),1);
  await page.getByLabel('Search my sales').fill('');
  await page.getByRole('button',{name:'All dates',exact:true}).click();assert.equal(await page.locator('tbody tr').count(),3,'Overnight unclosed receipts remain accessible');
+ await page.getByRole('button',{name:'Date',exact:true}).click();assert.equal(await page.locator('th[aria-sort="ascending"]').count(),1);
  await page.getByRole('button',{name:'Money received',exact:true}).click();assert.equal(await page.locator('th[aria-sort="ascending"]').count(),1);
  await context.setOffline(true);await page.locator('.sync-status').getByText('Waiting for connection',{exact:false}).waitFor();
  assert.equal(await page.getByRole('button',{name:'Close drawer',exact:true}).isDisabled(),true);
