@@ -19,7 +19,7 @@ function MobileActions({ children }: { children: ReactNode }) {
   const buttons = container.length === 1 && container[0].type === 'div' ? elements(container[0].props.children) : container;
   if (buttons.length <= 1) return <div className="mobile-actions">{children}</div>;
   return <div className="mobile-actions">{buttons[0]}<button className="text-button" onClick={() => setOpen(true)}>More</button>
-    {open && <Modal title="More actions" onClose={() => setOpen(false)}><div className="mobile-action-menu" onClickCapture={event => {
+    {open && <Modal title="More actions" onClose={() => setOpen(false)}><div className="mobile-action-menu" onClick={event => {
       if (event.target instanceof Element && event.target.closest('button:not(:disabled)')) setOpen(false);
     }}>{buttons.slice(1)}</div></Modal>}
   </div>;
