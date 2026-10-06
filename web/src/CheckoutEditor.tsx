@@ -14,7 +14,7 @@ function balanceDraft(state:ManualAllocationState,limits:Record<string,number>,b
  const draft=editedId?{...state.amounts,[editedId]:value??''}:state.amounts;
  const numbers=Object.fromEntries(Object.keys(limits).map(id=>[id,money(draft[id]||'0')]));
  const balanced=rebalanceManualAllocations(numbers,limits,budget,state.editedOrder,editedId);
- const amounts:Record<string,string>=Object.fromEntries(Object.entries(balanced.amounts).map(([id,n])=>[id,n===numbers[id]?draft[id]:(Number(n)/100).toFixed(2)]));
+ const amounts:Record<string,string>=Object.fromEntries(Object.entries(balanced.amounts).map(([id,n])=>[id,n===numbers[id]?(draft[id]??''):(Number(n)/100).toFixed(2)]));
  const next={amounts,editedOrder:balanced.editedOrder};
  return JSON.stringify(next)===JSON.stringify(state)?state:next;
 }
@@ -31,7 +31,7 @@ export default function CheckoutEditor({ledger,actor,busy,paymentOnly=false,init
  const [manualAllocations,setManualAllocations]=useState<ManualAllocationState>(()=>({amounts:Object.fromEntries((initialCheckout?.override??[]).map(a=>[a.jobId,(a.amount/100).toFixed(2)])),editedOrder:[]}));
  const allocations=manualAllocations.amounts;
  const [method,setMethod]=useState(initialCheckout?.method??'Cash'),[paidOn,setPaidOn]=useState(initialCheckout?.paidOn??today()),[reference,setReference]=useState(initialCheckout?.reference??''),[error,setError]=useState('');
- const working:Ledger=newCustomer?applyCustomerEvent(ledger,newCustomer):ledger;
+ const working:Ledger=newCustomer&&!ledger.customers.some(c=>c.id===newCustomer.data.id)?applyCustomerEvent(ledger,newCustomer):ledger;
  const customer=working.customers.find(c=>c.id===customerId&&!c.archived);
  const matches=working.customers.filter(c=>!c.archived&&`${c.name} ${c.phone}`.toLowerCase().includes(query.toLowerCase())).slice(0,8);
  const choose=(id:string,name:string)=>{setCustomerId(id);setNewCustomer(current=>current&&current.data.id!==id?null:current);setQuery(name);setSuggest(false);setManual(false);setManualAllocations({amounts:{},editedOrder:[]});};
@@ -39,7 +39,7 @@ export default function CheckoutEditor({ledger,actor,busy,paymentOnly=false,init
  let preview:CheckoutEvent|null=null,previewError='';
  try{if(customer)preview=prepareCheckout(ledger,{customerId,newCustomer,lines,cashReceived:money(cash||'0'),useWallet,override:manual?Object.entries(allocations).filter(([,n])=>money(n||'0')>0).map(([jobId,n])=>({jobId,amount:money(n)})):null,method,paidOn,reference},actor,'preview',initialCheckout?.createdAt??new Date().toISOString()) as CheckoutEvent;}catch(cause){previewError=cause instanceof Error?cause.message:String(cause);}
  let jobs=working.jobs,cartReady=false;
- try{jobs=[...jobs,...lines.map((item,index)=>({...quoteLine(working,item),customerId,createdAt:initialCheckout?.createdAt??new Date().toISOString(),checkoutPosition:index}))];cartReady=true;}catch{}
+ try{jobs=[...jobs,...lines.filter(item=>!working.jobs.some(job=>job.id===item.id)).map((item,index)=>({...quoteLine(working,item),customerId,createdAt:initialCheckout?.createdAt??new Date().toISOString(),checkoutPosition:index}))];cartReady=true;}catch{}
  const paymentLedger={...working,jobs};
  const outstanding=customer?unpaidJobs(paymentLedger,customer.id):[];
  function override(){try{const plan=paymentPlan(paymentLedger,customerId,money(cash||'0'),useWallet);setManualAllocations({amounts:Object.fromEntries(plan.allocations.map((a:{jobId:string;amount:number})=>[a.jobId,(a.amount/100).toFixed(2)])),editedOrder:[]});setManual(true);}catch(cause){setError(String(cause));}}
@@ -47,7 +47,7 @@ export default function CheckoutEditor({ledger,actor,busy,paymentOnly=false,init
  const limitsKey=JSON.stringify(limits);
  let allocationBudget:number|null=null;
  try{const funds=money(cash||'0')+(useWallet&&customer?walletBalance(working,customer.id):0);if(customer&&cartReady&&Number.isSafeInteger(funds)&&funds>=0)allocationBudget=funds;}catch{}
- useEffect(()=>{if(!manual||allocationBudget===null)return;const currentLimits=JSON.parse(limitsKey) as Record<string,number>;setManualAllocations(state=>{try{return balanceDraft(state,currentLimits,allocationBudget);}catch{return state;}});},[manual,allocationBudget,limitsKey]);
+ useEffect(()=>{if(busy||!manual||allocationBudget===null)return;const currentLimits=JSON.parse(limitsKey) as Record<string,number>;setManualAllocations(state=>{try{return balanceDraft(state,currentLimits,allocationBudget);}catch{return state;}});},[busy,manual,allocationBudget,limitsKey]);
  function editAllocation(jobId:string,value:string){
   setManualAllocations(state=>{try{if(allocationBudget!==null)return balanceDraft(state,limits,allocationBudget,jobId,value);}catch{}
    return {amounts:{...state.amounts,[jobId]:value},editedOrder:[...state.editedOrder.filter(id=>id!==jobId),jobId]};
