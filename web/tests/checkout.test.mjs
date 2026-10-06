@@ -54,3 +54,7 @@ test('Reviewed checkout rebases later pending wallet payments on the latest acco
  const remote=applyCheckout(fixture(),checkout(fixture(),[],10000));const replacement=prepareCheckout(remote,{customerId,lines:first.data.jobs,cashReceived:0,useWallet:true,method:'Cash',paidOn:'2026-10-06',reference:''},actor);
  const resolved=replacePendingCheckout({ledger:local,pending:[first,second]},remote,first.id,replacement);assert.equal(resolved.pending.length,2);assert.equal(resolved.pending[0].id,replacement.id);assert.equal(resolved.ledger.jobs.length,2);assert.equal(customerBalance(resolved.ledger,customerId),30000);assert.equal(resolved.ledger.checkouts.some(r=>r.id===first.id),false);
 });
+
+test('Zero-price services still create a job, deduct stock and print a balanced receipt',()=>{
+ const base=fixture();base.services[0].price=0;const event=checkout(base,[job(2)]),saved=applyCheckout(base,event);assert.equal(event.data.total,0);assert.equal(saved.materials[0].available,8);assert.equal(saved.payments.length,0);assert.equal(jobBalance(saved,saved.jobs[0]).status,'Fully paid');assert.equal(saved.checkouts.length,1);
+});

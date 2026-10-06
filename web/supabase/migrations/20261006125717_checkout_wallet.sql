@@ -1,4 +1,6 @@
 begin;
+alter table public.jobs drop constraint if exists jobs_amount_check;
+alter table public.jobs add constraint jobs_amount_check check(amount between 0 and 100000000000);
 alter table public.jobs drop constraint if exists jobs_service_check;
 alter table public.jobs add constraint jobs_service_check check(length(btrim(service)) between 1 and 500);
 alter table public.materials drop constraint if exists materials_available_check;
@@ -148,7 +150,7 @@ begin
   q:=(line->>'quantity')::numeric;w:=case when mat.require_size then (line->>'width')::numeric else 1 end;h:=case when mat.require_size then (line->>'height')::numeric else 1 end;
   if q is null or w is null or h is null or q<=0 or w<=0 or h<=0 or q>1000000 or w>1000000 or h>1000000 or q<>round(q,3) or w<>round(w,3) or h<>round(h,3) then raise exception 'Invalid quantity or dimensions';end if;
   needed:=round(q*w*h,3);calculated:=round(svc.price*q*w*h);
-  if needed<=0 or needed>1000000000000 or calculated<=0 or calculated>100000000000 or calculated is distinct from (line->>'amount')::numeric or needed is distinct from (line->>'materialNeeded')::numeric then raise exception 'Invalid job calculation';end if;
+  if needed<=0 or needed>1000000000000 or calculated<0 or calculated>100000000000 or calculated is distinct from (line->>'amount')::numeric or needed is distinct from (line->>'materialNeeded')::numeric then raise exception 'Invalid job calculation';end if;
   if jsonb_typeof(line->'description') is distinct from 'string' or length(btrim(line->>'description')) not between 1 and 500 or jsonb_typeof(line->'source') is distinct from 'string' or line->>'source' not in ('In shop / USB','Shop network','WhatsApp','Email','Other') or length(coalesce(line->>'sourceNote',''))>200 then raise exception 'Invalid job description or source';end if;
   total:=total+calculated;
   insert into public.jobs(shop_id,id,customer_id,service,description,amount,created_at,metadata,modified_by,modified_by_label,modified_at,last_event_id)

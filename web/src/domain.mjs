@@ -16,7 +16,7 @@ export function money(value) {
 export function jobBalance(ledger, job) {
   const paid = ledger.payments.reduce((sum, payment) => sum + payment.allocations.reduce(
     (subtotal, allocation) => subtotal + (allocation.jobId === job.id ? allocation.amount : 0), 0), 0);
-  return { paid, outstanding: job.amount - paid, status: paid === 0 ? 'Unpaid' : paid === job.amount ? 'Fully paid' : 'Partially paid' };
+  return { paid, outstanding: job.amount - paid, status: paid === job.amount ? 'Fully paid' : paid === 0 ? 'Unpaid' : 'Partially paid' };
 }
 export function customerBalance(ledger, customerId) {
   return ledger.jobs.filter(job => job.customerId === customerId).reduce(

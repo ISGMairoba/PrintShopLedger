@@ -15,7 +15,7 @@ export function quoteLine(ledger,line){
  let raw=BigInt(Math.round(quantity*1000)),divisor=1000n;
  if(material.requireSize){raw*=BigInt(Math.round(width*1000))*BigInt(Math.round(height*1000));divisor=1000000000n;}
  const needed=Number((raw*1000n+divisor/2n)/divisor)/1000;
- const total=Number((BigInt(service.price)*raw+divisor/2n)/divisor);amount(total,false);
+ const total=Number((BigInt(service.price)*raw+divisor/2n)/divisor);amount(total);
  if(!Number.isFinite(needed)||needed<=0||needed>1000000000000)throw Error('Material usage is outside the supported range.');
  if(!jobSources.includes(line.source)||String(line.sourceNote??'').length>200)throw Error('Choose how the job was received.');
  return {...line,description:line.description.trim(),quantity,width,height,amount:total,unitPrice:service.price,service:service.description,materialId:material.id,materialNeeded:needed,measurementUnit:material.measurementUnit,requireSize:material.requireSize,serviceVersion:service.version,sourceNote:String(line.sourceNote??'').trim()};
@@ -42,7 +42,7 @@ export function prepareCheckout(ledger,input,actor,id=String(crypto.randomUUID()
  if(!Array.isArray(input.lines)||input.lines.length>50)throw Error('A checkout can contain at most 50 jobs.');
  const expectedAccount=accountToken(working,customer.id);
  const jobs=input.lines.map((line,index)=>({...quoteLine(working,line),customerId:customer.id,createdAt:now,checkoutId:id,checkoutPosition:index,productionStatus:'Added',version:1,createdBy:actor.id,createdByLabel:actor.label,modifiedBy:actor.id,modifiedByLabel:actor.label,modifiedAt:now}));
- const ids=new Set(jobs.map(j=>j.id));if(ids.size!==jobs.length||jobs.some(j=>!j.id||working.jobs.some(old=>old.id===j.id)))throw Error('Each job needs a unique ID.');
+ const ids=new Set(jobs.map(j=>j.id));if(ids.size!==jobs.length||jobs.some(j=>!j.id||j.id===id||working.jobs.some(old=>old.id===j.id)))throw Error('Each job needs a unique ID.');
  working={...working,jobs:[...working.jobs,...jobs]};
  const plan=paymentPlan(working,customer.id,input.cashReceived,!!input.useWallet,input.override??null);
  if(!jobs.length&&input.cashReceived===0&&plan.walletUsed===0)throw Error('Add a job, receive a payment or allocate wallet credit.');
