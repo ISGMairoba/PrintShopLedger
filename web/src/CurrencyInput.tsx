@@ -6,9 +6,9 @@ export default function CurrencyInput({ value, defaultValue = '', name, max = 10
   const raw = value ?? local;
   const input = useRef<HTMLInputElement>(null);
   const caret = useRef<number | null>(null);
-  const [focused, setFocused] = useState(false);
+  const [complete, setComplete] = useState(true);
   const [revision, setRevision] = useState(0);
-  const display = formatAmount(raw, !focused);
+  const display = formatAmount(raw, complete);
   useLayoutEffect(() => {
     const element = input.current!;
     element.setCustomValidity(amountError(raw, max));
@@ -19,9 +19,10 @@ export default function CurrencyInput({ value, defaultValue = '', name, max = 10
     }
   }, [raw, display, max, revision]);
   return <><input {...props} ref={input} type="text" inputMode="decimal" autoComplete="off" className={`currency-input ${props.className ?? ''}`} value={display}
-    onFocus={event => { setFocused(true); props.onFocus?.(event); }}
-    onBlur={event => { setFocused(false); if (raw.endsWith('.') && !amountError(raw, max)) { const next = raw.slice(0, -1); if (value === undefined) setLocal(next); onValueChange?.(next); } props.onBlur?.(event); }}
+    onFocus={props.onFocus}
+    onBlur={event => { setComplete(true); if (raw.endsWith('.') && !amountError(raw, max)) { const next = raw.slice(0, -1); if (value === undefined) setLocal(next); onValueChange?.(next); } props.onBlur?.(event); }}
     onChange={event => {
+      setComplete(false);
       const text = event.target.value;
       caret.current = text.slice(0, event.target.selectionStart ?? text.length).replaceAll(',', '').length;
       let next = text.replaceAll(',', '');
