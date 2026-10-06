@@ -9,10 +9,11 @@
     "preview": "vite preview --host 127.0.0.1",
     "test": "node --test tests/*.test.mjs",
     "check:backend": "node --env-file=.env.production scripts/check-backend.mjs",
-    "test:ui": "node scripts/check-modals.mjs"
+    "test:ui": "node scripts/check-modals.mjs",
+    "test:users-ui": "node scripts/check-users.mjs"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.57.4",
+    "@supabase/supabase-js": "2.57.4",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "@fortawesome/free-solid-svg-icons": "^7.0.0",

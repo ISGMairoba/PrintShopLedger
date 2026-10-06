@@ -17,7 +17,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install --ignore-scripts --no-audit --no-fund
+      - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm test
       - run: npm run build
 
@@ -25,3 +25,4 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:ui
       - run: node scripts/check-print-settings.mjs
+      - run: npm run test:users-ui

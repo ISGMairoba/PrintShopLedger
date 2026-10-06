@@ -50,3 +50,20 @@ const customerRpc = await fetch(url + '/rest/v1/rpc/apply_customer_event', {
 const customerBody = await customerRpc.json();
 if (![401, 403].includes(customerRpc.status) || customerBody.code !== '42501') throw new Error('Customers RPC is missing or permits anonymous execution.');
 console.log('Customers RPC exists and requires sign-in.');
+
+for (const name of ['list_shop_users', 'save_shop_user', 'provision_shop_user']) {
+  const body = name === 'list_shop_users' ? { p_shop: null } : name === 'save_shop_user'
+    ? { p_shop: null, p_action: 'edit', p_data: {} } : { p_shop: null, p_actor: null, p_data: {} };
+  const response = await fetch(url + '/rest/v1/rpc/' + name, {
+    method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body), signal: AbortSignal.timeout(20000)
+  });
+  const data = await response.json();
+  if (![401,403].includes(response.status) || data.code !== '42501') throw new Error('Anonymous user RPC access was not denied: ' + name);
+}
+const edge = await fetch(url + '/functions/v1/manage-users', {
+  method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: '{}', signal: AbortSignal.timeout(20000)
+});
+const edgeBody = await edge.json();
+if (edge.status !== 401 || edgeBody.error !== 'Sign in first.') throw new Error('User provisioning handler did not reject anonymous access.');
+console.log('User RPCs and secure provisioning handler require authorized sign-in.');
