@@ -1,3 +1,4 @@
+import CurrencyInput from './CurrencyInput';
 import Icon from './Icon';
 import { useState, type FormEvent } from 'react';
 import Modal from './Modal';
@@ -23,7 +24,8 @@ export default function CustomerEditor({customer,customers=[],actor,busy,onSave,
       <label>Full name<input name="name" maxLength={160} defaultValue={customer?.name??''} autoComplete="name" required /></label>
       <label>Phone number<input name="phone" type="tel" maxLength={40} defaultValue={customer?.phone??''} autoComplete="tel" required /></label>
       <label>Address<input name="address" maxLength={500} defaultValue={customer?.address??''} autoComplete="street-address" placeholder="Optional" /></label>
-      <label>Credit limit (₦)<input name="creditLimit" type="number" inputMode="decimal" min="0" max="1000000000" step="0.01" defaultValue={customer ? (customer.creditLimit/100).toFixed(2):'0.00'} required /></label>
+      <label>Credit limit (₦)<CurrencyInput name="creditLimit" defaultValue={customer ? (customer.creditLimit/100).toFixed(2):'0.00'} required /></label>
     </div><p className="muted">The credit limit is saved for later use during checkout.</p><button type="submit"><Icon name="save"/> {busy?'Saving...':'Save customer'}</button></fieldset></form>
   </Modal>;
 }
+

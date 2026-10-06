@@ -1,3 +1,4 @@
+import CurrencyInput from './CurrencyInput';
 import ResponsiveTable from './ResponsiveTable';
 import Icon from './Icon';
 import { useState, type FormEvent } from 'react';
@@ -73,9 +74,10 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
       <form key={editing ? editing.id + ':' + editing.version : 'new'} onSubmit={submit}><fieldset disabled={busy}><div className="form-grid">
         <label>Service description<input name="description" maxLength={500} defaultValue={editing?.description ?? ''} placeholder="e.g. A4 colour printing" required /></label>
         <label>Base material<select name="material" defaultValue={editing?.materialId ?? ''} required><option value="" disabled>Select material</option>{options.map(item => <option key={item.id} value={item.id}>{item.name} ({materialCode(item.id, materials)}){item.archived ? ' · Archived' : ''}</option>)}</select></label>
-        <label>Price (₦)<input name="price" type="number" inputMode="decimal" min="0" max="1000000000" step="0.01" defaultValue={editing ? (editing.price / 100).toFixed(2) : ''} required /></label></div>
+        <label>Price (₦)<CurrencyInput name="price" defaultValue={editing ? (editing.price / 100).toFixed(2) : ''} required /></label></div>
         <p className="muted">Several services can share the same base material. Checkout pricing will use that material's Require Size setting.</p>
         <button type="submit"><Icon name="save"/> {busy ? 'Saving...' : 'Save service'}</button></fieldset></form></Modal>}
   </>;
 }
+
 

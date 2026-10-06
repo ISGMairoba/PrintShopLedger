@@ -98,3 +98,8 @@ nav button { display: flex; align-items: center; gap: .8rem; }
   .sidebar-drawer .app-sidebar{padding-top:8px;padding-bottom:max(8px,env(safe-area-inset-bottom));gap:6px}
   .sidebar-drawer .modal-header{padding:8px 18px}
 }
+.currency-input{font-variant-numeric:tabular-nums}
+.checkout-customer{margin:24px 0;border:1px solid #dfe6df;border-radius:10px;overflow:hidden}
+.customer-section-toggle{display:flex;gap:10px;align-items:center;width:100%;text-align:left;border:0!important;border-radius:0}
+.customer-section-toggle span:first-of-type{flex:1;font-weight:400;overflow-wrap:anywhere}
+#checkout-customer-fields{padding:16px}
