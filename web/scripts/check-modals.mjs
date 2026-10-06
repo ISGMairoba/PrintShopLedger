@@ -110,7 +110,7 @@ try {
   await page.getByRole('button',{name:'New job',exact:true}).click();
   dialog=page.getByRole('dialog',{name:'New checkout'});
   await dialog.locator('.customer-section-toggle').click();await dialog.getByRole('combobox',{name:'Customer name or phone'}).fill('Alpha');
-  await dialog.getByRole('option').first().click();
+  await dialog.getByRole('listbox',{name:'Customer suggestions'}).getByRole('option').first().click();
   await dialog.getByLabel('Service',{exact:true}).selectOption({index:1});
   await dialog.getByLabel('Job description').fill('Mobile test job');
   await dialog.getByRole('button',{name:'Complete checkout',exact:true}).click();
@@ -120,7 +120,7 @@ try {
   await page.getByRole('button',{name:'Record payment',exact:true}).click();
   dialog=page.getByRole('dialog',{name:'Receive payment'});
   await dialog.locator('.customer-section-toggle').click();await dialog.getByRole('combobox',{name:'Customer name or phone'}).fill('Alpha');
-  await dialog.getByRole('option').first().click();
+  await dialog.getByRole('listbox',{name:'Customer suggestions'}).getByRole('option').first().click();
   await dialog.getByLabel('Money received (₦)').fill('20');
   await dialog.getByRole('button',{name:'Complete checkout',exact:true}).click();
   await dialog.waitFor({state:'detached'});
