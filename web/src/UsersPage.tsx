@@ -3,12 +3,12 @@ import { supabase } from './cloud';
 import Modal from './Modal';
 import Icon from './Icon';
 import { SortHeader, useTableSort } from './TableSort';
-import { accessLevels, userCode, validateUser } from './users.mjs';
+import { accessLevels, rankValues, canManage, userCode, validateUser } from './users.mjs';
 
-type Staff = { id:string;userId:string;name:string;username:string;rank:string;role:'admin'|'manager'|'cashier';email:string;archived:boolean;version:number;lastLogin:string|null;createdAt:string;createdByLabel:string;modifiedAt:string;modifiedByLabel:string };
-type Props = { shopId:string; actorId:string; role:string; online:boolean; demo:boolean };
+type Staff = { id:string;userId:string;name:string;username:string;rank:number;role:'admin'|'manager'|'cashier'|'developer';accessLevel:number;archived:boolean;version:number;lastLogin:string|null;createdAt:string;createdByLabel:string;modifiedAt:string;modifiedByLabel:string };
+type Props = { shopId:string; actorId:string; businessUserId:string; role:string; online:boolean; demo:boolean; onChanged:()=>void };
 const date = (value:string|null) => value ? new Date(value).toLocaleString('en-NG',{timeZone:'Africa/Lagos'}) : 'Never';
-export default function UsersPage({shopId,actorId,role,online,demo}:Props) {
+export default function UsersPage({shopId,actorId,businessUserId,role,online,demo,onChanged}:Props) {
  const [users,setUsers]=useState<Staff[]>([]);
  const [ready,setReady]=useState(false);
  const [busy,setBusy]=useState(false);
@@ -17,10 +17,14 @@ export default function UsersPage({shopId,actorId,role,online,demo}:Props) {
  const [audit,setAudit]=useState(false);
  const [editor,setEditor]=useState<Staff|'new'|null>(null);
  const [confirmation,setConfirmation]=useState<Staff|null>(null);
+ const [accessChange,setAccessChange]=useState<Staff|null>(null);
+ const [passwordReset,setPasswordReset]=useState<Staff|null>(null);
  const [error,setError]=useState('');
  const [formError,setFormError]=useState('');
  const sorting=useTableSort<Staff>('name');
- const allowed=!demo&&role==='admin';
+ const allowed=!demo&&['admin','manager','developer'].includes(role);
+ const actor=users.find(user=>user.userId===actorId);
+ const editable=(user:Staff)=>!!actor&&canManage(actor,user);
  async function load() {
   if(!supabase||!allowed||!online) return;
   const {data,error:failure}=await supabase.rpc('list_shop_users',{p_shop:shopId});
@@ -47,7 +51,7 @@ export default function UsersPage({shopId,actorId,role,online,demo}:Props) {
    if(editor==='new'){
     const password=String(form.get('password')??'');
     if(password.length<12||password.length>128)throw new Error('Use a password with 12–128 characters.');
-    const {data,error:failure}=await supabase.functions.invoke('manage-users',{body:{shopId,...profile,email:String(form.get('email')??''),password}});
+    const {data,error:failure}=await supabase.functions.invoke('manage-users',{body:{shopId,...profile,password}});
     if(failure){
      const response=(failure as {context?:Response}).context;
      let message=failure.message;
@@ -59,7 +63,7 @@ export default function UsersPage({shopId,actorId,role,online,demo}:Props) {
     const {error:failure}=await supabase.rpc('save_shop_user',{p_shop:shopId,p_action:'edit',p_data:{...profile,id:editor.id,version:editor.version}});
     if(failure)throw new Error(failure.message);
    }
-   setEditor(null);setError('');
+   setEditor(null);setError('');onChanged();
    try{await load();}catch{setError('User saved. Refresh to load the latest list.');}
   }catch(cause){setFormError(cause instanceof Error?cause.message:'Could not save user.');}
   finally{setBusy(false);}
@@ -70,16 +74,38 @@ export default function UsersPage({shopId,actorId,role,online,demo}:Props) {
   try{
    const {error:failure}=await supabase.rpc('save_shop_user',{p_shop:shopId,p_action:confirmation.archived?'restore':'archive',p_data:{id:confirmation.id,version:confirmation.version}});
    if(failure)throw new Error(failure.message);
-   setConfirmation(null);setError('');
+   setConfirmation(null);setError('');onChanged();
    try{await load();}catch{setError('Status saved. Refresh to load the latest list.');}
   }catch(cause){setFormError(cause instanceof Error?cause.message:'Could not save user.');}
   finally{setBusy(false);}
  }
+ async function changeAccess(){
+  if(!accessChange||busy||!supabase||!online)return;
+  setBusy(true);setFormError('');
+  try{
+   const {error:failure}=await supabase.rpc('save_shop_user',{p_shop:shopId,p_action:accessChange.accessLevel===0?'grant':'revoke',p_data:{id:accessChange.id,version:accessChange.version}});
+   if(failure)throw new Error(failure.message);
+   setAccessChange(null);onChanged();await load();
+  }catch(cause){setFormError(cause instanceof Error?cause.message:'Could not change access.');}finally{setBusy(false);}
+ }
+ async function resetPassword(event:FormEvent<HTMLFormElement>){
+  event.preventDefault();if(!passwordReset||busy||!supabase||!online)return;
+  const data=new FormData(event.currentTarget);
+  const password=String(data.get('password')??'');
+  if(password!==data.get('confirmation')){setFormError('Passwords do not match.');return;}
+  setBusy(true);setFormError('');
+  try{
+   const {data:result,error:failure}=await supabase.functions.invoke('manage-users',{body:{action:'reset-password',shopId,id:passwordReset.id,version:passwordReset.version,password}});
+   if(failure){let message=failure.message;const response=(failure as {context?:Response}).context;if(response)try{message=(await response.json()).error||message;}catch{}throw new Error(message);}
+   if(result?.error)throw new Error(result.error);
+   setPasswordReset(null);setError(result?.warning??'Password reset successfully.');onChanged();await load();
+  }catch(cause){setFormError(cause instanceof Error?cause.message:'Could not reset password.');}finally{setBusy(false);}
+ }
  const visible=sorting.sortRows(users.filter(user=>(filter==='all'||user.archived===(filter==='archived'))&&
-  [userCode(user.id),user.name,user.username,user.rank,accessLevels[user.role],user.email,date(user.lastLogin),user.createdByLabel,date(user.createdAt),user.modifiedByLabel,date(user.modifiedAt),user.archived?'Archived':'Active'].join(' ').toLowerCase().includes(query.trim().toLowerCase())),
-  {id:u=>userCode(u.id),name:u=>u.name,username:u=>u.username,rank:u=>u.rank,role:u=>accessLevels[u.role],email:u=>u.email,lastLogin:u=>u.lastLogin?Date.parse(u.lastLogin):0,status:u=>u.archived,createdBy:u=>u.createdByLabel,createdAt:u=>Date.parse(u.createdAt),modifiedBy:u=>u.modifiedByLabel,modifiedAt:u=>Date.parse(u.modifiedAt)});
+  [userCode(user.id),user.name,user.username,user.rank,accessLevels[user.role],String(user.accessLevel),date(user.lastLogin),user.createdByLabel,date(user.createdAt),user.modifiedByLabel,date(user.modifiedAt),user.archived?'Archived':'Active'].join(' ').toLowerCase().includes(query.trim().toLowerCase())),
+  {id:u=>userCode(u.id),name:u=>u.name,username:u=>u.username,rank:u=>u.rank,role:u=>u.accessLevel,lastLogin:u=>u.lastLogin?Date.parse(u.lastLogin):0,status:u=>u.archived,createdBy:u=>u.createdByLabel,createdAt:u=>Date.parse(u.createdAt),modifiedBy:u=>u.modifiedByLabel,modifiedAt:u=>Date.parse(u.modifiedAt)});
  const heading=(column:string,label:string)=><SortHeader column={column} label={label} sort={sorting}/>;
- if(!allowed)return <section className="panel"><div className="empty"><h2>{demo?'Sign in to manage users':'Administrator access required'}</h2><p>{demo?'Users belong to a signed-in business workspace.':'Only active administrators can create, edit or archive business users.'}</p></div></section>;
+ if(!allowed)return <section className="panel"><div className="empty"><h2>{demo?'Sign in to manage users':'User management access required'}</h2><p>{demo?'Users belong to a signed-in business workspace.':'Cashiers cannot access the Users page. Admins, Managers and Developers manage permitted users.'}</p></div></section>;
  return <>
  <section className="panel">
  <div className="toolbar">
@@ -92,29 +118,44 @@ export default function UsersPage({shopId,actorId,role,online,demo}:Props) {
  {!online&&<div className="notice">Connect to the internet to manage user accounts.</div>}
  {error&&<div className="notice" role="alert">{error}</div>}
  {!ready?<div className="empty">{online?'Loading users…':'User management is available online.'}</div>:!visible.length?<div className="empty">No matching users.</div>:
- <div className="table-wrap"><table><thead><tr>{heading('id','User ID')}{heading('name','Name')}{heading('username','Username')}{heading('rank','Rank')}{heading('role','Access level')}{heading('email','Email')}{heading('lastLogin','Last login')}{heading('status','Status')}
+ <div className="table-wrap"><table><thead><tr>{heading('id','User ID')}{heading('name','Name')}{heading('username','Username')}{heading('rank','Rank')}{heading('role','Access level')}{heading('lastLogin','Last login')}{heading('status','Status')}
  {audit&&<>{heading('createdBy','Created by')}{heading('createdAt','Created at')}{heading('modifiedBy','Modified by')}{heading('modifiedAt','Modified at')}</>}<th>Actions</th></tr></thead><tbody>
- {visible.map(user=><tr key={user.id}><td className="material-id">{userCode(user.id)}</td><td><strong>{user.name}</strong>{user.userId===actorId?' (you)':''}</td><td>{user.username}</td><td>{user.rank}</td><td>{accessLevels[user.role]}</td><td>{user.email}</td><td>{date(user.lastLogin)}</td><td><span className={`badge ${user.archived?'unpaid':'paid'}`}>{user.archived?'Archived':'Active'}</span></td>
+ {visible.map(user=><tr key={user.id}><td className="material-id">{userCode(user.id)}</td><td><strong>{user.name}</strong>{user.userId===actorId?' (you)':''}</td><td>{user.username}</td><td>{accessLevels[user.role]} ({user.rank})</td><td>{user.accessLevel===0?'0 — Revoked':user.accessLevel}</td><td>{date(user.lastLogin)}</td><td><span className={`badge ${user.archived?'unpaid':'paid'}`}>{user.archived?'Archived':'Active'}</span></td>
  {audit&&<><td>{user.createdByLabel}</td><td>{date(user.createdAt)}</td><td>{user.modifiedByLabel}</td><td>{date(user.modifiedAt)}</td></>}
- <td><div className="material-actions">{!user.archived&&<button className="text-button" disabled={busy||!online} onClick={()=>{setEditor(user);setFormError('');}}><Icon name="edit"/> Edit</button>}
- <button className={`text-button ${user.archived?'':'danger-text'}`} disabled={busy||!online||user.userId===actorId} onClick={()=>{setConfirmation(user);setFormError('');}}><Icon name={user.archived?'restore':'archive'}/> {user.archived?'Restore':'Archive'}</button></div></td></tr>)}
+ <td><div className="material-actions">{!user.archived&&<button className="text-button" disabled={busy||!online||!editable(user)} onClick={()=>{setEditor(user);setFormError('');}}><Icon name="edit"/> Edit</button>}
+ <button className={`text-button ${user.archived?'':'danger-text'}`} disabled={busy||!online||!editable(user)} onClick={()=>{setConfirmation(user);setFormError('');}}><Icon name={user.archived?'restore':'archive'}/> {user.archived?'Restore':'Archive'}</button>
+ {!user.archived&&<><button className="text-button" disabled={busy||!online||!editable(user)} onClick={()=>{setAccessChange(user);setFormError('');}}>{user.accessLevel===0?'Grant access':'Revoke access'}</button><button className="text-button" disabled={busy||!online||!editable(user)} onClick={()=>{setPasswordReset(user);setFormError('');}}>Reset password</button></>}
+ </div></td></tr>)}
  </tbody></table></div>}
- <p className="muted">Rank is a job title. Administrators manage users and all modules; managers manage operations; cashiers record customers, jobs and payments and view the catalogue. Last login is the account's latest sign-in.</p>
+ <p className="muted">Rank: Cashier 1, Admin 2, Manager 3, Developer 4. Revoking access sets it to 0 and retains the rank. Managers cannot modify other Managers. Only Developers can modify Developer profiles.</p>
  </section>
  {editor&&<Modal title={editor==='new'?'Add user':'Edit user'} busy={busy} onClose={()=>setEditor(null)}>
  {formError&&<div className="notice" role="alert">{formError}</div>}
  <form className="form-grid" onSubmit={save}>
  <label>Name<input name="name" defaultValue={editor==='new'?'':editor.name} maxLength={160} required/></label>
  <label>Username<input name="username" defaultValue={editor==='new'?'':editor.username} minLength={3} maxLength={40} pattern="[a-zA-Z0-9][a-zA-Z0-9._-]{2,39}" autoComplete="off" required/></label>
- <label>Rank / job title<input name="rank" defaultValue={editor==='new'?'Staff':editor.rank} maxLength={80} list="staff-ranks" required/><datalist id="staff-ranks">{['Owner','Administrator','Manager','Cashier','Operator','Staff'].map(value=><option key={value} value={value}/>)}</datalist></label>
- <label>Access level<select name="role" defaultValue={editor==='new'?'cashier':editor.role}>{Object.entries(accessLevels).map(([value,label])=><option value={value} key={value} disabled={editor!=='new'&&editor.userId===actorId&&value!=='admin'}>{label}</option>)}</select></label>
- {editor==='new'?<><label>Email<input name="email" type="email" maxLength={254} autoComplete="off" required/></label><label>Password<input name="password" type="password" minLength={12} maxLength={128} autoComplete="new-password" required/></label><p className="muted">The user signs in with this email and password. Account creation requires an internet connection.</p></>:<p className="muted">Login email: {editor.email}</p>}
+ <label>Rank<select name="role" defaultValue={editor==='new'?'cashier':editor.role}>{Object.entries(accessLevels).filter(([value])=>rankValues[value as keyof typeof rankValues]<=(actor?.rank??0)).map(([value,label])=><option value={value} key={value}>{label} ({rankValues[value as keyof typeof rankValues]})</option>)}</select></label>
+ {editor==='new'&&<label>Password<input name="password" type="password" minLength={12} maxLength={128} autoComplete="new-password" required/></label>}
+ <p className="muted">Staff sign in with their username and password after the business is signed in. Passwords are stored as hashes by the authentication service.</p>
  <div className="material-actions"><button disabled={busy||!online}><Icon name="save"/> {busy?'Saving…':'Save user'}</button><button type="button" className="secondary" disabled={busy} onClick={()=>setEditor(null)}>Cancel</button></div>
  </form></Modal>}
  {confirmation&&<Modal title={`${confirmation.archived?'Restore':'Archive'} ${confirmation.name}?`} busy={busy} onClose={()=>setConfirmation(null)}>
  {formError&&<div className="notice" role="alert">{formError}</div>}
- <p>{confirmation.archived?'Restore access to this business?':'This user will lose access to this business. Existing jobs, payments and audit records will remain.'}</p>
+ <p>{confirmation.archived?'Restore this user profile? Any revoked access remains revoked.':'This user will lose access to this business. Existing jobs, payments and audit records will remain.'}</p>
  <div className="material-actions"><button className={confirmation.archived?'':'danger-button'} disabled={busy||!online} onClick={()=>void changeStatus()}>{busy?'Saving…':confirmation.archived?'Restore user':'Archive user'}</button><button className="secondary" disabled={busy} onClick={()=>setConfirmation(null)}>Cancel</button></div>
  </Modal>}
+ {accessChange&&<Modal title={`${accessChange.accessLevel===0?'Grant':'Revoke'} access: ${accessChange.name}`} busy={busy} onClose={()=>setAccessChange(null)}>
+ {formError&&<div className="notice" role="alert">{formError}</div>}
+ <p>{accessChange.accessLevel===0?`Restore access to ${accessChange.rank}?`:'Set access to 0? The user will retain their rank, but cannot sign in or access this business.'}</p>
+ <div className="material-actions"><button disabled={busy||!online} className={accessChange.accessLevel===0?'':'danger-button'} onClick={()=>void changeAccess()}>{busy?'Saving…':accessChange.accessLevel===0?'Grant access':'Revoke access'}</button><button className="secondary" disabled={busy} onClick={()=>setAccessChange(null)}>Cancel</button></div>
+ </Modal>}
+ {passwordReset&&<Modal title={`Reset password: ${passwordReset.name}`} busy={busy} onClose={()=>setPasswordReset(null)}>
+ {formError&&<div className="notice" role="alert">{formError}</div>}
+ <form onSubmit={resetPassword}><label>New password<input name="password" type="password" minLength={12} maxLength={128} autoComplete="new-password" required/></label><label>Confirm password<input name="confirmation" type="password" minLength={12} maxLength={128} autoComplete="new-password" required/></label>
+ {passwordReset.userId===businessUserId&&<p className="notice">This is the default business Manager. Resetting this password also changes the business email login password.</p>}
+ <p className="muted">The new password replaces the previous password. The password is hashed before storage.</p>
+ <div className="material-actions"><button disabled={busy||!online}>{busy?'Resetting…':'Reset password'}</button><button type="button" className="secondary" disabled={busy} onClick={()=>setPasswordReset(null)}>Cancel</button></div></form>
+ </Modal>}
+
  </>;
 }

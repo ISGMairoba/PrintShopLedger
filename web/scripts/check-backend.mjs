@@ -67,3 +67,8 @@ const edge = await fetch(url + '/functions/v1/manage-users', {
 const edgeBody = await edge.json();
 if (edge.status !== 401 || edgeBody.error !== 'Sign in first.') throw new Error('User provisioning handler did not reject anonymous access.');
 console.log('User RPCs and secure provisioning handler require authorized sign-in.');
+
+const staffLogin = await fetch(url + '/functions/v1/staff-login', {method:'POST',headers:{...headers,'Content-Type':'application/json'},body:'{}',signal:AbortSignal.timeout(20000)});
+const staffLoginBody=await staffLogin.json();
+if(staffLogin.status!==401||staffLoginBody.error!=='Sign in to the business first.')throw new Error('Staff login requires a verified business session.');
+console.log('Staff login rejects requests without a business session.');

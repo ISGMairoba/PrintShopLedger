@@ -5,7 +5,7 @@ import Modal from './Modal';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import type { Session } from '@supabase/supabase-js';
 import { applyEvent, customerBalance, emptyLedger, jobBalance, money } from './domain.mjs';
-import { supabase, syncLedger, MaterialSyncConflict, resolveCloudMaterial, ServiceSyncConflict, resolveCloudService, CustomerSyncConflict, resolveCloudCustomer } from './cloud';
+import { supabase, businessAuth, syncLedger, MaterialSyncConflict, resolveCloudMaterial, ServiceSyncConflict, resolveCloudService, CustomerSyncConflict, resolveCloudCustomer } from './cloud';
 import { readState, saveEvent } from './storage';
 import MaterialsPage from './MaterialsPage';
 import CustomersPage from './CustomersPage';
@@ -17,7 +17,7 @@ import ServiceConflictReview from './ServiceConflictReview';
 import StockHistoryPage from './StockHistoryPage';
 import type { LedgerEvent, LocalState, Payment, MaterialEvent, ServiceEvent, CustomerEvent, Job } from './types';
 
-type Shop = { id: string; name: string; role: string };
+type Shop = { id: string; name: string; userId:string; role: string; rank: number; accessLevel: number; username: string; staffName: string };
 type Page = 'Jobs' | 'Customers' | 'Payments' | 'Materials' | 'Stock History' | 'Services' | 'Print Settings' | 'Users';
 const currency = (amount: number) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount / 100);
 const shortId = (id: string) => id.slice(0, 8).toUpperCase();
@@ -32,6 +32,9 @@ const event = (kind: LedgerEvent['kind'], data: LedgerEvent['data']) => ({ id: c
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
+  const [businessSession, setBusinessSession] = useState<Session | null>(null);
+  const [switchUser, setSwitchUser] = useState(false);
+  const [staffEpoch, setStaffEpoch] = useState(0);
   const [authReady, setAuthReady] = useState(!supabase);
   const [demo, setDemo] = useState(!supabase);
   const [shops, setShops] = useState<Shop[]>([]);
@@ -50,7 +53,7 @@ export default function App() {
   const [serviceConflict, setServiceConflict] = useState<ServiceSyncConflict | null>(null);
   const [conflict, setConflict] = useState<MaterialSyncConflict | null>(null);
   const [online, setOnline] = useState(navigator.onLine);
-  const scope = demo ? 'local-trial' : session && shop ? `${session.user.id}:${shop.id}` : '';
+  const scope = demo ? 'local-trial' : businessSession && session && shop && shop.userId===session.user.id && shop.accessLevel>0 ? `${session.user.id}:${shop.id}` : '';
   const activeScope = useRef(scope);
   activeScope.current = scope;
   const channel = useRef<BroadcastChannel | null>(null);
@@ -68,26 +71,32 @@ export default function App() {
   useEffect(() => {
     if (!supabase) return;
     let active = true;
-    supabase.auth.getSession().then(({ data, error }) => {
+    Promise.all([supabase.auth.getSession(), businessAuth!.auth.getSession()]).then(([staff, business]) => {
       if (!active) return;
-      if (error) setMessage(error.message);
-      setSession(data.session); setAuthReady(true);
+      if (staff.error || business.error) setMessage(staff.error?.message || business.error?.message || '');
+      setSession(staff.data.session); setBusinessSession(business.data.session); setAuthReady(true);
     }).catch(error => { if (active) { setMessage(errorMessage(error)); setAuthReady(true); } });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, current) => { if (active) setSession(current); });
-    return () => { active = false; listener.subscription.unsubscribe(); };
+    const { data: businessListener } = businessAuth!.auth.onAuthStateChange((_event, current) => { if (active) setBusinessSession(current); });
+    return () => { active = false; listener.subscription.unsubscribe(); businessListener.subscription.unsubscribe(); };
   }, []);
 
   useEffect(() => {
-    if (!session || demo || !supabase) { setShops([]); setShop(null); return; }
+    if (!businessSession || demo || !supabase) { setShops([]); setShop(null); return; }
     let active = true;
-    const cacheKey = `printshopledger-workspaces:${session.user.id}`;
+    const cacheKey = `printshopledger-business-workspaces:${businessSession.user.id}:${session?.user.id ?? 'locked'}`;
     async function loadShops() {
       try {
         let available: Shop[];
         if (navigator.onLine) {
-          const { data, error } = await supabase!.rpc('list_my_shops');
-          if (error) throw error;
-          available = data ?? [];
+          const { data: businesses, error: businessError } = await businessAuth!.rpc('list_business_shops');
+          if (businessError) throw businessError;
+          const staff = session ? await supabase!.rpc('list_my_shops') : { data: [], error: null };
+          if (staff.error) throw staff.error;
+          available = (businesses ?? []).map((business: {id:string;name:string}) => ({
+            ...business, userId:'', role: '', rank: 0, accessLevel: 0, username: '', staffName: '',
+            ...(staff.data ?? []).find((membership: Shop) => membership.id === business.id)
+          }));
           localStorage.setItem(cacheKey, JSON.stringify(available));
         } else available = JSON.parse(localStorage.getItem(cacheKey) ?? '[]');
         if (active) { setShops(available); setShop(current => available.find(item => item.id === current?.id) ?? available[0] ?? null); }
@@ -95,7 +104,7 @@ export default function App() {
     }
     void loadShops();
     return () => { active = false; };
-  }, [session?.user.id, demo, online]);
+  }, [businessSession?.user.id, session?.user.id, demo, online, staffEpoch]);
 
   useEffect(() => {
     setReady(false); setState({ ledger: emptyLedger(), pending: [] });
@@ -111,6 +120,7 @@ export default function App() {
   }, [scope]);
 
   async function save(operation: LedgerEvent) {
+    if(!scope)throw new Error('Sign in to a staff workspace first.');
     const target = scope;
     const next = await saveEvent(target, operation, !demo);
     if (activeScope.current !== target) return;
@@ -118,7 +128,7 @@ export default function App() {
     setMessage(demo ? 'Saved on this device.' : 'Saved on this device. Sync to send it to your business workspace.');
   }
   async function saveCatalogue(operation: MaterialEvent | ServiceEvent | CustomerEvent) {
-    if (busy || !ready) throw new Error('Please wait until the workspace is ready.');
+    if (busy || !ready || (!demo && (!session || !shop || shop.userId!==session.user.id || shop.accessLevel===0))) throw new Error('Please wait until the staff workspace is ready.');
     setBusy(true); setMessage('');
     try { await save(operation); } finally { setBusy(false); }
   }
@@ -187,9 +197,11 @@ export default function App() {
     e.preventDefault(); setBusy(true);
     const data = new FormData(e.currentTarget);
     try {
-      const { error } = await supabase!.auth.signInWithPassword({ email: String(data.get('email')), password: String(data.get('password')) });
-      if (error) throw error;
-      setDemo(false); setMessage('');
+      const { data: business, error } = await businessAuth!.auth.signInWithPassword({ email: String(data.get('email')), password: String(data.get('password')) });
+      if (error || !business.session) throw error || new Error('Could not sign in to the business.');
+      const { error: staffError } = await supabase!.auth.signInWithPassword({email:String(data.get('email')),password:String(data.get('password'))});
+      if (staffError) throw staffError;
+      setBusinessSession(business.session); setDemo(false); setSwitchUser(false); setMessage('');
     } catch (error) { setMessage(errorMessage(error)); }
     finally { setBusy(false); }
   }
@@ -197,15 +209,29 @@ export default function App() {
     e.preventDefault(); setBusy(true); setMessage('');
     const data = new FormData(e.currentTarget);
     try {
-      const { data: id, error } = await supabase!.rpc('create_shop', { p_name: String(data.get('businessName')).trim() });
+      const { data: id, error } = await businessAuth!.rpc('create_shop', { p_name: String(data.get('businessName')).trim() });
       if (error) throw error;
       const { data: available, error: listError } = await supabase!.rpc('list_my_shops');
       if (listError) throw listError;
-      setShops(available); setShop(available.find((item: Shop) => item.id === id));
+      setShops(available); setShop(available.find((item: Shop) => item.id === id)); setStaffEpoch(value=>value+1);
       localStorage.setItem(`printshopledger-workspaces:${session!.user.id}`, JSON.stringify(available));
     } catch (error) { setMessage(errorMessage(error)); }
     finally { setBusy(false); }
   }
+  async function signOutBusiness(){
+    setBusy(true);try{await supabase!.auth.signOut({scope:'local'});await businessAuth!.auth.signOut({scope:'local'});setSession(null);setBusinessSession(null);setShop(null);}finally{setBusy(false);}
+  }
+  async function staffLogin(e:FormEvent<HTMLFormElement>){
+    e.preventDefault();if(!shop||!businessAuth||busy)return;setBusy(true);setMessage('');
+    const form=new FormData(e.currentTarget);
+    try{
+      const {data,error}=await businessAuth.functions.invoke('staff-login',{body:{shopId:shop.id,username:String(form.get('username')??''),password:String(form.get('password')??'')}});
+      if(error){let message=error.message;const response=(error as {context?:Response}).context;if(response)try{message=(await response.json()).error||message;}catch{}throw new Error(message);}
+      const {error:failure}=await supabase!.auth.setSession({access_token:data.access_token,refresh_token:data.refresh_token});
+      if(failure)throw failure;setSwitchUser(false);setStaffEpoch(value=>value+1);setPage('Jobs');
+    }catch(error){setMessage(errorMessage(error));}finally{setBusy(false);}
+  }
+  function staffLoginForm(){return <form onSubmit={staffLogin}><label>Username<input name="username" autoComplete="username" maxLength={40} required/></label><label>Password<input name="password" type="password" autoComplete="current-password" required/></label><button disabled={busy||!online}>{busy?'Signing in…':'Sign in user'}</button></form>;}
   const customerName = (id: string) => ledger.customers.find(customer => customer.id === id)?.name ?? 'Unknown customer';
   const currentJob = ledger.jobs.find(job => job.id === selectedJob);
   const search = query.toLowerCase();
@@ -219,34 +245,41 @@ export default function App() {
   const allocated = Object.values(allocations).reduce((sum, value) => { try { return sum + money(value || '0'); } catch { return sum; } }, 0);
 
   if (!authReady) return <main className="auth"><p>Opening PrintShopLedger.</p></main>;
-  if (!demo && !session) return <main className="auth"><div className="auth-card">
+  if (!demo && !businessSession) return <main className="auth"><div className="auth-card">
     <div className="brand-mark">S</div><h1>PrintShopLedger</h1><p>Every job. Every payment. Clearly tracked.</p>
-    <form onSubmit={login}><label>Email<input name="email" type="email" autoComplete="username" required /></label>
-      <label>Password<input name="password" type="password" autoComplete="current-password" required /></label>
+    <form onSubmit={login}><label>Business email<input name="email" type="email" autoComplete="username" required /></label>
+      <label>Business password<input name="password" type="password" autoComplete="current-password" required /></label>
       <button disabled={busy || !online}>Sign in</button></form>
     <button className="secondary" onClick={() => { setDemo(true); setMessage(''); }}>Try locally on this device</button>
     <p className="muted">Local trial data stays separate from business workspaces.</p>{message && <p role="alert">{message}</p>}
   </div></main>;
 
+  if(!demo&&businessSession&&!shop&&session?.user.id!==businessSession.user.id&&shops.length===0)return <main className="auth"><p>Loading business workspace…</p></main>;
+  if(!demo&&businessSession&&shops.length>0&&(!session||!shop||shop.userId!==session.user.id||shop.accessLevel===0)) return <main className="auth"><section className="auth-card"><h1>Staff sign in</h1><p>The business is signed in. Enter your username and password.</p><label>Business<select value={shop?.id??''} onChange={e=>setShop(shops.find(item=>item.id===e.target.value)??null)}>{shops.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>{staffLoginForm()}{message&&<p role="alert">{message}</p>}<button className="secondary" disabled={busy} onClick={signOutBusiness}>Sign out business</button></section></main>;
+
   return <div className="app">
     <aside><div className="brand"><div className="brand-mark">S</div><div>PrintShopLedger<small>Business workspace</small></div></div>
       <div className="workspace">{demo ? <><strong>Local trial</strong><small>Explore with your own sample records</small></> :
-        <><label>Business<select disabled={busy} value={shop?.id ?? ''} onChange={e => setShop(shops.find(item => item.id === e.target.value) ?? null)}>
-          {shops.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><small>{shop?.role ?? 'No workspace assigned'}</small></>}
+        <><label>Business<select disabled={busy || session?.user.id !== businessSession?.user.id} value={shop?.id ?? ''} onChange={e => setShop(shops.find(item => item.id === e.target.value) ?? null)}>
+          {shops.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><small>Current user: {shop?.staffName || 'Not signed in'} · {shop?.username || ''} {shop?.role ? `(${shop.role})` : ''}</small></>}
       </div>
-      <nav aria-label="Main">{(['Jobs', 'Customers', 'Payments', 'Materials', 'Services', 'Stock History', 'Print Settings', 'Users'] as Page[]).map((item, index) => <button key={item} className={page === item ? 'active' : ''}
-        onClick={() => { setPage(item); setSelectedJob(null); setForm(null); setQuery(''); }}><Icon name={(['jobs','customers','payments','materials','services','history','quantity','customers'] as const)[index]}/>{item}</button>)}</nav>
+      <nav aria-label="Main">{(['Jobs', 'Customers', 'Payments', 'Materials', 'Services', 'Stock History', 'Print Settings', 'Users'] as Page[]).filter(item=>item!=='Users'||demo||(shop?.accessLevel??0)>=2).map((item, index) => <button key={item} className={page === item ? 'active' : ''}
+        onClick={() => { setPage(item); setSelectedJob(null); setForm(null); setQuery(''); }}><Icon name={({Jobs:'jobs',Customers:'customers',Payments:'payments',Materials:'materials',Services:'services','Stock History':'history','Print Settings':'quantity',Users:'customers'} as const)[item]}/>{item}</button>)}</nav>
       <div className="sidebar-bottom"><span className={`connection ${online ? 'online' : ''}`}>{online ? 'Online' : 'Offline'}</span>
         <small>{demo ? 'Data saved on this device' : `${state.pending.length} pending changes`}</small>
         {supabase && <button className="secondary" disabled={busy} onClick={async () => {
           if (demo) { setDemo(false); return; }
-          const { error } = await supabase!.auth.signOut({ scope: 'local' });
-          if (error) setMessage(error.message); else { setSession(null); setShop(null); setMessage('Signed out.'); }
-        }}>{demo ? 'Business sign in' : 'Sign out'}</button>}
+          const results = await Promise.all([supabase!.auth.signOut({scope:'local'}),businessAuth!.auth.signOut({scope:'local'})]);
+          const failure=results.find(result=>result.error)?.error;
+          if(failure)setMessage(failure.message);else{setSession(null);setBusinessSession(null);setShop(null);setMessage('Business signed out.');}
+        }}>{demo ? 'Business sign in' : 'Sign out business'}</button>}
+        {!demo&&<button className="secondary" disabled={busy||!online} onClick={()=>{setSwitchUser(true);setMessage('');}}>Switch user</button>}
+        {!demo&&<button className="secondary" disabled={busy} onClick={async()=>{const {error}=await supabase!.auth.signOut({scope:'local'});if(error)setMessage(error.message);else{setSession(null);setMessage('User signed out. Business remains signed in.');}}}>Sign out user</button>}
       </div>
     </aside>
     <main><header><div><span className="eyebrow">{demo ? 'LOCAL TRIAL' : shop?.name ?? 'BUSINESS WORKSPACE'}</span><h1>{page}</h1><p>{page === 'Users' ? 'Manage staff accounts, ranks and business access.' : page === 'Print Settings' ? 'Set default printer, paper, font and margins for this device.' : page === 'Customers' ? 'Manage customer details and credit limits.' : page === 'Materials' ? 'Manage materials, quantities and pricing requirements.' : page === 'Stock History' ? 'Review every material change and stock adjustment.' : page === 'Services' ? 'Define services, their base materials and prices.' : 'Track work and keep every payment attached to its job.'}</p></div>
       {!demo && <button className="secondary" onClick={sync} disabled={busy || !online || !shop || !ready}><Icon name="sync"/> {busy ? 'Working.' : 'Sync workspace'}</button>}</header>
+      {switchUser&&<Modal title="Switch user" busy={busy} onClose={()=>setSwitchUser(false)}><p>Business: {shop?.name}. Sign in with your staff username and password.</p>{staffLoginForm()}{message&&<p role="alert">{message}</p>}</Modal>}
       {needRefresh && <div className="notice">An app update is ready. <button className="secondary" disabled={busy} onClick={() => void updateServiceWorker(true)}>Update app</button></div>}
       {message && <div className="notice" role="status">{message}</div>}
       {customerConflict && <Modal title="Review conflicting customer edits" wide busy={busy} onClose={() => setCustomerConflict(null)}>
@@ -273,11 +306,11 @@ export default function App() {
         <div className="material-actions"><button disabled={busy} onClick={() => void resolveConflict('local')}>Keep this device's version</button><button className="secondary" disabled={busy} onClick={() => void resolveConflict('cloud')}>Keep business version</button></div>
       </Modal>}
       {!demo && !shop ? <section className="auth-card"><h2>Create your business workspace</h2><p>Each business gets its own customers, jobs and payments.</p><form onSubmit={createWorkspace}><label>Business name<input name="businessName" maxLength={160} required /></label><button disabled={busy || !online}>Create workspace</button></form><p className="muted">If you should join an existing business, ask its administrator to add your account.</p></section> : <>
-        {page === 'Users' ? <UsersPage key={scope} shopId={shop?.id ?? ''} actorId={session?.user.id ?? ''} role={shop?.role ?? ''} online={online} demo={demo} /> : page === 'Print Settings' ? <PrintSettingsPage key={scope} scope={scope} ready={ready}/> : page === 'Customers' ? <CustomersPage key={scope} ledger={ledger} ready={ready} busy={busy || !!conflict || !!serviceConflict || !!customerConflict}
-          actor={{id:demo?'local-trial':session!.user.id,label:demo?'Local trial user':session!.user.user_metadata.full_name||session!.user.email||session!.user.id}} onSave={saveCatalogue} onRecordPayment={id=>openPayment(id)} /> : page === 'Materials' ? <MaterialsPage key={scope} materials={ledger.materials} history={ledger.materialHistory} ready={ready} busy={(!demo && shop?.role === 'cashier') || busy || !!conflict || !!serviceConflict || !!customerConflict}
-          actor={{ id: demo ? 'local-trial' : session!.user.id, label: demo ? 'Local trial user' : session!.user.user_metadata.full_name || session!.user.email || session!.user.id }}
+        {page === 'Users' ? <UsersPage key={scope} shopId={shop?.id ?? ''} actorId={session?.user.id ?? ''} businessUserId={businessSession?.user.id ?? ''} role={shop?.role ?? ''} online={online} demo={demo} onChanged={()=>setStaffEpoch(value=>value+1)} /> : page === 'Print Settings' ? <PrintSettingsPage key={scope} scope={scope} ready={ready}/> : page === 'Customers' ? <CustomersPage key={scope} ledger={ledger} ready={ready} busy={busy || !!conflict || !!serviceConflict || !!customerConflict}
+          actor={{id:demo?'local-trial':session!.user.id,label:demo?'Local trial user':shop?.staffName||session!.user.user_metadata.full_name||session!.user.email||session!.user.id}} onSave={saveCatalogue} onRecordPayment={id=>openPayment(id)} /> : page === 'Materials' ? <MaterialsPage key={scope} materials={ledger.materials} history={ledger.materialHistory} ready={ready} busy={(!demo && shop?.role === 'cashier') || busy || !!conflict || !!serviceConflict || !!customerConflict}
+          actor={{ id: demo ? 'local-trial' : session!.user.id, label: demo ? 'Local trial user' : shop?.staffName || session!.user.user_metadata.full_name || session!.user.email || session!.user.id }}
           onSave={saveCatalogue} /> : page === 'Services' ? <ServicesPage key={scope} services={ledger.services} materials={ledger.materials} ready={ready} busy={(!demo && shop?.role === 'cashier') || busy || !!conflict || !!serviceConflict || !!customerConflict}
-          actor={{ id: demo ? 'local-trial' : session!.user.id, label: demo ? 'Local trial user' : session!.user.user_metadata.full_name || session!.user.email || session!.user.id }} onSave={saveCatalogue} /> : page === 'Stock History' ? <StockHistoryPage key={scope} history={ledger.materialHistory} materials={ledger.materials} pending={state.pending} ready={ready} demo={demo} /> : <>
+          actor={{ id: demo ? 'local-trial' : session!.user.id, label: demo ? 'Local trial user' : shop?.staffName || session!.user.user_metadata.full_name || session!.user.email || session!.user.id }} onSave={saveCatalogue} /> : page === 'Stock History' ? <StockHistoryPage key={scope} history={ledger.materialHistory} materials={ledger.materials} pending={state.pending} ready={ready} demo={demo} /> : <>
         <section className="stats"><article><span>Total job value</span><strong>{currency(total)}</strong><small>{ledger.jobs.length} jobs</small></article>
           <article><span>Payments received</span><strong>{currency(paid)}</strong><small>Allocated to individual jobs</small></article>
           <article><span>Outstanding</span><strong>{currency(total - paid)}</strong><small>{ledger.jobs.filter(job => jobBalance(ledger, job).outstanding > 0).length} jobs awaiting payment</small></article></section>
@@ -309,7 +342,7 @@ export default function App() {
         {!ledger.payments.some(payment => payment.allocations.some(allocation => allocation.jobId === currentJob.id)) && <p className="muted">No payments recorded yet.</p>}
         <button disabled={busy || jobBalance(ledger, currentJob).outstanding <= 0} onClick={() => openPayment(currentJob.customerId, currentJob.id)}>Record payment for this job</button>
       </Modal>}
-      {form === 'customer' && <CustomerEditor customers={ledger.customers} busy={busy} actor={{id:demo?'local-trial':session!.user.id,label:demo?'Local trial user':session!.user.user_metadata.full_name||session!.user.email||session!.user.id}} onSave={saveCatalogue} onClose={()=>setForm(null)} />}
+      {form === 'customer' && <CustomerEditor customers={ledger.customers} busy={busy} actor={{id:demo?'local-trial':session!.user.id,label:demo?'Local trial user':shop?.staffName||session!.user.user_metadata.full_name||session!.user.email||session!.user.id}} onSave={saveCatalogue} onClose={()=>setForm(null)} />}
       {form && form !== 'customer' && <Modal title={form === 'job' ? 'Create a job' : 'Record a payment'} wide={form === 'payment'} busy={busy} onClose={() => setForm(null)}>
         {message && <div className="notice" role="status">{message}</div>}
         <form onSubmit={submit} key={form}>
