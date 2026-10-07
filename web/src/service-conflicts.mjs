@@ -13,7 +13,7 @@ export function resolveServiceState(state, input, serviceId, choice, materialId,
         modifiedByLabel: desired.modifiedByLabel, modifiedAt: now, ...values } };
       ledger = applyEvent(ledger, event); pending.push(event); current = ledger.services.find(item => item.id === serviceId);
     }
-    const values = { description: desired.description, price: desired.price, materialId: materialId || desired.materialId };
+    const values = { description: desired.description, price: desired.price, materialId: materialId === null ? null : materialId || desired.materialId };
     if (!current) append('service.created', values);
     else {
       if (current.archived) append('service.restored');
@@ -23,3 +23,4 @@ export function resolveServiceState(state, input, serviceId, choice, materialId,
   }
   return { ...state, ledger, pending };
 }
+

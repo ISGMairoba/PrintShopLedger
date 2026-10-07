@@ -9,16 +9,16 @@ export function units(value){const text=String(value).trim();if(!/^\d+(\.\d{1,3}
 export function quoteLine(ledger,line){
  const service=ledger.services.find(s=>s.id===line.serviceId&&!s.archived);
  const material=ledger.materials.find(m=>m.id===service?.materialId&&!m.archived);
- if(!service||!material)throw Error('Select an active service with an active base material.');
+ if(!service||service.materialId!==null&&!material)throw Error('Select an active service with an active base material, or a service without material.');
  if(!line.description?.trim()||line.description.trim().length>500)throw Error('Enter a job description (up to 500 characters).');
- const quantity=units(line.quantity),width=material.requireSize?units(line.width):null,height=material.requireSize?units(line.height):null;
+ const quantity=units(line.quantity),width=material?.requireSize?units(line.width):null,height=material?.requireSize?units(line.height):null;
  let raw=BigInt(Math.round(quantity*1000)),divisor=1000n;
- if(material.requireSize){raw*=BigInt(Math.round(width*1000))*BigInt(Math.round(height*1000));divisor=1000000000n;}
+ if(material?.requireSize){raw*=BigInt(Math.round(width*1000))*BigInt(Math.round(height*1000));divisor=1000000000n;}
  const needed=Number((raw*1000n+divisor/2n)/divisor)/1000;
  const total=Number((BigInt(service.price)*raw+divisor/2n)/divisor);amount(total);
  if(!Number.isFinite(needed)||needed<=0||needed>1000000000000)throw Error('Material usage is outside the supported range.');
  if(!jobSources.includes(line.source)||String(line.sourceNote??'').length>200)throw Error('Choose how the job was received.');
- return {...line,description:line.description.trim(),quantity,width,height,amount:total,unitPrice:service.price,service:service.description,materialId:material.id,materialNeeded:needed,measurementUnit:material.measurementUnit,requireSize:material.requireSize,serviceVersion:service.version,sourceNote:String(line.sourceNote??'').trim()};
+ return {...line,description:line.description.trim(),quantity,width,height,amount:total,unitPrice:service.price,service:service.description,materialId:material?.id??null,materialNeeded:material?needed:0,measurementUnit:material?.measurementUnit??'item',requireSize:material?.requireSize??false,serviceVersion:service.version,sourceNote:String(line.sourceNote??'').trim()};
 }
 export function walletBalance(ledger,customerId){return ledger.payments.filter(p=>p.customerId===customerId).reduce((sum,p)=>sum+(p.walletAdded??0)-(p.walletUsed??0),0);}
 export function accountToken(ledger,customerId){return 'wallet='+walletBalance(ledger,customerId)+';'+ledger.jobs.filter(j=>j.customerId===customerId).map(j=>[j.id,jobBalance(ledger,j).outstanding]).sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0).map(([id,n])=>id+':'+n).join(',');}
@@ -61,7 +61,7 @@ export function applyCheckout(ledger,event){
  if(JSON.stringify(data.allocations)!==JSON.stringify(rebuilt.data.allocations))throw Error('Checkout allocations changed.');
  let next=data.newCustomer?applyCustomerEvent(ledger,data.newCustomer):ledger;
  const materials=next.materials.map(m=>({...m})),history=[...next.materialHistory];
- for(const job of rebuilt.data.jobs){const material=materials.find(m=>m.id===job.materialId);const before=materialSnapshot(material),available=Math.round((material.available-job.materialNeeded)*1000)/1000;
+ for(const job of rebuilt.data.jobs){if(job.materialId===null)continue;const material=materials.find(m=>m.id===job.materialId);const before=materialSnapshot(material),available=Math.round((material.available-job.materialNeeded)*1000)/1000;
  if(Math.abs(available)>1000000000000)throw Error('Material stock is outside the supported range.');
  const previous=material.available;Object.assign(material,{available,version:material.version+1,modifiedBy:data.createdBy,modifiedByLabel:data.createdByLabel,modifiedAt:data.createdAt,lastEventId:job.id});
  history.push({id:job.id,materialId:material.id,materialName:material.name,measurementUnit:material.measurementUnit,action:'material.job_used',beforeAvailable:previous,afterAvailable:available,reason:'Checkout '+data.id+' / Job '+job.id,jobId:job.id,checkoutId:data.id,changedBy:data.createdBy,changedByLabel:data.createdByLabel,changedAt:data.createdAt,before,after:materialSnapshot(material),detailsComplete:true});

@@ -95,3 +95,25 @@ test('queued service creation can switch to an active material after its origina
   assert.equal(next.ledger.services[0].materialId,'card');
   assert.equal(next.pending[0].kind,'service.created');
 });
+
+
+test('service-only creation works without a material catalogue and can gain or lose a stock link',()=>{
+ let ledger=applyEvent(emptyLedger(),command('service.created',{materialId:null,description:'Cap pressing'}));
+ assert.equal(ledger.services[0].materialId,null);assert.equal(ledger.materialHistory.length,0);
+ assert.ok(serviceMatches(ledger.services[0],[],ledger.services,'no material'));
+ ledger=applyEvent(ledger,material());
+ ledger=applyEvent(ledger,command('service.updated',{baseVersion:1,materialId:'paper'},'linked'));
+ assert.equal(ledger.services[0].materialId,'paper');
+ ledger=applyEvent(ledger,command('service.updated',{baseVersion:2,materialId:null},'unlinked'));
+ assert.equal(ledger.services[0].materialId,null);assert.equal(ledger.materials[0].available,10);
+ assert.equal(ledger.services[0].createdAt,audit.modifiedAt);
+ assert.throws(()=>applyEvent(emptyLedger(),command('service.created',{materialId:undefined})),/base material/);
+});
+test('service conflict review can deliberately remove an existing material link',()=>{
+ const base=applyEvent(fixture(),command());
+ const edit=command('service.updated',{baseVersion:1,materialId:null},'local-no-material');
+ const state={ledger:applyEvent(base,edit),pending:[edit]};
+ const cloud=applyEvent(base,command('service.updated',{baseVersion:1,price:10000},'cloud-price'));
+ const next=resolveServiceState(state,cloud,'service','local',null,()=> 'reviewed-no-material',audit.modifiedAt);
+ assert.equal(next.ledger.services[0].materialId,null);assert.equal(next.pending[0].data.materialId,null);
+});

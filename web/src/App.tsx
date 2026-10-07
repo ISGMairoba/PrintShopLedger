@@ -232,7 +232,7 @@ export default function App() {
     } catch (error) { if (activeScope.current === target) { setMessage(errorMessage(error)); if (error instanceof MaterialSyncConflict) setConflict(error); } }
     finally { setBusy(false); }
   }
-  async function resolveServiceConflict(choice: 'local' | 'cloud', materialId: string) {
+  async function resolveServiceConflict(choice: 'local' | 'cloud', materialId: string | null) {
     if (!serviceConflict || !shop || busy) return;
     const target = scope; setBusy(true);
     try {

@@ -22,7 +22,7 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
   const options = materials.filter(item => !item.archived || item.id === editing?.materialId);
   const sorting = useTableSort<Service>('description');
   const visible = sorting.sortRows(services.filter(item => (filter === 'all' || item.archived === (filter === 'archived')) && serviceMatches(item, materials, services, query)), {
-      id:item=>serviceCode(item.id,services),description:item=>item.description,material:item=>materials.find(material=>material.id===item.materialId)?.name,price:item=>item.price,
+      id:item=>serviceCode(item.id,services),description:item=>item.description,material:item=>item.materialId===null?'No material':materials.find(material=>material.id===item.materialId)?.name,price:item=>item.price,
       status:item=>item.archived?'Archived':'Active',createdBy:item=>item.createdByLabel,createdAt:item=>Date.parse(item.createdAt),modifiedBy:item=>item.modifiedByLabel,modifiedAt:item=>Date.parse(item.modifiedAt) });
   async function commit(kind: ServiceEvent['kind'], values: Omit<ServiceEvent['data'], 'modifiedBy' | 'modifiedByLabel' | 'modifiedAt'>) {
     setError('');
@@ -37,26 +37,26 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
     try {
       const price = money(String(data.get('price')));
       await commit(editing ? 'service.updated' : 'service.created', { id: editing?.id ?? crypto.randomUUID(), baseVersion: editing?.version,
-        description: String(data.get('description')).trim(), materialId: String(data.get('material')), price });
+        description: String(data.get('description')).trim(), materialId: String(data.get('material')) || null, price });
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Enter a valid price.'); }
   }
   return <>
     <section className="stats"><article><span>Active services</span><strong>{services.filter(item => !item.archived).length}</strong><small>Services in your catalogue</small></article>
-      <article><span>Base materials</span><strong>{new Set(services.filter(item => !item.archived).map(item => item.materialId)).size}</strong><small>One material can support several services</small></article>
+      <article><span>Base materials</span><strong>{new Set(services.filter(item => !item.archived && item.materialId).map(item => item.materialId)).size}</strong><small>One material can support several services</small></article>
       <article><span>Archived services</span><strong>{services.filter(item => item.archived).length}</strong><small>Records retained</small></article></section>
     {error && !editor && !confirmation && <div className="notice" role="alert">{error}</div>}
-    {ready && !activeMaterials.length && <div className="notice">Add or restore a material on the Materials page before creating a service.</div>}
+    {ready && !activeMaterials.length && <div className="notice">You can create services without a material. Add a material when a service should deduct stock.</div>}
     <section className="panel"><div className="toolbar service-toolbar"><input aria-label="Search services" placeholder="Search description, ID, material or price" value={query} onChange={e => setQuery(e.target.value)} />
       <select aria-label="Service status" value={filter} onChange={e => setFilter(e.target.value)}><option value="active">Active</option><option value="archived">Archived</option><option value="all">All services</option></select>
       <button className="secondary" aria-pressed={audit} onClick={() => setAudit(!audit)}><Icon name={audit?'table':'audit'}/> {audit ? 'Normal view' : 'Audit view'}</button>
-      <button disabled={!ready || busy || !activeMaterials.length} onClick={() => { setEditor('new'); setConfirmation(null); setError(''); }}><Icon name="add"/> Add service</button></div>
+      <button disabled={!ready || busy} onClick={() => { setEditor('new'); setConfirmation(null); setError(''); }}><Icon name="add"/> Add service</button></div>
       {!ready ? <div className="empty">Loading services.</div> : !visible.length ? <div className="empty"><h2>{query ? 'No matching services' : filter === 'archived' ? 'No archived services' : 'No services yet'}</h2>
-        <p>{query ? 'Search by service description, ID, base material or price.' : 'Create services such as Colour printing and Black printing, each with its own price.'}</p></div> :
+        <p>{query ? 'Search by service description, ID, base material or price.' : 'Create printing, pressing, binding and other services, with or without a stock material.'}</p></div> :
         <div className="table-wrap"><ResponsiveTable columns={[{index:1,label:"Service",details:[0,2,4]},{index:3,label:"Price"},{index:-1,label:"Actions",actions:true}]} labels={{0:"ID",2:"Material"}}><table><thead><tr><SortHeader label="Service ID" column="id" sort={sorting} /><SortHeader label="Description" column="description" sort={sorting} /><SortHeader label="Base material" column="material" sort={sorting} /><SortHeader label="Price" column="price" sort={sorting} /><SortHeader label="Status" column="status" sort={sorting} />
           {audit && <><SortHeader label="Created by" column="createdBy" sort={sorting} /><SortHeader label="Created at" column="createdAt" sort={sorting} /><SortHeader label="Modified by" column="modifiedBy" sort={sorting} /><SortHeader label="Modified at" column="modifiedAt" sort={sorting} /></>}<th>Actions</th></tr></thead><tbody>
           {visible.map(service => { const material = materials.find(item => item.id === service.materialId); return <tr key={service.id}>
             <td className="material-id">{serviceCode(service.id, services)}</td><td><strong>{service.description}</strong></td>
-            <td>{material?.name ?? 'Material unavailable'}<small>{material ? materialCode(material.id, materials) : ''}{material?.archived ? ' · Archived material' : ''}</small></td>
+            <td>{service.materialId===null?'No material':material?.name ?? 'Material unavailable'}<small>{material ? materialCode(material.id, materials) : ''}{material?.archived ? ' · Archived material' : ''}</small></td>
             <td>{servicePrice(service.price)}</td><td><span className={`badge ${service.archived ? 'unpaid' : 'paid'}`}>{service.archived ? 'Archived' : 'Active'}</span></td>
             {audit && <><td>{service.createdByLabel}</td><td>{timestamp(service.createdAt)}</td><td>{service.modifiedByLabel}</td><td>{timestamp(service.modifiedAt)}</td></>}
             <td><div className="material-actions">{!service.archived && <button className="text-button" disabled={busy} onClick={() => { setEditor(service); setConfirmation(null); setError(''); }}><Icon name="edit"/> Edit</button>}
@@ -73,9 +73,9 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
       {editing ? <p className="material-id">Service ID: {serviceCode(editing.id, services)}</p> : <p className="muted">A permanent service ID is generated when you save.</p>}
       <form key={editing ? editing.id + ':' + editing.version : 'new'} onSubmit={submit}><fieldset disabled={busy}><div className="form-grid">
         <label>Service description<input name="description" maxLength={500} defaultValue={editing?.description ?? ''} placeholder="e.g. A4 colour printing" required /></label>
-        <label>Base material<select name="material" defaultValue={editing?.materialId ?? ''} required><option value="" disabled>Select material</option>{options.map(item => <option key={item.id} value={item.id}>{item.name} ({materialCode(item.id, materials)}){item.archived ? ' · Archived' : ''}</option>)}</select></label>
+        <label>Base material<select name="material" defaultValue={editing?.materialId ?? ''}><option value="">No material — service only</option>{options.map(item => <option key={item.id} value={item.id}>{item.name} ({materialCode(item.id, materials)}){item.archived ? ' · Archived' : ''}</option>)}</select></label>
         <label>Price (₦)<CurrencyInput name="price" defaultValue={editing ? (editing.price / 100).toFixed(2) : ''} required /></label></div>
-        <p className="muted">Several services can share the same base material. Checkout pricing will use that material's Require Size setting.</p>
+        <p className="muted">Choose No material for services such as cap pressing, shirt pressing or binding with customer-supplied materials. These use quantity × price and do not deduct stock. Linked materials retain their Require Size setting.</p>
         <button type="submit"><Icon name="save"/> {busy ? 'Saving...' : 'Save service'}</button></fieldset></form></Modal>}
   </>;
 }

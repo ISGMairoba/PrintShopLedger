@@ -4,13 +4,14 @@ export const serviceCode = (id, services = []) => materialCode(id, services).rep
 export const servicePrice = (price) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(price / 100);
 export function serviceMatches(service, materials, services, query) {
   const material = materials.find(item => item.id === service.materialId);
-  return [service.description, service.id, serviceCode(service.id, services), material?.name ?? '', material?.id ?? '',
+  return [service.description, service.id, serviceCode(service.id, services), service.materialId === null ? 'No material' : material?.name ?? '', material?.id ?? '',
     material ? materialCode(material.id, materials) : '', (service.price / 100).toFixed(2), servicePrice(service.price)]
     .join(' ').toLowerCase().includes(query.trim().toLowerCase());
 }
 export function validateService(data, ledger, existing) {
   if (typeof data.description !== 'string' || !data.description.trim() || data.description.trim().length > 500) throw new Error('Enter a service description (up to 500 characters).');
   if (!Number.isSafeInteger(data.price) || data.price < 0 || data.price > 100000000000) throw new Error('Price must be zero or greater, with at most two decimal places.');
+  if (data.materialId === null) return;
   const material = ledger.materials.find(item => item.id === data.materialId);
   if (!material) throw new Error('Choose a base material from this workspace.');
   if (material.archived && existing?.materialId !== material.id) throw new Error('Choose an active base material.');
@@ -43,3 +44,4 @@ export function applyServiceEvent(input, event) {
   } else throw new Error('Unknown service operation.');
   return { ...ledger, services: ledger.services.map(item => item.id === data.id ? next : item) };
 }
+

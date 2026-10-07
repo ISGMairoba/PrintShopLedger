@@ -123,7 +123,7 @@ export async function resolveCloudMaterial(scope: string, shopId: string, materi
 }
 
 export async function resolveCloudService(scope: string, shopId: string, serviceId: string, choice: 'local' | 'cloud',
-  reviewedLocalEvent: string, reviewedRemoteEvent: string | null, materialId: string) {
+  reviewedLocalEvent: string, reviewedRemoteEvent: string | null, materialId: string | null) {
   if (!supabase || !navigator.onLine || !navigator.locks) throw new Error('Connect to the internet to resolve this service.');
   return navigator.locks.request(`printshopledger-sync:${scope}`, async () => {
     const { data: auth, error: authError } = await supabase!.auth.getSession();

@@ -85,3 +85,9 @@ Expenses remain independent of jobs. Add/edit expenses, record partial or full p
 The summary shows sales less expenses by incurred date, paid out by payment date, and remaining expense balances. Bulk purchases count as period expenses, including unused stock; this is not inventory-based net profit. Voiding excludes the expense from costs and reverses stock, but retains actual payments in paid-out totals; it does not record a refund. Payment source records where money came from. Expense payments are independent of cashier drawer handover calculations.
 
 Receipt/invoice references and notes are supported; receipt-file uploads and refunds are not included in this first version. `tests/expenses.test.mjs`, `supabase/tests/expenses.sql` and `scripts/check-expenses.mjs` cover stock correction, retry, payment, void, business isolation, offline saving and desktop/mobile forms. The SQL fixtures roll back all changes.
+
+## Services without materials
+
+Select **No material — service only** in the service editor for customer-supplied pressing, binding or other work without shop stock. Price is quantity × service price; size inputs and stock deductions do not apply. A checkout can mix these services with material-linked services. Existing service links can be added or removed; previous job snapshots stay unchanged. A service can also be created before any materials exist. Explicit null represents the optional link; invalid or missing material IDs remain errors.
+
+The optional-service-material migration updates the service and checkout RPCs together. Unit tests, `scripts/check-materialless-services.mjs` (desktop and mobile WebKit), and rollback-only `supabase/tests/materialless_services.sql` cover setup, linking/unlinking, mixed checkouts, payments, stock isolation and retries.
