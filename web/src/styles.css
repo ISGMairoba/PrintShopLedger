@@ -122,3 +122,12 @@ nav button { display: flex; align-items: center; gap: .8rem; }
 @media(max-width:740px),(max-width:1024px) and (pointer:coarse){.jobs-table .job-actions button{white-space:normal;text-align:left;padding:5px 0;overflow-wrap:anywhere}.jobs-table .job-actions{gap:7px}.jobs-table td:first-child{min-width:0}}
 
 .job-info small{font-weight:400}.job-progress{display:block;width:100%;max-width:110px;height:8px;margin-top:7px}.mobile-list .job-actions{gap:7px}.mobile-list .job-actions button{white-space:normal;text-align:left;padding:5px 0;overflow-wrap:anywhere}
+
+.expense-stock,.expense-payment{padding:16px;margin:18px 0;background:#f3f8f5;border:1px solid #d2e2d8;border-radius:10px}
+.expense-stock-line{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) auto;gap:12px;align-items:end;margin:12px 0}
+.expense-stock-line button{margin-bottom:7px}.expense-change{border-top:1px solid #e1e8e3;padding:12px 0}.expense-change summary{cursor:pointer;font-weight:600}.expense-toolbar{flex-wrap:wrap}.expense-stats{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:1000px){.expense-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:740px),(max-width:1024px) and (pointer:coarse){.expense-stock-line{grid-template-columns:minmax(0,1fr) auto}.expense-stock-line label:first-child{grid-column:1/-1}.expense-stock{padding:12px}.expense-stats{grid-template-columns:minmax(0,1fr)}.expense-toolbar>button{width:100%;min-width:0}}
+
+.expense-toolbar button{display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.expense-panel table{white-space:normal}.expense-panel th,.expense-panel td{padding:12px 10px}.expense-panel td:first-child{min-width:100px}.expense-panel .material-actions{flex-direction:column;align-items:flex-start;gap:8px}

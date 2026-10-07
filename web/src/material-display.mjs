@@ -7,7 +7,7 @@ export function materialCode(id, materials = []) {
   return 'MAT-' + compact;
 }
 export const materialActionLabels = {
-  'material.job_used': 'Job material used', 'material.created': 'Material created', 'material.updated': 'Material edited',
+  'material.expense_stock_changed': 'Expense stock change', 'material.job_used': 'Job material used', 'material.created': 'Material created', 'material.updated': 'Material edited',
   'material.stock_added': 'Stock added', 'material.stock_set': 'Quantity set',
   'material.archived': 'Material archived', 'material.restored': 'Material restored'
 };

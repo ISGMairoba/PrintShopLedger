@@ -1,3 +1,4 @@
+import { resolveExpenseState } from './expense-conflicts.mjs';
 import { checkoutReviewBase, replacePendingCheckout, adoptJobStatus } from './checkout-conflicts.mjs';
 import { createClient } from '@supabase/supabase-js';
 import { applyEvent } from './domain.mjs';
@@ -6,8 +7,11 @@ import { normalizeLedger } from './materials.mjs';
 import { resolveMaterialState } from './material-conflicts.mjs';
 import { resolveServiceState } from './service-conflicts.mjs';
 import { resolveCustomerState } from './customer-conflicts.mjs';
-import type { Ledger, Material, Service, Customer, CheckoutEvent, LedgerEvent } from './types';
+import type { Ledger, Material, Service, Customer, CheckoutEvent, LedgerEvent, Expense } from './types';
 
+export class ExpenseSyncConflict extends Error {
+ constructor(public local:Expense,public remote:Expense|null,public cloud:Ledger){super('This expense or its material units changed on another device. Review it before continuing sync.');}
+}
 export class MaterialSyncConflict extends Error {
   constructor(public local: Material, public remote: Material) { super('This material was changed on another device. Choose which version to keep.'); }
 }
@@ -40,7 +44,13 @@ async function synchronize(scope: string, shopId: string) {
   // Stable UUIDs make retries safe. Failed operations remain in the outbox.
   for (const event of state.pending) {
     await requireSameUser();
-    const { error } = await supabase.rpc(event.kind==='checkout.completed' ? 'apply_checkout_event' : event.kind==='job.status_changed' ? 'apply_job_status_event' : event.kind.startsWith('customer.') ? 'apply_customer_event' : event.kind.startsWith('material.') ? 'apply_material_event' : event.kind.startsWith('service.') ? 'apply_service_event' : 'apply_ledger_event', { p_shop: shopId, p_event: event }).abortSignal(AbortSignal.timeout(20000));
+    const { error } = await supabase.rpc(event.kind.startsWith('expense.') ? 'apply_expense_event' : event.kind==='checkout.completed' ? 'apply_checkout_event' : event.kind==='job.status_changed' ? 'apply_job_status_event' : event.kind.startsWith('customer.') ? 'apply_customer_event' : event.kind.startsWith('material.') ? 'apply_material_event' : event.kind.startsWith('service.') ? 'apply_service_event' : 'apply_ledger_event', { p_shop: shopId, p_event: event }).abortSignal(AbortSignal.timeout(20000));
+    if (error && ['40001','P0002'].includes(error.code) && event.kind.startsWith('expense.')) {
+      const {data,error:readError}=await supabase.rpc('get_ledger',{p_shop:shopId}).abortSignal(AbortSignal.timeout(20000));
+      if(readError)throw Error(readError.message);await requireSameUser();
+      const cloud=normalizeLedger(data);const local=(await readState(scope)).ledger.expenses.find(item=>item.id===event.data.id);
+      if(local)throw new ExpenseSyncConflict(local,cloud.expenses.find((item:Expense)=>item.id===local.id)??null,cloud);
+    }
     if(error?.code==='40001'&&(event.kind==='checkout.completed'||event.kind==='job.status_changed')){
       const {data,error:readError}=await supabase.rpc('get_ledger',{p_shop:shopId}).abortSignal(AbortSignal.timeout(20000));
       if(readError)throw Error(readError.message);await requireSameUser();
@@ -83,7 +93,7 @@ async function synchronize(scope: string, shopId: string) {
   state = await mutateState(scope, current => {
     let ledger: Ledger = normalizeLedger(data as Ledger);
     // Preserve work added by another tab while the download was in flight.
-    for (const event of current.pending) {try{ledger = applyEvent(ledger, event);}catch(error){if(event.kind==='checkout.completed')throw new CheckoutSyncConflict(event,normalizeLedger(data as Ledger));if(event.kind==='job.status_changed')throw new JobSyncConflict(event,normalizeLedger(data as Ledger));throw error;}}
+    for (const event of current.pending) {try{ledger = applyEvent(ledger, event);}catch(error){if(event.kind.startsWith('expense.')){const local=current.ledger.expenses.find(item=>item.id===event.data.id);const cloud=normalizeLedger(data);if(local)throw new ExpenseSyncConflict(local,cloud.expenses.find((item:Expense)=>item.id===local.id)??null,cloud);}if(event.kind==='checkout.completed')throw new CheckoutSyncConflict(event,normalizeLedger(data as Ledger));if(event.kind==='job.status_changed')throw new JobSyncConflict(event,normalizeLedger(data as Ledger));throw error;}}
     return { ...current, ledger, lastSynced: new Date().toISOString() };
   });
   return state;
@@ -169,3 +179,18 @@ export async function resolvePendingWork(scope:string,shopId:string,eventId:stri
  });
 }
 export {checkoutReviewBase};
+
+export async function resolveCloudExpense(scope:string,shopId:string,expenseId:string,choice:'local'|'cloud',reviewedLocal:string,reviewedRemote:string|null){
+ if(!supabase||!navigator.onLine||!navigator.locks)throw Error('Connect to the internet to review this expense.');
+ return navigator.locks.request(`printshopledger-sync:${scope}`,async()=>{
+  const check=async()=>{const {data,error}=await supabase!.auth.getSession();if(error||data.session?.user.id!==scope.split(':')[0])throw Error('Your sign-in changed. Sign in again.');};
+  await check();const {data,error}=await supabase!.rpc('get_ledger',{p_shop:shopId}).abortSignal(AbortSignal.timeout(20000));if(error)throw Error(error.message);await check();
+  const cloud=normalizeLedger(data);
+  return mutateState(scope,state=>{
+   const local=state.ledger.expenses.find(item=>item.id===expenseId),remote=cloud.expenses.find((item:Expense)=>item.id===expenseId)??null;
+   if(!local)throw Error('Local expense no longer exists.');
+   if(local.lastEventId!==reviewedLocal||(remote?.lastEventId??null)!==reviewedRemote)throw new ExpenseSyncConflict(local,remote,cloud);
+   return resolveExpenseState(state,cloud,expenseId,choice,()=>crypto.randomUUID());
+  });
+ });
+}

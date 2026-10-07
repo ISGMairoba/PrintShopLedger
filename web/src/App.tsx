@@ -1,3 +1,4 @@
+import ExpensesPage from './ExpensesPage';
 import JobTable from './JobTable';
 import JobActions,{type ProgressMode} from './JobActions';
 import JobProgressDialog from './JobProgressDialog';
@@ -19,7 +20,7 @@ import Modal from './Modal';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import type { Session } from '@supabase/supabase-js';
 import { customerBalance, emptyLedger, jobBalance } from './domain.mjs';
-import { supabase, businessAuth, syncLedger, MaterialSyncConflict, resolveCloudMaterial, ServiceSyncConflict, resolveCloudService, CustomerSyncConflict, resolveCloudCustomer, CheckoutSyncConflict, JobSyncConflict, resolvePendingWork, checkoutReviewBase } from './cloud';
+import { ExpenseSyncConflict, resolveCloudExpense, supabase, businessAuth, syncLedger, MaterialSyncConflict, resolveCloudMaterial, ServiceSyncConflict, resolveCloudService, CustomerSyncConflict, resolveCloudCustomer, CheckoutSyncConflict, JobSyncConflict, resolvePendingWork, checkoutReviewBase } from './cloud';
 import { readState, saveEvent, saveEvents, mutateState } from './storage';
 import MaterialsPage from './MaterialsPage';
 import CustomersPage from './CustomersPage';
@@ -29,10 +30,10 @@ import { SortHeader, useTableSort } from './TableSort';
 import ServicesPage from './ServicesPage';
 import ServiceConflictReview from './ServiceConflictReview';
 import StockHistoryPage from './StockHistoryPage';
-import type { LedgerEvent, LocalState, Payment, MaterialEvent, ServiceEvent, CustomerEvent, Job, CheckoutEvent, CheckoutRecord, DrawerCommand } from './types';
+import type { LedgerEvent, LocalState, Payment, MaterialEvent, ServiceEvent, CustomerEvent, Job, CheckoutEvent, CheckoutRecord, DrawerCommand, ExpenseEvent } from './types';
 
 type Shop = { id: string; name: string; userId:string; role: string; rank: number; accessLevel: number; username: string; staffName: string };
-type Page = 'My Sales' | 'Point of Service' | 'Jobs' | 'Customers' | 'Payments' | 'Materials' | 'Stock History' | 'Services' | 'Print Settings' | 'Users';
+type Page = 'My Sales' | 'Point of Service' | 'Jobs' | 'Customers' | 'Payments' | 'Materials' | 'Stock History' | 'Services' | 'Print Settings' | 'Users' | 'Expenses';
 const currency = (amount: number) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount / 100);
 const shortId = (id: string) => id.slice(0, 8).toUpperCase();
 const dateLabel = (value: string) => new Date(value).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Africa/Lagos' });
@@ -58,6 +59,7 @@ export default function App() {
   const [paymentCustomer, setPaymentCustomer] = useState('');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [expenseConflict,setExpenseConflict]=useState<ExpenseSyncConflict|null>(null);
   const [checkoutConflict,setCheckoutConflict]=useState<CheckoutSyncConflict|null>(null);
   const [jobConflict,setJobConflict]=useState<JobSyncConflict|null>(null);
   const [customerConflict, setCustomerConflict] = useState<CustomerSyncConflict | null>(null);
@@ -120,7 +122,7 @@ export default function App() {
 
   useEffect(() => {
     setReady(false); setState({ ledger: emptyLedger(), pending: [] });
-    setCheckoutConflict(null);setJobConflict(null);setReceipt(null);setJobToAdvance(null);setForm(null); setSelectedJob(null); setQuery(''); setConflict(null); setServiceConflict(null); setCustomerConflict(null); setConflictReviewHidden(false);
+    setExpenseConflict(null);setCheckoutConflict(null);setJobConflict(null);setReceipt(null);setJobToAdvance(null);setForm(null); setSelectedJob(null); setQuery(''); setConflict(null); setServiceConflict(null); setCustomerConflict(null); setConflictReviewHidden(false);
     if (!scope) return;
     let active = true;
     const refresh = () => readState(scope).then(value => { if (active) { setState(value); setReady(true); } })
@@ -139,7 +141,7 @@ export default function App() {
     setState(next); channel.current?.postMessage('changed'); setForm(null);
     setMessage(demo ? 'Saved on this device.' : 'Saved on this device. Changes sync automatically when connected.');
   }
-  async function saveCatalogue(operation: MaterialEvent | ServiceEvent | CustomerEvent) {
+  async function saveCatalogue(operation: MaterialEvent | ServiceEvent | CustomerEvent | ExpenseEvent) {
     if (busy || !ready || (!demo && (!session || !shop || shop.userId!==session.user.id || shop.accessLevel===0))) throw new Error('Please wait until the staff workspace is ready.');
     setBusy(true); setMessage('');
     try { await save(operation); } finally { setBusy(false); }
@@ -152,7 +154,7 @@ export default function App() {
       if(activeScope.current!==target)throw Error('Workspace changed. The checkout was saved in the original workspace.');
       setState(next);channel.current?.postMessage('changed');
       let syncProblem='';
-      if(!demo&&online){try{next=await syncLedger(target,shop!.id);if(activeScope.current===target)setState(next);}catch(error){syncProblem=errorMessage(error);if(activeScope.current===target){if(error instanceof CheckoutSyncConflict)setCheckoutConflict(error);if(error instanceof JobSyncConflict)setJobConflict(error);if(error instanceof MaterialSyncConflict)setConflict(error);if(error instanceof ServiceSyncConflict)setServiceConflict(error);if(error instanceof CustomerSyncConflict)setCustomerConflict(error);}}}
+      if(!demo&&online){try{next=await syncLedger(target,shop!.id);if(activeScope.current===target)setState(next);}catch(error){syncProblem=errorMessage(error);if(activeScope.current===target){if(error instanceof ExpenseSyncConflict)setExpenseConflict(error);if(error instanceof CheckoutSyncConflict)setCheckoutConflict(error);if(error instanceof JobSyncConflict)setJobConflict(error);if(error instanceof MaterialSyncConflict)setConflict(error);if(error instanceof ServiceSyncConflict)setServiceConflict(error);if(error instanceof CustomerSyncConflict)setCustomerConflict(error);}}}
       const record=next.ledger.checkouts.find(r=>r.id===operation.id)!;
       const pending=next.pending.some(e=>e.id===operation.id);
       setMessage(syncProblem|| (demo?'Checkout saved on this device.':pending?'Checkout saved on this device. It will sync automatically.':'Checkout confirmed and saved.'));
@@ -190,7 +192,7 @@ export default function App() {
       if(sessionError){await supabase!.auth.signOut({scope:'local'});throw Error('Handover saved. Sign in as the receiving user to continue.');}
       setPage('My Sales');setStaffEpoch(value=>value+1);setMessage(`Drawer handover saved. ${data.closing.toUserLabel} is now signed in.${cacheWarning}`);
     }catch(error){
-      if(error instanceof CheckoutSyncConflict)setCheckoutConflict(error);
+      if(error instanceof ExpenseSyncConflict)setExpenseConflict(error);if(error instanceof CheckoutSyncConflict)setCheckoutConflict(error);
       if(error instanceof JobSyncConflict)setJobConflict(error);
       if(error instanceof MaterialSyncConflict)setConflict(error);
       if(error instanceof ServiceSyncConflict)setServiceConflict(error);
@@ -198,7 +200,7 @@ export default function App() {
       throw error;
     }finally{setBusy(false);}
   }
-  const hasConflict=!!(conflict||serviceConflict||customerConflict||checkoutConflict||jobConflict);
+  const hasConflict=!!(expenseConflict||conflict||serviceConflict||customerConflict||checkoutConflict||jobConflict);
   const syncStatus=useAutoSync({
     scope,enabled:!demo&&!!scope&&ready&&!switchUser,online,
     paused:busy||hasConflict,
@@ -209,9 +211,9 @@ export default function App() {
       if(activeScope.current===target){setState(next);channel.current?.postMessage('changed');}
     },
     onError:(error)=>{
-      if(error instanceof CheckoutSyncConflict||error instanceof JobSyncConflict||error instanceof MaterialSyncConflict||error instanceof ServiceSyncConflict||error instanceof CustomerSyncConflict){
+      if(error instanceof ExpenseSyncConflict||error instanceof CheckoutSyncConflict||error instanceof JobSyncConflict||error instanceof MaterialSyncConflict||error instanceof ServiceSyncConflict||error instanceof CustomerSyncConflict){
         setMessage(errorMessage(error));setConflictReviewHidden(false);
-        if(error instanceof CheckoutSyncConflict)setCheckoutConflict(error);if(error instanceof JobSyncConflict)setJobConflict(error);
+        if(error instanceof ExpenseSyncConflict)setExpenseConflict(error);if(error instanceof CheckoutSyncConflict)setCheckoutConflict(error);if(error instanceof JobSyncConflict)setJobConflict(error);
         if(error instanceof MaterialSyncConflict)setConflict(error);
         if(error instanceof ServiceSyncConflict)setServiceConflict(error);
         if(error instanceof CustomerSyncConflict)setCustomerConflict(error);
@@ -331,16 +333,27 @@ export default function App() {
         if(failure)setMessage(failure.message);else{setSession(null);setBusinessSession(null);setShop(null);setMessage('Business signed out.');}
       }}>{demo ? 'Business sign in' : 'Sign out business'}</button>}
     </>}>
-      <nav aria-label="Main">{(['Point of Service', 'My Sales', 'Jobs', 'Customers', 'Payments', 'Materials', 'Services', 'Stock History', 'Print Settings', 'Users'] as Page[]).filter(item=>item!=='Users'||demo||(shop?.accessLevel??0)>=2).map(item => <button key={item} className={page === item ? 'active' : ''}
-        onClick={() => { setPage(item); setSelectedJob(null); setForm(null); setQuery(''); }}><Icon name={({'Point of Service':'services','My Sales':'drawer',Jobs:'jobs',Customers:'customers',Payments:'payments',Materials:'materials',Services:'services','Stock History':'history','Print Settings':'quantity',Users:'customers'} as const)[item]}/>{item}</button>)}</nav>
+      <nav aria-label="Main">{(['Point of Service', 'My Sales', 'Jobs', 'Customers', 'Payments', 'Expenses', 'Materials', 'Services', 'Stock History', 'Print Settings', 'Users'] as Page[]).filter(item=>item!=='Users'||demo||(shop?.accessLevel??0)>=2).map(item => <button key={item} className={page === item ? 'active' : ''}
+        onClick={() => { setPage(item); setSelectedJob(null); setForm(null); setQuery(''); }}><Icon name={({'Point of Service':'services','My Sales':'drawer',Jobs:'jobs',Customers:'customers',Payments:'payments',Expenses:'expenses',Materials:'materials',Services:'services','Stock History':'history','Print Settings':'quantity',Users:'customers'} as const)[item]}/>{item}</button>)}</nav>
     </Sidebar>
-    <main><header><div><span className="eyebrow">{demo ? 'LOCAL TRIAL' : shop?.name ?? 'BUSINESS WORKSPACE'}</span><h1>{page}</h1><p>{page === 'My Sales' ? 'Review your transactions and record a verified drawer handover.' : page === 'Users' ? 'Manage staff accounts, ranks and business access.' : page === 'Print Settings' ? 'Set default printer, paper, font and margins for this device.' : page === 'Customers' ? 'Manage customer details and credit limits.' : page === 'Materials' ? 'Manage materials, quantities and pricing requirements.' : page === 'Stock History' ? 'Review every material change and stock adjustment.' : page === 'Services' ? 'Define services, their base materials and prices.' : 'Track work and keep every payment attached to its job.'}</p></div>
+    <main><header><div><span className="eyebrow">{demo ? 'LOCAL TRIAL' : shop?.name ?? 'BUSINESS WORKSPACE'}</span><h1>{page}</h1><p>{page === 'Expenses' ? 'Record expenses, payments and material purchases.' : page === 'My Sales' ? 'Review your transactions and record a verified drawer handover.' : page === 'Users' ? 'Manage staff accounts, ranks and business access.' : page === 'Print Settings' ? 'Set default printer, paper, font and margins for this device.' : page === 'Customers' ? 'Manage customer details and credit limits.' : page === 'Materials' ? 'Manage materials, quantities and pricing requirements.' : page === 'Stock History' ? 'Review every material change and stock adjustment.' : page === 'Services' ? 'Define services, their base materials and prices.' : 'Track work and keep every payment attached to its job.'}</p></div>
       {!demo&&scope&&<span className="sync-status" role="status" aria-live="polite"><Icon name="sync"/> {syncLabel}{state.pending.length>0&&` (${state.pending.length})`}</span>}</header>
       {switchUser&&<Modal title="Switch user" busy={busy} onClose={()=>setSwitchUser(false)}><p>Business: {shop?.name}. Sign in with your staff username and password.</p>{staffLoginForm()}{message&&<p role="alert">{message}</p>}</Modal>}
       {needRefresh && <div className="notice">An app update is ready. <button className="secondary" disabled={busy} onClick={() => void updateServiceWorker(true)}>Update app</button></div>}
       {message && <div className="notice" role="status">{message}</div>}
       {hasConflict&&conflictReviewHidden&&<div className="notice">Sync is paused while you review an edit conflict. <button className="secondary" onClick={()=>setConflictReviewHidden(false)}>Review changes</button></div>}
-      {checkoutConflict&&!conflictReviewHidden&&<CheckoutEditor key={checkoutConflict.event.id+JSON.stringify(checkoutConflict.cloud.payments)+JSON.stringify(checkoutConflict.cloud.services)} ledger={checkoutReviewBase(state,checkoutConflict.cloud,checkoutConflict.event.id)} initialCheckout={checkoutConflict.event.data} actor={{id:session!.user.id,label:shop?.staffName||session!.user.email||session!.user.id}} busy={busy} paymentOnly={!checkoutConflict.event.data.jobs.length} onClose={()=>setConflictReviewHidden(true)} onReceipt={setReceipt} onSave={async operation=>{setBusy(true);const target=scope;try{const next=await resolvePendingWork(target,shop!.id,checkoutConflict.event.id,operation);if(activeScope.current===target){setState(next);setCheckoutConflict(null);channel.current?.postMessage('changed');setMessage('Pending checkout updated. Use the updated receipt; syncing will resume automatically.');}return next.ledger.checkouts.find(r=>r.id===operation.id)!;}catch(error){if(error instanceof CheckoutSyncConflict)setCheckoutConflict(error);throw error;}finally{setBusy(false);}}}/>}
+      {expenseConflict&&!conflictReviewHidden&&<Modal title="Review expense changes" wide busy={busy} onClose={()=>setConflictReviewHidden(true)}>
+        <p>{expenseConflict.message}</p><div className="table-wrap"><table><thead><tr><th>Field</th><th>This device</th><th>Business version</th></tr></thead><tbody>
+        <tr><td>Description</td><td>{expenseConflict.local.description}</td><td>{expenseConflict.remote?.description??'Not available'}</td></tr>
+        <tr><td>Total cost</td><td>{currency(expenseConflict.local.amount)}</td><td>{expenseConflict.remote?currency(expenseConflict.remote.amount):'—'}</td></tr>
+        {(['incurredOn','category','payee','note','receiptReference'] as const).map(field=><tr key={field}><td>{{incurredOn:'Date incurred',category:'Category',payee:'Supplier',note:'Notes',receiptReference:'Receipt reference'}[field]}</td><td>{expenseConflict.local[field]||'—'}</td><td>{expenseConflict.remote?.[field]||'—'}</td></tr>)}
+        <tr><td>Recorded payments</td><td>{currency(expenseConflict.local.payments.reduce((sum,p)=>sum+p.amount,0))}</td><td>{currency(expenseConflict.remote?.payments.reduce((sum,p)=>sum+p.amount,0)??0)}</td></tr>
+        <tr><td>Status</td><td>{expenseConflict.local.voided?'Voided':'Active'}</td><td>{expenseConflict.remote?.voided?'Voided':'Active'}</td></tr>
+        <tr><td>Materials</td><td>{expenseConflict.local.materials.map(m=>`${m.name}: ${m.quantity} ${m.measurementUnit}`).join(' · ')||'None'}</td><td>{expenseConflict.remote?.materials.map(m=>`${m.name}: ${m.quantity} ${m.measurementUnit}`).join(' · ')||'None'}</td></tr>
+        </tbody></table></div><p>Reapplying keeps business payments and applies your pending expense changes against the latest stock. Keeping the business version discards this device’s pending changes to this expense.</p>
+        <div className="material-actions">{(['local','cloud'] as const).map(choice=><button key={choice} disabled={busy} className={choice==='cloud'?'secondary':''} onClick={async()=>{setBusy(true);const target=scope;try{const next=await resolveCloudExpense(target,shop!.id,expenseConflict.local.id,choice,expenseConflict.local.lastEventId,expenseConflict.remote?.lastEventId??null);if(activeScope.current===target){setState(next);setExpenseConflict(null);channel.current?.postMessage('changed');setMessage('Expense review saved. Sync will resume automatically.');}}catch(error){setMessage(errorMessage(error));if(error instanceof ExpenseSyncConflict)setExpenseConflict(error);}finally{setBusy(false);}}}>{choice==='local'?'Reapply pending changes':'Keep business version'}</button>)}</div>
+      </Modal>}
+      {checkoutConflict&&!conflictReviewHidden&&<CheckoutEditor key={checkoutConflict.event.id+JSON.stringify(checkoutConflict.cloud.payments)+JSON.stringify(checkoutConflict.cloud.services)} ledger={checkoutReviewBase(state,checkoutConflict.cloud,checkoutConflict.event.id)} initialCheckout={checkoutConflict.event.data} actor={{id:session!.user.id,label:shop?.staffName||session!.user.email||session!.user.id}} busy={busy} paymentOnly={!checkoutConflict.event.data.jobs.length} onClose={()=>setConflictReviewHidden(true)} onReceipt={setReceipt} onSave={async operation=>{setBusy(true);const target=scope;try{const next=await resolvePendingWork(target,shop!.id,checkoutConflict.event.id,operation);if(activeScope.current===target){setState(next);setCheckoutConflict(null);channel.current?.postMessage('changed');setMessage('Pending checkout updated. Use the updated receipt; syncing will resume automatically.');}return next.ledger.checkouts.find(r=>r.id===operation.id)!;}catch(error){if(error instanceof ExpenseSyncConflict)setExpenseConflict(error);if(error instanceof CheckoutSyncConflict)setCheckoutConflict(error);throw error;}finally{setBusy(false);}}}/>}
       {jobConflict&&!conflictReviewHidden&&<Modal title="Review job progress" busy={busy} onClose={()=>setConflictReviewHidden(true)}><p>{jobConflict.message}</p><p>Business status: {jobConflict.cloud.jobs.find(j=>j.id===jobConflict.event.data.id)?.productionStatus??'Added'}</p><button disabled={busy} onClick={async()=>{setBusy(true);const target=scope;try{const next=await resolvePendingWork(target,shop!.id,jobConflict.event.id,null,jobConflict.event.data.id);if(activeScope.current===target){setState(next);setJobConflict(null);channel.current?.postMessage('changed');}}catch(error){setMessage(errorMessage(error));}finally{setBusy(false);}}}>Use business status</button></Modal>}
       {customerConflict && !conflictReviewHidden && <Modal title="Review conflicting customer edits" wide busy={busy} onClose={() => setConflictReviewHidden(true)}>
         {message && <p role="status">{message}</p>}
@@ -366,7 +379,7 @@ export default function App() {
         <div className="material-actions"><button disabled={busy} onClick={() => void resolveConflict('local')}>Keep this device's version</button><button className="secondary" disabled={busy} onClick={() => void resolveConflict('cloud')}>Keep business version</button></div>
       </Modal>}
       {!demo && !shop ? <section className="auth-card"><h2>Create your business workspace</h2><p>Each business gets its own customers, jobs and payments.</p><form onSubmit={createWorkspace}><label>Business name<input name="businessName" maxLength={160} required /></label><button disabled={busy || !online}>Create workspace</button></form><p className="muted">If you should join an existing business, ask its administrator to add your account.</p></section> : <>
-        {page === 'My Sales' ? <MySalesPage key={scope} ledger={ledger} userId={demo?'local-trial':session!.user.id} username={demo?'trial':shop?.username??''} name={demo?'Local trial user':shop?.staffName??''} ready={ready} busy={busy||hasConflict} online={online} demo={demo} pending={state.pending.length} onReceipt={setReceipt} onHandover={closeDrawer}/> : page === 'Point of Service' ? <PointOfServicePage ledger={ledger} busy={busy||hasConflict} ready={ready} onCheckout={()=>{setPaymentCustomer('');setForm('job');}} onPayment={()=>openPayment()} onJob={setSelectedJob} onNext={(job,mode)=>setJobToAdvance({job,mode})} onReceipt={setReceipt}/> : page === 'Users' ? <UsersPage key={scope} shopId={shop?.id ?? ''} actorId={session?.user.id ?? ''} businessUserId={businessSession?.user.id ?? ''} role={shop?.role ?? ''} online={online} demo={demo} onChanged={()=>setStaffEpoch(value=>value+1)} /> : page === 'Print Settings' ? <PrintSettingsPage key={scope} scope={scope} ready={ready}/> : page === 'Customers' ? <CustomersPage key={scope} ledger={ledger} ready={ready} busy={busy || hasConflict}
+        {page === 'Expenses' ? <ExpensesPage key={scope} ledger={ledger} ready={ready} busy={(!demo&&(shop?.accessLevel??0)<2)||busy||hasConflict} actor={{id:demo?'local-trial':session!.user.id,label:demo?'Local trial user':shop?.staffName||session!.user.email||session!.user.id}} pending={state.pending} onSave={saveCatalogue}/> : page === 'My Sales' ? <MySalesPage key={scope} ledger={ledger} userId={demo?'local-trial':session!.user.id} username={demo?'trial':shop?.username??''} name={demo?'Local trial user':shop?.staffName??''} ready={ready} busy={busy||hasConflict} online={online} demo={demo} pending={state.pending.length} onReceipt={setReceipt} onHandover={closeDrawer}/> : page === 'Point of Service' ? <PointOfServicePage ledger={ledger} busy={busy||hasConflict} ready={ready} onCheckout={()=>{setPaymentCustomer('');setForm('job');}} onPayment={()=>openPayment()} onJob={setSelectedJob} onNext={(job,mode)=>setJobToAdvance({job,mode})} onReceipt={setReceipt}/> : page === 'Users' ? <UsersPage key={scope} shopId={shop?.id ?? ''} actorId={session?.user.id ?? ''} businessUserId={businessSession?.user.id ?? ''} role={shop?.role ?? ''} online={online} demo={demo} onChanged={()=>setStaffEpoch(value=>value+1)} /> : page === 'Print Settings' ? <PrintSettingsPage key={scope} scope={scope} ready={ready}/> : page === 'Customers' ? <CustomersPage key={scope} ledger={ledger} ready={ready} busy={busy || hasConflict}
           actor={{id:demo?'local-trial':session!.user.id,label:demo?'Local trial user':shop?.staffName||session!.user.user_metadata.full_name||session!.user.email||session!.user.id}} onSave={saveCatalogue} onRecordPayment={id=>openPayment(id)} /> : page === 'Materials' ? <MaterialsPage key={scope} materials={ledger.materials} history={ledger.materialHistory} ready={ready} busy={(!demo && shop?.role === 'cashier') || busy || hasConflict}
           actor={{ id: demo ? 'local-trial' : session!.user.id, label: demo ? 'Local trial user' : shop?.staffName || session!.user.user_metadata.full_name || session!.user.email || session!.user.id }}
           onSave={saveCatalogue} /> : page === 'Services' ? <ServicesPage key={scope} services={ledger.services} materials={ledger.materials} ready={ready} busy={(!demo && shop?.role === 'cashier') || busy || hasConflict}

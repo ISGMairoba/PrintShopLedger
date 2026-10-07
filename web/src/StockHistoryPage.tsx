@@ -49,7 +49,7 @@ export default function StockHistoryPage({ history, materials, pending, ready, d
         {visible.map(entry => <tr key={entry.id}><td><strong>{entry.materialName}</strong><small>{materialCode(entry.materialId, materials)}</small></td>
           <td>{quantity(entry.beforeAvailable)}</td><td>{quantity(entry.afterAvailable)}<small>{entry.measurementUnit}</small></td>
           <td>{entry.beforeAvailable == null ? '-' : `${entry.afterAvailable > entry.beforeAvailable ? '+' : ''}${quantity(Math.round((entry.afterAvailable - entry.beforeAvailable) * 1000) / 1000)}`}</td>
-          <td>{materialActionLabels[entry.action]}<small>{demo ? 'On this device' : (pendingIds.has(entry.id)||!!entry.checkoutId&&pendingIds.has(entry.checkoutId)) ? 'Pending sync' : 'Synced'}</small></td>
+          <td>{materialActionLabels[entry.action]}<small>{demo ? 'On this device' : (pendingIds.has(entry.id)||!!entry.checkoutId&&pendingIds.has(entry.checkoutId)||!!entry.expenseId&&pending.some(e=>e.kind.startsWith('expense.')&&e.data.id===entry.expenseId)) ? 'Pending sync' : 'Synced'}</small></td>
           <td>{entry.reason || '-'}</td><td>{entry.changedByLabel}</td><td>{dateLabel(entry.changedAt)}</td>
           <td><button className="text-button" onClick={() => setSelected(entry)}><Icon name="details"/> Details</button></td></tr>)}
       </tbody></table></ResponsiveTable></div>}

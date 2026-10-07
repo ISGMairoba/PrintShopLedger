@@ -77,3 +77,11 @@ Use `src/ResponsiveTable.tsx` for every new list page. Pass the desktop table as
 ## Checkout validation
 
 `npm test` checks calculation precision, allocation, wallet, stock, retries and conflict review. Browser checks include `node scripts/check-checkout.mjs`, existing modal checks, user switching and iPhone layouts. `supabase/tests/checkout.sql` uses fixtures inside a rollback-only transaction to test the real database RPCs without leaving records behind.
+
+## Expenses and purchases
+
+Expenses remain independent of jobs. Add/edit expenses, record partial or full payments, void with a reason, search/filter/sort and inspect full audit/change history. Admins and higher manage records; cashiers can view them. Money is integer kobo. The optional material purchase lines update stock and expense in one local IndexedDB transaction and one guarded database RPC. Editing applies quantity differences; voiding reverses only purchase contributions, allowing negative stock and preserving job consumption. Each stock change links to its expense. Retries are idempotent, and concurrent expense edits require review. Material unit changes block quantity corrections until the original unit is restored.
+
+The summary shows sales less expenses by incurred date, paid out by payment date, and remaining expense balances. Bulk purchases count as period expenses, including unused stock; this is not inventory-based net profit. Voiding excludes the expense from costs and reverses stock, but retains actual payments in paid-out totals; it does not record a refund. Payment source records where money came from. Expense payments are independent of cashier drawer handover calculations.
+
+Receipt/invoice references and notes are supported; receipt-file uploads and refunds are not included in this first version. `tests/expenses.test.mjs`, `supabase/tests/expenses.sql` and `scripts/check-expenses.mjs` cover stock correction, retry, payment, void, business isolation, offline saving and desktop/mobile forms. The SQL fixtures roll back all changes.

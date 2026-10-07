@@ -24,8 +24,8 @@ jobs:
       - run: npm run check:backend
       - run: npx playwright install --with-deps chromium webkit
       - run: node scripts/check-checkout.mjs
+      - run: node scripts/check-expenses.mjs
       - run: npm run test:ui
       - run: node scripts/check-print-settings.mjs
       - run: npm run test:users-ui
       - run: node scripts/check-iphone.mjs
-
