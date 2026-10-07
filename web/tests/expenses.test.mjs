@@ -60,3 +60,11 @@ test('unit changes block stock corrections and preserve the original ledger',()=
  l={...l,materials:l.materials.map(m=>({...m,measurementUnit:'roll'}))};const original=structuredClone(l);
  assert.throws(()=>applyEvent(l,event('expense.voided',{reason:'Returned'},l.expenses[0])),/unit changed/);assert.deepEqual(l,original);
 });
+
+test('retry equality survives database JSON key ordering without accepting changed data',()=>{
+ let l=emptyLedger();const e=event('expense.created',data());l=applyEvent(l,e);
+ const reorder=value=>Array.isArray(value)?value.map(reorder):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).reverse().map(([k,v])=>[k,reorder(v)])):value;
+ const downloaded={...l,expenseHistory:l.expenseHistory.map(reorder)};
+ assert.deepEqual(applyEvent(downloaded,e),downloaded);
+ assert.throws(()=>applyEvent(downloaded,{...e,data:{...e.data,amount:1}}),/Operation ID/);
+});

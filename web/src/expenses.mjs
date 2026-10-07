@@ -30,11 +30,12 @@ export function makeExpenseEvent(kind, data, existing, actor, id = () => crypto.
   const stockIds = Object.fromEntries(stockDeltas(existing, lines, kind === 'expense.voided').map(line => [line.materialId, id()]));
   return { id: id(), kind, data: { ...data, id: existing?.id ?? data.id ?? id(), baseVersion: existing?.version, stockIds, modifiedBy: actor.id, modifiedByLabel: actor.label, modifiedAt: new Date().toISOString() } };
 }
+const canonical = value => JSON.stringify(value, (_, item) => item && typeof item === 'object' && !Array.isArray(item) ? Object.fromEntries(Object.keys(item).sort().map(key => [key, item[key]])) : item);
 export function applyExpenseEvent(input, event) {
   const ledger = normalizeLedger(input), data = event.data;
   if (!event.id || !data.id || !data.modifiedBy || !data.modifiedAt || Number.isNaN(Date.parse(data.modifiedAt))) throw Error('Expense identity and audit information are required.');
   const seen = ledger.expenseHistory.find(entry => entry.id === event.id);
-  if (seen) { if (JSON.stringify(seen.event) !== JSON.stringify(event)) throw Error('Operation ID already used for different data.'); return ledger; }
+  if (seen) { if (canonical(seen.event) !== canonical(event)) throw Error('Operation ID already used for different data.'); return ledger; }
   const existing = ledger.expenses.find(item => item.id === data.id);
   const audit = { modifiedBy: data.modifiedBy, modifiedByLabel: data.modifiedByLabel ?? data.modifiedBy, modifiedAt: data.modifiedAt, lastEventId: event.id };
   if (event.kind === 'expense.created') { if (existing) throw Error('Expense ID already exists.'); }
