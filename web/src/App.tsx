@@ -315,14 +315,10 @@ export default function App() {
   if(!demo&&businessSession&&shops.length>0&&(!session||!shop||shop.userId!==session.user.id||shop.accessLevel===0)) return <main className="auth"><section className="auth-card"><h1>Staff sign in</h1><p>The business is signed in. Enter your username and password.</p><label>Business<select value={shop?.id??''} onChange={e=>setShop(shops.find(item=>item.id===e.target.value)??null)}>{shops.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>{staffLoginForm()}{message&&<p role="alert">{message}</p>}</section></main>;
 
   return <div className="app">
-    <Sidebar header={<>
-      <div className="brand"><div className="brand-mark">S</div><div className="brand-copy"><strong className="brand-title">PrintShopLedger</strong><span className={`connection ${online ? 'online' : ''}`} role="status">{online ? 'Online' : 'Offline'}</span></div></div>
-      <div className="workspace">{demo ? <><strong>Local trial</strong><small>Explore with your own sample records</small></> : <>
-        <div className="sidebar-business"><small>Business</small><strong>{shop?.name}</strong></div>
-        <div className="sidebar-user"><small>Current user</small><strong>{shop?.staffName || 'Not signed in'}</strong><small>@{shop?.username}</small><small>Rank: <span className="staff-rank">{shop?.role}</span> ({shop?.rank})</small></div>
-      </>}</div>
+    <Sidebar title={demo ? 'Local trial' : shop?.name ?? 'Business'} header={<>
+      <div className="brand"><div className="brand-copy"><strong className="brand-title">{demo ? 'Local trial' : shop?.name}</strong><span className={`connection ${online ? 'online' : ''}`} role="status">{online ? 'Online' : 'Offline'} · {state.pending.length} pending changes</span></div></div>
+      <div className="sidebar-user"><strong>{demo ? 'Local trial user' : shop?.staffName || 'Not signed in'}{(demo || shop?.username) && ` (${demo ? 'trial' : shop?.username})`}</strong><small className="staff-rank">{demo ? 'Trial' : shop?.role}</small></div>
     </>} footer={<>
-      <small>{demo ? 'Data saved on this device' : `${state.pending.length} pending changes`}</small>
       {!demo&&<button className="secondary" disabled={busy||!online} onClick={()=>{setSwitchUser(true);setMessage('');}}>Switch user</button>}
       {!demo&&<button className="secondary" disabled={busy} onClick={async()=>{const {error}=await supabase!.auth.signOut({scope:'local'});if(error)setMessage(error.message);else{setSession(null);setMessage('User signed out. Business remains signed in.');}}}>Logout</button>}
       {supabase && (demo || (shop?.accessLevel ?? 0) >= 3) && <button className="secondary" disabled={busy} onClick={async () => {

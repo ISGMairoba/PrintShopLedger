@@ -93,12 +93,12 @@ try {
   assert.ok(before.footer.bottom<=await page.evaluate(()=>innerHeight),'Account controls remain inside viewport');
   return before.sidebar;
  }
- assert.equal(await page.locator('.app-sidebar select').count(),0,'Sidebar has no business selector');
- await page.locator('.sidebar-user').getByText('@manager',{exact:true}).waitFor();
- assert.match(await page.locator('.sidebar-user').innerText(),/Rank: Manager \(3\)/i);
+ assert.equal(await page.locator('.app-sidebar select').count(),0,'Sidebar has no business selector');assert.equal(await page.locator('.sidebar-header .brand-title').innerText(),'Test business');assert.equal(await page.locator('.sidebar-header').getByText('PrintShopLedger',{exact:true}).count(),0);
+ await page.locator('.sidebar-user').getByText('Test Manager (manager)',{exact:true}).waitFor();
+ assert.equal((await page.locator('.sidebar-user .staff-rank').innerText()).toLowerCase(),'manager');assert.equal(await page.locator('.sidebar-user').getByText(/Rank:|Access:/).count(),0);assert.match(await page.locator('.sidebar-header .connection').innerText(),/Online.*pending changes/);assert.equal(await page.locator('.sidebar-bottom .connection').count(),0);
  assert.equal(await page.getByRole('button',{name:'Sign out business',exact:true}).count(),1);
  await page.setViewportSize({width:1280,height:600});
- const wide=await sidebarScrollCheck();assert.equal(wide.left,0);
+ const wide=await sidebarScrollCheck();assert.equal(wide.left,0);await page.waitForFunction(()=>document.querySelector('.sidebar-menu')?.classList.contains('is-scrolling'));await page.waitForFunction(()=>!document.querySelector('.sidebar-menu')?.classList.contains('is-scrolling'));assert.ok(await page.locator('.sidebar-bottom button').first().evaluate(el=>el.getBoundingClientRect().height)<=40,'Footer buttons are compact');
  await page.setViewportSize({width:1060,height:600});
  await page.waitForFunction(()=>innerWidth===1060);
  assert.equal((await sidebarScrollCheck()).width,wide.width,'Desktop sidebar width stays fixed');
@@ -207,11 +207,11 @@ try {
  await dialog.getByLabel('Password',{exact:true}).fill('new-test-only-password');
  await dialog.getByRole('button',{name:'Sign in user',exact:true}).click();
  await dialog.waitFor({state:'detached'});
- await page.locator('.sidebar-user').getByText('Amina Updated',{exact:true}).waitFor();
+ await page.locator('.sidebar-user').getByText('Amina Updated (amina.print)',{exact:true}).waitFor();
  assert.equal(await page.getByRole('button',{name:'Sign out business',exact:true}).count(),0,'Cashier cannot sign out business');
  assert.equal(await page.getByRole('button',{name:'Users',exact:true}).count(),0,'Cashier cannot view Users');
  await page.reload();
- await page.locator('.sidebar-user').getByText('Amina Updated',{exact:true}).waitFor();
+ await page.locator('.sidebar-user').getByText('Amina Updated (amina.print)',{exact:true}).waitFor();
  assert.equal(await page.getByRole('button',{name:'Sign out business',exact:true}).count(),0,'Cashier cannot sign out business');
  await page.getByRole('button',{name:'Logout',exact:true}).click();
  await page.getByRole('heading',{name:'Staff sign in',exact:true}).waitFor();
@@ -229,7 +229,7 @@ try {
   await switchDialog.getByLabel('Password',{exact:true}).fill('test-only-password');
   await switchDialog.getByRole('button',{name:'Sign in user',exact:true}).click();
   await switchDialog.waitFor({state:'detached'});
-  await page.locator('.sidebar-user').getByText('@'+username,{exact:true}).waitFor();
+  await page.locator('.sidebar-user strong').filter({hasText:'('+username+')'}).waitFor();
   assert.equal(await page.getByRole('button',{name:'Sign out business',exact:true}).count(),username==='admin'?0:1,username+' business sign out permission');
   assert.equal(await page.getByRole('button',{name:'Logout',exact:true}).count(),1);
  }
@@ -272,7 +272,7 @@ try {
  await dialog.getByRole('button',{name:'Close drawer and switch user',exact:true}).click();
  await dialog.waitFor({state:'detached'});
  await page.setViewportSize({width:1280,height:800});
- await page.locator('.sidebar-user').getByText('@amina.print',{exact:true}).waitFor();
+ await page.locator('.sidebar-user').getByText('Amina Updated (amina.print)',{exact:true}).waitFor();
  await page.locator('tbody tr').filter({hasText:'Cashier only'}).waitFor();
  assert.equal(await page.getByText('Manager print',{exact:true}).count(),0);
  assert.equal(serverLedger.drawerClosings.length,1);
@@ -291,7 +291,7 @@ try {
  dialog=page.getByRole('dialog',{name:'Close drawer'});assert.match(await dialog.locator('.checkout-summary').innerText(),/Opening cash.*75\.00/s,'Receiver gets counted opening cash');await page.keyboard.press('Escape');
  await page.getByRole('button',{name:'Switch user',exact:true}).click();dialog=page.getByRole('dialog',{name:'Switch user'});
  await dialog.getByLabel('Username',{exact:true}).fill('manager');await dialog.getByLabel('Password',{exact:true}).fill('test-only-password');await dialog.getByRole('button',{name:'Sign in user',exact:true}).click();await dialog.waitFor({state:'detached'});
- await page.locator('.sidebar-user').getByText('@manager',{exact:true}).waitFor();
+ await page.locator('.sidebar-user').getByText('Test Manager (manager)',{exact:true}).waitFor();
  await page.getByRole('button',{name:'My Sales',exact:true}).click();
  await page.getByLabel('My sales status').selectOption('closed');await page.getByRole('button',{name:'All dates',exact:true}).click();
  await page.locator('tbody tr').filter({hasText:'Manager print'}).waitFor();assert.equal(await page.locator('tbody tr').count(),3,'Closed receipts remain viewable');
