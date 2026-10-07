@@ -99,7 +99,13 @@ nav button { display: flex; align-items: center; gap: .8rem; }
   .sidebar-drawer .modal-header{padding:8px 18px}
 }
 .currency-input{font-variant-numeric:tabular-nums}
-.checkout-customer{margin:24px 0;border:1px solid #dfe6df;border-radius:10px;overflow:hidden}
+.checkout-customer{margin:24px 0;border:2px solid #b7d9c6;border-left-width:6px;border-radius:10px;overflow:hidden;background:#f3faf6}
+.checkout-customer .customer-section-toggle{background:#e8f5ed;color:#164c35}
+.checkout-customer .customer-section-toggle:hover{background:#dbefdf}
+.checkout-customer[data-selected="false"]{border-color:#d9a126;background:#fffaf0}
+.checkout-customer[data-selected="false"] .customer-section-toggle{background:#fff0c2;color:#624200}
+.checkout-customer[data-selected="false"] .customer-section-toggle:hover{background:#ffe7a2}
+.checkout-customer[data-selected="false"] .customer-section-toggle span:first-of-type{font-weight:650}
 .customer-section-toggle{display:flex;gap:10px;align-items:center;width:100%;text-align:left;border:0!important;border-radius:0}
 .customer-section-toggle span:first-of-type{flex:1;font-weight:400;overflow-wrap:anywhere}
 #checkout-customer-fields{padding:16px}
