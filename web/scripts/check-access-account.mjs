@@ -31,7 +31,7 @@ try{
   const page=await context.newPage();await page.goto('http://127.0.0.1:4178');
   await page.getByLabel('Business email',{exact:true}).fill('test@example.invalid');await page.getByLabel('Business password',{exact:true}).fill('current-password');await page.getByRole('button',{name:'Sign in',exact:true}).click();await page.getByRole('heading',{name:'Point of Service',exact:true}).waitFor();
   const open=async()=>{if(mobile)await page.getByRole('button',{name:'Menu',exact:true}).click();};
-  await open();const nav=page.getByRole('navigation',{name:'Main'});
+  await open();const nav=page.getByRole('navigation',{name:'Main'});await nav.getByRole('button',{name:'Point of Service',exact:true}).waitFor();
   assert.deepEqual(await nav.getByRole('button').allTextContents(),pages.filter(p=>canAccessPage(p,rank)));
   await nav.getByRole('button',{name:'My Account',exact:true}).click();
   await page.getByLabel('Username',{exact:true}).fill('bad name');assert.equal(await page.getByRole('button',{name:'Save username',exact:true}).isDisabled(),true);
