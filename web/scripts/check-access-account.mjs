@@ -22,7 +22,7 @@ try{
    else if(path.endsWith('/list_my_shops'))result=[{id:shop,name:'Test business',role,rank,accessLevel:rank,userId:id,username,staffName:'Test User'}];
    else if(path.endsWith('/get_ledger'))result={customers:[],jobs:[],payments:[],materials:[],materialHistory:[],services:[],checkouts:[],drawerClosings:[],expenses:[],expenseHistory:[]};
    else if(path.endsWith('/update-credentials')){
-    calls++;assert.equal(body.shopId,shop);assert.equal(body.currentPassword,'current-password');
+    calls++;assert.equal(body.userId,id);assert.equal(body.shopId,shop);assert.equal(body.currentPassword,'current-password');
     if(body.action==='username')username=body.username;else assert.equal(body.password,'new-test-password');
     result={message:body.action==='username'?'Username saved.':'Password saved.'};
    }else throw Error('Unexpected request: '+path);

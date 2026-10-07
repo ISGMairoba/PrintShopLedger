@@ -11,6 +11,7 @@ Deno.serve(async(request:Request)=>{
  if(authError||!auth.user)return reply(401,{error:'Sign in again.'});
  try{
   const body=await request.json();
+  if(body.userId!==auth.user.id)return reply(409,{error:'Your signed-in user changed. Reopen My Account.'});
   if(typeof body.shopId!=='string'||!/^[0-9a-f-]{36}$/i.test(body.shopId)||!['username','password'].includes(body.action))return reply(400,{error:'Invalid request.'});
   if(typeof body.currentPassword!=='string'||!body.currentPassword||body.currentPassword.length>128)return reply(400,{error:'Enter your current password.'});
   const server=createClient(url,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false}});
