@@ -54,7 +54,7 @@ try {
   dialog=page.getByRole('dialog',{name:'Add service'});
   await dialog.getByLabel('Service description').fill('Modal test printing');
   await dialog.getByLabel('Base material').selectOption({index:1});
-  const price=dialog.getByLabel('Price (₦)');await price.fill('70000.50');assert.equal(await price.inputValue(),'70,000.50');assert.equal(await dialog.evaluate(el=>new FormData(el.querySelector('form')).get('price')),'70000.50');await price.fill('1.001');assert.equal(await price.evaluate(el=>el.checkValidity()),false,'No silent rounding of excess decimals');await price.fill('-10');assert.equal(await price.evaluate(el=>el.checkValidity()),false);await price.fill('123456');await price.evaluate(el=>el.setSelectionRange(3,3));await price.press('9');assert.equal(await price.inputValue(),'1,239,456');assert.equal(await price.evaluate(el=>el.selectionStart),5,'Cursor stays beside the inserted digit');await price.press('Backspace');assert.equal(await price.inputValue(),'123,456');await price.evaluate(el=>el.setSelectionRange(4,4));await price.press('Backspace');assert.equal(await price.inputValue(),'123,456');assert.equal(await price.evaluate(el=>el.selectionStart),3,'Deleting a separator keeps the cursor in place');await price.press('Backspace');assert.equal(await price.inputValue(),'12,456');await price.fill('70,000.50');assert.equal(await dialog.evaluate(el=>new FormData(el.querySelector('form')).get('price')),'70000.50','Formatted pasted amount saves exactly');await price.fill('500');await dialog.getByLabel('Service description').focus();assert.equal(await price.inputValue(),'500.00');await price.fill('300');assert.equal(await price.inputValue(),'300','Replacing a formatted value must not append to the old amount');await price.fill('200');
+  const price=dialog.getByLabel('Price (₦)');await price.fill('70000.50');assert.equal(await price.inputValue(),'70,000.50');assert.equal(await dialog.evaluate(el=>new FormData(el.querySelector('form')).get('price')),'70000.50');await price.fill('1.001');assert.equal(await price.inputValue(),'70,000.50','Excess decimals are blocked without rounding');assert.equal(await price.evaluate(el=>el.checkValidity()),true);await price.fill('-10');assert.equal(await price.inputValue(),'70,000.50','Negative entry is blocked');assert.equal(await price.evaluate(el=>el.checkValidity()),true);await price.fill('123456');await price.evaluate(el=>el.setSelectionRange(3,3));await price.press('9');assert.equal(await price.inputValue(),'1,239,456');assert.equal(await price.evaluate(el=>el.selectionStart),5,'Cursor stays beside the inserted digit');await price.press('Backspace');assert.equal(await price.inputValue(),'123,456');await price.evaluate(el=>el.setSelectionRange(4,4));await price.press('Backspace');assert.equal(await price.inputValue(),'123,456');assert.equal(await price.evaluate(el=>el.selectionStart),3,'Deleting a separator keeps the cursor in place');await price.press('Backspace');assert.equal(await price.inputValue(),'12,456');await price.fill('70,000.50');assert.equal(await dialog.evaluate(el=>new FormData(el.querySelector('form')).get('price')),'70000.50','Formatted pasted amount saves exactly');await price.fill('500');await dialog.getByLabel('Service description').focus();assert.equal(await price.inputValue(),'500.00');await price.fill('300');assert.equal(await price.inputValue(),'300','Replacing a formatted value must not append to the old amount');await price.fill('200');
   await dialog.getByRole('button',{name:'Save service',exact:true}).click();
   await dialog.waitFor({state:'detached'});
   await page.getByRole('button',{name:'Edit',exact:true}).click();
@@ -109,7 +109,7 @@ try {
   await page.getByRole('navigation',{name:'Main'}).getByRole('button',{name:'Jobs',exact:true}).click();
   await page.getByRole('button',{name:'New job',exact:true}).click();
   dialog=page.getByRole('dialog',{name:'New checkout'});
-  await dialog.locator('.customer-section-toggle').click();await dialog.getByRole('combobox',{name:'Customer name or phone'}).fill('Alpha');
+  await dialog.getByRole('combobox',{name:'Customer name or phone'}).fill('Alpha');
   await dialog.getByRole('listbox',{name:'Customer suggestions'}).getByRole('option').first().click();
   await dialog.getByLabel('Service',{exact:true}).selectOption({index:1});
   await dialog.getByLabel('Job description').fill('Mobile test job');
@@ -120,7 +120,7 @@ try {
   await page.getByRole('button',{name:'Payments',exact:true}).click();
   await page.getByRole('button',{name:'Record payment',exact:true}).click();
   dialog=page.getByRole('dialog',{name:'Receive payment'});
-  await dialog.locator('.customer-section-toggle').click();await dialog.getByRole('combobox',{name:'Customer name or phone'}).fill('Alpha');
+  await dialog.getByRole('combobox',{name:'Customer name or phone'}).fill('Alpha');
   await dialog.getByRole('listbox',{name:'Customer suggestions'}).getByRole('option').first().click();
   await dialog.getByLabel('Money received (₦)').fill('20');
   await dialog.getByRole('button',{name:'Complete checkout',exact:true}).click();
