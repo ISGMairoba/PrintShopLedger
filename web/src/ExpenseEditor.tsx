@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import CurrencyInput from './CurrencyInput';
 import Icon from './Icon';
+import { amountError, normalizeAmount } from './currency-input.mjs';
 import { money } from './domain.mjs';
 import { expenseCategories, expenseSources, expenseCode, expensePaid, expenseDay, makeExpenseEvent } from './expenses.mjs';
 import { materialCode } from './material-display.mjs';
@@ -15,7 +16,10 @@ export default function ExpenseEditor({expense,materials,expenses,actor,busy,mod
  const [lines,setLines]=useState<ExpenseMaterial[]>(expense?.materials??[]);
  const [recordPayment,setRecordPayment]=useState(!expense);
  const [total,setTotal]=useState(expense?(expense.amount/100).toFixed(2):'');
- const [paid,setPaid]=useState(paymentOnly&&expense?((expense.amount-expensePaid(expense))/100).toFixed(2):'');
+ const [paidOverride,setPaidOverride]=useState<string|null>(null);
+ const recommendedPaid=paymentOnly&&expense?((expense.amount-expensePaid(expense))/100).toFixed(2):total;
+ const paid=paidOverride??(!amountError(recommendedPaid)?normalizeAmount(recommendedPaid):'');
+ const paymentMaximum=recommendedPaid&&!amountError(recommendedPaid)?Number(recommendedPaid):1000000000;
  const update=(index:number,patch:Partial<ExpenseMaterial>)=>setLines(items=>items.map((item,i)=>i===index?{...item,...patch}:item));
  async function submit(e:FormEvent<HTMLFormElement>){
   e.preventDefault();if(busy)return;setError('');const f=new FormData(e.currentTarget);
@@ -54,9 +58,9 @@ export default function ExpenseEditor({expense,materials,expenses,actor,busy,mod
      </>}
     </section>
    </>}
-   {!expense&&<label className="check-label"><input type="checkbox" checked={recordPayment} onChange={e=>setRecordPayment(e.target.checked)}/>Record money paid now</label>}
+   {!expense&&<label className="check-label"><input type="checkbox" checked={recordPayment} onChange={e=>{setRecordPayment(e.target.checked);setPaidOverride(null);}}/>Record money paid now</label>}
    {(paymentOnly||!expense&&recordPayment)&&<section className="expense-payment"><h3>Payment details</h3><div className="form-grid">
-    <label>Amount paid (₦)<CurrencyInput value={paid} onValueChange={setPaid} required={paymentOnly} placeholder="0.00"/></label>
+    <label>Amount paid (₦)<CurrencyInput value={paid} max={paymentMaximum} onValueChange={setPaidOverride} required={paymentOnly} placeholder="0.00"/></label>
     <label>Payment date<input name="paidOn" type="date" defaultValue={expenseDay(new Date().toISOString())} required/></label>
     <label>Payment method<select name="method" defaultValue="Cash"><option>Cash</option><option>POS</option><option>Transfer</option></select></label>
     <label>Paid from<select name="source" defaultValue="Business cash">{expenseSources.map(value=><option key={value}>{value}</option>)}</select></label>

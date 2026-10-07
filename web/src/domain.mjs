@@ -1,3 +1,4 @@
+import { normalizeAmount } from './currency-input.mjs';
 import { applyExpenseEvent } from './expenses.mjs';
 import { applyCheckout, applyJobStatus } from './checkout.mjs';
 import { applyCustomerEvent } from './customers.mjs';
@@ -7,7 +8,7 @@ import { applyMaterialEvent, normalizeLedger } from './materials.mjs';
 // Money is stored as integer kobo. Customer balances are derived from jobs.
 export const emptyLedger = () => ({ expenses: [], expenseHistory: [], drawerClosings: [], customers: [], jobs: [], payments: [], materials: [], materialHistory: [], services: [], checkouts: [] });
 export function money(value) {
-  const text = String(value).trim();
+  const text = normalizeAmount(String(value).trim());
   if (!/^\d+(\.\d{1,2})?$/.test(text)) throw new Error('Enter an amount with at most two decimal places.');
   const [whole, fraction = ''] = text.split('.');
   const amount = Number(whole) * 100 + Number(fraction.padEnd(2, '0'));

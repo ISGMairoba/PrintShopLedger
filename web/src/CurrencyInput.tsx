@@ -1,10 +1,12 @@
-import { useLayoutEffect, useRef, useState, type InputHTMLAttributes } from 'react';
-import { formatAmount, amountError } from './currency-input.mjs';
+import { useId, useLayoutEffect, useRef, useState, type InputHTMLAttributes } from 'react';
+import { formatAmount, amountError, normalizeAmount, pastedAmount } from './currency-input.mjs';
 type Props = Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'defaultValue' | 'onChange' | 'min' | 'max'> & { value?: string; defaultValue?: string; max?: number; onValueChange?: (value: string) => void };
 export default function CurrencyInput({ value, defaultValue = '', name, max = 1000000000, onValueChange, ...props }: Props) {
   const [local, setLocal] = useState(defaultValue);
   const raw = value ?? local;
   const input = useRef<HTMLInputElement>(null);
+  const errorId = useId();
+  const validationError = amountError(raw, max);
   const caret = useRef<number | null>(null);
   const [complete, setComplete] = useState(true);
   const [revision, setRevision] = useState(0);
@@ -19,8 +21,15 @@ export default function CurrencyInput({ value, defaultValue = '', name, max = 10
     }
   }, [raw, display, max, revision]);
   return <><input {...props} ref={input} type="text" inputMode="decimal" autoComplete="off" className={`currency-input ${props.className ?? ''}`} value={display}
+    aria-invalid={!!validationError} aria-describedby={[props['aria-describedby'], validationError ? errorId : ''].filter(Boolean).join(' ') || undefined}
     onFocus={props.onFocus}
-    onBlur={event => { setComplete(true); if (raw.endsWith('.') && !amountError(raw, max)) { const next = raw.slice(0, -1); if (value === undefined) setLocal(next); onValueChange?.(next); } props.onBlur?.(event); }}
+    onPaste={event => { props.onPaste?.(event); if (event.defaultPrevented) return; event.preventDefault();
+      const element = event.currentTarget;
+      const next = pastedAmount(display.slice(0, element.selectionStart ?? 0) + event.clipboardData.getData('text') + display.slice(element.selectionEnd ?? display.length));
+      setComplete(false); caret.current = next.replaceAll(',', '').length;
+      if (value === undefined) setLocal(next); onValueChange?.(next);
+    }}
+    onBlur={event => { setComplete(true); const next = normalizeAmount(raw); if (next !== raw) { if (value === undefined) setLocal(next); onValueChange?.(next); } props.onBlur?.(event); }}
     onChange={event => {
       setComplete(false);
       const text = event.target.value;
@@ -30,5 +39,5 @@ export default function CurrencyInput({ value, defaultValue = '', name, max = 10
       setRevision(current => current + 1);
       if (value === undefined) setLocal(next);
       onValueChange?.(next);
-    }}/>{name && <input type="hidden" name={name} value={raw}/>}</>;
+    }}/>{validationError && <small id={errorId} className="currency-error" role="alert">{validationError}</small>}{name && <input type="hidden" name={name} value={raw}/>}</>;
 }

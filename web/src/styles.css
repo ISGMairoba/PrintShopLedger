@@ -133,3 +133,5 @@ nav button { display: flex; align-items: center; gap: .8rem; }
 .expense-panel table{white-space:normal}.expense-panel th,.expense-panel td{padding:12px 10px}.expense-panel td:first-child{min-width:100px}.expense-panel .material-actions{flex-direction:column;align-items:flex-start;gap:8px}
 
 .expense-panel .text-button{display:inline-flex;align-items:center;gap:6px}
+
+.currency-error{color:#a32929;font-weight:500;overflow-wrap:anywhere}.allocation{flex-wrap:wrap}.allocation-job{flex:1;min-width:0}.allocation-service{display:block;overflow-wrap:anywhere}.allocation-description{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}.allocation .currency-error{flex-basis:100%}.allocation>input{flex:0 1 170px}.allocation>strong{flex-shrink:0}
