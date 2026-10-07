@@ -110,3 +110,9 @@ nav button { display: flex; align-items: center; gap: .8rem; }
 .payment-recommendation p{margin:0}.payment-recommendation strong{color:#124b40}
 
 .drawer-info{padding:0 20px}.stats .app-icon{margin-right:6px}.toolbar:has([aria-label="My sales status"]){flex-wrap:wrap}
+
+.job-service{font-weight:700}.job-actions{display:flex;flex-direction:column;align-items:flex-start;gap:6px}.jobs-table progress{display:block;width:100%;max-width:110px;height:8px;margin-top:7px}.jobs-table td{vertical-align:top}
+
+@media(max-width:740px),(max-width:1024px) and (pointer:coarse){.jobs-table .job-actions button{white-space:normal;text-align:left;padding:5px 0;overflow-wrap:anywhere}.jobs-table .job-actions{gap:7px}.jobs-table td:first-child{min-width:0}}
+
+.job-info small{font-weight:400}.job-progress{display:block;width:100%;max-width:110px;height:8px;margin-top:7px}.mobile-list .job-actions{gap:7px}.mobile-list .job-actions button{white-space:normal;text-align:left;padding:5px 0;overflow-wrap:anywhere}

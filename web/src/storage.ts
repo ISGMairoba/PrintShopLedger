@@ -42,3 +42,8 @@ export async function mutateState(scope: string, mutate: (state: LocalState) => 
 export const saveEvent = (scope: string, event: LedgerEvent, cloud: boolean) => mutateState(scope, state => ({
   ...state, ledger: applyEvent(state.ledger, event), pending: cloud ? [...state.pending, event] : []
 }));
+
+
+export const saveEvents = (scope:string,events:LedgerEvent[],cloud:boolean) => mutateState(scope,state=>({
+ ...state,ledger:events.reduce((ledger,event)=>applyEvent(ledger,event),state.ledger),pending:cloud?[...state.pending,...events]:[]
+}));

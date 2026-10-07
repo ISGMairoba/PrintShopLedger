@@ -12,7 +12,9 @@ A React + TypeScript app for businesses that manage materials, services, custome
 - Atomic checkout saves jobs, allocations, wallet, stock and audit records together. Retrying the same checkout never duplicates records.
 - My Sales shows the signed-in user’s checkout/payment transactions, sortable/searchable with date and closed-status filters, saved receipts and drawer history.
 - Online drawer handover verifies both staff passwords and active business access. It atomically closes all the current user’s unclosed transactions (including overnight), records actual cash, counted cash and any discrepancy, then signs in the receiving user while preserving business sign-in. Incoming counted cash becomes the receiver’s opening cash. POS/transfer/wallet usage are reported separately.
-- Production workflow: Added → In Queue → Printing → Completed → Collected.
+- Production workflow: Added → In Queue → Printing → Completed → Collected. Next Action, Set Action and Mark as Complete record every intervening stage in order; completion remains separate from collection.
+- Point of Service and Jobs share service-first job details, customer phone numbers, payment breakdowns, stage progress and dates. Mobile lists retain three primary columns.
+- Receipts retain their original per-job payment snapshots. Inconsistent job amounts or totals are flagged, hidden and blocked from printing until verified.
 - Receipts use saved QZ Tray printer settings. Printing failure leaves the saved checkout intact and supports manual retry.
 - IndexedDB offline saves and automatic cloud sync on reconnection. Concurrent price, account or workflow changes require review before confirmation.
 - Supabase staff sign-in, business workspaces, ranks, access controls and isolated business records.

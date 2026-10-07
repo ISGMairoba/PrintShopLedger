@@ -1,9 +1,13 @@
+import JobTable from './JobTable';
+import JobActions,{type ProgressMode} from './JobActions';
+import JobProgressDialog from './JobProgressDialog';
+import {progressEvents,lastJobPayment} from './job-progress.mjs';
 import MySalesPage from './MySalesPage';
 import PointOfServicePage from './PointOfServicePage';
 import CheckoutEditor from './CheckoutEditor';
 import ReceiptView from './ReceiptView';
 import { jobStatuses } from './checkout.mjs';
-import { receiptHtml } from './receipts.mjs';
+import { receiptHtml, receiptIntegrityError } from './receipts.mjs';
 import { printAfterTransaction } from './printing';
 import useAutoSync from './useAutoSync';
 import Sidebar from './Sidebar';
@@ -16,7 +20,7 @@ import { useRegisterSW } from 'virtual:pwa-register/react';
 import type { Session } from '@supabase/supabase-js';
 import { customerBalance, emptyLedger, jobBalance } from './domain.mjs';
 import { supabase, businessAuth, syncLedger, MaterialSyncConflict, resolveCloudMaterial, ServiceSyncConflict, resolveCloudService, CustomerSyncConflict, resolveCloudCustomer, CheckoutSyncConflict, JobSyncConflict, resolvePendingWork, checkoutReviewBase } from './cloud';
-import { readState, saveEvent, mutateState } from './storage';
+import { readState, saveEvent, saveEvents, mutateState } from './storage';
 import MaterialsPage from './MaterialsPage';
 import CustomersPage from './CustomersPage';
 import UsersPage from './UsersPage';
@@ -49,7 +53,7 @@ export default function App() {
   const [query, setQuery] = useState('');
   const [form, setForm] = useState<'customer' | 'job' | 'payment' | null>(null);
   const [receipt,setReceipt]=useState<CheckoutRecord|null>(null);
-  const [jobToAdvance,setJobToAdvance]=useState<Job|null>(null);
+  const [jobToAdvance,setJobToAdvance]=useState<{job:Job;mode:ProgressMode}|null>(null);
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
   const [paymentCustomer, setPaymentCustomer] = useState('');
   const [message, setMessage] = useState('');
@@ -152,7 +156,8 @@ export default function App() {
       const record=next.ledger.checkouts.find(r=>r.id===operation.id)!;
       const pending=next.pending.some(e=>e.id===operation.id);
       setMessage(syncProblem|| (demo?'Checkout saved on this device.':pending?'Checkout saved on this device. It will sync automatically.':'Checkout confirmed and saved.'));
-      const printed=await printAfterTransaction(target,`Receipt ${record.id.slice(0,8)}`,receiptHtml(record,demo?'PrintShopLedger — Local trial':shop?.name??'PrintShopLedger',pending),true);
+      const receiptWarning=receiptIntegrityError(record);
+      const printed=receiptWarning?{status:'failed',message:receiptWarning}:await printAfterTransaction(target,`Receipt ${record.id.slice(0,8)}`,receiptHtml(record,demo?'PrintShopLedger — Local trial':shop?.name??'PrintShopLedger',pending),true);
       if(activeScope.current===target&&printed.status==='failed')setMessage(`Checkout saved. Receipt printing failed: ${printed.message}. Open the receipt to retry.`);
       return record;
     }finally{setBusy(false);}
@@ -287,8 +292,8 @@ export default function App() {
   const search = query.toLowerCase();
   const jobSorting = useTableSort<Job>('createdAt','desc');
   const paymentSorting = useTableSort<Payment>('createdAt','desc');
-  const matchingJobs = jobSorting.sortRows(ledger.jobs.filter(job => `${job.description} ${job.service} ${customerName(job.customerId)} ${job.id}`.toLowerCase().includes(search)),{createdAt:job=>Date.parse(job.createdAt),service:job=>job.service,description:job=>job.description,id:job=>job.id,customer:job=>customerName(job.customerId),amount:job=>job.amount,
-    paid:job=>jobBalance(ledger,job).paid,outstanding:job=>jobBalance(ledger,job).outstanding,status:job=>jobBalance(ledger,job).status});
+  const matchingJobs = jobSorting.sortRows(ledger.jobs.filter(job => `${job.description} ${job.service} ${customerName(job.customerId)} ${ledger.customers.find(c=>c.id===job.customerId)?.phone??''} ${job.productionStatus??'Added'} ${job.id}`.toLowerCase().includes(search)),{createdAt:job=>Date.parse(job.createdAt),service:job=>job.service,description:job=>job.description,id:job=>job.id,customer:job=>customerName(job.customerId),amount:job=>job.amount,
+    paid:job=>jobBalance(ledger,job).paid,outstanding:job=>jobBalance(ledger,job).outstanding,status:job=>job.productionStatus??'Added',lastPayment:job=>Date.parse(lastJobPayment(ledger,job)??'')||0,source:job=>job.source??''});
   const matchingPayments = paymentSorting.sortRows(ledger.payments.filter(payment => `${payment.id} ${customerName(payment.customerId)} ${payment.reference} ${payment.method}`.toLowerCase().includes(search)),
     {createdAt:payment=>Date.parse(payment.createdAt),id:payment=>payment.id,date:payment=>Date.parse(payment.paidOn),customer:payment=>customerName(payment.customerId),amount:payment=>payment.amount,method:payment=>payment.method,
       allocations:payment=>payment.allocations.map(allocation=>ledger.jobs.find(job=>job.id===allocation.jobId)?.description??'').join(', ')});
@@ -361,7 +366,7 @@ export default function App() {
         <div className="material-actions"><button disabled={busy} onClick={() => void resolveConflict('local')}>Keep this device's version</button><button className="secondary" disabled={busy} onClick={() => void resolveConflict('cloud')}>Keep business version</button></div>
       </Modal>}
       {!demo && !shop ? <section className="auth-card"><h2>Create your business workspace</h2><p>Each business gets its own customers, jobs and payments.</p><form onSubmit={createWorkspace}><label>Business name<input name="businessName" maxLength={160} required /></label><button disabled={busy || !online}>Create workspace</button></form><p className="muted">If you should join an existing business, ask its administrator to add your account.</p></section> : <>
-        {page === 'My Sales' ? <MySalesPage key={scope} ledger={ledger} userId={demo?'local-trial':session!.user.id} username={demo?'trial':shop?.username??''} name={demo?'Local trial user':shop?.staffName??''} ready={ready} busy={busy||hasConflict} online={online} demo={demo} pending={state.pending.length} onReceipt={setReceipt} onHandover={closeDrawer}/> : page === 'Point of Service' ? <PointOfServicePage ledger={ledger} busy={busy||hasConflict} ready={ready} onCheckout={()=>{setPaymentCustomer('');setForm('job');}} onPayment={()=>openPayment()} onJob={setSelectedJob} onNext={setJobToAdvance} onReceipt={setReceipt}/> : page === 'Users' ? <UsersPage key={scope} shopId={shop?.id ?? ''} actorId={session?.user.id ?? ''} businessUserId={businessSession?.user.id ?? ''} role={shop?.role ?? ''} online={online} demo={demo} onChanged={()=>setStaffEpoch(value=>value+1)} /> : page === 'Print Settings' ? <PrintSettingsPage key={scope} scope={scope} ready={ready}/> : page === 'Customers' ? <CustomersPage key={scope} ledger={ledger} ready={ready} busy={busy || hasConflict}
+        {page === 'My Sales' ? <MySalesPage key={scope} ledger={ledger} userId={demo?'local-trial':session!.user.id} username={demo?'trial':shop?.username??''} name={demo?'Local trial user':shop?.staffName??''} ready={ready} busy={busy||hasConflict} online={online} demo={demo} pending={state.pending.length} onReceipt={setReceipt} onHandover={closeDrawer}/> : page === 'Point of Service' ? <PointOfServicePage ledger={ledger} busy={busy||hasConflict} ready={ready} onCheckout={()=>{setPaymentCustomer('');setForm('job');}} onPayment={()=>openPayment()} onJob={setSelectedJob} onNext={(job,mode)=>setJobToAdvance({job,mode})} onReceipt={setReceipt}/> : page === 'Users' ? <UsersPage key={scope} shopId={shop?.id ?? ''} actorId={session?.user.id ?? ''} businessUserId={businessSession?.user.id ?? ''} role={shop?.role ?? ''} online={online} demo={demo} onChanged={()=>setStaffEpoch(value=>value+1)} /> : page === 'Print Settings' ? <PrintSettingsPage key={scope} scope={scope} ready={ready}/> : page === 'Customers' ? <CustomersPage key={scope} ledger={ledger} ready={ready} busy={busy || hasConflict}
           actor={{id:demo?'local-trial':session!.user.id,label:demo?'Local trial user':shop?.staffName||session!.user.user_metadata.full_name||session!.user.email||session!.user.id}} onSave={saveCatalogue} onRecordPayment={id=>openPayment(id)} /> : page === 'Materials' ? <MaterialsPage key={scope} materials={ledger.materials} history={ledger.materialHistory} ready={ready} busy={(!demo && shop?.role === 'cashier') || busy || hasConflict}
           actor={{ id: demo ? 'local-trial' : session!.user.id, label: demo ? 'Local trial user' : shop?.staffName || session!.user.user_metadata.full_name || session!.user.email || session!.user.id }}
           onSave={saveCatalogue} /> : page === 'Services' ? <ServicesPage key={scope} services={ledger.services} materials={ledger.materials} ready={ready} busy={(!demo && shop?.role === 'cashier') || busy || hasConflict}
@@ -370,18 +375,14 @@ export default function App() {
           <article><span>Paid against jobs</span><strong>{currency(paid)}</strong><small>Allocated to individual jobs</small></article>
           <article><span>Outstanding</span><strong>{currency(total - paid)}</strong><small>{ledger.jobs.filter(job => jobBalance(ledger, job).outstanding > 0).length} jobs awaiting payment</small></article></section>
         <section className="panel"><div className="toolbar"><label className="list-sort-select">Sort by<select aria-label={page==='Jobs'?'Sort jobs by':'Sort payments by'} value={page==='Jobs'?jobSorting.key:paymentSorting.key} onChange={e=>(page==='Jobs'?jobSorting:paymentSorting).toggle(e.target.value)}>
-          {page==='Jobs'?<><option value="createdAt">Created at</option><option value="id">Job ID</option><option value="description">Description</option><option value="service">Service</option><option value="customer">Customer</option><option value="amount">Job amount</option><option value="paid">Paid</option><option value="outstanding">Outstanding</option><option value="status">Status</option></>:<><option value="createdAt">Created at</option><option value="id">Payment ID</option><option value="date">Payment date</option><option value="customer">Customer</option><option value="amount">Amount</option><option value="method">Method</option><option value="allocations">Job allocations</option></>}
+          {page==='Jobs'?<><option value="createdAt">Created at</option><option value="id">Job ID</option><option value="description">Description</option><option value="service">Service</option><option value="customer">Customer</option><option value="amount">Job amount</option><option value="paid">Paid</option><option value="outstanding">Outstanding</option><option value="status">Job stage</option><option value="lastPayment">Last payment date</option></>:<><option value="createdAt">Created at</option><option value="id">Payment ID</option><option value="date">Payment date</option><option value="customer">Customer</option><option value="amount">Amount</option><option value="method">Method</option><option value="allocations">Job allocations</option></>}
         </select></label><button className="secondary" onClick={()=>{const sorting=page==='Jobs'?jobSorting:paymentSorting;sorting.toggle(sorting.key);}}>{(page==='Jobs'?jobSorting:paymentSorting).direction==='asc'?'Ascending ↑':'Descending ↓'}</button><input aria-label={`Search ${page.toLowerCase()}`} placeholder={`Search ${page.toLowerCase()}.`} value={query} onChange={e => setQuery(e.target.value)} />
           <button disabled={!ready || busy || hasConflict || (page==='Payments'&&!ledger.customers.length)} onClick={() => {
             setMessage(''); if (page === 'Payments') openPayment(); else setForm('job');
           }}><Icon name="add"/> {page === 'Jobs' ? 'New job' : 'Record payment'}</button></div>
           {!ready ? <div className="empty">Loading saved records.</div> : page === 'Jobs' ? <>
             {!ledger.jobs.length ? <div className="empty"><div className="empty-icon">?</div><h2>Your jobs start here</h2><p>Add a customer, create their job, then record payments against it.</p>
-              {!ledger.customers.length && <button onClick={() => setForm('customer')}>Add your first customer</button>}</div> : <div className="table-wrap"><ResponsiveTable extraSortOptions={[{key:"createdAt",label:"Created at"},{key:"id",label:"Job ID"},{key:"service",label:"Service"}]} columns={[{index:0,label:"Job",details:[1]},{index:2,label:"Amount",details:[3,4,5]}]}><table><thead><tr><SortHeader label="Job / service" column="description" sort={jobSorting}/><SortHeader label="Customer" column="customer" sort={jobSorting}/><SortHeader label="Job amount" column="amount" sort={jobSorting}/><SortHeader label="Paid" column="paid" sort={jobSorting}/><SortHeader label="Outstanding" column="outstanding" sort={jobSorting}/><SortHeader label="Status" column="status" sort={jobSorting}/></tr></thead><tbody>
-                {matchingJobs.map(job => { const balance = jobBalance(ledger, job); return <tr key={job.id}>
-                  <td><button className="text-button" onClick={() => setSelectedJob(job.id)}>{job.description}</button><small>{job.service} · #{shortId(job.id)}</small></td>
-                  <td>{customerName(job.customerId)}</td><td>{currency(job.amount)}</td><td>{currency(balance.paid)}</td><td>{currency(balance.outstanding)}</td><td><span className={`badge ${balance.status === 'Fully paid' ? 'paid' : balance.status === 'Unpaid' ? 'unpaid' : 'partial'}`}>{balance.status}</span></td>
-                </tr>; })}</tbody></table></ResponsiveTable>{!matchingJobs.length && <p className="empty">No matching jobs.</p>}</div>}</>
+              {!ledger.customers.length && <button onClick={() => setForm('customer')}>Add your first customer</button>}</div> : <div className="table-wrap"><JobTable ledger={ledger} jobs={matchingJobs} sorting={jobSorting} busy={busy||hasConflict} onJob={setSelectedJob} onAction={(job,mode)=>setJobToAdvance({job,mode})}/>{!matchingJobs.length && <p className="empty">No matching jobs.</p>}</div>}</>
           : <>{!ledger.payments.length ? <div className="empty"><h2>A clear payment trail</h2><p>Payments appear here with the jobs they cover.</p></div> : <div className="table-wrap"><ResponsiveTable extraSortOptions={[{key:"createdAt",label:"Created at"},{key:"date",label:"Payment date"}]} columns={[{index:0,label:"Payment",details:[1]},{index:2,label:"Amount",details:[3]},{index:4,label:"Jobs"}]}><table><thead><tr><SortHeader label="Payment" column="id" sort={paymentSorting}/><SortHeader label="Customer" column="customer" sort={paymentSorting}/><SortHeader label="Amount" column="amount" sort={paymentSorting}/><SortHeader label="Method" column="method" sort={paymentSorting}/><SortHeader label="Job allocations" column="allocations" sort={paymentSorting}/></tr></thead><tbody>
             {matchingPayments.map(payment => <tr key={payment.id}>
               <td>#{shortId(payment.id)}<small>{dateLabel(payment.paidOn)}{payment.reference && ` · ${payment.reference}`}</small></td><td>{customerName(payment.customerId)}</td><td>{currency(payment.amount)}<small>Wallet used: {currency(payment.walletUsed??0)}</small><small>Wallet added: {currency(payment.walletAdded??0)}</small></td><td>{payment.method}</td>
@@ -395,13 +396,21 @@ export default function App() {
         <h3>Payment history</h3>{ledger.payments.filter(payment => payment.allocations.some(allocation => allocation.jobId === currentJob.id)).map(payment => <div className="history" key={payment.id}>
           <span>{dateLabel(payment.paidOn)} · {payment.method}<small>{payment.reference || `Payment #${shortId(payment.id)}`}</small></span><strong>{currency(payment.allocations.find(allocation => allocation.jobId === currentJob.id)!.amount)}</strong></div>)}
         {!ledger.payments.some(payment => payment.allocations.some(allocation => allocation.jobId === currentJob.id)) && <p className="muted">No payments recorded yet.</p>}
-        {jobStatuses[jobStatuses.indexOf(currentJob.productionStatus??'Added')+1]&&<button className="secondary" disabled={busy||hasConflict} onClick={()=>setJobToAdvance(currentJob)}>Next action: {jobStatuses[jobStatuses.indexOf(currentJob.productionStatus??'Added')+1]}</button>}
+        <JobActions job={currentJob} busy={busy||hasConflict} onAction={(job,mode)=>setJobToAdvance({job,mode})}/>
         <button disabled={busy || hasConflict || jobBalance(ledger, currentJob).outstanding <= 0} onClick={() => openPayment(currentJob.customerId)}>Receive customer payment</button>
       </Modal>}
       {form === 'customer' && <CustomerEditor customers={ledger.customers} busy={busy} actor={{id:demo?'local-trial':session!.user.id,label:demo?'Local trial user':shop?.staffName||session!.user.user_metadata.full_name||session!.user.email||session!.user.id}} onSave={saveCatalogue} onClose={()=>setForm(null)} />}
       {form && form !== 'customer' && <CheckoutEditor ledger={ledger} actor={{id:demo?'local-trial':session!.user.id,label:demo?'Local trial user':shop?.staffName||session!.user.email||session!.user.id}} busy={busy} paymentOnly={form==='payment'} initialCustomer={form==='payment'?paymentCustomer:''} onSave={completeCheckout} onClose={()=>setForm(null)} onReceipt={setReceipt}/>}
       {receipt&&<ReceiptView record={ledger.checkouts.find(r=>r.id===receipt.id)??receipt} scope={scope} business={demo?'PrintShopLedger — Local trial':shop?.name??'PrintShopLedger'} pending={state.pending.some(e=>e.id===receipt.id)} onClose={()=>setReceipt(null)}/>}
-      {jobToAdvance&&<Modal title={`Move job to ${jobStatuses[jobStatuses.indexOf(jobToAdvance.productionStatus??'Added')+1]}?`} busy={busy} onClose={()=>setJobToAdvance(null)}><p>{jobToAdvance.description}</p><button disabled={busy} onClick={async()=>{setBusy(true);try{await save({id:crypto.randomUUID(),kind:'job.status_changed',data:{id:jobToAdvance.id,baseVersion:jobToAdvance.version??1,status:jobStatuses[jobStatuses.indexOf(jobToAdvance.productionStatus??'Added')+1],modifiedBy:demo?'local-trial':session!.user.id,modifiedByLabel:demo?'Local trial user':shop?.staffName||session!.user.email||session!.user.id,modifiedAt:new Date().toISOString()}});setJobToAdvance(null);}catch(error){setMessage(errorMessage(error));}finally{setBusy(false);}}}>Confirm next action</button></Modal>}
+      {jobToAdvance&&<JobProgressDialog job={jobToAdvance.job} mode={jobToAdvance.mode} busy={busy} onClose={()=>setJobToAdvance(null)} onSave={async targetStage=>{
+        if(busy||!ready||!scope||hasConflict)throw Error('Wait until the workspace is ready.');
+        const targetScope=scope;setBusy(true);
+        try {
+          const events=progressEvents(jobToAdvance.job,targetStage,{id:demo?'local-trial':session!.user.id,label:demo?'Local trial user':shop?.staffName||session!.user.email||session!.user.id});
+          const next=await saveEvents(targetScope,events,!demo);
+          if(activeScope.current===targetScope){setState(next);channel.current?.postMessage('changed');setJobToAdvance(null);setMessage('Job stages saved in order. Changes sync automatically when connected.');}
+        }finally{setBusy(false);}
+      }}/>}
 
     </main>
   </div>;
