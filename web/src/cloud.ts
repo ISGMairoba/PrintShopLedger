@@ -1,3 +1,4 @@
+import {requireConflictReviewer} from './conflict-review';
 import { resolveExpenseState } from './expense-conflicts.mjs';
 import { checkoutReviewBase, replacePendingCheckout, adoptJobStatus } from './checkout-conflicts.mjs';
 import { createClient } from '@supabase/supabase-js';
@@ -105,6 +106,7 @@ export async function syncLedger(scope: string, shopId: string) {
 
 export async function resolveCloudMaterial(scope: string, shopId: string, materialId: string, choice: 'local' | 'cloud', reviewedLocalEvent: string, reviewedRemoteEvent: string) {
   if (!supabase || !navigator.onLine || !navigator.locks) throw new Error('Connect to the internet to resolve this edit.');
+  await requireConflictReviewer(supabase,scope,shopId);
   return navigator.locks.request(`printshopledger-sync:${scope}`, async () => {
     const { data: auth, error: authError } = await supabase!.auth.getSession();
     if (authError || auth.session?.user.id !== scope.split(':')[0]) throw new Error('Your sign-in changed. Sign in again.');
@@ -125,6 +127,7 @@ export async function resolveCloudMaterial(scope: string, shopId: string, materi
 export async function resolveCloudService(scope: string, shopId: string, serviceId: string, choice: 'local' | 'cloud',
   reviewedLocalEvent: string, reviewedRemoteEvent: string | null, materialId: string | null) {
   if (!supabase || !navigator.onLine || !navigator.locks) throw new Error('Connect to the internet to resolve this service.');
+  await requireConflictReviewer(supabase,scope,shopId);
   return navigator.locks.request(`printshopledger-sync:${scope}`, async () => {
     const { data: auth, error: authError } = await supabase!.auth.getSession();
     if (authError || auth.session?.user.id !== scope.split(':')[0]) throw new Error('Your sign-in changed. Sign in again.');
@@ -150,6 +153,7 @@ export async function resolveCloudService(scope: string, shopId: string, service
 export async function resolveCloudCustomer(scope: string, shopId: string, customerId: string, choice: 'local' | 'cloud',
   reviewedLocalEvent: string | null, reviewedRemoteEvent: string | null) {
   if (!supabase || !navigator.onLine || !navigator.locks) throw new Error('Connect to the internet to resolve this customer.');
+  await requireConflictReviewer(supabase,scope,shopId);
   return navigator.locks.request(`printshopledger-sync:${scope}`, async () => {
     const { data: auth, error: authError } = await supabase!.auth.getSession();
     if (authError || auth.session?.user.id !== scope.split(':')[0]) throw new Error('Your sign-in changed. Sign in again.');
@@ -171,7 +175,8 @@ export async function resolveCloudCustomer(scope: string, shopId: string, custom
 
 export async function resolvePendingWork(scope:string,shopId:string,eventId:string,replacement:CheckoutEvent|null,jobId?:string){
  if(!supabase||!navigator.onLine||!navigator.locks)throw Error('Connect to the internet to review this pending work.');
- return navigator.locks.request(`printshopledger-sync:${scope}`,async()=>{
+ await requireConflictReviewer(supabase,scope,shopId);
+  return navigator.locks.request(`printshopledger-sync:${scope}`,async()=>{
   const check=async()=>{const {data,error}=await supabase!.auth.getSession();if(error||data.session?.user.id!==scope.split(':')[0])throw Error('Your sign-in changed. Sign in again.');};
   await check();const {data,error}=await supabase!.rpc('get_ledger',{p_shop:shopId}).abortSignal(AbortSignal.timeout(20000));if(error)throw Error(error.message);await check();
   const cloud=normalizeLedger(data);
@@ -182,7 +187,8 @@ export {checkoutReviewBase};
 
 export async function resolveCloudExpense(scope:string,shopId:string,expenseId:string,choice:'local'|'cloud',reviewedLocal:string,reviewedRemote:string|null){
  if(!supabase||!navigator.onLine||!navigator.locks)throw Error('Connect to the internet to review this expense.');
- return navigator.locks.request(`printshopledger-sync:${scope}`,async()=>{
+ await requireConflictReviewer(supabase,scope,shopId);
+  return navigator.locks.request(`printshopledger-sync:${scope}`,async()=>{
   const check=async()=>{const {data,error}=await supabase!.auth.getSession();if(error||data.session?.user.id!==scope.split(':')[0])throw Error('Your sign-in changed. Sign in again.');};
   await check();const {data,error}=await supabase!.rpc('get_ledger',{p_shop:shopId}).abortSignal(AbortSignal.timeout(20000));if(error)throw Error(error.message);await check();
   const cloud=normalizeLedger(data);

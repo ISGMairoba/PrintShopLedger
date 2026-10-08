@@ -1,7 +1,7 @@
-import {useState} from 'react';
+import {useState,type ReactNode} from 'react';
 import {defaultOptions} from './business-options.mjs';
 type Options=ReturnType<typeof defaultOptions>;
-export default function BusinessOptionsEditor({value,onChange,disabled}:{value:Options;onChange:(value:Options)=>void;disabled:boolean}){
+export default function BusinessOptionsEditor({value,onChange,disabled,saveControl}:{value:Options;onChange:(value:Options)=>void;disabled:boolean;saveControl?:ReactNode}){
  const [error,setError]=useState(''),[payment,setPayment]=useState(''),[kind,setKind]=useState('Transfer');
  function update(key:keyof Options,next:unknown){onChange({...value,[key]:next});setError('');}
  return <fieldset disabled={disabled}><legend>Dropdowns & job workflow</legend><p>Changes apply to new entries. Saved payments and existing jobs keep their original details and stage order.</p>
@@ -15,5 +15,5 @@ export default function BusinessOptionsEditor({value,onChange,disabled}:{value:O
  <div className="business-payment-option"><label>New payment method<input aria-label="New payment method" maxLength={80} value={payment} onChange={e=>setPayment(e.target.value)}/></label><label>Accounting type<select aria-label="New payment accounting type" value={kind} onChange={e=>setKind(e.target.value)}>{['Cash','POS','Transfer'].map(name=><option key={name}>{name}</option>)}</select></label><button type="button" className="secondary" disabled={value.paymentMethods.length>=30} onClick={()=>{const label=payment.trim();if(!label||value.paymentMethods.some(item=>item.label.toLowerCase()===label.toLowerCase())){setError('Enter a unique payment method name.');return;}update('paymentMethods',[...value.paymentMethods,{label,kind,enabled:true}]);setPayment('');}}>Add payment method</button></div>{error&&<p role="alert" className="notice">{error}</p>}
  <div className="form-grid">{([['expenseCategories','Expense categories',80],['jobSources','Job sources',80],['stockReasons','Stock reasons',200],['materialUnits','Material units',40]] as const).map(([key,label,max])=><label key={key}>{label}<textarea aria-label={label} rows={5} value={value[key].join('\n')} onChange={e=>update(key,e.target.value.split('\n'))}/><small>One option per line, up to {max} characters each. Blank lines and duplicate names must be removed before saving.</small></label>)}</div>
  <label>Job stages<textarea aria-label="Job stages" rows={7} value={value.jobStages.join('\n')} onChange={e=>update('jobStages',e.target.value.split('\n'))}/><small>One stage per line, in production order. Keep Added first, and Completed then Collected last. Add steps such as Design, Approval, Finishing or Packing in between. Existing jobs retain their saved workflow.</small></label>
- </fieldset>;
+ {saveControl}</fieldset>;
 }

@@ -7,6 +7,7 @@ export const jobSources=['In shop / USB','Shop network','WhatsApp','Email','Othe
 const maxMoney=100000000000;
 function amount(value,allowZero=true){if(!Number.isSafeInteger(value)||value<(allowZero?0:1)||value>maxMoney)throw Error('Enter a valid amount with at most two decimal places.');return value;}
 export function units(value){const text=String(value).trim();if(!/^\d+(\.\d{1,3})?$/.test(text))throw Error('Quantities and dimensions allow up to three decimal places.');const n=Number(text);if(!Number.isFinite(n)||n<=0||n>1000000)throw Error('Quantity and dimensions must be greater than zero and at most 1,000,000.');return n;}
+export const stockCountEvent=(ledger,materialId)=>ledger.materialHistory.filter(item=>item.materialId===materialId&&item.action==='material.stock_set').sort((a,b)=>Date.parse(b.changedAt)-Date.parse(a.changedAt)||b.id.localeCompare(a.id))[0]?.id??null;
 export function quoteLine(ledger,line){
  const service=ledger.services.find(s=>s.id===line.serviceId&&!s.archived);
  const material=ledger.materials.find(m=>m.id===service?.materialId&&!m.archived);
@@ -19,7 +20,7 @@ export function quoteLine(ledger,line){
  const total=Number((BigInt(service.price)*raw+divisor/2n)/divisor);amount(total);
  if(!Number.isFinite(needed)||needed<=0||needed>1000000000000)throw Error('Material usage is outside the supported range.');
  if(typeof line.source!=='string'||!line.source.trim()||line.source.length>80||/[\x00-\x1f\x7f]/.test(line.source)||String(line.sourceNote??'').length>200)throw Error('Choose how the job was received.');
- return {...line,...(line.workflow?{workflow:validateWorkflow(line.workflow)}:{}),description:line.description.trim(),quantity,width,height,amount:total,unitPrice:service.price,service:service.description,materialId:material?.id??null,materialNeeded:material?needed:0,measurementUnit:material?.measurementUnit??'item',requireSize:material?.requireSize??false,serviceVersion:service.version,sourceNote:String(line.sourceNote??'').trim()};
+ return {...line,stockCountEventId:material?stockCountEvent(ledger,material.id):null,...(line.workflow?{workflow:validateWorkflow(line.workflow)}:{}),description:line.description.trim(),quantity,width,height,amount:total,unitPrice:service.price,service:service.description,materialId:material?.id??null,materialNeeded:material?needed:0,measurementUnit:material?.measurementUnit??'item',requireSize:material?.requireSize??false,serviceVersion:service.version,sourceNote:String(line.sourceNote??'').trim()};
 }
 export function walletBalance(ledger,customerId){return ledger.payments.filter(p=>p.customerId===customerId).reduce((sum,p)=>sum+(p.walletAdded??0)-(p.walletUsed??0),0);}
 export function accountToken(ledger,customerId){return 'wallet='+walletBalance(ledger,customerId)+';'+ledger.jobs.filter(j=>j.customerId===customerId).map(j=>[j.id,jobBalance(ledger,j).outstanding]).sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0).map(([id,n])=>id+':'+n).join(',');}
@@ -58,6 +59,7 @@ export function applyCheckout(ledger,event){
  const data=event.data;if((ledger.checkouts??[]).some(c=>c.id===data.id))return ledger;
  const rebuilt=prepareCheckout(ledger,{customerId:data.customerId,newCustomer:data.newCustomer,lines:data.jobs,cashReceived:data.cashReceived,useWallet:data.useWallet,override:data.override,method:data.method,...(data.methodLabel?{methodLabel:data.methodLabel}:{}),paidOn:data.paidOn,reference:data.reference},{id:data.createdBy,label:data.createdByLabel},data.id,data.createdAt);
  for(let index=0;index<data.jobs.length;index++)for(const key of ['amount','unitPrice','materialNeeded','materialId','requireSize','serviceVersion'])if(data.jobs[index][key]!==rebuilt.data.jobs[index][key])throw Error('Job price or material changed. Review the checkout.');
+ for(let index=0;index<data.jobs.length;index++)if((data.jobs[index].stockCountEventId??null)!==(rebuilt.data.jobs[index].stockCountEventId??null))throw Error('Stock count changed. Supervisor review is required before deducting these materials.');
  if(data.expectedAccount!==rebuilt.data.expectedAccount)throw Error('The customer account changed. Review the latest balances.');
  for(const key of ['total','walletUsed','walletAdded','walletAfter','outstandingBefore','outstandingAfter'])if(data[key]!==rebuilt.data[key])throw Error('Checkout amounts changed. Review the checkout.');
  if(JSON.stringify(data.allocations)!==JSON.stringify(rebuilt.data.allocations))throw Error('Checkout allocations changed.');

@@ -1,3 +1,4 @@
+import ListedCombobox from './ListedCombobox';
 import {useBusinessOptions} from './BusinessOptionsContext';
 import { useState, type FormEvent } from 'react';
 import Modal from './Modal';
@@ -12,6 +13,8 @@ const currency = (value:number) => new Intl.NumberFormat('en-NG',{style:'currenc
 type Props={expense?:Expense;materials:Material[];expenses:Expense[];actor:{id:string;label:string};busy:boolean;mode?:'edit'|'payment';onSave:(event:ExpenseEvent)=>Promise<void>;onClose:()=>void};
 export default function ExpenseEditor({expense,materials,expenses,actor,busy,mode='edit',onSave,onClose}:Props){
  const options=useBusinessOptions(),expenseCategories=options.expenseCategories,paymentMethods=options.paymentMethods.filter(item=>item.enabled);
+ const categoryOptions=[...new Set([...expenseCategories,...(expense?[expense.category]:[])])];
+ const [category,setCategory]=useState(expense?.category??(expenseCategories.includes('Other')?'Other':expenseCategories[0]));
  const paymentOnly=mode==='payment';
  const [error,setError]=useState('');
  const [stock,setStock]=useState(!!expense?.materials.length);
@@ -26,6 +29,7 @@ export default function ExpenseEditor({expense,materials,expenses,actor,busy,mod
  async function submit(e:FormEvent<HTMLFormElement>){
   e.preventDefault();if(busy)return;setError('');const f=new FormData(e.currentTarget);
   try{
+   if(!paymentOnly&&!categoryOptions.includes(category))throw Error('Choose a category from the list.');
    if(!paymentOnly&&stock&&!lines.length)throw Error('Add at least one purchased material, or turn off Add purchased materials to stock.');
    const payment=paymentOnly||!expense&&recordPayment&&money(paid||'0')>0?{id:crypto.randomUUID(),amount:money(paid),paidOn:String(f.get('paidOn')),method:paymentMethods.find(item=>item.label===String(f.get('method')))?.kind??'',methodLabel:String(f.get('method')),source:String(f.get('source')),reference:String(f.get('reference')).trim()}:undefined;
    if(paymentOnly&&money(paid||'0')===0)throw Error('Enter an amount greater than zero.');
@@ -40,7 +44,7 @@ export default function ExpenseEditor({expense,materials,expenses,actor,busy,mod
    {!paymentOnly&&<>
     <div className="form-grid">
      <label>Description<input name="description" maxLength={500} defaultValue={expense?.description??''} required placeholder="e.g. Paper purchase or generator fuel"/></label>
-     <label>Category<input name="category" list="expense-category-options" maxLength={80} defaultValue={expense?.category??(expenseCategories.includes('Other')?'Other':expenseCategories[0])} required/><datalist id="expense-category-options">{[...new Set([...expenseCategories,...(expense?[expense.category]:[])])].map(value=><option key={value} value={value}/>)}</datalist></label>
+     <ListedCombobox label="Category" name="category" options={categoryOptions} value={category} onChange={setCategory}/>
      <label>Date incurred<input name="incurredOn" type="date" defaultValue={expense?.incurredOn??expenseDay(new Date().toISOString())} required/></label>
      <label>Total cost (₦)<CurrencyInput name="amount" value={total} onValueChange={setTotal} required/></label>
      <label>Supplier / paid to<input name="payee" maxLength={160} defaultValue={expense?.payee??''} list="expense-payee-options"/><datalist id="expense-payee-options">{[...new Set(expenses.map(item=>item.payee).filter(Boolean))].map(value=><option key={value} value={value}/>)}</datalist></label>

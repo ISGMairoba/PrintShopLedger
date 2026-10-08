@@ -14,6 +14,8 @@ try {
   const id='11111111-1111-4111-8111-111111111111',shop='22222222-2222-4222-8222-222222222222',material='33333333-3333-4333-8333-333333333333';
   const now=new Date().toISOString(),user={id,aud:'authenticated',role:'authenticated',email:'test@example.invalid',user_metadata:{full_name:'Test User'},app_metadata:{provider:'email'},created_at:now};
   const token=[{alg:'HS256',typ:'JWT'},{sub:id,role:'authenticated',exp:Math.floor(Date.now()/1000)+3600},'c2lnbmF0dXJl'].map(x=>typeof x==='string'?x:Buffer.from(JSON.stringify(x)).toString('base64url')).join('.');
+  let cashierMode=false;
+  const supervisorToken=[{alg:'HS256',typ:'JWT'},{sub:'99999999-9999-4999-8999-999999999999',role:'authenticated',exp:Math.floor(Date.now()/1000)+3600},'c2lnbmF0dXJl'].map(x=>typeof x==='string'?x:Buffer.from(JSON.stringify(x)).toString('base64url')).join('.');
   let failBusiness=true,failStaff=false,holdLookup=false,held=[],writes=0,conflictCode='PT409',noBusiness=false,creations=0;
   let cloud=applyEvent(emptyLedger(),{id:crypto.randomUUID(),kind:'material.created',data:{id:material,name:'Paper',available:10,measurementUnit:'sheet',requireSize:false,modifiedBy:id,modifiedByLabel:'Test User',modifiedAt:now}});
   await context.route('https://*.supabase.co/**',async route=>{
@@ -28,7 +30,7 @@ try {
     if(holdLookup){held.push(route);return;}
     if(failBusiness){status=504;result={message:'Business lookup timed out'};}else result=noBusiness?[]:[{id:shop,name:'Test business'}];
    }else if(path.endsWith('/list_my_shops')){
-    if(failStaff){status=403;result={message:'Staff lookup unavailable'};}else result=[{id:shop,name:'Test business',role:'manager',rank:3,accessLevel:3,userId:id,username:'manager',staffName:'Test User'}];
+    if(failStaff){status=403;result={message:'Staff lookup unavailable'};}else {const supervisor=route.request().headers().authorization==='Bearer '+supervisorToken;const rank=cashierMode&&!supervisor?1:3;result=[{id:shop,name:'Test business',role:rank===1?'cashier':'manager',rank,accessLevel:rank,userId:supervisor?'99999999-9999-4999-8999-999999999999':id,username:rank===1?'cashier':'manager',staffName:'Test User'}];}
    }else if(path.endsWith('/business_settings'))result=[];
    else if(path.endsWith('/get_ledger'))result=cloud;
    else if(path.endsWith('/apply_material_event')){
@@ -36,7 +38,7 @@ try {
     cloud=applyEvent(cloud,{id:crypto.randomUUID(),kind:'material.updated',data:{...event.data,name:'Business paper '+writes,baseVersion:cloud.materials[0].version}});
     status=409;result={code:conflictCode,message:'Material changed elsewhere. Sync and reopen it before editing.'};
    }else if(path.endsWith('/create_shop')){creations++;noBusiness=false;failBusiness=true;result=shop;}
-   else if(path.endsWith('/staff-login'))result={access_token:token,refresh_token:'mock-refresh'};
+   else if(path.endsWith('/staff-login'))result={access_token:route.request().postDataJSON().username==='supervisor'?supervisorToken:token,refresh_token:'mock-refresh'};
    else throw Error('Unexpected request '+path);
    await route.fulfill({status,contentType:'application/json',body:JSON.stringify(result)});
   });
@@ -80,7 +82,13 @@ try {
    const before=writes;assert.equal((await saved()).pending.length,1,'Conflict keeps pending work');
    await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await page.clock.runFor(10000);
    assert.equal(writes,before,'Conflict review pauses write retries, even after focus');
+   if(code==='PT409'){
+    cashierMode=true;await page.reload();await page.getByRole('alert').filter({hasText:'Admin review required.'}).waitFor();assert.equal(await page.getByRole('dialog',{name:'Review conflicting material edits'}).count(),0);assert.equal(await page.getByRole('button',{name:'Add job',exact:true}).isEnabled(),false);
+    await page.getByRole('button',{name:'Supervisor review',exact:true}).click();let login=page.getByRole('dialog',{name:'Supervisor conflict review'});await login.getByLabel('Supervisor username').fill('cashier');await login.getByLabel('Supervisor password').fill('password');await login.getByRole('button',{name:'Verify supervisor'}).click();await login.getByRole('alert').filter({hasText:'Admin, Manager or Developer access is required'}).waitFor();
+    await login.getByLabel('Supervisor username').fill('supervisor');await login.getByRole('button',{name:'Verify supervisor'}).click();await login.waitFor({state:'detached'});await review.waitFor();
+   }
    await review.getByRole('button',{name:'Keep business version',exact:true}).click();await review.waitFor({state:'detached'});
+   cashierMode=false;if(code==='PT409'){await page.reload();await page.getByRole('heading',{name:'Point of Service',exact:true}).waitFor();}
    assert.equal((await saved()).pending.length,0);assert.equal((await saved()).ledger.materials[0].name,'Business paper '+writes);
   }
   if(mobile)await openMenu();

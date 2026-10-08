@@ -5,7 +5,7 @@ import Modal from './Modal';
 import { rebalanceManualAllocations } from './manual-allocation.mjs';
 import Icon from './Icon';
 import CustomerEditor from './CustomerEditor';
-import { prepareCheckout, quoteLine, paymentPlan, walletBalance, unpaidJobs } from './checkout.mjs';
+import { prepareCheckout, quoteLine, paymentPlan, walletBalance, unpaidJobs,stockCountEvent } from './checkout.mjs';
 import { applyCustomerEvent } from './customers.mjs';
 import { money, jobBalance, customerBalance } from './domain.mjs';
 import { currency } from './receipts.mjs';
@@ -41,6 +41,8 @@ export default function CheckoutEditor({ledger,actor,busy,paymentOnly=false,init
  const paymentMethods=initialCheckout&&!availableMethods.some(item=>item.label===originalMethodLabel&&item.kind===initialCheckout.method)?[{label:originalMethodLabel!,kind:initialCheckout.method,enabled:true},...availableMethods.filter(item=>item.label!==originalMethodLabel)]:availableMethods;
  const method=paymentMethods.find(item=>item.label===methodLabel)?.kind??'';
  const [paidOn,setPaidOn]=useState(initialCheckout?.paidOn??today()),[reference,setReference]=useState(initialCheckout?.reference??''),[error,setError]=useState('');
+ const [stockReviewConfirmed,setStockReviewConfirmed]=useState(false);
+ const stockCountChanged=!!initialCheckout?.jobs.some(job=>job.materialId&&(job.stockCountEventId??null)!==stockCountEvent(ledger,job.materialId));
  const working:Ledger=newCustomer&&!ledger.customers.some(c=>c.id===newCustomer.data.id)?applyCustomerEvent(ledger,newCustomer):ledger;
  const customer=working.customers.find(c=>c.id===customerId&&!c.archived);
  const matches=working.customers.filter(c=>!c.archived&&`${c.name} ${c.phone}`.toLowerCase().includes(query.toLowerCase())).slice(0,8);
@@ -74,7 +76,8 @@ export default function CheckoutEditor({ledger,actor,busy,paymentOnly=false,init
  <Modal title={initialCheckout?'Review pending checkout':paymentOnly?'Receive payment':'New checkout'} wide busy={busy} onClose={onClose}>
  {initialCheckout&&<p className="notice">This checkout is already saved on this device. Keep the money received as originally collected; do not collect it again. Review updated prices, wallet credit and allocations before confirming. An earlier pending receipt will be replaced.</p>}
  {error&&<p className="notice" role="alert">{error}</p>}
- <form onSubmit={async e=>{e.preventDefault();if(busy)return;setError('');try{if(!preview){if(!customer)document.getElementById('checkout-customer-input')?.focus();throw Error(previewError||'Select a customer.');}const event=prepareCheckout(ledger,{customerId,newCustomer,lines,cashReceived:money(cash||'0'),useWallet,override:manual?Object.entries(allocations).filter(([,n])=>money(n||'0')>0).map(([jobId,n])=>({jobId,amount:money(n)})):null,method,methodLabel,paidOn,reference},actor,String(crypto.randomUUID()),initialCheckout?.createdAt??new Date().toISOString()) as CheckoutEvent;const record=await onSave(event);onClose();onReceipt(record);}catch(cause){setError(cause instanceof Error?cause.message:String(cause));}}}>
+ {stockCountChanged&&<div className="notice"><strong>A newer stock count affects this checkout.</strong><p>Confirm whether these jobs were included in the physical count. Saving this checkout deducts their material usage. If the count already included them, confirm all pending sales first, then record a fresh physical count before reopening sales.</p><label className="check-label"><input type="checkbox" checked={stockReviewConfirmed} onChange={e=>setStockReviewConfirmed(e.target.checked)}/>I have reviewed the stock count and the material deduction.</label></div>}
+ <form onSubmit={async e=>{e.preventDefault();if(busy)return;setError('');try{if(stockCountChanged&&!stockReviewConfirmed)throw Error('Confirm the stock-count review before saving.');if(!preview){if(!customer)document.getElementById('checkout-customer-input')?.focus();throw Error(previewError||'Select a customer.');}const event=prepareCheckout(ledger,{customerId,newCustomer,lines,cashReceived:money(cash||'0'),useWallet,override:manual?Object.entries(allocations).filter(([,n])=>money(n||'0')>0).map(([jobId,n])=>({jobId,amount:money(n)})):null,method,methodLabel,paidOn,reference},actor,String(crypto.randomUUID()),initialCheckout?.createdAt??new Date().toISOString()) as CheckoutEvent;const record=await onSave(event);onClose();onReceipt(record);}catch(cause){setError(cause instanceof Error?cause.message:String(cause));}}}>
  <fieldset disabled={busy}>
  {!paymentOnly&&<><h3>Jobs in this checkout</h3>{lines.map((item,index)=>{const service=working.services.find(s=>s.id===item.serviceId),material=working.materials.find(m=>m.id===service?.materialId);const quote=quotedLines[index];return <section className="cart-line" key={item.id}><div className="cart-line-title"><strong>Job {index+1}</strong>{lines.length>1&&<button type="button" className="text-button danger-text" onClick={()=>setLines(v=>v.filter(j=>j.id!==item.id))}>Remove job</button>}</div><div className="form-grid">
  <label>Service<select aria-label="Service" required value={item.serviceId} onChange={e=>editLine(item.id,'serviceId',e.target.value)}><option value="">Select service</option>{working.services.filter(s=>!s.archived&&(s.materialId===null||working.materials.some(m=>m.id===s.materialId&&!m.archived))).map(s=><option key={s.id} value={s.id}>{s.description} — {currency(s.price)}</option>)}</select></label>

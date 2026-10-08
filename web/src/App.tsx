@@ -1,3 +1,4 @@
+import {approveConflictReview,clearConflictApproval} from './conflict-review';
 import {paymentName} from './business-options.mjs';
 import {BusinessOptionsContext} from './BusinessOptionsContext';
 import useBusinessBranding from './useBusinessBranding';
@@ -76,6 +77,8 @@ export default function App() {
   const [customerConflict, setCustomerConflict] = useState<CustomerSyncConflict | null>(null);
   const [serviceConflict, setServiceConflict] = useState<ServiceSyncConflict | null>(null);
   const [conflict, setConflict] = useState<MaterialSyncConflict | null>(null);
+  const [supervisor,setSupervisor]=useState('');
+  const [supervisorLogin,setSupervisorLogin]=useState(false);
   const [conflictReviewHidden, setConflictReviewHidden] = useState(false);
   const [online, setOnline] = useState(navigator.onLine);
   const scope = demo ? 'local-trial' : businessSession && session && shop && shop.userId===session.user.id && shop.accessLevel>0 ? `${session.user.id}:${shop.id}` : '';
@@ -145,6 +148,7 @@ export default function App() {
 
   useEffect(() => {
     setReady(false); setState({ ledger: emptyLedger(), pending: [] });
+    clearConflictApproval();setSupervisor('');setSupervisorLogin(false);
     setExpenseConflict(null);setCheckoutConflict(null);setJobConflict(null);setReceipt(null);setJobToAdvance(null);setForm(null); setSelectedJob(null); setQuery(''); setConflict(null); setServiceConflict(null); setCustomerConflict(null); setConflictReviewHidden(false);
     if (!scope) return;
     let active = true;
@@ -165,12 +169,12 @@ export default function App() {
     setMessage(demo ? 'Saved on this device.' : 'Saved on this device. Changes sync automatically when connected.');
   }
   async function saveCatalogue(operation: MaterialEvent | ServiceEvent | CustomerEvent | ExpenseEvent) {
-    if (busy || !ready || (!demo && (!session || !shop || shop.userId!==session.user.id || shop.accessLevel===0))) throw new Error('Please wait until the staff workspace is ready.');
+    if (busy || !ready || hasConflict || (!demo && (!session || !shop || shop.userId!==session.user.id || shop.accessLevel===0))) throw new Error('Please wait until the staff workspace is ready.');
     setBusy(true); setMessage('');
     try { await save(operation); } finally { setBusy(false); }
   }
   async function completeCheckout(operation:CheckoutEvent):Promise<CheckoutRecord>{
-    if(busy||!ready||!scope)throw Error('Wait until the workspace is ready.');
+    if(busy||!ready||!scope||hasConflict)throw Error('Resolve the pending conflict before making another sale.');
     const target=scope;setBusy(true);
     try{
       let next=await saveEvent(target,operation,!demo);
@@ -224,6 +228,9 @@ export default function App() {
     }finally{setBusy(false);}
   }
   const hasConflict=!!(expenseConflict||conflict||serviceConflict||customerConflict||checkoutConflict||jobConflict);
+  const canReviewConflicts=demo||(shop?.accessLevel??0)>=2||!!supervisor;
+  useEffect(()=>{if(!hasConflict){clearConflictApproval();setSupervisor('');setSupervisorLogin(false);}},[hasConflict]);
+  useEffect(()=>{if(!supervisor)return;const timer=setTimeout(()=>{clearConflictApproval();setSupervisor('');setConflictReviewHidden(true);},5*60000);return()=>clearTimeout(timer);},[supervisor]);
   const syncStatus=useAutoSync({
     scope,enabled:!demo&&!!scope&&ready&&!switchUser,online,
     paused:busy||hasConflict,
@@ -368,8 +375,11 @@ export default function App() {
       {switchUser&&<Modal title="Switch user" busy={busy} onClose={()=>setSwitchUser(false)}><p>Business: {shop?.name}. Sign in with your staff username and password.</p>{staffLoginForm()}{message&&<p role="alert">{message}</p>}</Modal>}
       {needRefresh && <div className="notice">An app update is ready. <button className="secondary" disabled={busy} onClick={() => void updateServiceWorker(true)}>Update app</button></div>}
       {branding.error&&<div className="notice" role="status">{branding.error}</div>}{message && <div className="notice" role="status">{message}</div>}
-      {hasConflict&&conflictReviewHidden&&<div className="notice">Sync is paused while you review an edit conflict. <button className="secondary" onClick={()=>setConflictReviewHidden(false)}>Review changes</button></div>}
-      {expenseConflict&&!conflictReviewHidden&&<Modal title="Review expense changes" wide busy={busy} onClose={()=>setConflictReviewHidden(true)}>
+      {hasConflict&&!canReviewConflicts&&<div className="notice" role="alert"><strong>Admin review required.</strong><p>Your pending work is saved on this device. Sync and new sales are paused so later jobs cannot depend on unresolved records. An Admin, Manager or Developer must review this workspace.</p><button className="secondary" disabled={!online||busy} onClick={()=>setSupervisorLogin(true)}>Supervisor review</button></div>}
+      {hasConflict&&supervisor&&<div className="notice">Supervisor review: {supervisor}. The cashier remains signed in.<button className="secondary" onClick={()=>{clearConflictApproval();setSupervisor('');}}>End supervisor review</button></div>}
+      {supervisorLogin&&<Modal title="Supervisor conflict review" busy={busy} onClose={()=>setSupervisorLogin(false)}><p>An Admin or higher rank must enter their credentials and personally review the pending work. This does not switch the cashier or move their saved sales.</p><form onSubmit={async event=>{event.preventDefault();if(busy||!online||!businessAuth||!shop)return;const form=new FormData(event.currentTarget);setBusy(true);try{const name=await approveConflictReview(businessAuth,scope,shop.id,String(form.get('username')),String(form.get('password')));if(activeScope.current===scope){setSupervisor(name);setSupervisorLogin(false);setConflictReviewHidden(false);setMessage('Supervisor access verified for five minutes.');}else clearConflictApproval();}catch(error){setMessage(errorMessage(error));}finally{setBusy(false);}}}><label>Supervisor username<input name="username" autoComplete="username" required/></label><label>Supervisor password<input name="password" type="password" autoComplete="current-password" required/></label><button disabled={busy||!online}>Verify supervisor</button></form>{message&&<p role="alert">{message}</p>}</Modal>}
+      {hasConflict&&canReviewConflicts&&conflictReviewHidden&&<div className="notice">Sync is paused while you review an edit conflict. <button className="secondary" onClick={()=>setConflictReviewHidden(false)}>Review changes</button></div>}
+      {expenseConflict&&!conflictReviewHidden && canReviewConflicts&&<Modal title="Review expense changes" wide busy={busy} onClose={()=>setConflictReviewHidden(true)}>
         <p>{expenseConflict.message}</p><div className="table-wrap"><table><thead><tr><th>Field</th><th>This device</th><th>Business version</th></tr></thead><tbody>
         <tr><td>Description</td><td>{expenseConflict.local.description}</td><td>{expenseConflict.remote?.description??'Not available'}</td></tr>
         <tr><td>Total cost</td><td>{currency(expenseConflict.local.amount)}</td><td>{expenseConflict.remote?currency(expenseConflict.remote.amount):'—'}</td></tr>
@@ -380,9 +390,9 @@ export default function App() {
         </tbody></table></div><p>Reapplying keeps business payments and applies your pending expense changes against the latest stock. Keeping the business version discards this device’s pending changes to this expense.</p>
         <div className="material-actions">{(['local','cloud'] as const).map(choice=><button key={choice} disabled={busy} className={choice==='cloud'?'secondary':''} onClick={async()=>{setBusy(true);const target=scope;try{const next=await resolveCloudExpense(target,shop!.id,expenseConflict.local.id,choice,expenseConflict.local.lastEventId,expenseConflict.remote?.lastEventId??null);if(activeScope.current===target){setState(next);setExpenseConflict(null);channel.current?.postMessage('changed');setMessage('Expense review saved. Sync will resume automatically.');}}catch(error){setMessage(errorMessage(error));if(error instanceof ExpenseSyncConflict)setExpenseConflict(error);}finally{setBusy(false);}}}>{choice==='local'?'Reapply pending changes':'Keep business version'}</button>)}</div>
       </Modal>}
-      {checkoutConflict&&!conflictReviewHidden&&<CheckoutEditor key={checkoutConflict.event.id+JSON.stringify(checkoutConflict.cloud.payments)+JSON.stringify(checkoutConflict.cloud.services)} ledger={checkoutReviewBase(state,checkoutConflict.cloud,checkoutConflict.event.id)} initialCheckout={checkoutConflict.event.data} actor={{id:session!.user.id,label:shop?.staffName||session!.user.email||session!.user.id}} busy={busy} paymentOnly={!checkoutConflict.event.data.jobs.length} onClose={()=>setConflictReviewHidden(true)} onReceipt={setReceipt} onSave={async operation=>{setBusy(true);const target=scope;try{const next=await resolvePendingWork(target,shop!.id,checkoutConflict.event.id,operation);if(activeScope.current===target){setState(next);setCheckoutConflict(null);channel.current?.postMessage('changed');setMessage('Pending checkout updated. Use the updated receipt; syncing will resume automatically.');}return next.ledger.checkouts.find(r=>r.id===operation.id)!;}catch(error){if(error instanceof ExpenseSyncConflict)setExpenseConflict(error);if(error instanceof CheckoutSyncConflict)setCheckoutConflict(error);throw error;}finally{setBusy(false);}}}/>}
-      {jobConflict&&!conflictReviewHidden&&<Modal title="Review job progress" busy={busy} onClose={()=>setConflictReviewHidden(true)}><p>{jobConflict.message}</p><p>Business status: {jobConflict.cloud.jobs.find(j=>j.id===jobConflict.event.data.id)?.productionStatus??'Added'}</p><button disabled={busy} onClick={async()=>{setBusy(true);const target=scope;try{const next=await resolvePendingWork(target,shop!.id,jobConflict.event.id,null,jobConflict.event.data.id);if(activeScope.current===target){setState(next);setJobConflict(null);channel.current?.postMessage('changed');}}catch(error){setMessage(errorMessage(error));}finally{setBusy(false);}}}>Use business status</button></Modal>}
-      {customerConflict && !conflictReviewHidden && <Modal title="Review conflicting customer edits" wide busy={busy} onClose={() => setConflictReviewHidden(true)}>
+      {checkoutConflict&&!conflictReviewHidden && canReviewConflicts&&<CheckoutEditor key={checkoutConflict.event.id+JSON.stringify(checkoutConflict.cloud.payments)+JSON.stringify(checkoutConflict.cloud.services)} ledger={checkoutReviewBase(state,checkoutConflict.cloud,checkoutConflict.event.id)} initialCheckout={checkoutConflict.event.data} actor={{id:session!.user.id,label:shop?.staffName||session!.user.email||session!.user.id}} busy={busy} paymentOnly={!checkoutConflict.event.data.jobs.length} onClose={()=>setConflictReviewHidden(true)} onReceipt={setReceipt} onSave={async operation=>{setBusy(true);const target=scope;try{const next=await resolvePendingWork(target,shop!.id,checkoutConflict.event.id,operation);if(activeScope.current===target){setState(next);setCheckoutConflict(null);channel.current?.postMessage('changed');setMessage('Pending checkout updated. Use the updated receipt; syncing will resume automatically.');}return next.ledger.checkouts.find(r=>r.id===operation.id)!;}catch(error){if(error instanceof ExpenseSyncConflict)setExpenseConflict(error);if(error instanceof CheckoutSyncConflict)setCheckoutConflict(error);throw error;}finally{setBusy(false);}}}/>}
+      {jobConflict&&!conflictReviewHidden && canReviewConflicts&&<Modal title="Review job progress" busy={busy} onClose={()=>setConflictReviewHidden(true)}><p>{jobConflict.message}</p><p>Business status: {jobConflict.cloud.jobs.find(j=>j.id===jobConflict.event.data.id)?.productionStatus??'Added'}</p><button disabled={busy} onClick={async()=>{setBusy(true);const target=scope;try{const next=await resolvePendingWork(target,shop!.id,jobConflict.event.id,null,jobConflict.event.data.id);if(activeScope.current===target){setState(next);setJobConflict(null);channel.current?.postMessage('changed');}}catch(error){setMessage(errorMessage(error));}finally{setBusy(false);}}}>Use business status</button></Modal>}
+      {customerConflict && !conflictReviewHidden && canReviewConflicts && <Modal title="Review conflicting customer edits" wide busy={busy} onClose={() => setConflictReviewHidden(true)}>
         {message && <p role="status">{message}</p>}
         <div className="table-wrap"><table><thead><tr><th>Field</th><th>This device</th><th>Business workspace</th></tr></thead><tbody>
           {(['name','phone','address','creditLimit','archived','modifiedByLabel'] as const).map(field => <tr key={field}><td>{{name:'Full name',phone:'Phone',address:'Address',creditLimit:'Credit limit',archived:'Archived',modifiedByLabel:'Modified by'}[field]}</td>
@@ -392,8 +402,8 @@ export default function App() {
         <p>Keeping the business version discards pending edits to this customer. Other pending records are kept.</p>
         <div className="material-actions"><button disabled={busy} onClick={() => void resolveCustomerConflict('local')}>Keep this device's version</button><button className="secondary" disabled={busy} onClick={() => void resolveCustomerConflict('cloud')}>Keep business version</button></div>
       </Modal>}
-      {serviceConflict && !conflictReviewHidden && <ServiceConflictReview key={serviceConflict.local.lastEventId + (serviceConflict.remote?.lastEventId ?? '') + serviceConflict.materials.map(item => item.lastEventId).join('')} conflict={serviceConflict} busy={busy} message={message} onClose={() => setConflictReviewHidden(true)} onResolve={resolveServiceConflict} />}
-      {conflict && !conflictReviewHidden && <Modal title="Review conflicting material edits" wide busy={busy} onClose={() => setConflictReviewHidden(true)}>
+      {serviceConflict && !conflictReviewHidden && canReviewConflicts && <ServiceConflictReview key={serviceConflict.local.lastEventId + (serviceConflict.remote?.lastEventId ?? '') + serviceConflict.materials.map(item => item.lastEventId).join('')} conflict={serviceConflict} busy={busy} message={message} onClose={() => setConflictReviewHidden(true)} onResolve={resolveServiceConflict} />}
+      {conflict && !conflictReviewHidden && canReviewConflicts && <Modal title="Review conflicting material edits" wide busy={busy} onClose={() => setConflictReviewHidden(true)}>
         {message && <div className="notice" role="status">{message}</div>}
         <div className="table-wrap"><table><thead><tr><th>Field</th><th>This device</th><th>Business workspace</th></tr></thead><tbody>
           <tr><td>Name</td><td>{conflict.local.name}</td><td>{conflict.remote.name}</td></tr>
