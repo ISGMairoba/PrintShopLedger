@@ -11,14 +11,14 @@ try{
  for(const mobile of [false,true])for(const rank of [1,2,3,4]){
   const context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1280,height:900},serviceWorkers:'block'});
   const id='11111111-1111-4111-8111-111111111111',shop='22222222-2222-4222-8222-222222222222',role=['','cashier','admin','manager','developer'][rank];
-  const now=new Date().toISOString();let username=role,calls=0;
+  const now=new Date().toISOString();let username=role,calls=0,workspaceFailure=rank===3;
   const token=[{alg:'HS256',typ:'JWT'},{sub:id,role:'authenticated',exp:Math.floor(Date.now()/1000)+3600},'c2lnbmF0dXJl'].map(x=>typeof x==='string'?x:Buffer.from(JSON.stringify(x)).toString('base64url')).join('.');
   const user={id,aud:'authenticated',role:'authenticated',email:'test@example.invalid',user_metadata:{full_name:'Test User'},app_metadata:{provider:'email'},created_at:now};
   await context.route('https://*.supabase.co/**',async route=>{
    const path=new URL(route.request().url()).pathname,body=route.request().method()==='POST'?route.request().postDataJSON():{};let result={};
    if(path==='/auth/v1/token')result={access_token:token,token_type:'bearer',expires_in:3600,refresh_token:'mock-refresh',user};
    else if(path==='/auth/v1/user')result=user;
-   else if(path.endsWith('/list_business_shops'))result=[{id:shop,name:'Test business'}];
+   else if(path.endsWith('/list_business_shops')){if(workspaceFailure){await route.fulfill({status:504,contentType:'application/json',body:JSON.stringify({message:'Business lookup timed out'})});return;}result=[{id:shop,name:'Test business'}];}
    else if(path.endsWith('/list_my_shops'))result=[{id:shop,name:'Test business',role,rank,accessLevel:rank,userId:id,username,staffName:'Test User'}];
    else if(path.endsWith('/business_settings'))result=[];
    else if(path.endsWith('/get_ledger'))result={customers:[],jobs:[],payments:[],materials:[],materialHistory:[],services:[],checkouts:[],drawerClosings:[],expenses:[],expenseHistory:[]};
@@ -30,7 +30,9 @@ try{
    await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(result)});
   });
   const page=await context.newPage();await page.goto('http://127.0.0.1:4178');
-  await page.getByLabel('Business email',{exact:true}).fill('test@example.invalid');await page.getByLabel('Business password',{exact:true}).fill('current-password');await page.getByRole('button',{name:'Sign in',exact:true}).click();await page.getByRole('heading',{name:'Point of Service',exact:true}).waitFor();
+  await page.getByLabel('Business email',{exact:true}).fill('test@example.invalid');await page.getByLabel('Business password',{exact:true}).fill('current-password');await page.getByRole('button',{name:'Sign in',exact:true}).click();
+  if(rank===3){await page.getByRole('heading',{name:'Could not load your business',exact:true}).waitFor();assert.equal(await page.getByRole('heading',{name:'Create your business workspace',exact:true}).count(),0,'Failed lookup must not offer duplicate workspace creation');workspaceFailure=false;await page.getByRole('button',{name:'Retry workspace lookup',exact:true}).click();}
+  await page.getByRole('heading',{name:'Point of Service',exact:true}).waitFor();
   const open=async()=>{if(mobile)await page.getByRole('button',{name:'Menu',exact:true}).click();};
   await open();const nav=page.getByRole('navigation',{name:'Main'});await nav.getByRole('button',{name:'Point of Service',exact:true}).waitFor();
   assert.deepEqual(await nav.getByRole('button').allTextContents(),pages.filter(p=>canAccessPage(p,rank)));

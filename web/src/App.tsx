@@ -52,6 +52,8 @@ export default function App() {
   const [demo, setDemo] = useState(!supabase);
   const [shops, setShops] = useState<Shop[]>([]);
   const [shop, setShop] = useState<Shop | null>(null);
+  const [workspaceLookup,setWorkspaceLookup]=useState({key:'',status:'loading',error:''});
+  const workspaceIdentity=`${businessSession?.user.id??''}:${session?.user.id??'locked'}`;
   const [state, setState] = useState<LocalState>({ ledger: emptyLedger(), pending: [] });
   const [ready, setReady] = useState(false);
   const [page, setPage] = useState<Page>('Point of Service');
@@ -106,23 +108,24 @@ export default function App() {
   useEffect(() => {
     if (!businessSession || demo || !supabase) { setShops([]); setShop(null); return; }
     let active = true;
+    setWorkspaceLookup({key:workspaceIdentity,status:'loading',error:''});
     const cacheKey = `printshopledger-business-workspaces:${businessSession.user.id}:${session?.user.id ?? 'locked'}`;
     async function loadShops() {
       try {
         let available: Shop[];
         if (navigator.onLine) {
-          const { data: businesses, error: businessError } = await businessAuth!.rpc('list_business_shops');
+          const { data: businesses, error: businessError } = await businessAuth!.rpc('list_business_shops').abortSignal(AbortSignal.timeout(20000));
           if (businessError) throw businessError;
-          const staff = session ? await supabase!.rpc('list_my_shops') : { data: [], error: null };
+          const staff = session ? await supabase!.rpc('list_my_shops').abortSignal(AbortSignal.timeout(20000)) : { data: [], error: null };
           if (staff.error) throw staff.error;
           available = (businesses ?? []).map((business: {id:string;name:string}) => ({
             ...business, userId:'', role: '', rank: 0, accessLevel: 0, username: '', staffName: '',
             ...(staff.data ?? []).find((membership: Shop) => membership.id === business.id)
           }));
-          localStorage.setItem(cacheKey, JSON.stringify(available));
-        } else available = JSON.parse(localStorage.getItem(cacheKey) ?? '[]');
-        if (active) { setShops(available); setShop(current => available.find(item => item.id === current?.id) ?? available[0] ?? null); }
-      } catch (error) { if (active) setMessage(errorMessage(error)); }
+          try{localStorage.setItem(cacheKey, JSON.stringify(available));}catch{/* A full device cache must not block a successful online sign-in. */}
+        } else {available = JSON.parse(localStorage.getItem(cacheKey) ?? '[]');if(!available.length)throw Error('Connect to load your business workspace.');}
+        if (active) { setShops(available); setShop(current => available.find(item => item.id === current?.id) ?? available[0] ?? null);setWorkspaceLookup({key:workspaceIdentity,status:'ready',error:''}); }
+      } catch (error) { if (active) setWorkspaceLookup({key:workspaceIdentity,status:'error',error:errorMessage(error)}); }
     }
     void loadShops();
     return () => { active = false; };
@@ -319,7 +322,7 @@ export default function App() {
     <p className="muted">Local trial data stays separate from business workspaces.</p>{message && <p role="alert">{message}</p>}
   </div></main>;
 
-  if(!demo&&businessSession&&!shop&&session?.user.id!==businessSession.user.id&&shops.length===0)return <main className="auth"><p>Loading business workspace…</p></main>;
+  if(!demo&&businessSession&&(workspaceLookup.key!==workspaceIdentity||workspaceLookup.status!=='ready'))return <main className="auth"><section className="auth-card"><h1>{workspaceLookup.key===workspaceIdentity&&workspaceLookup.status==='error'?'Could not load your business':'Loading business workspace…'}</h1>{workspaceLookup.key===workspaceIdentity&&workspaceLookup.status==='error'&&<><p>Your sign-in succeeded, but the workspace lookup failed. This does not mean you need to create another workspace.</p><p role="alert">{workspaceLookup.error||'The server did not respond. Please retry.'}</p><button disabled={!online} onClick={()=>setStaffEpoch(value=>value+1)}>Retry workspace lookup</button></>}<button className="secondary" onClick={async()=>{await Promise.all([supabase!.auth.signOut(),businessAuth!.auth.signOut()]);}}>Sign out</button></section></main>;
   if(!demo&&businessSession&&shops.length>0&&(!session||!shop||shop.userId!==session.user.id||shop.accessLevel===0)) return <main className="auth"><section className="auth-card"><h1>Staff sign in</h1><p>The business is signed in. Enter your username and password.</p><label>Business<select value={shop?.id??''} onChange={e=>setShop(shops.find(item=>item.id===e.target.value)??null)}>{shops.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>{staffLoginForm()}{message&&<p role="alert">{message}</p>}</section></main>;
 
   return <div className="app">
