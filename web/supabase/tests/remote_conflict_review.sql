@@ -14,6 +14,14 @@ perform public.submit_sync_conflict(shop,operation,'Stock count changed');perfor
 if jsonb_array_length(public.list_sync_conflicts(shop,null))<>1 then raise exception 'Conflict upload duplicated';end if;
 begin perform public.get_sync_conflict(shop,(operation->>'id')::uuid);raise exception 'Cashier can review';exception when insufficient_privilege then null;end;
 begin perform public.resolve_sync_conflict(shop,(operation->>'id')::uuid,'invalid','[]','Review');raise exception 'Cashier can resolve';exception when insufficient_privilege then null;end;
+insert into auth.users(id,email,raw_user_meta_data,created_at)values('10000000-0000-4000-8000-000000000003','isolated-qa@example.invalid','{}',now());
+insert into public.shop_members(shop_id,user_id,role,name,username,rank,access_level)values(shop,'10000000-0000-4000-8000-000000000003','cashier','Other Cashier','remote_other_qa',1,1);
+perform set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000003',true);
+if jsonb_array_length(public.list_sync_conflicts(shop,null))<>0 then raise exception 'Cashier saw another cashier conflict';end if;
+begin perform public.submit_sync_conflict(shop,operation,'Forged ownership');raise exception 'Other cashier uploaded source';exception when insufficient_privilege then null;end;
+-- Revoked staff cannot inspect the queue.
+update public.shop_members set archived=true where shop_id=shop and user_id='10000000-0000-4000-8000-000000000003';
+begin perform public.list_sync_conflicts(shop,null);raise exception 'Revoked user accessed inbox';exception when insufficient_privilege then null;end;
 perform set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000002',true);
 token:=public.get_sync_conflict(shop,(operation->>'id')::uuid)->>'token';
 reviewed:=jsonb_set(operation,'{id}','"70000000-0000-4000-8000-000000000002"');reviewed:=jsonb_set(reviewed,'{data,id}',reviewed->'id');reviewed:=jsonb_set(reviewed,'{data,jobs,0,stockCountEventId}',to_jsonb('60000000-0000-4000-8000-000000000001'::text));reviewed:=jsonb_set(reviewed,'{data,countedMaterialJobs}','["50000000-0000-4000-8000-000000000001"]');
