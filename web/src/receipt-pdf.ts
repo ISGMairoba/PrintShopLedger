@@ -1,8 +1,9 @@
 import { jsPDF } from 'jspdf';
+import {receiptBusiness,validLogo} from './business-branding.mjs';
 import { receiptIntegrityError } from './receipts.mjs';
 import type { CheckoutRecord } from './types';
 const money=(amount:number)=>`NGN ${(amount/100).toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
-export function createReceiptPdf(record:CheckoutRecord,business:string,pending=false){
+export function createReceiptPdf(record:CheckoutRecord,business:string|import('./useBusinessBranding').Branding,pending=false){
  const warning=receiptIntegrityError(record);if(warning)throw Error(warning);
  const doc=new jsPDF({unit:'mm',format:'a4'});let y=18;
  const line=(text:string,bold=false)=>{
@@ -11,7 +12,10 @@ export function createReceiptPdf(record:CheckoutRecord,business:string,pending=f
   const rows=doc.splitTextToSize(text.replace(/[^\x20-\x7e\xa0-\xff\n]/g,'?'),174) as string[];
   for(const row of rows){if(y>275){doc.addPage();y=18;}doc.text(row,18,y);y+=6;}y+=2;
  };
- line(business,true);line(`Receipt ${record.id.slice(0,8).toUpperCase()}`,true);
+ const b=receiptBusiness(business);
+ if(b.receipt.showLogo&&b.logo&&validLogo(b.logo)){const image=doc.getImageProperties(b.logo);const scale=Math.min(60/image.width,25/image.height);doc.addImage(b.logo,image.fileType,18,y,image.width*scale,image.height*scale);y+=image.height*scale+6;}
+ line(b.businessName,true);if(b.receipt.showAddress&&b.address)line(b.address);if(b.receipt.showContacts){const contacts=[b.phones,b.email,b.website,b.socials].filter(Boolean);if(contacts.length)line(contacts.join('\n'));}
+ line(`Receipt ${record.id.slice(0,8).toUpperCase()}`,true);
  if(pending)line('Pending confirmation - saved on this device',true);
  line(new Date(record.createdAt).toLocaleString('en-NG',{timeZone:'Africa/Lagos'}));
  line(`Customer: ${record.customerSnapshot?.name??record.customerId}\nPhone: ${record.customerSnapshot?.phone??''}\nCashier: ${record.createdByLabel}`);
@@ -24,6 +28,7 @@ export function createReceiptPdf(record:CheckoutRecord,business:string,pending=f
  line(`New jobs: ${money(record.total)}`,true);
  line(`Money received (${record.method}): ${money(record.cashReceived)}\nWallet used: ${money(record.walletUsed)}\nAdded to wallet: ${money(record.walletAdded)}\nWallet balance: ${money(record.walletAfter)}\nCustomer outstanding: ${money(record.outstandingAfter)}\nPayment date: ${record.paidOn}`);
  if(record.reference)line(`Note: ${record.reference}`);
+ if(b.receipt.footer)line(b.receipt.footer);
  return doc;
 }
-export function downloadReceiptPdf(record:CheckoutRecord,business:string,pending=false){createReceiptPdf(record,business,pending).save(`Receipt-${record.id.slice(0,8).toUpperCase()}.pdf`);}
+export function downloadReceiptPdf(record:CheckoutRecord,business:string|import('./useBusinessBranding').Branding,pending=false){createReceiptPdf(record,business,pending).save(`Receipt-${record.id.slice(0,8).toUpperCase()}.pdf`);}

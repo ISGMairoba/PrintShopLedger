@@ -43,6 +43,7 @@ try {
    serverLedger.drawerClosings.push(closing);own.forEach(r=>r.drawerClosingId=closing.id);
    result={closing,access_token:makeToken(cashierId),refresh_token:'handover-refresh'};
   }
+  else if(path.endsWith('/business_settings'))result=[];
   else if(path.endsWith('/get_ledger')){
    downloads++;
    if(failDownload){failDownload=false;await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Temporary test outage'})});return;}

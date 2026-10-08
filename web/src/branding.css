@@ -1,0 +1,36 @@
+:root{--brand-primary:#124b40;--brand-accent:#d9a126;--brand-on-primary:white;--surface:#fff;--surface-alt:#fafbf9;--canvas:#f4f6f3;--ink:#213e34;--subtle:#62796c;--line:#dfe6df;color-scheme:light;background:var(--canvas);color:var(--ink)}
+body{background:var(--canvas);color:var(--ink)}
+button:where(:not(.secondary,.text-button,.sort-button,.danger-button)){background:var(--brand-primary);color:var(--brand-on-primary)}
+button:where(:not(.secondary,.text-button,.sort-button,.danger-button)):hover{filter:brightness(.9)}
+.brand-mark,.stats article:last-child{background:var(--brand-primary);color:var(--brand-on-primary)}
+.stats article:last-child span,.stats article:last-child small{color:var(--brand-on-primary);opacity:.85}
+nav button.active{background:var(--brand-primary);color:var(--brand-on-primary)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline-color:var(--brand-accent)}
+.sidebar-business-logo{display:block;max-width:100%;max-height:82px;width:auto;height:auto;object-fit:contain}
+.brand:has(.sidebar-business-logo){flex-direction:column;align-items:flex-start}
+.business-settings fieldset{border:1px solid var(--line);border-radius:10px;padding:20px;margin:22px 0;min-width:0}
+.business-settings legend{padding:0 8px;font-weight:700}
+.business-settings input[type=color]{height:48px;padding:4px;width:100%}
+.business-settings .check-label{margin:12px 0}
+.business-settings .settings-actions,.logo-palette{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.logo-palette p{width:100%;margin-bottom:0}.logo-palette button{border:1px solid var(--line)}
+.brand-preview{margin:18px 0;padding:20px;border-radius:10px;font-weight:700}
+.business-logo-preview{max-width:240px;max-height:140px;object-fit:contain;display:block;margin:14px 0;background:#fff;border-radius:8px;padding:8px}
+.business-settings .settings-actions{margin:22px 0}
+:root[data-theme=dark]{--surface:#1d2925;--surface-alt:#24332c;--canvas:#121a16;--ink:#edf5ef;--subtle:#b1c2b7;--line:#3c5043;color-scheme:dark}
+[data-theme=dark] .panel,[data-theme=dark] .app-sidebar,[data-theme=dark] .auth-card,[data-theme=dark] .stats article,[data-theme=dark] dialog,[data-theme=dark] .mobile-app-bar,[data-theme=dark] .modal-header{background:var(--surface);border-color:var(--line);color:var(--ink)}
+[data-theme=dark] input,[data-theme=dark] select,[data-theme=dark] textarea,[data-theme=dark] button.secondary{background:var(--surface-alt);border-color:var(--line);color:var(--ink)}
+[data-theme=dark] p,[data-theme=dark] small,[data-theme=dark] .muted,[data-theme=dark] .eyebrow,[data-theme=dark] .stats article>span,[data-theme=dark] nav button{color:var(--subtle)}
+[data-theme=dark] nav button.active{color:var(--brand-on-primary)}
+[data-theme=dark] nav button:hover,[data-theme=dark] button.secondary:hover{background:var(--surface-alt)}
+[data-theme=dark] th{background:var(--surface-alt);color:var(--subtle)}
+[data-theme=dark] td,[data-theme=dark] .toolbar,[data-theme=dark] .cart-line,[data-theme=dark] .allocation,[data-theme=dark] .history{border-color:var(--line)}
+[data-theme=dark] .checkout-summary,[data-theme=dark] .payment-recommendation,[data-theme=dark] .customer-picker [role=listbox],[data-theme=dark] .customer-picker [role=option]{background:var(--surface-alt);color:var(--ink);border-color:var(--line)}
+[data-theme=dark] .text-button,[data-theme=dark] .detail-summary strong,[data-theme=dark] .cart-total,[data-theme=dark] .payment-recommendation strong{color:#b2e6c7}
+[data-theme=dark] .notice{background:#2d3e2e;border-color:#547256;color:#e4f2df}
+[data-theme=dark] .stats article:last-child{background:var(--brand-primary);color:var(--brand-on-primary)}
+[data-theme=dark] .stats article:last-child span,[data-theme=dark] .stats article:last-child small{color:var(--brand-on-primary)}
+/* A receipt stays print-like regardless of the user's app theme. */
+.receipt-sheet,.receipt-sheet p,.receipt-sheet h1,.receipt-sheet h2{background:white;color:#111}
+.receipt-sheet th{background:#f7f7f7;color:#333}.receipt-sheet td{color:#111;border-color:#ddd}
+@media(max-width:740px){.business-settings fieldset{padding:14px}.business-settings .settings-actions>button{width:100%}}

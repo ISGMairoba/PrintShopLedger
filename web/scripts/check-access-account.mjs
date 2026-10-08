@@ -20,6 +20,7 @@ try{
    else if(path==='/auth/v1/user')result=user;
    else if(path.endsWith('/list_business_shops'))result=[{id:shop,name:'Test business'}];
    else if(path.endsWith('/list_my_shops'))result=[{id:shop,name:'Test business',role,rank,accessLevel:rank,userId:id,username,staffName:'Test User'}];
+   else if(path.endsWith('/business_settings'))result=[];
    else if(path.endsWith('/get_ledger'))result={customers:[],jobs:[],payments:[],materials:[],materialHistory:[],services:[],checkouts:[],drawerClosings:[],expenses:[],expenseHistory:[]};
    else if(path.endsWith('/update-credentials')){
     calls++;assert.equal(body.userId,id);assert.equal(body.shopId,shop);assert.equal(body.currentPassword,'current-password');
@@ -39,7 +40,7 @@ try{
   await page.getByLabel('Current password',{exact:true}).last().fill('current-password');await page.getByLabel('New password',{exact:true}).fill('new-test-password');await page.getByLabel('Confirm new password',{exact:true}).fill('different-password');await page.getByRole('button',{name:'Save password',exact:true}).click();await page.getByText('New passwords must match.',{exact:true}).waitFor();assert.equal(calls,1);
   await page.getByLabel('Confirm new password',{exact:true}).fill('new-test-password');await page.getByRole('button',{name:'Save password',exact:true}).click();await page.getByText('Password saved.',{exact:true}).waitFor();assert.equal(calls,2);
   await context.setOffline(true);await page.getByRole('button',{name:'Save password',exact:true}).waitFor({state:'visible'});await delay(50);assert.equal(await page.getByRole('button',{name:'Save password',exact:true}).isDisabled(),true);await context.setOffline(false);
-  if(rank>=3){await open();await nav.getByRole('button',{name:'Business Settings',exact:true}).click();assert.equal((await page.getByRole('region',{name:'Business settings'}).innerText()).trim(),'');}
+  if(rank>=3){await open();await nav.getByRole('button',{name:'Business Settings',exact:true}).click();await page.getByLabel('Business name',{exact:true}).waitFor();assert.equal(await page.getByLabel('Business name',{exact:true}).inputValue(),'Test business');}
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),'Layout fits screen');await context.close();
  }
  console.log('Page access and account checks passed on desktop and mobile for all ranks.');
