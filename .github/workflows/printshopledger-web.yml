@@ -22,14 +22,25 @@ jobs:
       - run: npm run build
 
       - run: npm run check:backend
-      - run: npx playwright install --with-deps chromium webkit
-      - run: node scripts/check-login-sync.mjs
-      - run: node scripts/check-access-account.mjs
-      - run: node scripts/check-business-branding.mjs
-      - run: node scripts/check-checkout.mjs
-      - run: node scripts/check-materialless-services.mjs
-      - run: node scripts/check-expenses.mjs
-      - run: npm run test:ui
-      - run: node scripts/check-print-settings.mjs
-      - run: npm run test:users-ui
-      - run: node scripts/check-iphone.mjs
+      - id: browsers
+        run: npx playwright install --with-deps chromium webkit
+      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: node scripts/check-login-sync.mjs
+      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: node scripts/check-access-account.mjs
+      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: node scripts/check-business-branding.mjs
+      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: node scripts/check-checkout.mjs
+      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: node scripts/check-materialless-services.mjs
+      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: node scripts/check-expenses.mjs
+      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: npm run test:ui
+      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: node scripts/check-print-settings.mjs
+      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: npm run test:users-ui
+      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: node scripts/check-iphone.mjs
