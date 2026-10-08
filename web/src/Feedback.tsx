@@ -13,7 +13,7 @@ function Notification({item,onDismiss}:{item:Toast;onDismiss:()=>void}){
 export function FeedbackProvider({children}:{children:ReactNode}){
  const [items,setItems]=useState<Toast[]>([]),[host,setHost]=useState<HTMLElement>(document.body);
  const viewport=useRef<HTMLDivElement>(null),sequence=useRef(0);
- const notify=useCallback((message:string,tone:FeedbackTone)=>{if(!message)return;setItems(current=>{if(current.some(item=>item.message===message&&item.tone===tone))return current;return [...current.slice(-2),{id:++sequence.current,message,tone}];});},[]);
+ const notify=useCallback((message:string,tone:FeedbackTone)=>{if(!message){setItems([]);return;}setItems(current=>{if(current.some(item=>item.message===message&&item.tone===tone))return current;return [...current.slice(-2),{id:++sequence.current,message,tone}];});},[]);
  useEffect(()=>{const update=()=>setHost(document.querySelector<HTMLElement>('dialog[open]:last-of-type')??document.body);window.addEventListener('feedback:modal',update);return()=>window.removeEventListener('feedback:modal',update);},[]);
  useLayoutEffect(()=>{const element=viewport.current;if(!element?.isConnected||!('showPopover' in element))return;if(items.length){if(element.matches(':popover-open'))element.hidePopover();element.showPopover();}else if(element.matches(':popover-open'))element.hidePopover();},[items,host]);
  return <FeedbackContext.Provider value={notify}>{children}{createPortal(<div className="feedback-viewport" ref={viewport} popover={'showPopover' in HTMLElement.prototype?'manual':undefined}>{items.map(item=><Notification key={item.id} item={item} onDismiss={()=>setItems(current=>current.filter(value=>value.id!==item.id))}/>)}</div>,host)}</FeedbackContext.Provider>;
@@ -21,7 +21,7 @@ export function FeedbackProvider({children}:{children:ReactNode}){
 export const useFeedback=()=>useContext(FeedbackContext);
 export function useFeedbackMessage(defaultTone:FeedbackTone='info'){
  const notify=useFeedback(),[message,setValue]=useState(''),[tone,setTone]=useState(defaultTone);
- const setMessage=useCallback((value:string,severity:FeedbackTone=defaultTone)=>{setValue(value);setTone(severity);if(value)notify(value,severity);},[notify,defaultTone]);
+ const setMessage=useCallback((value:string,severity:FeedbackTone=defaultTone)=>{setValue(value);setTone(severity);notify(value,severity);},[notify,defaultTone]);
  return [message,setMessage,tone] as const;
 }
 export function FeedbackBanner({message,tone='info',login=false}:{message:string;tone?:FeedbackTone;login?:boolean}){

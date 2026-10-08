@@ -30,7 +30,7 @@ try {
   const box=await dialog.boundingBox(); assert.ok(box.x>=0 && box.x+box.width<=376);
   await dialog.getByLabel('Automatically print after transactions that require printing').check();
   await dialog.getByRole('button',{name:'Save settings'}).click();
-  assert.ok(await dialog.getByText('Select a printer before enabling automatic printing.').isVisible());
+  assert.ok(await dialog.getByRole('alert').getByText('Select a printer before enabling automatic printing.',{exact:true}).isVisible());
   await page.keyboard.press('Escape');
   await dialog.waitFor({state:'detached'});
   assert.deepEqual(errors,[]);
