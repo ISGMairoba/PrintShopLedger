@@ -22,8 +22,12 @@ jobs:
       - run: npm run build
 
       - run: npm run check:backend
+      - id: browser_dependencies
+        timeout-minutes: 5
+        run: npx playwright install-deps chromium webkit
       - id: browsers
-        run: npx playwright install --with-deps chromium webkit
+        timeout-minutes: 5
+        run: npx playwright install chromium webkit
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/check-login-sync.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
