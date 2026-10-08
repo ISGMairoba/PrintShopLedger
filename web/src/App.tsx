@@ -288,17 +288,25 @@ export default function App() {
     finally { setBusy(false); }
   }
   async function createWorkspace(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault(); setBusy(true); setMessage('');
-    const data = new FormData(e.currentTarget);
+    e.preventDefault();
+    if(!businessSession||busy||!online)return;
+    setBusy(true);setMessage('');
+    const data=new FormData(e.currentTarget);
     try {
-      const { data: id, error } = await businessAuth!.rpc('create_shop', { p_name: String(data.get('businessName')).trim() });
-      if (error) throw error;
-      const { data: available, error: listError } = await supabase!.rpc('list_my_shops');
-      if (listError) throw listError;
-      setShops(available); setShop(available.find((item: Shop) => item.id === id)); setStaffEpoch(value=>value+1);
-      localStorage.setItem(`printshopledger-workspaces:${session!.user.id}`, JSON.stringify(available));
-    } catch (error) { setMessage(errorMessage(error)); }
-    finally { setBusy(false); }
+      // Workspace creation belongs to the business identity, including when an
+      // old staff session remains on this device after another business login.
+      if(session?.user.id!==businessSession.user.id){
+        const {error}=await supabase!.auth.setSession({access_token:businessSession.access_token,refresh_token:businessSession.refresh_token});
+        if(error)throw error;
+      }
+      const {error}=await businessAuth!.rpc('create_shop',{p_name:String(data.get('businessName')).trim()}).abortSignal(AbortSignal.timeout(20000));
+      if(error)throw error;
+      // Reload through the guarded lookup; a failed read after creation must
+      // never leave the creation form open and invite a duplicate business.
+      setWorkspaceLookup({key:workspaceIdentity,status:'loading',error:''});
+      setStaffEpoch(value=>value+1);setMessage('Business workspace created.');
+    }catch(error){setMessage(errorMessage(error));}
+    finally{setBusy(false);}
   }
   async function staffLogin(e:FormEvent<HTMLFormElement>){
     e.preventDefault();if(!shop||!businessAuth||busy)return;setBusy(true);setMessage('');
