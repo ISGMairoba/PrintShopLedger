@@ -104,5 +104,21 @@ try {
   await page.getByRole('heading',{name:'Point of Service',exact:true}).waitFor();assert.equal(creations,1);
   assert.deepEqual(errors,[]);await context.close();
  }
+ // A stalled refresh during startup must provide a recovery action rather
+ // than an endless opening screen. The expired session is entirely synthetic.
+ const recovery=await browser.newContext({serviceWorkers:'block'});
+ const expiredId='44444444-4444-4444-8444-444444444444';
+ const expiredToken=[{alg:'HS256',typ:'JWT'},{sub:expiredId,role:'authenticated',exp:Math.floor(Date.now()/1000)-3600},'c2lnbmF0dXJl'].map(x=>typeof x==='string'?x:Buffer.from(JSON.stringify(x)).toString('base64url')).join('.');
+ await recovery.addInitScript(session=>localStorage.setItem('printshopledger-business-auth',JSON.stringify(session)),{access_token:expiredToken,refresh_token:'expired-mock-refresh',token_type:'bearer',expires_at:Math.floor(Date.now()/1000)-3600,expires_in:3600,user:{id:expiredId,aud:'authenticated',role:'authenticated',email:'expired@example.invalid',user_metadata:{},app_metadata:{provider:'email'},created_at:new Date().toISOString()}});
+ let releaseRefresh;
+ await recovery.route('https://*.supabase.co/auth/v1/token**',route=>{releaseRefresh=()=>route.fulfill({status:400,contentType:'application/json',body:JSON.stringify({error:'invalid_grant',error_description:'Refresh token expired'})});});
+ const loading=await recovery.newPage();loading.setDefaultTimeout(10000);await loading.clock.install();
+ await loading.goto('http://127.0.0.1:4180');
+ await loading.getByRole('heading',{name:'Opening PrintShopLedger…',exact:true}).waitFor();
+ await loading.clock.runFor(25001);
+ await loading.getByRole('heading',{name:'Could not restore your sign-in',exact:true}).waitFor();
+ await loading.getByRole('button',{name:'Retry sign-in loading',exact:true}).click();
+ assert.ok(releaseRefresh,'Saved session attempted a refresh');await releaseRefresh();
+ await loading.getByLabel('Business email',{exact:true}).waitFor();await recovery.close();
  console.log('Login recovery, session restoration, staff logout/sign-in and conflict pause checks passed on desktop and mobile.');
 }finally{await browser?.close();server.kill();}

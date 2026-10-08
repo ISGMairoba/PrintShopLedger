@@ -1,24 +1,32 @@
 import { applyEvent } from './domain.mjs';
-// Resolve only the reviewed material; retain unrelated pending work.
+import { normalizeLedger } from './materials.mjs';
+// Reapply reviewed operations in their original order. Detail edits must not
+// turn concurrent sales or deliveries into absolute stock replacements.
 export function resolveMaterialState(state, cloudLedger, materialId, choice, makeId, now) {
-  const desired = state.ledger.materials.find(item => item.id === materialId);
-  const pending = state.pending.filter(event => !(event.kind.startsWith('material.') && event.data.id === materialId));
-  let ledger = cloudLedger;
-  for (const event of pending) ledger = applyEvent(ledger, event);
-  if (choice === 'local') {
-    if (!desired) throw new Error('Local material is missing.');
-    const remote = ledger.materials.find(item => item.id === materialId);
-    if (!remote) throw new Error('The cloud material is missing. Please sync again.');
-    function append(kind, values = {}) {
-      const current = ledger.materials.find(item => item.id === materialId);
-      const event = { id: makeId(), kind, data: { id: materialId, baseVersion: current.version,
-        modifiedBy: desired.modifiedBy, modifiedByLabel: desired.modifiedByLabel, modifiedAt: now, ...values } };
-      ledger = applyEvent(ledger, event); pending.push(event);
-    }
-    if (remote.archived) append('material.restored');
-    append('material.updated', { name: desired.name, available: desired.available, measurementUnit: desired.measurementUnit, requireSize: desired.requireSize });
-    if (desired.available !== remote.available) append('material.stock_set', { quantity: desired.available, reason: 'Reviewed conflicting stock changes' });
-    if (desired.archived) append('material.archived');
+  let ledger=normalizeLedger(cloudLedger);
+  const pending=[];
+  function append(kind,data) {
+    const current=ledger.materials.find(item=>item.id===materialId);
+    const event={id:makeId(),kind,data:{...data,id:materialId,baseVersion:current?.version,modifiedAt:now}};
+    ledger=applyEvent(ledger,event);pending.push(event);
   }
-  return { ...state, ledger, pending };
+  for(const original of state.pending) {
+    if(!original.kind.startsWith('material.')||original.data.id!==materialId){
+      ledger=applyEvent(ledger,original);pending.push(original);continue;
+    }
+    if(choice==='cloud')continue;
+    let current=ledger.materials.find(item=>item.id===materialId);
+    if(original.kind==='material.created'){
+      if(current)throw Error('This material already exists in the business. Keep the business version and edit it again.');
+      append(original.kind,original.data);continue;
+    }
+    if(!current)throw Error('The business material no longer exists. Keep the business version.');
+    if(['material.updated','material.stock_added','material.stock_set'].includes(original.kind)&&current.archived){
+      append('material.restored',original.data);
+      current=ledger.materials.find(item=>item.id===materialId);
+    }
+    if((original.kind==='material.archived'&&current.archived)||(original.kind==='material.restored'&&!current.archived))continue;
+    append(original.kind,original.kind==='material.updated'?{...original.data,available:current.available}:original.data);
+  }
+  return {...state,ledger,pending};
 }
