@@ -13,7 +13,6 @@ import MySalesPage from './MySalesPage';
 import PointOfServicePage from './PointOfServicePage';
 import CheckoutEditor from './CheckoutEditor';
 import ReceiptView from './ReceiptView';
-import { jobStatuses } from './checkout.mjs';
 import { receiptHtml, receiptIntegrityError } from './receipts.mjs';
 import { printAfterTransaction } from './printing';
 import useAutoSync from './useAutoSync';

@@ -1,3 +1,4 @@
+import {replacePendingCheckout} from '../src/checkout-conflicts.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {defaultOptions,validateOptions,validateWorkflow} from '../src/business-options.mjs';
@@ -35,4 +36,12 @@ test('saved workflow advances in order and is independent of later business defa
  const steps=progressEvents(job,'Completed',actor);assert.deepEqual(steps.map(item=>item.data.status),['Design','Approval','Finishing','Completed']);
  assert.throws(()=>applyJobStatus(ledger,steps.at(-1)));for(const step of steps)ledger=applyJobStatus(ledger,step);
  assert.equal(ledger.jobs[0].productionStatus,'Completed');ledger=applyJobStatus(ledger,progressEvents(ledger.jobs[0],'Collected',actor)[0]);assert.equal(ledger.jobs[0].productionStatus,'Collected');
+});
+
+test('reviewing an earlier checkout preserves later payment labels and workflow snapshots',()=>{
+ const base=fixture(),first=event(base),after=applyCheckout(base,first);
+ const later=prepareCheckout(after,{customerId,lines:[],cashReceived:5000,useWallet:true,method:'Transfer',methodLabel:'Bank app',paidOn:'2026-10-08',reference:''},actor,crypto.randomUUID());
+ const state={ledger:applyCheckout(after,later),pending:[first,later]};
+ const resolved=replacePendingCheckout(state,base,first.id,first);
+ assert.equal(resolved.pending[1].data.methodLabel,'Bank app');assert.deepEqual(resolved.ledger.jobs[0].workflow,workflow);assert.equal(resolved.ledger.payments[1].methodLabel,'Bank app');
 });

@@ -7,7 +7,7 @@ export function replacePendingCheckout(state,cloud,eventId,replacement){
  for(const original of state.pending){let event=original;
   if(original.id===eventId){event=replacement;found=true;}
   else if(found&&original.kind==='checkout.completed'){
-   const d=original.data;event=prepareCheckout(ledger,{customerId:d.customerId,newCustomer:d.newCustomer,lines:d.jobs,cashReceived:d.cashReceived,useWallet:d.useWallet,override:d.override,method:d.method,paidOn:d.paidOn,reference:d.reference},{id:d.createdBy,label:d.createdByLabel},original.id,d.createdAt);
+   const d=original.data;event=prepareCheckout(ledger,{customerId:d.customerId,newCustomer:d.newCustomer,lines:d.jobs,cashReceived:d.cashReceived,useWallet:d.useWallet,override:d.override,method:d.method,...(d.methodLabel?{methodLabel:d.methodLabel}:{}),paidOn:d.paidOn,reference:d.reference},{id:d.createdBy,label:d.createdByLabel},original.id,d.createdAt);
   }
   ledger=applyEvent(ledger,event);pending.push(event);
  }
