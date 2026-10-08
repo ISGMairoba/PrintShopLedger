@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { supabase } from './cloud';
-export default function AccountPage({shopId,userId,businessAccount,username,online,demo,themePreference,setThemePreference,onChanged}:{shopId:string;userId:string;businessAccount:boolean;username:string;online:boolean;demo:boolean;themePreference:string;setThemePreference:(value:string)=>void;onChanged:()=>void}) {
+export default function AccountPage({shopId,userId,businessAccount,username,online,demo,themePreference,setThemePreference,onChanged}:{shopId:string;userId:string;businessAccount:boolean;username:string;online:boolean;demo:boolean;themePreference:string;setThemePreference:(value:string)=>void;onChanged:(message:string)=>void}) {
  const [name,setName]=useState(username),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
  const valid=/^[a-z0-9][a-z0-9._-]{2,39}$/.test(name.trim().toLowerCase());
  async function save(event:FormEvent<HTMLFormElement>,action:string){
@@ -11,7 +11,9 @@ export default function AccountPage({shopId,userId,businessAccount,username,onli
   try{
    const {data:result,error}=await supabase.functions.invoke('update-credentials',{body:{shopId,userId,action,username:name.trim().toLowerCase(),currentPassword:data.get('currentPassword'),password:data.get('password')}});
    if(error){let text=error.message;const response=(error as {context?:Response}).context;if(response)try{text=(await response.json()).error||text;}catch{}throw Error(text);}
-   form.reset();setMessage(result.message);onChanged();
+   form.reset();
+   if(action==='username')onChanged(result.message);
+   else setMessage(result.message);
   }catch(error){setMessage(error instanceof Error?error.message:String(error));}finally{setBusy(false);}
  }
  const disabled=busy||demo||!online;
