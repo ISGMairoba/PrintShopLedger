@@ -109,6 +109,9 @@ export default function App() {
     if (!businessSession || demo || !supabase) { setShops([]); setShop(null); return; }
     let active = true;
     setWorkspaceLookup({key:workspaceIdentity,status:'loading',error:''});
+    // The SDK can wait for an auth lock before fetch starts, so fetch's abort
+    // signal alone does not bound the time spent on this screen.
+    const deadline=setTimeout(()=>{if(active)setWorkspaceLookup({key:workspaceIdentity,status:'error',error:'The business server is taking too long to respond. Please retry.'});},25000);
     const cacheKey = `printshopledger-business-workspaces:${businessSession.user.id}:${session?.user.id ?? 'locked'}`;
     async function loadShops() {
       try {
@@ -124,11 +127,11 @@ export default function App() {
           }));
           try{localStorage.setItem(cacheKey, JSON.stringify(available));}catch{/* A full device cache must not block a successful online sign-in. */}
         } else {available = JSON.parse(localStorage.getItem(cacheKey) ?? '[]');if(!available.length)throw Error('Connect to load your business workspace.');}
-        if (active) { setShops(available); setShop(current => available.find(item => item.id === current?.id) ?? available[0] ?? null);setWorkspaceLookup({key:workspaceIdentity,status:'ready',error:''}); }
-      } catch (error) { if (active) setWorkspaceLookup({key:workspaceIdentity,status:'error',error:errorMessage(error)}); }
+        if (active) { clearTimeout(deadline);setShops(available); setShop(current => available.find(item => item.id === current?.id) ?? available[0] ?? null);setWorkspaceLookup({key:workspaceIdentity,status:'ready',error:''}); }
+      } catch (error) { clearTimeout(deadline);if (active) setWorkspaceLookup({key:workspaceIdentity,status:'error',error:errorMessage(error)}); }
     }
     void loadShops();
-    return () => { active = false; };
+    return () => { active = false;clearTimeout(deadline); };
   }, [businessSession?.user.id, session?.user.id, demo, online, staffEpoch]);
 
   useEffect(() => {
