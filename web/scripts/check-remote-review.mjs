@@ -46,7 +46,7 @@ try{
     }else throw Error('Unexpected remote-review request '+path);
     await route.fulfill({status,contentType:'application/json',body:JSON.stringify(result)});
    });
-   const page=await context.newPage();page.setDefaultTimeout(15000);page.on('pageerror',error=>errors.push(error.message));await page.goto('http://127.0.0.1:4195');await page.getByLabel('Business email',{exact:true}).fill(user(id).email);await page.getByLabel('Business password',{exact:true}).fill('synthetic-password');await page.getByRole('button',{name:'Sign in',exact:true}).click();await page.getByRole('heading',{name:'Point of Service',exact:true}).waitFor();return page;
+   const page=await context.newPage();page.setDefaultTimeout(15000);page.on('pageerror',error=>errors.push(error.message));await page.goto('http://127.0.0.1:4195');await page.getByLabel('Business email',{exact:true}).fill(user(id).email);await page.getByLabel('Business password',{exact:true}).fill('synthetic-password');await page.getByRole('button',{name:'Sign in',exact:true}).click();await page.getByRole('heading',{name:'Point of Service',exact:true}).waitFor();await page.locator('.sync-status').getByText('Saved',{exact:false}).waitFor();return page;
   }
   const till=await device(cashier);
   await till.evaluate(async({scope,state})=>{await new Promise((resolve,reject)=>{const r=indexedDB.open('printshopledger-v1',1);r.onsuccess=()=>{const db=r.result,tx=db.transaction('ledgers','readwrite');tx.objectStore('ledgers').put(state,scope);tx.oncomplete=()=>{db.close();resolve();};tx.onerror=()=>reject(tx.error);};});},{scope:cashier+':'+shop,state:{ledger:applyEvent(applyEvent(base,sale),other),pending:[sale,other]}});
