@@ -1,7 +1,7 @@
 import { normalizeCustomer } from './customers.mjs';
 import { materialSnapshot } from './material-display.mjs';
 export function normalizeLedger(ledger) {
-  return { ...ledger, expenses: ledger.expenses ?? [], expenseHistory: ledger.expenseHistory ?? [], drawerClosings: ledger.drawerClosings ?? [], checkouts: ledger.checkouts ?? [], customers: (ledger.customers ?? []).map(normalizeCustomer), materials: ledger.materials ?? [], materialHistory: ledger.materialHistory ?? [], services: ledger.services ?? [] };
+  return { ...ledger, saleAdjustments: ledger.saleAdjustments ?? [], materialWaste: ledger.materialWaste ?? [], expenses: ledger.expenses ?? [], expenseHistory: ledger.expenseHistory ?? [], drawerClosings: ledger.drawerClosings ?? [], checkouts: ledger.checkouts ?? [], customers: (ledger.customers ?? []).map(normalizeCustomer), materials: ledger.materials ?? [], materialHistory: ledger.materialHistory ?? [], services: ledger.services ?? [] };
 }
 export function validateMaterial(data) {
   if (typeof data.name !== 'string' || !data.name.trim() || data.name.trim().length > 160) throw new Error('Enter a material name (up to 160 characters).');

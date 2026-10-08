@@ -1,3 +1,4 @@
+import {applySaleAdjustment,applyWaste} from './sale-adjustments.mjs';
 import { normalizeAmount } from './currency-input.mjs';
 import { applyExpenseEvent } from './expenses.mjs';
 import { applyCheckout, applyJobStatus } from './checkout.mjs';
@@ -6,7 +7,7 @@ import { applyServiceEvent } from './services.mjs';
 import { applyMaterialEvent, normalizeLedger } from './materials.mjs';
 
 // Money is stored as integer kobo. Customer balances are derived from jobs.
-export const emptyLedger = () => ({ expenses: [], expenseHistory: [], drawerClosings: [], customers: [], jobs: [], payments: [], materials: [], materialHistory: [], services: [], checkouts: [] });
+export const emptyLedger = () => ({ saleAdjustments: [], materialWaste: [], expenses: [], expenseHistory: [], drawerClosings: [], customers: [], jobs: [], payments: [], materials: [], materialHistory: [], services: [], checkouts: [] });
 export function money(value) {
   const text = normalizeAmount(String(value).trim());
   if (!/^\d+(\.\d{1,2})?$/.test(text)) throw new Error('Enter an amount with at most two decimal places.');
@@ -18,7 +19,7 @@ export function money(value) {
 export function jobBalance(ledger, job) {
   const paid = ledger.payments.reduce((sum, payment) => sum + payment.allocations.reduce(
     (subtotal, allocation) => subtotal + (allocation.jobId === job.id ? allocation.amount : 0), 0), 0);
-  return { paid, outstanding: job.amount - paid, status: paid === job.amount ? 'Fully paid' : paid === 0 ? 'Unpaid' : 'Partially paid' };
+  return { paid, outstanding: job.amount - paid, status: job.productionStatus==='Cancelled' ? 'Cancelled' : paid === job.amount ? 'Fully paid' : paid === 0 ? 'Unpaid' : 'Partially paid' };
 }
 export function customerBalance(ledger, customerId) {
   return ledger.jobs.filter(job => job.customerId === customerId).reduce(
@@ -29,6 +30,8 @@ function positiveAmount(value) {
 }
 export function applyEvent(ledger, event) {
   ledger = normalizeLedger(ledger);
+  if(event.kind.startsWith('sale.')) return applySaleAdjustment(ledger,event);
+  if(event.kind==='material.wasted') return applyWaste(ledger,event);
   if (event.kind.startsWith('expense.')) return applyExpenseEvent(ledger, event);
   if (event.kind.startsWith('customer.')) return applyCustomerEvent(ledger,event);
   if (event.kind.startsWith('service.')) return applyServiceEvent(ledger, event);

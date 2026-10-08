@@ -7,7 +7,9 @@ export function eventResources(event,ledger){
   add('customer',d.customerId);add('checkout',event.id);
   for(const job of d.jobs){add('job',job.id);add('service',job.serviceId);add('material',job.materialId);add('material',ledger.services.find(s=>s.id===job.serviceId)?.materialId);}
   for(const item of d.allocations??[])add('job',item.jobId);
- }else if(family==='material')add('material',d.id);
+ }else if(event.kind==='material.wasted'){add('material',d.materialId);add('job',d.jobId);}
+ else if(family==='sale'){add('job',d.jobId);const job=ledger.jobs.find(j=>j.id===d.jobId);add('customer',job?.customerId);add('material',job?.materialId);}
+ else if(family==='material')add('material',d.id);
  else if(family==='service'){add('service',d.id);add('material',d.materialId);add('material',ledger.services.find(s=>s.id===d.id)?.materialId);}
  else if(family==='customer')add('customer',d.id);
  else if(family==='expense'){

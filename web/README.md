@@ -99,3 +99,16 @@ The shared CurrencyInput groups digits during entry, strips redundant leading ze
 Expense payments default to total cost (or the outstanding balance for a later payment). Total changes update this suggestion until the cashier enters a partial amount. Re-enabling Record money paid now restores the suggestion; payments above the expense balance are invalid. Checkout allocation rows show service, outstanding balance, an ellipsized description with the full text available on hover, and job ID. Manual allocation labels include all three job identifiers. Browser checks cover these behaviors, including identical descriptions across different services.
 
 Customer search and Add new customer are always visible at the top of the checkout Payment section, after jobs and their total. Suggestions appear only while typing; selecting a customer keeps the search field visible and shows phone/wallet details.
+
+### Sales adjustments and extra material use
+
+Admin (access 2), Manager (3) and Developer (4) can use **Sale Adjustments** and **Material Waste**. These operations require an online, fully synced workspace. Cashiers continue using POS and their own sales; they cannot approve adjustments or waste.
+
+- Charge/description corrections and cancellations revise the current job, increment its version and save an immutable reason/approver/before/after audit. Original checkout receipts and original cash amounts remain unchanged. Excess allocations move into customer credit; each changed payment allocation and wallet addition has a before/after snapshot.
+- Cancelling sets the charge to zero and stops production. Stock stays consumed unless the supervisor explicitly returns unused, reusable material. The return cannot exceed the actual stock deduction recorded for that job (including physical-count review decisions).
+- Refunds record money already returned, dated today, consuming available customer credit. Reducing/cancelling a paid charge and refunding are separate actions. A refund uses the configured payment methods, is clearly marked in account history, and belongs to the approving user's drawer. Cash refunds reduce expected cash. Handover verifies the exact refund IDs as well as checkout IDs and opening cash, so stale totals cannot silently close a drawer.
+- Waste, damage and reprints deduct **additional** material usage, optionally linked to a job. They leave jobs, customer payments and original checkout usage unchanged. Negative stock is allowed with a red warning.
+- Supervisor writes use `apply_supervised_event`, an invoker API wrapper around an explicitly authorized private database transaction. A business lock, job/account/material version checks and event IDs protect concurrent changes and retries. Audit tables are read-only to staff and isolated by business RLS.
+- Original receipt printouts/PDFs include subsequent adjustments as a labelled appendix without rewriting the original totals.
+
+Validation: `npm test`, `npm run build`, rollback-only `supabase/tests/sale_adjustments.sql`, and `node scripts/check-sale-adjustments.mjs` (Chromium/WebKit, desktop/mobile; run in CI with the other UI checks). The close-drawer Edge Function must be deployed with the refund-aware migration.

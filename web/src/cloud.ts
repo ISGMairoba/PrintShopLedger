@@ -1,3 +1,4 @@
+import {sameEvent} from './sale-adjustments.mjs';
 import {acknowledgeReviews,blockedWork,projectPending} from './sync-dependencies.mjs';
 import {requireConflictReviewer} from './conflict-review';
 import { resolveExpenseState } from './expense-conflicts.mjs';
@@ -9,7 +10,7 @@ import { normalizeLedger } from './materials.mjs';
 import { resolveMaterialState } from './material-conflicts.mjs';
 import { resolveServiceState } from './service-conflicts.mjs';
 import { resolveCustomerState } from './customer-conflicts.mjs';
-import type { Ledger, Material, Service, Customer, CheckoutEvent, LedgerEvent, Expense } from './types';
+import type { Ledger, Material, Service, Customer, CheckoutEvent, LedgerEvent, Expense, SupervisedEvent } from './types';
 
 export class ExpenseSyncConflict extends Error {
  constructor(public local:Expense,public remote:Expense|null,public cloud:Ledger){super('This expense or its material units changed on another device. Review it before continuing sync.');}
@@ -168,5 +169,31 @@ export async function resolveCloudExpense(scope:string,shopId:string,expenseId:s
    if(local.lastEventId!==reviewedLocal||(remote?.lastEventId??null)!==reviewedRemote)throw new ExpenseSyncConflict(local,remote,cloud);
    return resolveExpenseState(state,cloud,expenseId,choice,()=>crypto.randomUUID());
   });
+ });
+}
+
+// Supervisor transactions are online-only. The shared sync lock prevents a second sync
+// from projecting an old response over an approved revision.
+export async function saveSupervisedEvent(scope:string,shopId:string,event:SupervisedEvent){
+ if(!supabase||!navigator.onLine||!navigator.locks)throw Error('Connect to approve this action.');
+ await requireConflictReviewer(supabase,scope,shopId);
+ await syncLedger(scope,shopId);
+ return navigator.locks.request(`printshopledger-sync:${scope}`,async()=>{
+  const current=await readState(scope);
+  if(current.pending.length||Object.keys(current.syncConflicts??{}).length)throw Error('Finish syncing and resolving pending work before approving this action.');
+  const {data:auth,error:authError}=await supabase!.auth.getSession();
+  if(authError||auth.session?.user.id!==scope.split(':')[0])throw Error('Your sign-in changed. Reopen the workspace.');
+  const {data,error}=await supabase!.rpc('apply_supervised_event',{p_shop:shopId,p_event:event}).abortSignal(AbortSignal.timeout(20000));
+  if(error){
+   // A network failure can happen after the transaction committed. Confirm its ID
+   // before reporting failure; never create another refund automatically.
+   const {data:latest,error:readError}=await supabase!.rpc('get_ledger',{p_shop:shopId}).abortSignal(AbortSignal.timeout(20000));
+   const saved=!readError&&[...(latest?.saleAdjustments??[]),...(latest?.materialWaste??[])].find((r:{id:string})=>r.id===event.id);
+   const {data:confirmedAuth}=await supabase!.auth.getSession();if(confirmedAuth.session?.user.id!==scope.split(':')[0])throw Error('Your sign-in changed. Reopen the original workspace to confirm the action.');
+   if(!saved||!sameEvent(saved.event,event))throw Error(error.message+' Reopen after syncing if the record changed; retry the same action if confirmation was interrupted.');
+   return mutateState(scope,state=>({...state,ledger:projectPending(normalizeLedger(latest),state),lastSynced:new Date().toISOString()}));
+  }
+  const {data:now}=await supabase!.auth.getSession();if(now.session?.user.id!==scope.split(':')[0])throw Error('Action saved in the original workspace. Your sign-in changed.');
+  return mutateState(scope,state=>({...state,ledger:projectPending(normalizeLedger(data),state),lastSynced:new Date().toISOString()}));
  });
 }

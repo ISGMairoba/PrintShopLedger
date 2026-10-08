@@ -8,6 +8,8 @@ export function drawerSnapshot(ledger,userId){
  const opening=closings.find(d=>d.toUserId===userId&&(!lastClosed||Date.parse(d.closedAt)>Date.parse(lastClosed.closedAt)));
  const closedIds=new Set(closings.flatMap(d=>d.checkoutIds));
  const records=myTransactions(ledger,userId).filter(r=>!r.drawerClosingId&&!closedIds.has(r.id));
+ const refunds=(ledger.saleAdjustments??[]).filter(r=>r.action==='sale.refunded'&&r.changedBy===userId&&!r.drawerClosingId&&!closings.some(c=>(c.refundIds??[]).includes(r.id)));
+ const cashRefunded=refunds.filter(r=>r.method==='Cash').reduce((sum,r)=>sum+r.refundAmount,0),totalRefunded=refunds.reduce((sum,r)=>sum+r.refundAmount,0);
  const summary=salesSummary(records),openingCash=opening?.countedCash??0;
- return {...summary,records,checkoutIds:records.map(r=>r.id).sort(),openingId:opening?.id??null,openingCash,expectedCash:openingCash+summary.cash};
+ return {...summary,records,refunds,refundIds:refunds.map(r=>r.id).sort(),cashRefunded,totalRefunded,checkoutIds:records.map(r=>r.id).sort(),openingId:opening?.id??null,openingCash,expectedCash:openingCash+summary.cash-cashRefunded};
 }

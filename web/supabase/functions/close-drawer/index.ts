@@ -15,8 +15,8 @@ Deno.serve(async(request:Request)=>{
  const currentLogin=createClient(url,key,{auth:{persistSession:false}}),nextLogin=createClient(url,key,{auth:{persistSession:false}});
  let successful=false;
  try{
-  const body=await request.json();
-  if(!uuid(body.shopId)||!uuid(body.id)||typeof body.currentPassword!=='string'||typeof body.nextPassword!=='string'||typeof body.nextUsername!=='string'||!Number.isSafeInteger(body.countedCash)||body.countedCash<0||body.countedCash>100000000000||!Array.isArray(body.checkoutIds)||body.checkoutIds.length>10000||!body.checkoutIds.every(uuid)||(body.openingId!==null&&!uuid(body.openingId))||typeof body.note!=='string'||body.note.length>500)return reply(400,{error:'Check the handover details.'});
+  const body=await request.json();body.refundIds??=[];
+  if(!uuid(body.shopId)||!uuid(body.id)||typeof body.currentPassword!=='string'||typeof body.nextPassword!=='string'||typeof body.nextUsername!=='string'||!Number.isSafeInteger(body.countedCash)||body.countedCash<0||body.countedCash>100000000000||!Array.isArray(body.checkoutIds)||body.checkoutIds.length>10000||!body.checkoutIds.every(uuid)||(body.openingId!==null&&!uuid(body.openingId))||!Array.isArray(body.refundIds)||body.refundIds.length>10000||!body.refundIds.every(uuid)||typeof body.note!=='string'||body.note.length>500)return reply(400,{error:'Check the handover details.'});
   const {data:actor,error:actorError}=await server.from('shop_members').select('user_id,name,archived,access_level').eq('shop_id',body.shopId).eq('user_id',auth.user.id).maybeSingle();
   const {data:receiver,error:receiverError}=await server.from('shop_members').select('user_id,name,archived,access_level').eq('shop_id',body.shopId).eq('username',body.nextUsername.trim().toLowerCase()).maybeSingle();
   if(actorError||receiverError||!actor||!receiver||actor.archived||receiver.archived||!actor.access_level||!receiver.access_level)return reply(401,{error:'Check both passwords and the receiving username. Both users must have active business access.'});
@@ -28,7 +28,7 @@ Deno.serve(async(request:Request)=>{
   const next=await nextLogin.auth.signInWithPassword({email:identities[1].data.user!.email!,password:body.nextPassword});
   if(next.error||!next.data.session||next.data.user?.id!==receiver.user_id)return reply(401,{error:'Check both users’ credentials.'});
   // SQL rechecks active membership, locks the business and verifies the exact unclosed transactions.
-  const {data:closing,error}=await server.rpc('finish_drawer_handover',{p_shop:body.shopId,p_actor:auth.user.id,p_receiver:receiver.user_id,p_id:body.id,p_counted:body.countedCash,p_checkouts:body.checkoutIds,p_opening:body.openingId,p_note:body.note.trim()});
+  const {data:closing,error}=await server.rpc('finish_drawer_handover',{p_shop:body.shopId,p_actor:auth.user.id,p_receiver:receiver.user_id,p_id:body.id,p_counted:body.countedCash,p_checkouts:body.checkoutIds,p_opening:body.openingId,p_note:body.note.trim(),p_refunds:body.refundIds});
   if(error)return reply(['PT409','40001'].includes(error.code)?409:400,{error:error.message});
   successful=true;
   return reply(200,{closing,access_token:next.data.session.access_token,refresh_token:next.data.session.refresh_token});
