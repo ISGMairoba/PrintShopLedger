@@ -1,9 +1,10 @@
+import {jobWorkflow} from './business-options.mjs';
 import {useState} from 'react';
 import Modal from './Modal';
-import {jobStatuses} from './checkout.mjs';
 import type {Job} from './types';
 import type {ProgressMode} from './JobActions';
 export default function JobProgressDialog({job,mode,busy,onClose,onSave}:{job:Job;mode:ProgressMode;busy:boolean;onClose:()=>void;onSave:(target:string)=>Promise<void>}) {
+ const jobStatuses=jobWorkflow(job);
  const index=jobStatuses.indexOf(job.productionStatus??'Added');
  const [target,setTarget]=useState(mode==='complete'?'Completed':jobStatuses[index+1]),[error,setError]=useState('');
  const path=jobStatuses.slice(index+1,jobStatuses.indexOf(target)+1);

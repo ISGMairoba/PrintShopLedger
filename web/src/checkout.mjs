@@ -1,3 +1,4 @@
+import {validateWorkflow,jobWorkflow} from './business-options.mjs';
 import { applyCustomerEvent } from './customers.mjs';
 import { jobBalance, customerBalance } from './domain.mjs';
 import { materialSnapshot } from './material-display.mjs';
@@ -17,8 +18,8 @@ export function quoteLine(ledger,line){
  const needed=Number((raw*1000n+divisor/2n)/divisor)/1000;
  const total=Number((BigInt(service.price)*raw+divisor/2n)/divisor);amount(total);
  if(!Number.isFinite(needed)||needed<=0||needed>1000000000000)throw Error('Material usage is outside the supported range.');
- if(!jobSources.includes(line.source)||String(line.sourceNote??'').length>200)throw Error('Choose how the job was received.');
- return {...line,description:line.description.trim(),quantity,width,height,amount:total,unitPrice:service.price,service:service.description,materialId:material?.id??null,materialNeeded:material?needed:0,measurementUnit:material?.measurementUnit??'item',requireSize:material?.requireSize??false,serviceVersion:service.version,sourceNote:String(line.sourceNote??'').trim()};
+ if(typeof line.source!=='string'||!line.source.trim()||line.source.length>80||/[\x00-\x1f\x7f]/.test(line.source)||String(line.sourceNote??'').length>200)throw Error('Choose how the job was received.');
+ return {...line,...(line.workflow?{workflow:validateWorkflow(line.workflow)}:{}),description:line.description.trim(),quantity,width,height,amount:total,unitPrice:service.price,service:service.description,materialId:material?.id??null,materialNeeded:material?needed:0,measurementUnit:material?.measurementUnit??'item',requireSize:material?.requireSize??false,serviceVersion:service.version,sourceNote:String(line.sourceNote??'').trim()};
 }
 export function walletBalance(ledger,customerId){return ledger.payments.filter(p=>p.customerId===customerId).reduce((sum,p)=>sum+(p.walletAdded??0)-(p.walletUsed??0),0);}
 export function accountToken(ledger,customerId){return 'wallet='+walletBalance(ledger,customerId)+';'+ledger.jobs.filter(j=>j.customerId===customerId).map(j=>[j.id,jobBalance(ledger,j).outstanding]).sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0).map(([id,n])=>id+':'+n).join(',');}
@@ -48,13 +49,14 @@ export function prepareCheckout(ledger,input,actor,id=String(crypto.randomUUID()
  if(!jobs.length&&input.cashReceived===0&&plan.walletUsed===0)throw Error('Add a job, receive a payment or allocate wallet credit.');
  const date=new Date(input.paidOn);if(!/^\d{4}-\d{2}-\d{2}$/.test(input.paidOn)||Number.isNaN(date.getTime())||date.toISOString().slice(0,10)!==input.paidOn)throw Error('Choose a valid payment date.');
  if(!['Cash','POS','Transfer'].includes(input.method)||String(input.reference??'').length>200)throw Error('Choose a payment method and a note up to 200 characters.');
+ if(input.methodLabel!==undefined&&(typeof input.methodLabel!=='string'||!input.methodLabel.trim()||input.methodLabel.length>80||/[\x00-\x1f\x7f]/.test(input.methodLabel)))throw Error('Choose a valid payment method name.');
  const total=jobs.reduce((sum,j)=>sum+j.amount,0);amount(total);
  const jobBalances=working.jobs.filter(j=>jobs.some(n=>n.id===j.id)||plan.allocations.some(a=>a.jobId===j.id)).map(j=>({id:j.id,description:j.description,service:j.service,amount:j.amount,paidBefore:jobBalance(working,j).paid,paidThisCheckout:plan.allocations.find(a=>a.jobId===j.id)?.amount??0,outstandingAfter:jobBalance(working,j).outstanding-(plan.allocations.find(a=>a.jobId===j.id)?.amount??0)}));
- return {id,kind:'checkout.completed',data:{id,customerId:customer.id,newCustomer:input.newCustomer??null,customerSnapshot:{id:customer.id,name:customer.name,phone:customer.phone,address:customer.address},jobBalances,jobs,expectedAccount,cashReceived:input.cashReceived,useWallet:!!input.useWallet,override:input.override??null,method:input.method,paidOn:input.paidOn,reference:input.reference??'',createdBy:actor.id,createdByLabel:actor.label,createdAt:now,total,...plan}};
+ return {id,kind:'checkout.completed',data:{id,customerId:customer.id,newCustomer:input.newCustomer??null,customerSnapshot:{id:customer.id,name:customer.name,phone:customer.phone,address:customer.address},jobBalances,jobs,expectedAccount,cashReceived:input.cashReceived,useWallet:!!input.useWallet,override:input.override??null,method:input.method,...(input.methodLabel?{methodLabel:input.methodLabel.trim()}:{}),paidOn:input.paidOn,reference:input.reference??'',createdBy:actor.id,createdByLabel:actor.label,createdAt:now,total,...plan}};
 }
 export function applyCheckout(ledger,event){
  const data=event.data;if((ledger.checkouts??[]).some(c=>c.id===data.id))return ledger;
- const rebuilt=prepareCheckout(ledger,{customerId:data.customerId,newCustomer:data.newCustomer,lines:data.jobs,cashReceived:data.cashReceived,useWallet:data.useWallet,override:data.override,method:data.method,paidOn:data.paidOn,reference:data.reference},{id:data.createdBy,label:data.createdByLabel},data.id,data.createdAt);
+ const rebuilt=prepareCheckout(ledger,{customerId:data.customerId,newCustomer:data.newCustomer,lines:data.jobs,cashReceived:data.cashReceived,useWallet:data.useWallet,override:data.override,method:data.method,...(data.methodLabel?{methodLabel:data.methodLabel}:{}),paidOn:data.paidOn,reference:data.reference},{id:data.createdBy,label:data.createdByLabel},data.id,data.createdAt);
  for(let index=0;index<data.jobs.length;index++)for(const key of ['amount','unitPrice','materialNeeded','materialId','requireSize','serviceVersion'])if(data.jobs[index][key]!==rebuilt.data.jobs[index][key])throw Error('Job price or material changed. Review the checkout.');
  if(data.expectedAccount!==rebuilt.data.expectedAccount)throw Error('The customer account changed. Review the latest balances.');
  for(const key of ['total','walletUsed','walletAdded','walletAfter','outstandingBefore','outstandingAfter'])if(data[key]!==rebuilt.data[key])throw Error('Checkout amounts changed. Review the checkout.');
@@ -66,11 +68,11 @@ export function applyCheckout(ledger,event){
  const previous=material.available;Object.assign(material,{available,version:material.version+1,modifiedBy:data.createdBy,modifiedByLabel:data.createdByLabel,modifiedAt:data.createdAt,lastEventId:job.id});
  history.push({id:job.id,materialId:material.id,materialName:material.name,measurementUnit:material.measurementUnit,action:'material.job_used',beforeAvailable:previous,afterAvailable:available,reason:'Checkout '+data.id+' / Job '+job.id,jobId:job.id,checkoutId:data.id,changedBy:data.createdBy,changedByLabel:data.createdByLabel,changedAt:data.createdAt,before,after:materialSnapshot(material),detailsComplete:true});
  }
- const payment=(data.cashReceived>0||data.walletUsed>0)?{id:data.id,checkoutId:data.id,customerId:data.customerId,amount:data.cashReceived,walletUsed:data.walletUsed,walletAdded:data.walletAdded,method:data.method,paidOn:data.paidOn,reference:data.reference,allocations:data.allocations,createdAt:data.createdAt}:null;
+ const payment=(data.cashReceived>0||data.walletUsed>0)?{id:data.id,checkoutId:data.id,customerId:data.customerId,amount:data.cashReceived,walletUsed:data.walletUsed,walletAdded:data.walletAdded,method:data.method,...(data.methodLabel?{methodLabel:data.methodLabel}:{}),paidOn:data.paidOn,reference:data.reference,allocations:data.allocations,createdAt:data.createdAt}:null;
  return {...next,materials,materialHistory:history,jobs:[...next.jobs,...rebuilt.data.jobs],payments:payment?[...next.payments,payment]:next.payments,checkouts:[...(next.checkouts??[]),rebuilt.data]};
 }
 export function applyJobStatus(ledger,event){const data=event.data,job=ledger.jobs.find(j=>j.id===data.id);if(!job)throw Error('Job not found.');if(job.lastEventId===event.id)return ledger;
- if((job.version??1)!==data.baseVersion||data.status!==jobStatuses[jobStatuses.indexOf(job.productionStatus??'Added')+1])throw Error('Review the latest job status before proceeding.');
+ if((job.version??1)!==data.baseVersion||data.status!==jobWorkflow(job)[jobWorkflow(job).indexOf(job.productionStatus??'Added')+1])throw Error('Review the latest job status before proceeding.');
  const next={...job,version:(job.version??1)+1,productionStatus:data.status,modifiedBy:data.modifiedBy,modifiedByLabel:data.modifiedByLabel,modifiedAt:data.modifiedAt,lastEventId:event.id};
  return {...ledger,jobs:ledger.jobs.map(j=>j.id===job.id?next:j)};
 }

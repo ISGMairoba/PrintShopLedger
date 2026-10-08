@@ -1,14 +1,16 @@
+import {useBusinessOptions} from './BusinessOptionsContext';
 import ResponsiveTable from './ResponsiveTable';
 import Icon from './Icon';
 import { useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import { SortHeader, useTableSort } from './TableSort';
-import { materialCode, stockReasonDefaults, stockReasonSuggestions } from './material-display.mjs';
+import { materialCode } from './material-display.mjs';
 import type { Material, MaterialEvent, MaterialHistoryEntry } from './types';
 
 type Props = { history: MaterialHistoryEntry[]; materials: Material[]; ready: boolean; busy: boolean; actor: { id: string; label: string }; onSave: (event: MaterialEvent) => Promise<void> };
 const timestamp = (value: string) => new Date(value).toLocaleString();
 export default function MaterialsPage({ materials, history, ready, busy, actor, onSave }: Props) {
+  const {stockReasons:stockReasonDefaults,materialUnits}=useBusinessOptions();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('active');
   const [editor, setEditor] = useState<Material | 'new' | null>(null);
@@ -17,7 +19,7 @@ export default function MaterialsPage({ materials, history, ready, busy, actor, 
   const [audit, setAudit] = useState(false);
   const [stock, setStock] = useState<{ material: Material; mode: 'add' | 'set' } | null>(null);
   const [stockReason, setStockReason] = useState('');
-  const noteSuggestions = stockReasonSuggestions(history);
+  const noteSuggestions = [...new Set([...stockReasonDefaults,...history.filter(item=>item.action.startsWith('material.stock_')).map(item=>item.reason).filter(Boolean)])];
   const editing = editor && editor !== 'new' ? editor : null;
   const sorting = useTableSort<Material>('name');
   const visible = sorting.sortRows(materials.filter(material => (filter === 'all' || material.archived === (filter === 'archived'))
@@ -60,8 +62,8 @@ export default function MaterialsPage({ materials, history, ready, busy, actor, 
             {audit && <><td>{material.createdByLabel}</td><td>{timestamp(material.createdAt)}</td><td>{material.modifiedByLabel}</td><td>{timestamp(material.modifiedAt)}</td></>}
             <td><div className="material-actions">{!material.archived && <>
               <button className="text-button" disabled={busy} onClick={() => { setEditor(material); setConfirmation(null); setStock(null); setError(''); }}><Icon name="edit"/> Edit</button>
-              <button className="text-button" disabled={busy} onClick={() => { setStock({ material, mode: 'add' }); setStockReason('Restocking'); setEditor(null); setConfirmation(null); setError(''); }}><Icon name="add"/> Add to stock</button>
-              <button className="text-button" disabled={busy} onClick={() => { setStock({ material, mode: 'set' }); setStockReason('Stock Count Correction'); setEditor(null); setConfirmation(null); setError(''); }}><Icon name="quantity"/> Set quantity</button></>}
+              <button className="text-button" disabled={busy} onClick={() => { setStock({ material, mode: 'add' }); setStockReason(stockReasonDefaults.includes('Restocking')?'Restocking':stockReasonDefaults[0]); setEditor(null); setConfirmation(null); setError(''); }}><Icon name="add"/> Add to stock</button>
+              <button className="text-button" disabled={busy} onClick={() => { setStock({ material, mode: 'set' }); setStockReason(stockReasonDefaults.includes('Stock Count Correction')?'Stock Count Correction':stockReasonDefaults[0]); setEditor(null); setConfirmation(null); setError(''); }}><Icon name="quantity"/> Set quantity</button></>}
               <button className={`text-button ${material.archived ? '' : 'danger-text'}`} disabled={busy} onClick={() => { setConfirmation(material); setEditor(null); setStock(null); setError(''); }}><Icon name={material.archived?'restore':'archive'}/> {material.archived ? 'Restore' : 'Archive'}</button></div></td></tr>)}
         </tbody></table></ResponsiveTable></div>}
     </section>
@@ -91,7 +93,7 @@ export default function MaterialsPage({ materials, history, ready, busy, actor, 
         <fieldset disabled={busy}><div className="form-grid"><label>Name<input name="name" defaultValue={editing?.name ?? ''} maxLength={160} required /></label>
           <label>Measurement unit<input name="measurementUnit" list="material-units" placeholder="e.g. sheet, metre, square metre" maxLength={40} defaultValue={editing?.measurementUnit ?? ''} required /></label>
           <label className="material-checkbox"><span><input name="requireSize" type="checkbox" defaultChecked={editing?.requireSize ?? false} /> Require size</span><small>Enable when the service price depends on dimensions. Otherwise pricing uses quantity only. Checkout uses quantity × width × height when size is required.</small></label></div>
-          <datalist id="material-units">{['sheet', 'piece', 'metre', 'square metre', 'roll', 'kilogram', 'litre'].map(unit => <option key={unit} value={unit} />)}</datalist>
+          <datalist id="material-units">{materialUnits.map(unit => <option key={unit} value={unit} />)}</datalist>
           <button type="submit"><Icon name="save"/> {busy ? 'Saving...' : 'Save material'}</button></fieldset>
       </form></Modal>}
   </>;

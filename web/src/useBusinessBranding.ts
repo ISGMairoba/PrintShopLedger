@@ -13,14 +13,14 @@ export default function useBusinessBranding(shopId:string,scope:string,name:stri
   const {data,error}=await supabase.from('business_settings').select('settings,version,modified_at,modified_by').eq('shop_id',shopId).maybeSingle();
   if(current.current!==expected)return;
   if(error){setError(error.message);setReady(true);return;}
-  const value:Saved=data??{settings:{...defaultBranding(),businessName:name},version:0};
+  const value:Saved=data?{...data,settings:validateBranding(data.settings)}:{settings:{...defaultBranding(),businessName:name},version:0};
   if(value.version<latest.current.version){setReady(true);return;}
   latest.current=value;
   setSaved(value);setError('');setReady(true);try{localStorage.setItem(key,JSON.stringify(value));}catch{setError('Settings loaded, but this device could not cache them for offline use.');}
  }
  useEffect(()=>{
   setReady(false);setError('');latest.current={settings:{...defaultBranding(),businessName:name},version:0};setSaved(latest.current);setPreference('business');
-  try{const cache=JSON.parse(localStorage.getItem(key)??'null');if(cache){validateBranding(cache.settings);latest.current=cache;setSaved(cache);}const pref=localStorage.getItem(`printshopledger:theme:${scope}`);if(pref&&['business','light','dark','system'].includes(pref))setPreference(pref);}catch{}
+  try{const cache=JSON.parse(localStorage.getItem(key)??'null');if(cache){cache.settings=validateBranding(cache.settings);latest.current=cache;setSaved(cache);}const pref=localStorage.getItem(`printshopledger:theme:${scope}`);if(pref&&['business','light','dark','system'].includes(pref))setPreference(pref);}catch{}
   if(!scope)return;void reload();const timer=setInterval(()=>void reload(),60000);
   const listener=(event:StorageEvent)=>{if(event.key===key)void reload();};window.addEventListener('storage',listener);
   return()=>{clearInterval(timer);window.removeEventListener('storage',listener);};

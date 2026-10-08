@@ -1,3 +1,4 @@
+import {paymentName} from './business-options.mjs';
 import { jsPDF } from 'jspdf';
 import {receiptBusiness,validLogo} from './business-branding.mjs';
 import { receiptIntegrityError } from './receipts.mjs';
@@ -26,7 +27,7 @@ export function createReceiptPdf(record:CheckoutRecord,business:string|import('.
   line(`Amount: ${money(balance.amount)}\nPaid before: ${money(balance.paidBefore)}\nPaid now: ${money(balance.paidThisCheckout)}\nOutstanding: ${money(balance.outstandingAfter)}`);
  }
  line(`New jobs: ${money(record.total)}`,true);
- line(`Money received (${record.method}): ${money(record.cashReceived)}\nWallet used: ${money(record.walletUsed)}\nAdded to wallet: ${money(record.walletAdded)}\nWallet balance: ${money(record.walletAfter)}\nCustomer outstanding: ${money(record.outstandingAfter)}\nPayment date: ${record.paidOn}`);
+ line(`Money received (${paymentName(record)}): ${money(record.cashReceived)}\nWallet used: ${money(record.walletUsed)}\nAdded to wallet: ${money(record.walletAdded)}\nWallet balance: ${money(record.walletAfter)}\nCustomer outstanding: ${money(record.outstandingAfter)}\nPayment date: ${record.paidOn}`);
  if(record.reference)line(`Note: ${record.reference}`);
  if(b.receipt.footer)line(b.receipt.footer);
  return doc;

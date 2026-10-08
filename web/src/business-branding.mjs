@@ -1,4 +1,5 @@
-export const defaultBranding=()=>({businessName:'',address:'',phones:'',email:'',website:'',socials:'',logo:'',primary:'#124b40',accent:'#d9a126',theme:'system',receipt:{showLogo:true,showAddress:true,showContacts:true,footer:'Thank you for your business.'}});
+import {defaultOptions,validateOptions} from './business-options.mjs';
+export const defaultBranding=()=>({businessName:'',address:'',phones:'',email:'',website:'',socials:'',logo:'',primary:'#124b40',accent:'#d9a126',theme:'system',options:defaultOptions(),receipt:{showLogo:true,showAddress:true,showContacts:true,footer:'Thank you for your business.'}});
 export function validLogo(value){return value===''||typeof value==='string'&&value.length<=350000&&/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/]+={0,2}$/.test(value);}
 export function validateBranding(input){
  const value=structuredClone(input);
@@ -13,7 +14,7 @@ export function validateBranding(input){
  if(!['light','dark','system'].includes(value.theme))throw Error('Choose Light, Dark or System.');
  for(const key of ['showLogo','showAddress','showContacts'])if(typeof value.receipt?.[key]!=='boolean')throw Error('Invalid receipt options.');
  if(typeof value.receipt.footer!=='string'||value.receipt.footer.length>500)throw Error('Receipt footer must be up to 500 characters.');
- value.receipt.footer=value.receipt.footer.trim();return value;
+ value.receipt.footer=value.receipt.footer.trim();value.options=validateOptions(value.options);return value;
 }
 export function contrastText(hex){
  const channels=hex.slice(1).match(/../g).map(x=>parseInt(x,16)/255).map(x=>x<=.04045?x/12.92:((x+.055)/1.055)**2.4);

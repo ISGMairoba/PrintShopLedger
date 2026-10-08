@@ -1,21 +1,24 @@
+import {paymentName} from './business-options.mjs';
+import {useBusinessOptions} from './BusinessOptionsContext';
 import { useState } from 'react';
 import ExpenseEditor from './ExpenseEditor';
 import Modal from './Modal';
 import Icon from './Icon';
 import ResponsiveTable from './ResponsiveTable';
 import { SortHeader, useTableSort } from './TableSort';
-import { expenseCode, expensePaid, expenseStatus, expenseSummary, makeExpenseEvent, expenseCategories } from './expenses.mjs';
+import { expenseCode, expensePaid, expenseStatus, expenseSummary, makeExpenseEvent } from './expenses.mjs';
 import type { Expense, ExpenseEvent, Ledger, LedgerEvent } from './types';
 const currency=(value:number)=>new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN'}).format(value/100);
 const timestamp=(value:string)=>new Date(value).toLocaleString('en-NG',{timeZone:'Africa/Lagos'});
 const day=(value:string)=>new Date(value+'T12:00:00+01:00').toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric',timeZone:'Africa/Lagos'});
 export default function ExpensesPage({ledger,ready,busy,actor,pending,onSave}:{ledger:Ledger;ready:boolean;busy:boolean;actor:{id:string;label:string};pending:LedgerEvent[];onSave:(event:ExpenseEvent)=>Promise<void>}){
+ const {expenseCategories}=useBusinessOptions();
  const [query,setQuery]=useState(''),[status,setStatus]=useState('active'),[category,setCategory]=useState(''),[staff,setStaff]=useState(''),[from,setFrom]=useState(''),[to,setTo]=useState('');
  const [audit,setAudit]=useState(false),[editor,setEditor]=useState<Expense|'new'|null>(null),[payment,setPayment]=useState<Expense|null>(null),[detail,setDetail]=useState<Expense|null>(null),[voiding,setVoiding]=useState<Expense|null>(null),[reason,setReason]=useState(''),[error,setError]=useState('');
  const sorting=useTableSort<Expense>('date','desc');
  const summary=expenseSummary(ledger,from,to);
  const visible=sorting.sortRows(ledger.expenses.filter(item=>{
-  const state=expenseStatus(item),text=[expenseCode(item.id,ledger.expenses),item.id,item.description,item.category,item.payee,item.note,item.receiptReference,item.amount/100,expensePaid(item)/100,state,item.createdByLabel,item.modifiedByLabel,item.incurredOn,...item.materials.map(m=>m.name),...item.payments.map(p=>`${p.method} ${p.source} ${p.reference}`)].join(' ').toLowerCase();
+  const state=expenseStatus(item),text=[expenseCode(item.id,ledger.expenses),item.id,item.description,item.category,item.payee,item.note,item.receiptReference,item.amount/100,expensePaid(item)/100,state,item.createdByLabel,item.modifiedByLabel,item.incurredOn,...item.materials.map(m=>m.name),...item.payments.map(p=>`${paymentName(p)} ${p.source} ${p.reference}`)].join(' ').toLowerCase();
   return text.includes(query.trim().toLowerCase())&&(!category||item.category===category)&&(!staff||item.createdBy===staff)&&(!from||item.incurredOn>=from)&&(!to||item.incurredOn<=to)&&(status==='all'||status==='active'&&!item.voided||status===state);
  }),{id:item=>expenseCode(item.id,ledger.expenses),description:item=>item.description,category:item=>item.category,payee:item=>item.payee,date:item=>item.incurredOn,amount:item=>item.amount,paid:item=>expensePaid(item),outstanding:item=>item.voided?0:item.amount-expensePaid(item),status:expenseStatus,createdBy:item=>item.createdByLabel,createdAt:item=>Date.parse(item.createdAt),modifiedBy:item=>item.modifiedByLabel,modifiedAt:item=>Date.parse(item.modifiedAt)});
  const selected=detail&&ledger.expenses.find(item=>item.id===detail.id);
@@ -55,7 +58,7 @@ export default function ExpensesPage({ledger,ready,busy,actor,pending,onSave}:{l
    <h3>{selected.description}</h3><p>{selected.category} · {day(selected.incurredOn)} · {selected.payee||'No supplier recorded'}</p><div className="detail-summary"><span>Total<strong>{currency(selected.amount)}</strong></span><span>Paid<strong>{currency(expensePaid(selected))}</strong></span><span>Outstanding<strong>{selected.voided?'Voided':currency(selected.amount-expensePaid(selected))}</strong></span></div>
    {selected.voided&&<p className="notice">Voided: {selected.voidReason}</p>}{selected.note&&<p>Notes: {selected.note}</p>}{selected.receiptReference&&<p>Receipt / invoice: {selected.receiptReference}</p>}
    {selected.materials.length>0&&<><h3>Purchased materials</h3>{selected.materials.map(m=><p key={m.materialId}>{m.name}: <strong>{m.quantity.toLocaleString()} {m.measurementUnit}</strong></p>)}</>}
-   <h3>Payment history</h3>{!selected.payments.length?<p className="muted">No payments yet.</p>:selected.payments.map(p=><div className="history" key={p.id}><span>{day(p.paidOn)} · {p.method}<small>{p.source} · {p.createdByLabel}{p.reference&&` · ${p.reference}`}</small></span><strong>{currency(p.amount)}</strong></div>)}
+   <h3>Payment history</h3>{!selected.payments.length?<p className="muted">No payments yet.</p>:selected.payments.map(p=><div className="history" key={p.id}><span>{day(p.paidOn)} · {paymentName(p)}<small>{p.source} · {p.createdByLabel}{p.reference&&` · ${p.reference}`}</small></span><strong>{currency(p.amount)}</strong></div>)}
    <h3>Change history</h3>{history.map(entry=><details key={entry.id} className="expense-change"><summary>{{'expense.created':'Created','expense.updated':'Edited','expense.payment_recorded':'Payment recorded','expense.voided':'Voided'}[entry.action]} · {entry.changedByLabel} · {timestamp(entry.changedAt)}</summary><p>Total: {entry.before?currency(entry.before.amount):'—'} → {currency(entry.after.amount)}<br/>Paid: {entry.before?currency(expensePaid(entry.before)):'—'} → {currency(expensePaid(entry.after))}</p><p>Before: {entry.before?`${entry.before.description} · ${entry.before.category} · ${entry.before.incurredOn} · ${entry.before.payee} · ${entry.before.note} · ${entry.before.receiptReference}`:'New expense'}<br/>After: {entry.after.description} · {entry.after.category} · {entry.after.incurredOn} · {entry.after.payee} · {entry.after.note} · {entry.after.receiptReference}</p><p>Materials before: {entry.before?.materials.map(m=>`${m.name}: ${m.quantity} ${m.measurementUnit}`).join(' · ')||'None'}<br/>Materials after: {entry.after.voided?'Reversed':entry.after.materials.map(m=>`${m.name}: ${m.quantity} ${m.measurementUnit}`).join(' · ')||'None'}</p>{entry.after.voided&&<p>Void reason: {entry.after.voidReason}</p>}</details>)}
   </Modal>}
  </>;

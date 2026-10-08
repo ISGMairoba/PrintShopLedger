@@ -1,3 +1,5 @@
+import {paymentName} from './business-options.mjs';
+import {BusinessOptionsContext} from './BusinessOptionsContext';
 import useBusinessBranding from './useBusinessBranding';
 import BusinessSettingsPage from './BusinessSettingsPage';
 import AccountPage from './AccountPage';
@@ -326,8 +328,8 @@ export default function App() {
   const paymentSorting = useTableSort<Payment>('createdAt','desc');
   const matchingJobs = jobSorting.sortRows(ledger.jobs.filter(job => `${job.description} ${job.service} ${customerName(job.customerId)} ${ledger.customers.find(c=>c.id===job.customerId)?.phone??''} ${job.productionStatus??'Added'} ${job.id}`.toLowerCase().includes(search)),{createdAt:job=>Date.parse(job.createdAt),service:job=>job.service,description:job=>job.description,id:job=>job.id,customer:job=>customerName(job.customerId),amount:job=>job.amount,
     paid:job=>jobBalance(ledger,job).paid,outstanding:job=>jobBalance(ledger,job).outstanding,status:job=>job.productionStatus??'Added',lastPayment:job=>Date.parse(lastJobPayment(ledger,job)??'')||0,source:job=>job.source??''});
-  const matchingPayments = paymentSorting.sortRows(ledger.payments.filter(payment => `${payment.id} ${customerName(payment.customerId)} ${payment.reference} ${payment.method}`.toLowerCase().includes(search)),
-    {createdAt:payment=>Date.parse(payment.createdAt),id:payment=>payment.id,date:payment=>Date.parse(payment.paidOn),customer:payment=>customerName(payment.customerId),amount:payment=>payment.amount,method:payment=>payment.method,
+  const matchingPayments = paymentSorting.sortRows(ledger.payments.filter(payment => `${payment.id} ${customerName(payment.customerId)} ${payment.reference} ${paymentName(payment)}`.toLowerCase().includes(search)),
+    {createdAt:payment=>Date.parse(payment.createdAt),id:payment=>payment.id,date:payment=>Date.parse(payment.paidOn),customer:payment=>customerName(payment.customerId),amount:payment=>payment.amount,method:paymentName,
       allocations:payment=>payment.allocations.map(allocation=>ledger.jobs.find(job=>job.id===allocation.jobId)?.description??'').join(', ')});
 
 
@@ -344,7 +346,7 @@ export default function App() {
   if(!demo&&businessSession&&(workspaceLookup.key!==workspaceIdentity||workspaceLookup.status!=='ready'))return <main className="auth"><section className="auth-card"><h1>{workspaceLookup.key===workspaceIdentity&&workspaceLookup.status==='error'?'Could not load your business':'Loading business workspace…'}</h1>{workspaceLookup.key===workspaceIdentity&&workspaceLookup.status==='error'&&<><p>Your sign-in succeeded, but the workspace lookup failed. This does not mean you need to create another workspace.</p><p role="alert">{workspaceLookup.error||'The server did not respond. Please retry.'}</p><button disabled={!online} onClick={()=>setStaffEpoch(value=>value+1)}>Retry workspace lookup</button></>}<button className="secondary" onClick={async()=>{await Promise.all([supabase!.auth.signOut(),businessAuth!.auth.signOut()]);}}>Sign out</button></section></main>;
   if(!demo&&businessSession&&shops.length>0&&(!session||!shop||shop.userId!==session.user.id||shop.accessLevel===0)) return <main className="auth"><section className="auth-card"><h1>Staff sign in</h1><p>The business is signed in. Enter your username and password.</p><label>Business<select value={shop?.id??''} onChange={e=>setShop(shops.find(item=>item.id===e.target.value)??null)}>{shops.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>{staffLoginForm()}{message&&<p role="alert">{message}</p>}</section></main>;
 
-  return <div className="app">
+  return <BusinessOptionsContext.Provider value={branding.settings.options}><div className="app">
     <Sidebar title={businessName} header={<>
       <div className="brand">{branding.settings.logo&&<img className="sidebar-business-logo" src={branding.settings.logo} alt={businessName+" logo"}/>}<div className="brand-copy">{!branding.settings.logo&&<strong className="brand-title">{businessName}</strong>}<span className={`connection ${online ? 'online' : ''}`} role="status">{online ? 'Online' : 'Offline'} · {state.pending.length} pending changes</span></div></div>
       <div className="sidebar-user"><strong>{demo ? 'Local trial user' : shop?.staffName || 'Not signed in'}{(demo || shop?.username) && ` (${demo ? 'trial' : shop?.username})`}</strong><small className="staff-rank">{demo ? 'Trial' : shop?.role}</small></div>
@@ -424,7 +426,7 @@ export default function App() {
               {!ledger.customers.length && <button onClick={() => setForm('customer')}>Add your first customer</button>}</div> : <div className="table-wrap"><JobTable ledger={ledger} jobs={matchingJobs} sorting={jobSorting} busy={busy||hasConflict} onJob={setSelectedJob} onAction={(job,mode)=>setJobToAdvance({job,mode})}/>{!matchingJobs.length && <p className="empty">No matching jobs.</p>}</div>}</>
           : <>{!ledger.payments.length ? <div className="empty"><h2>A clear payment trail</h2><p>Payments appear here with the jobs they cover.</p></div> : <div className="table-wrap"><ResponsiveTable extraSortOptions={[{key:"createdAt",label:"Created at"},{key:"date",label:"Payment date"}]} columns={[{index:0,label:"Payment",details:[1]},{index:2,label:"Amount",details:[3]},{index:4,label:"Jobs"}]}><table><thead><tr><SortHeader label="Payment" column="id" sort={paymentSorting}/><SortHeader label="Customer" column="customer" sort={paymentSorting}/><SortHeader label="Amount" column="amount" sort={paymentSorting}/><SortHeader label="Method" column="method" sort={paymentSorting}/><SortHeader label="Job allocations" column="allocations" sort={paymentSorting}/></tr></thead><tbody>
             {matchingPayments.map(payment => <tr key={payment.id}>
-              <td>#{shortId(payment.id)}<small>{dateLabel(payment.paidOn)}{payment.reference && ` · ${payment.reference}`}</small></td><td>{customerName(payment.customerId)}</td><td>{currency(payment.amount)}<small>Wallet used: {currency(payment.walletUsed??0)}</small><small>Wallet added: {currency(payment.walletAdded??0)}</small></td><td>{payment.method}</td>
+              <td>#{shortId(payment.id)}<small>{dateLabel(payment.paidOn)}{payment.reference && ` · ${payment.reference}`}</small></td><td>{customerName(payment.customerId)}</td><td>{currency(payment.amount)}<small>Wallet used: {currency(payment.walletUsed??0)}</small><small>Wallet added: {currency(payment.walletAdded??0)}</small></td><td>{paymentName(payment)}</td>
               <td>{payment.checkoutId&&ledger.checkouts.find(r=>r.id===payment.checkoutId)&&<button className="text-button" onClick={()=>setReceipt(ledger.checkouts.find(r=>r.id===payment.checkoutId)!)}>Receipt</button>}{payment.allocations.map(allocation => <small key={allocation.jobId}>{ledger.jobs.find(job => job.id === allocation.jobId)?.description} - {currency(allocation.amount)}</small>)}</td></tr>)}</tbody></table></ResponsiveTable></div>}</>}
         </section>
         </>}
@@ -433,7 +435,7 @@ export default function App() {
       {currentJob && <Modal title={currentJob.description} wide busy={busy} onClose={() => setSelectedJob(null)}><span className="eyebrow">JOB #{shortId(currentJob.id)}</span><p>{customerName(currentJob.customerId)} · {currentJob.service}</p>
         <div className="detail-summary"><span>Job amount <strong>{currency(currentJob.amount)}</strong></span><span>Paid <strong>{currency(jobBalance(ledger, currentJob).paid)}</strong></span><span>Outstanding <strong>{currency(jobBalance(ledger, currentJob).outstanding)}</strong></span></div>
         <h3>Payment history</h3>{ledger.payments.filter(payment => payment.allocations.some(allocation => allocation.jobId === currentJob.id)).map(payment => <div className="history" key={payment.id}>
-          <span>{dateLabel(payment.paidOn)} · {payment.method}<small>{payment.reference || `Payment #${shortId(payment.id)}`}</small></span><strong>{currency(payment.allocations.find(allocation => allocation.jobId === currentJob.id)!.amount)}</strong></div>)}
+          <span>{dateLabel(payment.paidOn)} · {paymentName(payment)}<small>{payment.reference || `Payment #${shortId(payment.id)}`}</small></span><strong>{currency(payment.allocations.find(allocation => allocation.jobId === currentJob.id)!.amount)}</strong></div>)}
         {!ledger.payments.some(payment => payment.allocations.some(allocation => allocation.jobId === currentJob.id)) && <p className="muted">No payments recorded yet.</p>}
         <JobActions job={currentJob} busy={busy||hasConflict} onAction={(job,mode)=>setJobToAdvance({job,mode})}/>
         <button disabled={busy || hasConflict || jobBalance(ledger, currentJob).outstanding <= 0} onClick={() => openPayment(currentJob.customerId)}>Receive customer payment</button>
@@ -452,7 +454,7 @@ export default function App() {
       }}/>}
 
     </main>
-  </div>;
+  </div></BusinessOptionsContext.Provider>;
 }
 
 

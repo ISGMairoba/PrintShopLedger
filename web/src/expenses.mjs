@@ -18,7 +18,7 @@ function payment(data, audit) {
   if (!data?.id) throw Error('Payment identifier is required.');
   amount(data.amount); date(data.paidOn);
   if (!['Cash', 'POS', 'Transfer'].includes(data.method) || !expenseSources.includes(data.source)) throw Error('Choose a payment method and source.');
-  return { id: data.id, amount: data.amount, paidOn: data.paidOn, method: data.method, source: data.source, reference: text(data.reference, 'Reference', 160), createdBy: audit.modifiedBy, createdByLabel: audit.modifiedByLabel, createdAt: audit.modifiedAt };
+  return { id: data.id, amount: data.amount, paidOn: data.paidOn, method: data.method, ...(data.methodLabel?{methodLabel:text(data.methodLabel,'Payment method',80,true)}:{}), source: data.source, reference: text(data.reference, 'Reference', 160), createdBy: audit.modifiedBy, createdByLabel: audit.modifiedByLabel, createdAt: audit.modifiedAt };
 }
 export function stockDeltas(existing, lines, voided = false) {
   const old = new Map((existing?.materials ?? []).map(line => [line.materialId, line.quantity]));

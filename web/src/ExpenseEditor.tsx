@@ -1,15 +1,17 @@
+import {useBusinessOptions} from './BusinessOptionsContext';
 import { useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import CurrencyInput from './CurrencyInput';
 import Icon from './Icon';
 import { amountError, normalizeAmount } from './currency-input.mjs';
 import { money } from './domain.mjs';
-import { expenseCategories, expenseSources, expenseCode, expensePaid, expenseDay, makeExpenseEvent } from './expenses.mjs';
+import { expenseSources, expenseCode, expensePaid, expenseDay, makeExpenseEvent } from './expenses.mjs';
 import { materialCode } from './material-display.mjs';
 import type { Expense, ExpenseEvent, ExpenseMaterial, Material } from './types';
 const currency = (value:number) => new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN'}).format(value/100);
 type Props={expense?:Expense;materials:Material[];expenses:Expense[];actor:{id:string;label:string};busy:boolean;mode?:'edit'|'payment';onSave:(event:ExpenseEvent)=>Promise<void>;onClose:()=>void};
 export default function ExpenseEditor({expense,materials,expenses,actor,busy,mode='edit',onSave,onClose}:Props){
+ const options=useBusinessOptions(),expenseCategories=options.expenseCategories,paymentMethods=options.paymentMethods.filter(item=>item.enabled);
  const paymentOnly=mode==='payment';
  const [error,setError]=useState('');
  const [stock,setStock]=useState(!!expense?.materials.length);
@@ -25,7 +27,7 @@ export default function ExpenseEditor({expense,materials,expenses,actor,busy,mod
   e.preventDefault();if(busy)return;setError('');const f=new FormData(e.currentTarget);
   try{
    if(!paymentOnly&&stock&&!lines.length)throw Error('Add at least one purchased material, or turn off Add purchased materials to stock.');
-   const payment=paymentOnly||!expense&&recordPayment&&money(paid||'0')>0?{id:crypto.randomUUID(),amount:money(paid),paidOn:String(f.get('paidOn')),method:String(f.get('method')),source:String(f.get('source')),reference:String(f.get('reference')).trim()}:undefined;
+   const payment=paymentOnly||!expense&&recordPayment&&money(paid||'0')>0?{id:crypto.randomUUID(),amount:money(paid),paidOn:String(f.get('paidOn')),method:paymentMethods.find(item=>item.label===String(f.get('method')))?.kind??'',methodLabel:String(f.get('method')),source:String(f.get('source')),reference:String(f.get('reference')).trim()}:undefined;
    if(paymentOnly&&money(paid||'0')===0)throw Error('Enter an amount greater than zero.');
    const data=paymentOnly?{payment}:{description:String(f.get('description')),category:String(f.get('category')),incurredOn:String(f.get('incurredOn')),amount:money(total),payee:String(f.get('payee')),note:String(f.get('note')),receiptReference:String(f.get('receiptReference')),materials:stock?lines:[],...(payment?{payment}:{})};
    await onSave(makeExpenseEvent(paymentOnly?'expense.payment_recorded':expense?'expense.updated':'expense.created',data,expense,actor) as ExpenseEvent);onClose();
@@ -38,7 +40,7 @@ export default function ExpenseEditor({expense,materials,expenses,actor,busy,mod
    {!paymentOnly&&<>
     <div className="form-grid">
      <label>Description<input name="description" maxLength={500} defaultValue={expense?.description??''} required placeholder="e.g. Paper purchase or generator fuel"/></label>
-     <label>Category<input name="category" list="expense-category-options" maxLength={80} defaultValue={expense?.category??'Other'} required/><datalist id="expense-category-options">{[...new Set([...expenseCategories,...expenses.map(item=>item.category)])].map(value=><option key={value} value={value}/>)}</datalist></label>
+     <label>Category<input name="category" list="expense-category-options" maxLength={80} defaultValue={expense?.category??(expenseCategories.includes('Other')?'Other':expenseCategories[0])} required/><datalist id="expense-category-options">{[...new Set([...expenseCategories,...(expense?[expense.category]:[])])].map(value=><option key={value} value={value}/>)}</datalist></label>
      <label>Date incurred<input name="incurredOn" type="date" defaultValue={expense?.incurredOn??expenseDay(new Date().toISOString())} required/></label>
      <label>Total cost (₦)<CurrencyInput name="amount" value={total} onValueChange={setTotal} required/></label>
      <label>Supplier / paid to<input name="payee" maxLength={160} defaultValue={expense?.payee??''} list="expense-payee-options"/><datalist id="expense-payee-options">{[...new Set(expenses.map(item=>item.payee).filter(Boolean))].map(value=><option key={value} value={value}/>)}</datalist></label>
@@ -62,7 +64,7 @@ export default function ExpenseEditor({expense,materials,expenses,actor,busy,mod
    {(paymentOnly||!expense&&recordPayment)&&<section className="expense-payment"><h3>Payment details</h3><div className="form-grid">
     <label>Amount paid (₦)<CurrencyInput value={paid} max={paymentMaximum} onValueChange={setPaidOverride} required={paymentOnly} placeholder="0.00"/></label>
     <label>Payment date<input name="paidOn" type="date" defaultValue={expenseDay(new Date().toISOString())} required/></label>
-    <label>Payment method<select name="method" defaultValue="Cash"><option>Cash</option><option>POS</option><option>Transfer</option></select></label>
+    <label>Payment method<select name="method" defaultValue={paymentMethods[0].label}>{paymentMethods.map(item=><option key={item.label}>{item.label}</option>)}</select></label>
     <label>Paid from<select name="source" defaultValue="Business cash">{expenseSources.map(value=><option key={value}>{value}</option>)}</select></label>
     <label>Payment reference<input name="reference" maxLength={160}/></label>
    </div><p className="muted">Leave the amount at zero for an unpaid expense. Record later payments from the expense list.</p></section>}
