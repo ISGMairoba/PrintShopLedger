@@ -223,7 +223,7 @@ export default function App() {
       await supabase!.auth.signOut({scope:'local'});
       const {error:sessionError}=await supabase!.auth.setSession({access_token:data.access_token,refresh_token:data.refresh_token});
       if(sessionError){await supabase!.auth.signOut({scope:'local'});throw Error('Handover saved. Sign in as the receiving user to continue.');}
-      setPage('My Sales');setStaffEpoch(value=>value+1);setMessage(`Drawer handover saved. ${data.closing.toUserLabel} is now signed in.${cacheWarning}`);
+      setPage('My Sales');setStaffEpoch(value=>value+1);setMessage(`Drawer handover saved. ${data.closing.toUserLabel} is now signed in.${cacheWarning}`,cacheWarning?'warning':'success');
     }catch(error){
       if(error instanceof ExpenseSyncConflict)setExpenseConflict(error);if(error instanceof CheckoutSyncConflict)setCheckoutConflict(error);
       if(error instanceof JobSyncConflict)setJobConflict(error);
