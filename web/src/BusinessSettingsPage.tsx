@@ -1,9 +1,10 @@
+import {useFeedbackMessage, FeedbackBanner} from './Feedback';
 import BusinessOptionsEditor from './BusinessOptionsEditor';
 import {useEffect,useState} from 'react';
 import {defaultBranding,validateBranding,suggestedPalette,contrastText} from './business-branding.mjs';
 import type {Branding} from './useBusinessBranding';
 export default function BusinessSettingsPage({settings,version,ready,online,demo,modifiedAt,onSave,onReload}:{settings:Branding;version:number;ready:boolean;online:boolean;demo:boolean;modifiedAt?:string;onSave:(settings:Branding,version:number)=>Promise<unknown>;onReload:()=>Promise<void>}){
- const [draft,setDraft]=useState(settings),[base,setBase]=useState(version),[dirtyKeys,setDirtyKeys]=useState<(keyof Branding)[]>([]),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[palette,setPalette]=useState<string[]>([]);
+ const [draft,setDraft]=useState(settings),[base,setBase]=useState(version),[dirtyKeys,setDirtyKeys]=useState<(keyof Branding)[]>([]),[busy,setBusy]=useState(false),[message,setMessage,messageTone]=useFeedbackMessage('success'),[palette,setPalette]=useState<string[]>([]);
  const dirty=dirtyKeys.length>0;
  useEffect(()=>{if(!dirty){setDraft(settings);setBase(version);}},[settings,version,dirty]);
  function field(key:keyof Branding,value:unknown){setDraft(current=>({...current,[key]:value}));setDirtyKeys(keys=>keys.includes(key)?keys:[...keys,key]);setMessage('');}
@@ -17,7 +18,7 @@ export default function BusinessSettingsPage({settings,version,ready,online,demo
    const ratio=Math.min(1,640/Math.max(img.width,img.height)),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.width*ratio));canvas.height=Math.max(1,Math.round(img.height*ratio));const context=canvas.getContext('2d')!;context.drawImage(img,0,0,canvas.width,canvas.height);let result=canvas.toDataURL('image/png');
    if(result.length>350000)throw Error('This logo is too detailed. Choose a smaller image; the processed logo must be up to 250 KB.');
    field('logo',result);setPalette(suggestedPalette(context.getImageData(0,0,canvas.width,canvas.height).data));
-  }catch(error){setMessage(error instanceof Error?error.message:String(error));}finally{setBusy(false);}
+  }catch(error){setMessage(error instanceof Error?error.message:String(error),'error');}finally{setBusy(false);}
  }
  async function saveSection(label:string,keys:(keyof Branding)[]){
   if(busy||!ready||version!==base||(!demo&&!online)||!keys.some(key=>dirtyKeys.includes(key)))return;
@@ -26,11 +27,11 @@ export default function BusinessSettingsPage({settings,version,ready,online,demo
    const payload=validateBranding({...settings,...Object.fromEntries(keys.map(key=>[key,draft[key]]))});
    const saved=await onSave(payload,base) as {settings:Branding;version:number};
    setDraft(current=>({...current,...Object.fromEntries(keys.map(key=>[key,saved.settings[key]]))}));setBase(saved.version);setDirtyKeys(current=>current.filter(key=>!keys.includes(key)));setMessage(`${label} saved.`);
-  }catch(error){setMessage(error instanceof Error?error.message:String(error));}finally{setBusy(false);}
+  }catch(error){setMessage(error instanceof Error?error.message:String(error),'error');}finally{setBusy(false);}
  }
  const sectionSave=(label:string,keys:(keyof Branding)[]) => <button type="button" className="section-save" disabled={busy||!ready||(!demo&&!online)||version!==base||!keys.some(key=>dirtyKeys.includes(key))} onClick={()=>void saveSection(label,keys)}>Save {label.toLowerCase()}</button>;
  const receipt=(key:keyof Branding['receipt'],value:unknown)=>field('receipt',{...draft.receipt,[key]:value});
- return <section className="panel editor business-settings" aria-label="Business settings"><h2>Business profile & branding</h2><p>Shared across your business. Printer selection remains specific to each device.</p>{!online&&!demo&&<p className="notice">You can view saved settings offline. Connect before saving changes.</p>}{version!==base&&dirty&&<p className="notice">Another user changed the settings. Reload the saved version before making a new edit.</p>}{message&&<p role="status" className="notice">{message}</p>}
+ return <section className="panel editor business-settings" aria-label="Business settings"><h2>Business profile & branding</h2><p>Shared across your business. Printer selection remains specific to each device.</p>{!online&&!demo&&<p className="notice">You can view saved settings offline. Connect before saving changes.</p>}{version!==base&&dirty&&<p className="notice notice-warning">Another user changed the settings. Reload the saved version before making a new edit.</p>}<FeedbackBanner message={message} tone={messageTone}/>
  <form noValidate onSubmit={event=>{event.preventDefault();void saveSection('Business settings',dirtyKeys);}}>
  <fieldset disabled={busy||!ready}><legend>Business details</legend><div className="form-grid">{([['businessName','Business name',160],['address','Address',500],['phones','Phone / WhatsApp numbers',200],['email','Email',200],['website','Website',300],['socials','Social handles',500]] as const).map(([key,label,max])=><label key={key}>{label}<input aria-label={label} type={key==='email'?'email':key==='website'?'url':'text'} required={key==='businessName'} maxLength={max} value={draft[key]} onChange={e=>field(key,e.target.value)}/></label>)}</div>{sectionSave('Business details',['businessName','address','phones','email','website','socials'])}</fieldset>
  <fieldset disabled={busy||!ready}><legend>Logo</legend><p>PNG or JPEG, up to 5 MB. The app preserves proportions and creates a smaller, receipt-ready copy.</p>{draft.logo&&<img className="business-logo-preview" src={draft.logo} alt="Business logo preview"/>}<label>Upload logo<input type="file" accept="image/png,image/jpeg" onChange={e=>void logo(e.target.files?.[0])}/></label>{draft.logo&&<button type="button" className="secondary" onClick={()=>{field('logo','');setPalette([]);}}>Remove logo</button>}{sectionSave('Logo',['logo'])}</fieldset>

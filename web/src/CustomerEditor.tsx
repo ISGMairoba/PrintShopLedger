@@ -1,3 +1,4 @@
+import {useFeedbackMessage} from './Feedback';
 import CurrencyInput from './CurrencyInput';
 import Icon from './Icon';
 import { useState, type FormEvent } from 'react';
@@ -7,7 +8,7 @@ import { createCustomerEvent, customerCode } from './customers.mjs';
 import type { Customer, CustomerEvent } from './types';
 type Props={ customer?:Customer; customers?:Customer[]; actor:{id:string;label:string}; busy:boolean; onSave:(event:CustomerEvent)=>Promise<void>; onClose:()=>void; onSaved?:(customerId:string)=>void };
 export default function CustomerEditor({customer,customers=[],actor,busy,onSave,onClose,onSaved}:Props) {
-  const [error,setError]=useState('');
+  const [error,setError]=useFeedbackMessage('error');
   async function submit(e:FormEvent<HTMLFormElement>) {
     e.preventDefault(); if(busy) return; setError('');
     const form=new FormData(e.currentTarget);

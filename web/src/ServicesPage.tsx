@@ -1,3 +1,4 @@
+import {useFeedbackMessage} from './Feedback';
 import CurrencyInput from './CurrencyInput';
 import ResponsiveTable from './ResponsiveTable';
 import Icon from './Icon';
@@ -16,7 +17,7 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
   const [audit, setAudit] = useState(false);
   const [editor, setEditor] = useState<Service | 'new' | null>(null);
   const [confirmation, setConfirmation] = useState<Service | null>(null);
-  const [error, setError] = useState('');
+  const [error, setError] = useFeedbackMessage('error');
   const editing = editor && editor !== 'new' ? editor : null;
   const activeMaterials = materials.filter(item => !item.archived);
   const options = materials.filter(item => !item.archived || item.id === editing?.materialId);

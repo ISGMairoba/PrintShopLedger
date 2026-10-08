@@ -1,3 +1,4 @@
+import {useFeedbackMessage} from './Feedback';
 import {paymentName} from './business-options.mjs';
 import { useState } from 'react';
 import Icon from './Icon';
@@ -13,7 +14,7 @@ type Props={ledger:Ledger;userId:string;username:string;name:string;ready:boolea
 const date=(value:string)=>new Date(value).toLocaleString('en-NG',{timeZone:'Africa/Lagos'});
 export default function MySalesPage({ledger,userId,username,name,ready,busy,online,demo,pending,onReceipt,onHandover}:Props){
  const [query,setQuery]=useState(''),[day,setDay]=useState(saleDay(new Date().toISOString())),[status,setStatus]=useState('open'),[history,setHistory]=useState(false);
- const [closing,setClosing]=useState<string|null>(null),[details,setDetails]=useState<DrawerClosing|null>(null),[error,setError]=useState(''),[count,setCount]=useState('');
+ const [closing,setClosing]=useState<string|null>(null),[details,setDetails]=useState<DrawerClosing|null>(null),[error,setError]=useFeedbackMessage('error'),[count,setCount]=useState('');
  const sorting=useTableSort<CheckoutRecord>('date','desc'),drawerSort=useTableSort<DrawerClosing>('date','desc');
  const snapshot=drawerSnapshot(ledger,userId),openIds=new Set(snapshot.checkoutIds);
  const records=sorting.sortRows(myTransactions(ledger,userId).filter((r:CheckoutRecord)=>(!day||saleDay(r.createdAt)===day)&&(status==='all'||(status==='open'?openIds.has(r.id):!openIds.has(r.id)))&&[r.id,r.customerSnapshot.name,r.customerSnapshot.phone,saleDescription(r),paymentName(r),r.cashReceived/100,r.total/100,r.reference,r.createdAt].join(' ').toLowerCase().includes(query.toLowerCase())),{id:r=>r.id,customer:r=>r.customerSnapshot.name,description:saleDescription,sales:r=>r.total,received:r=>r.cashReceived,wallet:r=>r.walletUsed,method:paymentName,date:r=>Date.parse(r.createdAt),status:r=>openIds.has(r.id)?'Open':'Closed'});

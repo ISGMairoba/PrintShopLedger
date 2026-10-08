@@ -33,7 +33,7 @@ export default function useBusinessBranding(shopId:string,scope:string,name:stri
   if(current.current!==expected)throw Error('The settings were saved. Reopen the business to review them.');
   latest.current=result;setSaved(result);setError('');try{localStorage.setItem(key,JSON.stringify(result));}catch{setError('Saved online; offline caching failed.');}return result;
  }
- function setTheme(value:string){if(!['business','light','dark','system'].includes(value))return;setPreference(value);try{localStorage.setItem(`printshopledger:theme:${scope}`,value);}catch{setError('Could not save your device theme preference.');}}
+ function setTheme(value:string){if(!['business','light','dark','system'].includes(value))return;try{localStorage.setItem(`printshopledger:theme:${scope}`,value);setPreference(value);}catch{setError('Could not save your device theme preference.');throw Error('Could not save your device theme preference.');}}
  useEffect(()=>{
   const settings=scope?saved.settings:defaultBranding(),media=matchMedia('(prefers-color-scheme: dark)');
   const mode=scope&&preference!=='business'?preference:settings.theme;

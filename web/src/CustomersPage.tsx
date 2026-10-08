@@ -1,3 +1,4 @@
+import {useFeedbackMessage} from './Feedback';
 import {walletBalance} from './checkout.mjs';
 import CustomerAccount from './CustomerAccount';
 import ResponsiveTable from './ResponsiveTable';
@@ -19,7 +20,7 @@ export default function CustomersPage({ledger,ready,busy,actor,onSave,onRecordPa
   const [account,setAccount]=useState<Customer|null>(null);
   const [editor,setEditor]=useState<Customer|'new'|null>(null);
   const [confirmation,setConfirmation]=useState<Customer|null>(null);
-  const [error,setError]=useState('');
+  const [error,setError]=useFeedbackMessage('error');
   const sorting=useTableSort<Customer>('name');
   const jobs=(id:string)=>ledger.jobs.filter(item=>item.customerId===id).length;
   const visible=sorting.sortRows(ledger.customers.filter(customer=>(filter==='all'||customer.archived===(filter==='archived')) &&

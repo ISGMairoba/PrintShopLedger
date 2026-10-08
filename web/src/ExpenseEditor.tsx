@@ -1,3 +1,4 @@
+import {useFeedbackMessage} from './Feedback';
 import ListedCombobox from './ListedCombobox';
 import {useBusinessOptions} from './BusinessOptionsContext';
 import { useState, type FormEvent } from 'react';
@@ -16,7 +17,7 @@ export default function ExpenseEditor({expense,materials,expenses,actor,busy,mod
  const categoryOptions=[...new Set([...expenseCategories,...(expense?[expense.category]:[])])];
  const [category,setCategory]=useState(expense?.category??(expenseCategories.includes('Other')?'Other':expenseCategories[0]));
  const paymentOnly=mode==='payment';
- const [error,setError]=useState('');
+ const [error,setError]=useFeedbackMessage('error');
  const [stock,setStock]=useState(!!expense?.materials.length);
  const [lines,setLines]=useState<ExpenseMaterial[]>(expense?.materials??[]);
  const [recordPayment,setRecordPayment]=useState(!expense);

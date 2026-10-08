@@ -1,3 +1,4 @@
+import {useFeedbackMessage, FeedbackBanner} from './Feedback';
 import { useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import Icon from './Icon';
@@ -6,7 +7,7 @@ import { discoverPrinters, printHtml, type PrintSettings } from './printing';
 const sample = '<h1>PrintShopLedger</h1><p>TEST PRINT — no transaction recorded</p><table><tr><th>Item</th><th>Quantity</th><th>Amount</th></tr><tr><td>Sample printing</td><td>2</td><td>NGN 2,000.00</td></tr></table><p>Total: NGN 2,000.00</p><p>Thank you for your business.</p>';
 const fonts = ['Arial', 'Calibri', 'Courier New', 'Georgia', 'Tahoma', 'Times New Roman', 'Verdana'];
 export default function PrintSettingsPage({ scope, ready }: { scope: string; ready: boolean }) {
-  const [message, setMessage] = useState('');
+  const [message, setMessage, messageTone] = useFeedbackMessage('success');
   const [settings, setSettings] = useState<PrintSettings>(() => { try { return loadPrintSettings(scope); } catch { return defaultPrintSettings(); } });
   const [draft, setDraft] = useState<PrintSettings | null>(null);
   const [printers, setPrinters] = useState<string[]>([]);
@@ -19,19 +20,19 @@ export default function PrintSettingsPage({ scope, ready }: { scope: string; rea
     try {
       const result = await discoverPrinters(); setPrinters(result.printers); setConnected(true);
       setDraft(current => current && !current.printer ? { ...current, printer: result.defaultPrinter } : current);
-      setMessage(result.printers.length ? 'Printers loaded. Select your default printer and save.' : 'Connected, but no installed printers were found.');
-    } catch (error) { setConnected(false); setMessage(`Could not connect: ${error instanceof Error ? error.message : String(error)}. Install and start QZ Tray on this computer, then try again.`); }
+      setMessage(result.printers.length ? 'Printers loaded. Select your default printer and save.' : 'Connected, but no installed printers were found.',result.printers.length?'info':'warning');
+    } catch (error) { setConnected(false); setMessage(`Could not connect: ${error instanceof Error ? error.message : String(error)}. Install and start QZ Tray on this computer, then try again.`,'error'); }
     finally { setBusy(false); }
   }
   function save(e: FormEvent) {
     e.preventDefault();
     try { const next = savePrintSettings(scope, validatePrintSettings(draft)); setSettings(next); setDraft(null); setMessage('Print settings saved for this workspace on this device.'); }
-    catch (error) { setMessage(error instanceof Error ? error.message : String(error)); }
+    catch (error) { setMessage(error instanceof Error ? error.message : String(error),'error'); }
   }
   async function test() {
     setBusy(true); setMessage('');
     try { await printHtml(settings, 'PrintShopLedger test', sample); setMessage('Test sent to the printer. Check the printed page.'); }
-    catch (error) { setMessage(`Test print failed: ${error instanceof Error ? error.message : String(error)}`); }
+    catch (error) { setMessage(`Test print failed: ${error instanceof Error ? error.message : String(error)}`,'error'); }
     finally { setBusy(false); }
   }
   return <section className="panel print-settings-panel">
@@ -40,7 +41,7 @@ export default function PrintSettingsPage({ scope, ready }: { scope: string; rea
       <button className="secondary" disabled={busy || !ready || !settings.printer} onClick={test}><Icon name="services"/> Test print</button>
       <button className="secondary" onClick={() => setPreview(true)}><Icon name="details"/> Layout sample</button>
       <button className="secondary" onClick={() => setHelp(true)}>Printer setup</button></div>
-    {message && <p className="notice" role="status">{message}</p>}
+    <FeedbackBanner message={message} tone={messageTone}/>
     <p className="muted">These defaults belong to this business workspace on this device. Each computer can use its own printer.</p>
     <dl className="print-setting-summary">
       <div><dt>Default printer</dt><dd>{settings.printer || 'Not selected'}</dd></div>
@@ -54,9 +55,9 @@ export default function PrintSettingsPage({ scope, ready }: { scope: string; rea
       <div><dt>Automatic printing preference</dt><dd>{settings.autoPrint ? 'Enabled' : 'Disabled'}</dd></div>
       <div><dt>Printer connection</dt><dd>{connected ? 'Connected during this session' : 'Not checked'}</dd></div>
     </dl>
-    <p className="notice">Automatic printing is prepared for the upcoming checkout workflow. Current jobs and payments do not print yet. QZ Tray may ask for approval until trusted message signing is configured.</p>
+    <p className="notice">Automatic printing sends receipts after checkout when enabled. QZ Tray may ask for approval until trusted message signing is configured.</p>
     {draft && <Modal title="Edit print settings" wide busy={busy} onClose={() => { setDraft(null); setMessage(''); }}>
-      {message && <p role="status">{message}</p>}
+      <FeedbackBanner message={message} tone={messageTone}/>
       <form onSubmit={save}><div className="form-grid">
         <label>Default printer<select aria-label="Default printer" value={draft.printer} onChange={e => setDraft({ ...draft, printer: e.target.value })}>
           <option value="">Select a printer</option>{Array.from(new Set([...printers, ...(draft.printer ? [draft.printer] : [])])).map(name => <option key={name}>{name}</option>)}

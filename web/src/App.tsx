@@ -1,3 +1,4 @@
+import {useFeedbackMessage, FeedbackBanner} from './Feedback';
 import ConflictInbox from './ConflictInbox';
 import {blockedWork} from './sync-dependencies.mjs';
 import {approveConflictReview,clearConflictApproval} from './conflict-review';
@@ -72,7 +73,7 @@ export default function App() {
   const [jobToAdvance,setJobToAdvance]=useState<{job:Job;mode:ProgressMode}|null>(null);
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
   const [paymentCustomer, setPaymentCustomer] = useState('');
-  const [message, setMessage] = useState('');
+  const [message, setMessage, messageTone] = useFeedbackMessage('success');
   const [busy, setBusy] = useState(false);
   const [expenseConflict,setExpenseConflict]=useState<ExpenseSyncConflict|null>(null);
   const [checkoutConflict,setCheckoutConflict]=useState<CheckoutSyncConflict|null>(null);
@@ -110,9 +111,9 @@ export default function App() {
     Promise.all([supabase.auth.getSession(), businessAuth!.auth.getSession()]).then(([staff, business]) => {
       if (!active) return;
       clearTimeout(deadline);
-      if (staff.error || business.error) setMessage(staff.error?.message || business.error?.message || '');
+      if (staff.error || business.error) setMessage(staff.error?.message || business.error?.message || '', 'error');
       setSession(staff.data.session); setBusinessSession(business.data.session); setAuthReady(true);
-    }).catch(error => { clearTimeout(deadline);if (active) { setMessage(errorMessage(error)); setAuthReady(true); } });
+    }).catch(error => { clearTimeout(deadline);if (active) { setMessage(errorMessage(error),'error'); setAuthReady(true); } });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, current) => { if (active) setSession(current); });
     const { data: businessListener } = businessAuth!.auth.onAuthStateChange((_event, current) => { if (active) setBusinessSession(current); });
     return () => { active = false;clearTimeout(deadline); listener.subscription.unsubscribe(); businessListener.subscription.unsubscribe(); };
@@ -157,7 +158,7 @@ export default function App() {
     if (!scope) return;
     let active = true;
     const refresh = () => readState(scope).then(value => { if (active) { setState(value); setReady(true); } })
-      .catch(error => { if (active) setMessage(`Local storage failed: ${errorMessage(error)}`); });
+      .catch(error => { if (active) setMessage(`Local storage failed: ${errorMessage(error)}`,'error'); });
     void refresh();
     const broadcast = new BroadcastChannel(`printshopledger:${scope}`);
     channel.current = broadcast; broadcast.onmessage = () => { void refresh(); };
@@ -188,10 +189,10 @@ export default function App() {
       if(!demo&&online){try{next=await syncLedger(target,shop!.id);if(activeScope.current===target)setState(next);}catch(error){syncProblem=errorMessage(error);if(activeScope.current===target){if(error instanceof ExpenseSyncConflict)setExpenseConflict(error);if(error instanceof CheckoutSyncConflict)setCheckoutConflict(error);if(error instanceof JobSyncConflict)setJobConflict(error);if(error instanceof MaterialSyncConflict)setConflict(error);if(error instanceof ServiceSyncConflict)setServiceConflict(error);if(error instanceof CustomerSyncConflict)setCustomerConflict(error);}}}
       const record=next.ledger.checkouts.find(r=>r.id===operation.id)!;
       const pending=next.pending.some(e=>e.id===operation.id);
-      setMessage(syncProblem|| (demo?'Checkout saved on this device.':pending?'Checkout saved on this device. It will sync automatically.':'Checkout confirmed and saved.'));
+      setMessage(syncProblem|| (demo?'Checkout saved on this device.':pending?'Checkout saved on this device. It will sync automatically.':'Checkout confirmed and saved.'),syncProblem?'warning':'success');
       const receiptWarning=receiptIntegrityError(record);
       const printed=receiptWarning?{status:'failed',message:receiptWarning}:await printAfterTransaction(target,`Receipt ${record.id.slice(0,8)}`,receiptHtml(record,branding.settings,pending),true);
-      if(activeScope.current===target&&printed.status==='failed')setMessage(`Checkout saved. Receipt printing failed: ${printed.message}. Open the receipt to retry.`);
+      if(activeScope.current===target&&printed.status==='failed')setMessage(`Checkout saved. Receipt printing failed: ${printed.message}. Open the receipt to retry.`,'warning');
       return record;
     }finally{setBusy(false);}
   }
@@ -249,9 +250,9 @@ export default function App() {
     },
     onError:(error)=>{
       const target=scope;void readState(target).then(next=>{if(activeScope.current===target)setState(next);});
-      setMessage(errorMessage(error));
+      setMessage(errorMessage(error),'error');
       if(error instanceof ExpenseSyncConflict||error instanceof CheckoutSyncConflict||error instanceof JobSyncConflict||error instanceof MaterialSyncConflict||error instanceof ServiceSyncConflict||error instanceof CustomerSyncConflict){
-        setMessage(errorMessage(error));setConflictReviewHidden(false);
+        setMessage(errorMessage(error),'error');setConflictReviewHidden(false);
         if(error instanceof ExpenseSyncConflict)setExpenseConflict(error);if(error instanceof CheckoutSyncConflict)setCheckoutConflict(error);if(error instanceof JobSyncConflict)setJobConflict(error);
         if(error instanceof MaterialSyncConflict)setConflict(error);
         if(error instanceof ServiceSyncConflict)setServiceConflict(error);
@@ -268,7 +269,7 @@ export default function App() {
     try {
       const next = await resolveCloudMaterial(target, shop.id, conflict.local.id, choice, conflict.local.lastEventId, conflict.remote.lastEventId);
       if (activeScope.current === target) { setState(next); setConflict(null); channel.current?.postMessage('changed'); setMessage('Choice saved. Remaining changes will sync automatically.'); }
-    } catch (error) { if (activeScope.current === target) { setMessage(errorMessage(error)); if (error instanceof MaterialSyncConflict) setConflict(error); } }
+    } catch (error) { if (activeScope.current === target) { setMessage(errorMessage(error),'error'); if (error instanceof MaterialSyncConflict) setConflict(error); } }
     finally { setBusy(false); }
   }
   async function resolveServiceConflict(choice: 'local' | 'cloud', materialId: string | null) {
@@ -277,7 +278,7 @@ export default function App() {
     try {
       const next = await resolveCloudService(target, shop.id, serviceConflict.local.id, choice, serviceConflict.local.lastEventId, serviceConflict.remote?.lastEventId ?? null, materialId);
       if (activeScope.current === target) { setState(next); setServiceConflict(null); channel.current?.postMessage('changed'); setMessage('Choice saved. Remaining changes will sync automatically.'); }
-    } catch (error) { if (activeScope.current === target) { setMessage(errorMessage(error)); if (error instanceof ServiceSyncConflict) setServiceConflict(error); if (error instanceof CustomerSyncConflict) setCustomerConflict(error); } }
+    } catch (error) { if (activeScope.current === target) { setMessage(errorMessage(error),'error'); if (error instanceof ServiceSyncConflict) setServiceConflict(error); if (error instanceof CustomerSyncConflict) setCustomerConflict(error); } }
     finally { setBusy(false); }
   }
   async function resolveCustomerConflict(choice: 'local' | 'cloud') {
@@ -286,7 +287,7 @@ export default function App() {
     try {
       const next = await resolveCloudCustomer(target, shop.id, customerConflict.local.id, choice, customerConflict.local.lastEventId, customerConflict.remote?.lastEventId ?? null);
       if (activeScope.current === target) { setState(next); setCustomerConflict(null); channel.current?.postMessage('changed'); setMessage('Choice saved. Remaining changes will sync automatically.'); }
-    } catch (error) { if (activeScope.current === target) { setMessage(errorMessage(error)); if (error instanceof CustomerSyncConflict) setCustomerConflict(error); } }
+    } catch (error) { if (activeScope.current === target) { setMessage(errorMessage(error),'error'); if (error instanceof CustomerSyncConflict) setCustomerConflict(error); } }
     finally { setBusy(false); }
   }
   function openPayment(customerId = '') {
@@ -301,7 +302,7 @@ export default function App() {
       const { error: staffError } = await supabase!.auth.signInWithPassword({email:String(data.get('email')),password:String(data.get('password'))});
       if (staffError) throw staffError;
       setBusinessSession(business.session); setDemo(false); setSwitchUser(false); setMessage('');
-    } catch (error) { setMessage(errorMessage(error)); }
+    } catch (error) { setMessage(errorMessage(error),'error'); }
     finally { setBusy(false); }
   }
   async function createWorkspace(e: FormEvent<HTMLFormElement>) {
@@ -322,7 +323,7 @@ export default function App() {
       // never leave the creation form open and invite a duplicate business.
       setWorkspaceLookup({key:workspaceIdentity,status:'loading',error:''});
       setStaffEpoch(value=>value+1);setMessage('Business workspace created.');
-    }catch(error){setMessage(errorMessage(error));}
+    }catch(error){setMessage(errorMessage(error),'error');}
     finally{setBusy(false);}
   }
   async function staffLogin(e:FormEvent<HTMLFormElement>){
@@ -333,9 +334,9 @@ export default function App() {
       if(error){let message=error.message;const response=(error as {context?:Response}).context;if(response)try{message=(await response.json()).error||message;}catch{}throw new Error(message);}
       const {error:failure}=await supabase!.auth.setSession({access_token:data.access_token,refresh_token:data.refresh_token});
       if(failure)throw failure;setSwitchUser(false);setStaffEpoch(value=>value+1);setPage('Point of Service');
-    }catch(error){setMessage(errorMessage(error));}finally{setBusy(false);}
+    }catch(error){setMessage(errorMessage(error),'error');}finally{setBusy(false);}
   }
-  function staffLoginForm(){return <form onSubmit={staffLogin}><label>Username<input name="username" autoComplete="username" maxLength={40} required/></label><label>Password<input name="password" type="password" autoComplete="current-password" required/></label><button disabled={busy||!online}>{busy?'Signing in…':'Sign in user'}</button></form>;}
+  function staffLoginForm(){return <form onSubmit={staffLogin}><label>Username<input name="username" autoComplete="username" aria-invalid={messageTone==='error'&&!!message} maxLength={40} required/></label><label>Password<input name="password" type="password" autoComplete="current-password" aria-invalid={messageTone==='error'&&!!message} required/></label><button disabled={busy||!online}>{busy?'Signing in…':'Sign in user'}</button></form>;}
   const customerName = (id: string) => ledger.customers.find(customer => customer.id === id)?.name ?? 'Unknown customer';
   const currentJob = ledger.jobs.find(job => job.id === selectedJob);
   const search = query.toLowerCase();
@@ -351,15 +352,15 @@ export default function App() {
   if (!authReady) return <main className="auth"><section className="auth-card"><h1>{authStartupError?"Could not restore your sign-in":"Opening PrintShopLedger…"}</h1>{authStartupError&&<><p role="alert">{authStartupError}</p><button onClick={()=>setAuthEpoch(value=>value+1)}>Retry sign-in loading</button></>}</section></main>;
   if (!demo && !businessSession) return <main className="auth"><div className="auth-card">
     <div className="brand-mark">S</div><h1>PrintShopLedger</h1><p>Every job. Every payment. Clearly tracked.</p>
-    <form onSubmit={login}><label>Business email<input name="email" type="email" autoComplete="username" required /></label>
-      <label>Business password<input name="password" type="password" autoComplete="current-password" required /></label>
+    <form onSubmit={login}><label>Business email<input name="email" type="email" autoComplete="username" aria-invalid={messageTone==='error'&&!!message} required /></label>
+      <label>Business password<input name="password" type="password" autoComplete="current-password" aria-invalid={messageTone==='error'&&!!message} required /></label>
       <button disabled={busy || !online}>Sign in</button></form>
     <button className="secondary" onClick={() => { setDemo(true); setMessage(''); }}>Try locally on this device</button>
-    <p className="muted">Local trial data stays separate from business workspaces.</p>{message && <p role="alert">{message}</p>}
+    <p className="muted">Local trial data stays separate from business workspaces.</p><FeedbackBanner message={message} tone={messageTone} login/>
   </div></main>;
 
   if(!demo&&businessSession&&(workspaceLookup.key!==workspaceIdentity||workspaceLookup.status!=='ready'))return <main className="auth"><section className="auth-card"><h1>{workspaceLookup.key===workspaceIdentity&&workspaceLookup.status==='error'?'Could not load your business':'Loading business workspace…'}</h1>{workspaceLookup.key===workspaceIdentity&&workspaceLookup.status==='error'&&<><p>Your sign-in succeeded, but the workspace lookup failed. This does not mean you need to create another workspace.</p><p role="alert">{workspaceLookup.error||'The server did not respond. Please retry.'}</p><button disabled={!online} onClick={()=>setStaffEpoch(value=>value+1)}>Retry workspace lookup</button></>}<button className="secondary" onClick={async()=>{await Promise.all([supabase!.auth.signOut(),businessAuth!.auth.signOut()]);}}>Sign out</button></section></main>;
-  if(!demo&&businessSession&&shops.length>0&&(!session||!shop||shop.userId!==session.user.id||shop.accessLevel===0)) return <main className="auth"><section className="auth-card"><h1>Staff sign in</h1><p>The business is signed in. Enter your username and password.</p><label>Business<select value={shop?.id??''} onChange={e=>setShop(shops.find(item=>item.id===e.target.value)??null)}>{shops.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>{staffLoginForm()}{message&&<p role="alert">{message}</p>}</section></main>;
+  if(!demo&&businessSession&&shops.length>0&&(!session||!shop||shop.userId!==session.user.id||shop.accessLevel===0)) return <main className="auth"><section className="auth-card"><h1>Staff sign in</h1><p>The business is signed in. Enter your username and password.</p><label>Business<select value={shop?.id??''} onChange={e=>setShop(shops.find(item=>item.id===e.target.value)??null)}>{shops.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>{staffLoginForm()}<FeedbackBanner message={message} tone={messageTone} login/></section></main>;
 
   return <BusinessOptionsContext.Provider value={branding.settings.options}><div className="app">
     <Sidebar title={businessName} header={<>
@@ -367,13 +368,13 @@ export default function App() {
       <div className="sidebar-user"><strong>{demo ? 'Local trial user' : shop?.staffName || 'Not signed in'}{(demo || shop?.username) && ` (${demo ? 'trial' : shop?.username})`}</strong><small className="staff-rank">{demo ? 'Trial' : shop?.role}</small></div>
     </>} footer={<>
       {!demo&&<button className="secondary" disabled={busy||!online} onClick={()=>{setSwitchUser(true);setMessage('');}}>Switch user</button>}
-      {!demo&&<button className="secondary" disabled={busy} onClick={async()=>{const {error}=await supabase!.auth.signOut({scope:'local'});if(error)setMessage(error.message);else{setSession(null);setMessage('User signed out. Business remains signed in.');}}}>Logout</button>}
+      {!demo&&<button className="secondary" disabled={busy} onClick={async()=>{const {error}=await supabase!.auth.signOut({scope:'local'});if(error)setMessage(error.message,'error');else{setSession(null);setMessage('User signed out. Business remains signed in.');}}}>Logout</button>}
       {supabase && (demo || (shop?.accessLevel ?? 0) >= 3) && <button className="secondary" disabled={busy} onClick={async () => {
         if (demo) { setDemo(false); return; }
         if ((shop?.accessLevel ?? 0) < 3) return;
         const results = await Promise.all([supabase!.auth.signOut({scope:'local'}),businessAuth!.auth.signOut({scope:'local'})]);
         const failure=results.find(result=>result.error)?.error;
-        if(failure)setMessage(failure.message);else{setSession(null);setBusinessSession(null);setShop(null);setMessage('Business signed out.');}
+        if(failure)setMessage(failure.message,'error');else{setSession(null);setBusinessSession(null);setShop(null);setMessage('Business signed out.');}
       }}>{demo ? 'Business sign in' : 'Sign out business'}</button>}
     </>}>
       <nav aria-label="Main">{(pages as Page[]).filter(item=>demo||(item==='Conflict Inbox'&&!!supervisor)||canAccessPage(item,shop?.accessLevel??0)).map(item => <button key={item} className={page === item ? 'active' : ''}
@@ -381,14 +382,14 @@ export default function App() {
     </Sidebar>
     <main><header><div><span className="eyebrow">{demo ? 'LOCAL TRIAL' : businessName}</span><h1>{page}</h1><p>{page === 'Business Settings' ? '' : page === 'Conflict Inbox' ? 'Review pending work from connected staff devices.' : page === 'My Account' ? 'Manage your username and password.' : page === 'Expenses' ? 'Record expenses, payments and material purchases.' : page === 'My Sales' ? 'Review your transactions and record a verified drawer handover.' : page === 'Users' ? 'Manage staff accounts, ranks and business access.' : page === 'Print Settings' ? 'Set default printer, paper, font and margins for this device.' : page === 'Customers' ? 'Manage customer details and credit limits.' : page === 'Materials' ? 'Manage materials, quantities and pricing requirements.' : page === 'Stock History' ? 'Review every material change and stock adjustment.' : page === 'Services' ? 'Define services, their base materials and prices.' : 'Track work and keep every payment attached to its job.'}</p></div>
       {!demo&&scope&&<span className="sync-status" role="status" aria-live="polite"><Icon name="sync"/> {syncLabel}{state.pending.length>0&&` (${state.pending.length})`}</span>}</header>
-      {switchUser&&<Modal title="Switch user" busy={busy} onClose={()=>setSwitchUser(false)}><p>Business: {shop?.name}. Sign in with your staff username and password.</p>{staffLoginForm()}{message&&<p role="alert">{message}</p>}</Modal>}
+      {switchUser&&<Modal title="Switch user" busy={busy} onClose={()=>setSwitchUser(false)}><p>Business: {shop?.name}. Sign in with your staff username and password.</p>{staffLoginForm()}<FeedbackBanner message={message} tone={messageTone} login/></Modal>}
       {needRefresh && <div className="notice">An app update is ready. <button className="secondary" disabled={busy} onClick={() => void updateServiceWorker(true)}>Update app</button></div>}
-      {branding.error&&<div className="notice" role="status">{branding.error}</div>}{message && <div className="notice" role="status">{message}</div>}
+      <FeedbackBanner message={branding.error} tone="warning"/><FeedbackBanner message={message} tone={messageTone}/>
       {hasConflict&&!canReviewConflicts&&<div className="notice" role="alert"><strong>Admin review required.</strong><p>Conflicts have been sent to the business inbox when connected. An Admin, Manager or Developer can review them remotely. Sales sharing affected stock or customer accounts wait; unrelated sales can continue. Pending work remains saved on this device.</p><button className="secondary" disabled={!online||busy} onClick={()=>setSupervisorLogin(true)}>Supervisor review</button></div>}
-      {Object.keys(state.syncConflicts??{}).length>0&&canReviewConflicts&&<div className="notice">{heldWork.eventIds.size} pending operations await review. Unaffected sales can continue. <button className="secondary" onClick={()=>setPage('Conflict Inbox')}>Open conflict inbox</button></div>}
+      {Object.keys(state.syncConflicts??{}).length>0&&canReviewConflicts&&<div className="notice notice-warning">{heldWork.eventIds.size} pending operations await review. Unaffected sales can continue. <button className="secondary" onClick={()=>setPage('Conflict Inbox')}>Open conflict inbox</button></div>}
       {hasConflict&&supervisor&&<div className="notice">Supervisor review: {supervisor}. The cashier remains signed in.<button className="secondary" onClick={()=>{clearConflictApproval();setSupervisor('');}}>End supervisor review</button></div>}
-      {supervisorLogin&&<Modal title="Supervisor conflict review" busy={busy} onClose={()=>setSupervisorLogin(false)}><p>An Admin or higher rank must enter their credentials and personally review the pending work. This does not switch the cashier or move their saved sales.</p><form onSubmit={async event=>{event.preventDefault();if(busy||!online||!businessAuth||!shop)return;const form=new FormData(event.currentTarget);setBusy(true);try{const name=await approveConflictReview(businessAuth,scope,shop.id,String(form.get('username')),String(form.get('password')));if(activeScope.current===scope){setSupervisor(name);setSupervisorLogin(false);setConflictReviewHidden(false);if(Object.keys(state.syncConflicts??{}).length)setPage('Conflict Inbox');setMessage('Supervisor access verified for five minutes.');}else clearConflictApproval();}catch(error){setMessage(errorMessage(error));}finally{setBusy(false);}}}><label>Supervisor username<input name="username" autoComplete="username" required/></label><label>Supervisor password<input name="password" type="password" autoComplete="current-password" required/></label><button disabled={busy||!online}>Verify supervisor</button></form>{message&&<p role="alert">{message}</p>}</Modal>}
-      {hasConflict&&canReviewConflicts&&conflictReviewHidden&&<div className="notice">Sync is paused while you review an edit conflict. <button className="secondary" onClick={()=>setConflictReviewHidden(false)}>Review changes</button></div>}
+      {supervisorLogin&&<Modal title="Supervisor conflict review" busy={busy} onClose={()=>setSupervisorLogin(false)}><p>An Admin or higher rank must enter their credentials and personally review the pending work. This does not switch the cashier or move their saved sales.</p><form onSubmit={async event=>{event.preventDefault();if(busy||!online||!businessAuth||!shop)return;const form=new FormData(event.currentTarget);setBusy(true);try{const name=await approveConflictReview(businessAuth,scope,shop.id,String(form.get('username')),String(form.get('password')));if(activeScope.current===scope){setSupervisor(name);setSupervisorLogin(false);setConflictReviewHidden(false);if(Object.keys(state.syncConflicts??{}).length)setPage('Conflict Inbox');setMessage('Supervisor access verified for five minutes.');}else clearConflictApproval();}catch(error){setMessage(errorMessage(error),'error');}finally{setBusy(false);}}}><label>Supervisor username<input name="username" autoComplete="username" aria-invalid={messageTone==='error'&&!!message} required/></label><label>Supervisor password<input name="password" type="password" autoComplete="current-password" aria-invalid={messageTone==='error'&&!!message} required/></label><button disabled={busy||!online}>Verify supervisor</button></form><FeedbackBanner message={message} tone={messageTone} login/></Modal>}
+      {hasConflict&&canReviewConflicts&&conflictReviewHidden&&<div className="notice notice-warning">Sync is paused while you review an edit conflict. <button className="secondary" onClick={()=>setConflictReviewHidden(false)}>Review changes</button></div>}
       {expenseConflict&&!conflictReviewHidden && canReviewConflicts&&<Modal title="Review expense changes" wide busy={busy} onClose={()=>setConflictReviewHidden(true)}>
         <p>{expenseConflict.message}</p><div className="table-wrap"><table><thead><tr><th>Field</th><th>This device</th><th>Business version</th></tr></thead><tbody>
         <tr><td>Description</td><td>{expenseConflict.local.description}</td><td>{expenseConflict.remote?.description??'Not available'}</td></tr>
@@ -398,12 +399,12 @@ export default function App() {
         <tr><td>Status</td><td>{expenseConflict.local.voided?'Voided':'Active'}</td><td>{expenseConflict.remote?.voided?'Voided':'Active'}</td></tr>
         <tr><td>Materials</td><td>{expenseConflict.local.materials.map(m=>`${m.name}: ${m.quantity} ${m.measurementUnit}`).join(' · ')||'None'}</td><td>{expenseConflict.remote?.materials.map(m=>`${m.name}: ${m.quantity} ${m.measurementUnit}`).join(' · ')||'None'}</td></tr>
         </tbody></table></div><p>Reapplying keeps business payments and applies your pending expense changes against the latest stock. Keeping the business version discards this device’s pending changes to this expense.</p>
-        <div className="material-actions">{(['local','cloud'] as const).map(choice=><button key={choice} disabled={busy} className={choice==='cloud'?'secondary':''} onClick={async()=>{setBusy(true);const target=scope;try{const next=await resolveCloudExpense(target,shop!.id,expenseConflict.local.id,choice,expenseConflict.local.lastEventId,expenseConflict.remote?.lastEventId??null);if(activeScope.current===target){setState(next);setExpenseConflict(null);channel.current?.postMessage('changed');setMessage('Expense review saved. Sync will resume automatically.');}}catch(error){setMessage(errorMessage(error));if(error instanceof ExpenseSyncConflict)setExpenseConflict(error);}finally{setBusy(false);}}}>{choice==='local'?'Reapply pending changes':'Keep business version'}</button>)}</div>
+        <div className="material-actions">{(['local','cloud'] as const).map(choice=><button key={choice} disabled={busy} className={choice==='cloud'?'secondary':''} onClick={async()=>{setBusy(true);const target=scope;try{const next=await resolveCloudExpense(target,shop!.id,expenseConflict.local.id,choice,expenseConflict.local.lastEventId,expenseConflict.remote?.lastEventId??null);if(activeScope.current===target){setState(next);setExpenseConflict(null);channel.current?.postMessage('changed');setMessage('Expense review saved. Sync will resume automatically.');}}catch(error){setMessage(errorMessage(error),'error');if(error instanceof ExpenseSyncConflict)setExpenseConflict(error);}finally{setBusy(false);}}}>{choice==='local'?'Reapply pending changes':'Keep business version'}</button>)}</div>
       </Modal>}
       {checkoutConflict&&!conflictReviewHidden && canReviewConflicts&&<CheckoutEditor key={checkoutConflict.event.id+JSON.stringify(checkoutConflict.cloud.payments)+JSON.stringify(checkoutConflict.cloud.services)} ledger={checkoutReviewBase(state,checkoutConflict.cloud,checkoutConflict.event.id)} initialCheckout={checkoutConflict.event.data} actor={{id:session!.user.id,label:shop?.staffName||session!.user.email||session!.user.id}} busy={busy} paymentOnly={!checkoutConflict.event.data.jobs.length} onClose={()=>setConflictReviewHidden(true)} onReceipt={setReceipt} onSave={async operation=>{setBusy(true);const target=scope;try{const next=await resolvePendingWork(target,shop!.id,checkoutConflict.event.id,operation);if(activeScope.current===target){setState(next);setCheckoutConflict(null);channel.current?.postMessage('changed');setMessage('Pending checkout updated. Use the updated receipt; syncing will resume automatically.');}return next.ledger.checkouts.find(r=>r.id===operation.id)!;}catch(error){if(error instanceof ExpenseSyncConflict)setExpenseConflict(error);if(error instanceof CheckoutSyncConflict)setCheckoutConflict(error);throw error;}finally{setBusy(false);}}}/>}
-      {jobConflict&&!conflictReviewHidden && canReviewConflicts&&<Modal title="Review job progress" busy={busy} onClose={()=>setConflictReviewHidden(true)}><p>{jobConflict.message}</p><p>Business status: {jobConflict.cloud.jobs.find(j=>j.id===jobConflict.event.data.id)?.productionStatus??'Added'}</p><button disabled={busy} onClick={async()=>{setBusy(true);const target=scope;try{const next=await resolvePendingWork(target,shop!.id,jobConflict.event.id,null,jobConflict.event.data.id);if(activeScope.current===target){setState(next);setJobConflict(null);channel.current?.postMessage('changed');}}catch(error){setMessage(errorMessage(error));}finally{setBusy(false);}}}>Use business status</button></Modal>}
+      {jobConflict&&!conflictReviewHidden && canReviewConflicts&&<Modal title="Review job progress" busy={busy} onClose={()=>setConflictReviewHidden(true)}><p>{jobConflict.message}</p><p>Business status: {jobConflict.cloud.jobs.find(j=>j.id===jobConflict.event.data.id)?.productionStatus??'Added'}</p><button disabled={busy} onClick={async()=>{setBusy(true);const target=scope;try{const next=await resolvePendingWork(target,shop!.id,jobConflict.event.id,null,jobConflict.event.data.id);if(activeScope.current===target){setState(next);setJobConflict(null);channel.current?.postMessage('changed');}}catch(error){setMessage(errorMessage(error),'error');}finally{setBusy(false);}}}>Use business status</button></Modal>}
       {customerConflict && !conflictReviewHidden && canReviewConflicts && <Modal title="Review conflicting customer edits" wide busy={busy} onClose={() => setConflictReviewHidden(true)}>
-        {message && <p role="status">{message}</p>}
+        <FeedbackBanner message={message} tone={messageTone}/>
         <div className="table-wrap"><table><thead><tr><th>Field</th><th>This device</th><th>Business workspace</th></tr></thead><tbody>
           {(['name','phone','address','creditLimit','archived','modifiedByLabel'] as const).map(field => <tr key={field}><td>{{name:'Full name',phone:'Phone',address:'Address',creditLimit:'Credit limit',archived:'Archived',modifiedByLabel:'Modified by'}[field]}</td>
             <td>{field==='creditLimit'?currency(customerConflict.local.creditLimit):String(customerConflict.local[field])}</td>
@@ -414,7 +415,7 @@ export default function App() {
       </Modal>}
       {serviceConflict && !conflictReviewHidden && canReviewConflicts && <ServiceConflictReview key={serviceConflict.local.lastEventId + (serviceConflict.remote?.lastEventId ?? '') + serviceConflict.materials.map(item => item.lastEventId).join('')} conflict={serviceConflict} busy={busy} message={message} onClose={() => setConflictReviewHidden(true)} onResolve={resolveServiceConflict} />}
       {conflict && !conflictReviewHidden && canReviewConflicts && <Modal title="Review conflicting material edits" wide busy={busy} onClose={() => setConflictReviewHidden(true)}>
-        {message && <div className="notice" role="status">{message}</div>}
+        <FeedbackBanner message={message} tone={messageTone}/>
         <div className="table-wrap"><table><thead><tr><th>Field</th><th>This device</th><th>Business workspace</th></tr></thead><tbody>
           <tr><td>Name</td><td>{conflict.local.name}</td><td>{conflict.remote.name}</td></tr>
           <tr><td>Available</td><td>{conflict.local.available}</td><td>{conflict.remote.available}</td></tr>

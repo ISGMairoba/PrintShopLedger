@@ -1,8 +1,9 @@
+import {useFeedbackMessage} from './Feedback';
 import {useState,type ReactNode} from 'react';
 import {defaultOptions} from './business-options.mjs';
 type Options=ReturnType<typeof defaultOptions>;
 export default function BusinessOptionsEditor({value,onChange,disabled,saveControl}:{value:Options;onChange:(value:Options)=>void;disabled:boolean;saveControl?:ReactNode}){
- const [error,setError]=useState(''),[payment,setPayment]=useState(''),[kind,setKind]=useState('Transfer');
+ const [error,setError]=useFeedbackMessage('error'),[payment,setPayment]=useState(''),[kind,setKind]=useState('Transfer');
  function update(key:keyof Options,next:unknown){onChange({...value,[key]:next});setError('');}
  return <fieldset disabled={disabled}><legend>Dropdowns & job workflow</legend><p>Changes apply to new entries. Saved payments and existing jobs keep their original details and stage order.</p>
  <h3>Payment methods</h3><p>Choose where each method belongs in drawer totals. Cash contributes to the cash handover; POS and Transfer contribute to their respective totals.</p>

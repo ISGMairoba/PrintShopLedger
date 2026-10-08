@@ -1,3 +1,4 @@
+import {useFeedbackMessage} from './Feedback';
 import {useEffect,useState} from 'react';
 import CheckoutEditor from './CheckoutEditor';
 import Modal from './Modal';
@@ -14,7 +15,7 @@ const fieldValue=(key:string,value:unknown)=>['price','amount','creditLimit'].in
 const date=(v:string)=>new Date(v).toLocaleString('en-NG',{timeZone:'Africa/Lagos'});
 const summary=(event:LedgerEvent)=>event.kind==='checkout.completed'?`${event.data.jobs.length} job(s) · ₦${(event.data.total/100).toLocaleString('en-NG')}`:('description' in event.data?event.data.description:undefined)||('name' in event.data?event.data.name:undefined)||event.kind.replaceAll('.',' ');
 export default function ConflictInbox({scope,shopId,online,onChanged}:{scope:string;shopId:string;online:boolean;onChanged:()=>void}){
- const [items,setItems]=useState<RemoteConflict[]>([]),[review,setReview]=useState<Review|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[reason,setReason]=useState(''),[checkout,setCheckout]=useState(false),[history,setHistory]=useState(false),[materialId,setMaterialId]=useState<string|null>(null);
+ const [items,setItems]=useState<RemoteConflict[]>([]),[review,setReview]=useState<Review|null>(null),[busy,setBusy]=useState(false),[error,setError]=useFeedbackMessage('error'),[reason,setReason]=useState(''),[checkout,setCheckout]=useState(false),[history,setHistory]=useState(false),[materialId,setMaterialId]=useState<string|null>(null);
  async function refresh(){if(!online)return;try{setItems(await listRemoteConflicts(scope,shopId));setError('');}catch(cause){setError(cause instanceof Error?cause.message:String(cause));}}
  useEffect(()=>{let active=true;const run=async()=>{if(!online)return;try{const rows=await listRemoteConflicts(scope,shopId);if(active)setItems(rows);}catch(cause){if(active)setError(cause instanceof Error?cause.message:String(cause));}};void run();const timer=setInterval(()=>void run(),30000);return()=>{active=false;clearInterval(timer);};},[scope,shopId,online]);
  async function open(id:string){setBusy(true);setError('');try{const next=await getRemoteConflict(scope,shopId,id);setReview(next);const d=next.conflict.source.data;setMaterialId('materialId' in d?d.materialId??null:next.ledger.services.find(item=>item.id===d.id)?.materialId??null);setReason('');setCheckout(false);}catch(cause){setError(cause instanceof Error?cause.message:String(cause));}finally{setBusy(false);}}

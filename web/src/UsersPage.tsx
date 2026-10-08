@@ -1,3 +1,4 @@
+import {useFeedbackMessage, FeedbackBanner} from './Feedback';
 import ResponsiveTable from './ResponsiveTable';
 import { useEffect, useState, type FormEvent } from 'react';
 import { supabase } from './cloud';
@@ -20,8 +21,8 @@ export default function UsersPage({shopId,actorId,businessUserId,role,online,dem
  const [confirmation,setConfirmation]=useState<Staff|null>(null);
  const [accessChange,setAccessChange]=useState<Staff|null>(null);
  const [passwordReset,setPasswordReset]=useState<Staff|null>(null);
- const [error,setError]=useState('');
- const [formError,setFormError]=useState('');
+ const [error,setError,errorTone]=useFeedbackMessage('error');
+ const [formError,setFormError]=useFeedbackMessage('error');
  const sorting=useTableSort<Staff>('name');
  const allowed=!demo&&['admin','manager','developer'].includes(role);
  const actor=users.find(user=>user.userId===actorId);
@@ -64,8 +65,8 @@ export default function UsersPage({shopId,actorId,businessUserId,role,online,dem
     const {error:failure}=await supabase.rpc('save_shop_user',{p_shop:shopId,p_action:'edit',p_data:{...profile,id:editor.id,version:editor.version}});
     if(failure)throw new Error(failure.message);
    }
-   setEditor(null);setError('');if(editor!=='new'&&editor?.userId===actorId)onChanged();
-   try{await load();}catch{setError('User saved. Refresh to load the latest list.');}
+   setEditor(null);setError('User saved.','success');if(editor!=='new'&&editor?.userId===actorId)onChanged();
+   try{await load();}catch{setError('User saved. Refresh to load the latest list.','warning');}
   }catch(cause){setFormError(cause instanceof Error?cause.message:'Could not save user.');}
   finally{setBusy(false);}
  }
@@ -75,8 +76,8 @@ export default function UsersPage({shopId,actorId,businessUserId,role,online,dem
   try{
    const {error:failure}=await supabase.rpc('save_shop_user',{p_shop:shopId,p_action:confirmation.archived?'restore':'archive',p_data:{id:confirmation.id,version:confirmation.version}});
    if(failure)throw new Error(failure.message);
-   setConfirmation(null);setError('');if(confirmation.userId===actorId)onChanged();
-   try{await load();}catch{setError('Status saved. Refresh to load the latest list.');}
+   setConfirmation(null);setError('User status saved.','success');if(confirmation.userId===actorId)onChanged();
+   try{await load();}catch{setError('Status saved. Refresh to load the latest list.','warning');}
   }catch(cause){setFormError(cause instanceof Error?cause.message:'Could not save user.');}
   finally{setBusy(false);}
  }
@@ -86,7 +87,7 @@ export default function UsersPage({shopId,actorId,businessUserId,role,online,dem
   try{
    const {error:failure}=await supabase.rpc('save_shop_user',{p_shop:shopId,p_action:accessChange.accessLevel===0?'grant':'revoke',p_data:{id:accessChange.id,version:accessChange.version}});
    if(failure)throw new Error(failure.message);
-   setAccessChange(null);if(accessChange.userId===actorId)onChanged();await load();
+   setAccessChange(null);setError('User access saved.','success');if(accessChange.userId===actorId)onChanged();await load();
   }catch(cause){setFormError(cause instanceof Error?cause.message:'Could not change access.');}finally{setBusy(false);}
  }
  async function resetPassword(event:FormEvent<HTMLFormElement>){
@@ -99,7 +100,7 @@ export default function UsersPage({shopId,actorId,businessUserId,role,online,dem
    const {data:result,error:failure}=await supabase.functions.invoke('manage-users',{body:{action:'reset-password',shopId,id:passwordReset.id,version:passwordReset.version,password}});
    if(failure){let message=failure.message;const response=(failure as {context?:Response}).context;if(response)try{message=(await response.json()).error||message;}catch{}throw new Error(message);}
    if(result?.error)throw new Error(result.error);
-   setPasswordReset(null);setError(result?.warning??'Password reset successfully.');await load();
+   setPasswordReset(null);setError(result?.warning??'Password reset successfully.',result?.warning?'warning':'success');await load();
   }catch(cause){setFormError(cause instanceof Error?cause.message:'Could not reset password.');}finally{setBusy(false);}
  }
  const visible=sorting.sortRows(users.filter(user=>(filter==='all'||user.archived===(filter==='archived'))&&
@@ -117,7 +118,7 @@ export default function UsersPage({shopId,actorId,businessUserId,role,online,dem
   <button disabled={busy||!ready||!online} onClick={()=>{setEditor('new');setFormError('');}}><Icon name="add"/> Add user</button>
  </div>
  {!online&&<div className="notice">Connect to the internet to manage user accounts.</div>}
- {error&&<div className="notice" role="alert">{error}</div>}
+ <FeedbackBanner message={error} tone={errorTone}/>
  {!ready?<div className="empty">{online?'Loading users…':'User management is available online.'}</div>:!visible.length?<div className="empty">No matching users.</div>:
  <div className="table-wrap"><ResponsiveTable columns={[{index:1,label:"User",details:[0,2,5,6]},{index:3,label:"Rank",details:[4]},{index:-1,label:"Actions",actions:true}]} labels={{0:"ID"}}><table><thead><tr>{heading('id','User ID')}{heading('name','Name')}{heading('username','Username')}{heading('rank','Rank')}{heading('role','Access level')}{heading('lastLogin','Last login')}{heading('status','Status')}
  {audit&&<>{heading('createdBy','Created by')}{heading('createdAt','Created at')}{heading('modifiedBy','Modified by')}{heading('modifiedAt','Modified at')}</>}<th>Actions</th></tr></thead><tbody>

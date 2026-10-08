@@ -1,3 +1,4 @@
+import {useFeedbackMessage} from './Feedback';
 import {useBusinessOptions} from './BusinessOptionsContext';
 import ResponsiveTable from './ResponsiveTable';
 import Icon from './Icon';
@@ -15,7 +16,7 @@ export default function MaterialsPage({ materials, history, ready, busy, actor, 
   const [filter, setFilter] = useState('active');
   const [editor, setEditor] = useState<Material | 'new' | null>(null);
   const [confirmation, setConfirmation] = useState<Material | null>(null);
-  const [error, setError] = useState('');
+  const [error, setError] = useFeedbackMessage('error');
   const [audit, setAudit] = useState(false);
   const [stock, setStock] = useState<{ material: Material; mode: 'add' | 'set' } | null>(null);
   const [stockReason, setStockReason] = useState('');

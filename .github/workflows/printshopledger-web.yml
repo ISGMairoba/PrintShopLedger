@@ -31,6 +31,8 @@ jobs:
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/check-login-sync.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: node scripts/check-feedback.mjs
+      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/check-remote-review.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/check-access-account.mjs

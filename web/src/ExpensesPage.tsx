@@ -1,3 +1,4 @@
+import {useFeedbackMessage} from './Feedback';
 import {paymentName} from './business-options.mjs';
 import {useBusinessOptions} from './BusinessOptionsContext';
 import { useState } from 'react';
@@ -14,7 +15,7 @@ const day=(value:string)=>new Date(value+'T12:00:00+01:00').toLocaleDateString('
 export default function ExpensesPage({ledger,ready,busy,actor,pending,onSave}:{ledger:Ledger;ready:boolean;busy:boolean;actor:{id:string;label:string};pending:LedgerEvent[];onSave:(event:ExpenseEvent)=>Promise<void>}){
  const {expenseCategories}=useBusinessOptions();
  const [query,setQuery]=useState(''),[status,setStatus]=useState('active'),[category,setCategory]=useState(''),[staff,setStaff]=useState(''),[from,setFrom]=useState(''),[to,setTo]=useState('');
- const [audit,setAudit]=useState(false),[editor,setEditor]=useState<Expense|'new'|null>(null),[payment,setPayment]=useState<Expense|null>(null),[detail,setDetail]=useState<Expense|null>(null),[voiding,setVoiding]=useState<Expense|null>(null),[reason,setReason]=useState(''),[error,setError]=useState('');
+ const [audit,setAudit]=useState(false),[editor,setEditor]=useState<Expense|'new'|null>(null),[payment,setPayment]=useState<Expense|null>(null),[detail,setDetail]=useState<Expense|null>(null),[voiding,setVoiding]=useState<Expense|null>(null),[reason,setReason]=useState(''),[error,setError]=useFeedbackMessage('error');
  const sorting=useTableSort<Expense>('date','desc');
  const summary=expenseSummary(ledger,from,to);
  const visible=sorting.sortRows(ledger.expenses.filter(item=>{

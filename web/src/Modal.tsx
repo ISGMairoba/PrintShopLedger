@@ -12,10 +12,12 @@ export default function Modal({ title, children, onClose, busy = false, wide = f
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     if (openModals++ === 0) { previousOverflow = document.body.style.overflow; document.body.style.overflow = 'hidden'; }
     element.showModal();
+    window.dispatchEvent(new Event('feedback:modal'));
     const input = element.querySelector<HTMLElement>('input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])');
     input?.focus();
     return () => {
       element.close();
+      window.dispatchEvent(new Event('feedback:modal'));
       if (--openModals === 0) document.body.style.overflow = previousOverflow;
       queueMicrotask(() => { if (opener?.isConnected && !document.querySelector('dialog[open]')) opener.focus(); });
     };
