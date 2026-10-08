@@ -9,7 +9,7 @@ begin
  perform public.provision_shop_user(shop,owner_id,jsonb_build_object('userId',admin_id,'name','Admin','username','admin','role','admin'));
  result=public.save_business_settings(shop,0,settings);
  if result->>'version'<>'1' or not exists(select 1 from public.shops where id=shop and name='Mairoba QA')then raise exception 'Profile save failed';end if;
- begin perform public.save_business_settings(shop,0,settings);raise exception 'Stale create accepted';exception when serialization_failure then null;end;
+ begin perform public.save_business_settings(shop,0,settings);raise exception 'Stale create accepted';exception when sqlstate 'PT409' then null;end;
  result=public.save_business_settings(shop,1,jsonb_set(settings,'{theme}','"dark"'));
  if result->>'version'<>'2' or(select count(*)from public.business_settings_history where shop_id=shop)<>2 then raise exception 'Audit missing';end if;
  begin perform public.save_business_settings(shop,2,jsonb_set(settings,'{logo}','"javascript:bad"'));raise exception 'Bad logo accepted';exception when others then if sqlerrm='Bad logo accepted' then raise;end if;end;

@@ -19,7 +19,7 @@ if (select amount from public.jobs where shop_id=s and id=j) - (select sum(amoun
 begin
 perform public.apply_customer_event(s,jsonb_build_object('id',gen_random_uuid(),'kind','customer.restored','data',jsonb_build_object('id',c,'baseVersion',1,'modifiedBy',u)));
 raise exception 'Stale version accepted';
-exception when serialization_failure then null; end;
+exception when sqlstate 'PT409' then null; end;
 perform public.apply_customer_event(s,jsonb_build_object('id',gen_random_uuid(),'kind','customer.restored','data',jsonb_build_object('id',c,'baseVersion',3,'modifiedBy',u)));
 begin
 perform public.get_ledger(other);raise exception 'Cross-business access accepted';

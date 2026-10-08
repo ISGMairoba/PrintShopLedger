@@ -25,7 +25,7 @@ begin
  d:=d-'payment';d:=d||jsonb_build_object('baseVersion',1,'amount',3000000,'materials',jsonb_build_array(jsonb_build_object('materialId',m,'quantity',120,'measurementUnit','sheet')),'stockIds',jsonb_build_object(m::text,gen_random_uuid()));
  e:=jsonb_build_object('id',gen_random_uuid(),'kind','expense.updated','data',d);perform public.apply_expense_event(s,e);
  if (select available from public.materials where id=m)<>69 or (select data->'createdAt' from public.expenses where id=x)<>original->'createdAt' then raise exception 'Correction replaced stock or creation audit';end if;
- rejected:=false;begin perform public.apply_expense_event(s,jsonb_set(e,'{id}',to_jsonb(gen_random_uuid())));exception when serialization_failure then rejected:=true;end;if not rejected then raise exception 'Stale expense edit accepted';end if;
+ rejected:=false;begin perform public.apply_expense_event(s,jsonb_set(e,'{id}',to_jsonb(gen_random_uuid())));exception when sqlstate 'PT409' then rejected:=true;end;if not rejected then raise exception 'Stale expense edit accepted';end if;
  select count(*) into hcount from public.material_stock_changes where shop_id=s;
  -- A failure in the second material must roll back the first stock update and expense edit.
  d:=d||jsonb_build_object('baseVersion',2,'materials',jsonb_build_array(jsonb_build_object('materialId',m,'quantity',121,'measurementUnit','sheet'),jsonb_build_object('materialId',m2,'quantity',10,'measurementUnit','metre')),'stockIds',jsonb_build_object(m::text,gen_random_uuid(),m2::text,stockid));

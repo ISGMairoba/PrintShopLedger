@@ -29,7 +29,7 @@ Deno.serve(async(request:Request)=>{
   if(next.error||!next.data.session||next.data.user?.id!==receiver.user_id)return reply(401,{error:'Check both users’ credentials.'});
   // SQL rechecks active membership, locks the business and verifies the exact unclosed transactions.
   const {data:closing,error}=await server.rpc('finish_drawer_handover',{p_shop:body.shopId,p_actor:auth.user.id,p_receiver:receiver.user_id,p_id:body.id,p_counted:body.countedCash,p_checkouts:body.checkoutIds,p_opening:body.openingId,p_note:body.note.trim()});
-  if(error)return reply(error.code==='40001'?409:400,{error:error.message});
+  if(error)return reply(['PT409','40001'].includes(error.code)?409:400,{error:error.message});
   successful=true;
   return reply(200,{closing,access_token:next.data.session.access_token,refresh_token:next.data.session.refresh_token});
  }catch{return reply(400,{error:'Could not complete the handover. Review the drawer and retry.'});}

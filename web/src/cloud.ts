@@ -45,19 +45,19 @@ async function synchronize(scope: string, shopId: string) {
   for (const event of state.pending) {
     await requireSameUser();
     const { error } = await supabase.rpc(event.kind.startsWith('expense.') ? 'apply_expense_event' : event.kind==='checkout.completed' ? 'apply_checkout_event' : event.kind==='job.status_changed' ? 'apply_job_status_event' : event.kind.startsWith('customer.') ? 'apply_customer_event' : event.kind.startsWith('material.') ? 'apply_material_event' : event.kind.startsWith('service.') ? 'apply_service_event' : 'apply_ledger_event', { p_shop: shopId, p_event: event }).abortSignal(AbortSignal.timeout(20000));
-    if (error && ['40001','P0002'].includes(error.code) && event.kind.startsWith('expense.')) {
+    if (error && ['PT409','40001','P0002'].includes(error.code) && event.kind.startsWith('expense.')) {
       const {data,error:readError}=await supabase.rpc('get_ledger',{p_shop:shopId}).abortSignal(AbortSignal.timeout(20000));
       if(readError)throw Error(readError.message);await requireSameUser();
       const cloud=normalizeLedger(data);const local=(await readState(scope)).ledger.expenses.find(item=>item.id===event.data.id);
       if(local)throw new ExpenseSyncConflict(local,cloud.expenses.find((item:Expense)=>item.id===local.id)??null,cloud);
     }
-    if(error?.code==='40001'&&(event.kind==='checkout.completed'||event.kind==='job.status_changed')){
+    if(error && ['PT409','40001'].includes(error.code)&&(event.kind==='checkout.completed'||event.kind==='job.status_changed')){
       const {data,error:readError}=await supabase.rpc('get_ledger',{p_shop:shopId}).abortSignal(AbortSignal.timeout(20000));
       if(readError)throw Error(readError.message);await requireSameUser();
       if(event.kind==='checkout.completed')throw new CheckoutSyncConflict(event,normalizeLedger(data));
       throw new JobSyncConflict(event,normalizeLedger(data));
     }
-    if (error && ['40001', 'P0002'].includes(error.code) && event.kind.startsWith('customer.')) {
+    if (error && ['PT409', '40001', 'P0002'].includes(error.code) && event.kind.startsWith('customer.')) {
       await requireSameUser();
       const { data, error: readError } = await supabase.rpc('get_ledger', { p_shop: shopId }).abortSignal(AbortSignal.timeout(20000));
       if (readError) throw new Error(readError.message);
@@ -66,7 +66,7 @@ async function synchronize(scope: string, shopId: string) {
       const local = (await readState(scope)).ledger.customers.find(item => item.id === event.data.id);
       if (local) throw new CustomerSyncConflict(local, cloud.customers.find((item: Customer) => item.id === event.data.id) ?? null);
     }
-    if (error && ['40001', 'P0002'].includes(error.code) && event.kind.startsWith('service.')) {
+    if (error && ['PT409', '40001', 'P0002'].includes(error.code) && event.kind.startsWith('service.')) {
       await requireSameUser();
       const { data, error: readError } = await supabase.rpc('get_ledger', { p_shop: shopId }).abortSignal(AbortSignal.timeout(20000));
       if (readError) throw new Error(readError.message);
@@ -75,7 +75,7 @@ async function synchronize(scope: string, shopId: string) {
       const local = (await readState(scope)).ledger.services.find(item => item.id === event.data.id);
       if (local) throw new ServiceSyncConflict(local, remote, (data as Ledger).materials);
     }
-    if (error?.code === '40001' && event.kind.startsWith('material.')) {
+    if (error && ['PT409', '40001', 'P0002'].includes(error.code) && event.kind.startsWith('material.')) {
       await requireSameUser();
       const { data, error: readError } = await supabase.rpc('get_ledger', { p_shop: shopId }).abortSignal(AbortSignal.timeout(20000));
       if (readError) throw new Error(readError.message);

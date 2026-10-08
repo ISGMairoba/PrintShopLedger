@@ -35,7 +35,7 @@ begin
   select * into actual from public.materials where id=m;
   if actual.version <> 2 or actual.require_size or actual.created_at <> original.created_at or actual.created_by <> original.created_by then raise exception 'Update or audit preservation failed'; end if;
   rejected := false;
-  begin perform public.apply_material_event(s,jsonb_set(e,'{id}',to_jsonb(gen_random_uuid()))); exception when serialization_failure then rejected := true; end;
+  begin perform public.apply_material_event(s,jsonb_set(e,'{id}',to_jsonb(gen_random_uuid()))); exception when sqlstate 'PT409' then rejected := true; end;
   if not rejected then raise exception 'Stale edit accepted'; end if;
   e := jsonb_build_object('id',gen_random_uuid(),'kind','material.archived','data',jsonb_build_object('id',m,'baseVersion',2,'modifiedBy',u));
   perform public.apply_material_event(s,e);
@@ -46,14 +46,14 @@ begin
   if (public.get_ledger(s)->'materials'->0->>'archived')::boolean then raise exception 'Restore failed'; end if;
   rejected := false;
   begin
-    perform public.apply_material_event(s,jsonb_build_object('id',gen_random_uuid(),'kind','material.updated','data',
-      jsonb_build_object('id',m,'baseVersion',4,'name','Bad','available',-1,'measurementUnit','sheet','requireSize',false,'modifiedBy',u)));
+    perform public.apply_material_event(s,jsonb_build_object('id',gen_random_uuid(),'kind','material.stock_set','data',
+      jsonb_build_object('id',m,'baseVersion',4,'quantity',-1000000000001,'modifiedBy',u)));
   exception when others then rejected := true; end;
-  if not rejected then raise exception 'Negative stock accepted'; end if;
+  if not rejected then raise exception 'Out-of-range stock accepted'; end if;
   rejected := false;
   begin
-    perform public.apply_material_event(s,jsonb_build_object('id',gen_random_uuid(),'kind','material.updated','data',
-      jsonb_build_object('id',m,'baseVersion',4,'name','Bad','available',0.0001,'measurementUnit','sheet','requireSize',false,'modifiedBy',u)));
+    perform public.apply_material_event(s,jsonb_build_object('id',gen_random_uuid(),'kind','material.stock_set','data',
+      jsonb_build_object('id',m,'baseVersion',4,'quantity',0.0001,'modifiedBy',u)));
   exception when others then rejected := true; end;
   if not rejected then raise exception 'Invalid precision accepted'; end if;
   rejected := false;

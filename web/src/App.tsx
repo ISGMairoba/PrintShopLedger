@@ -41,7 +41,7 @@ type Page = 'My Sales' | 'Point of Service' | 'Jobs' | 'Customers' | 'Payments' 
 const currency = (amount: number) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount / 100);
 const shortId = (id: string) => id.slice(0, 8).toUpperCase();
 const dateLabel = (value: string) => new Date(value).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Africa/Lagos' });
-const errorMessage = (error: unknown) => error instanceof Error ? error.message : 'Something went wrong.';
+const errorMessage = (error: unknown) => error && typeof error === 'object' && 'message' in error && typeof error.message === 'string' ? error.message : 'Something went wrong.';
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -49,6 +49,8 @@ export default function App() {
   const [switchUser, setSwitchUser] = useState(false);
   const [staffEpoch, setStaffEpoch] = useState(0);
   const [authReady, setAuthReady] = useState(!supabase);
+  const [authStartupError,setAuthStartupError]=useState('');
+  const [authEpoch,setAuthEpoch]=useState(0);
   const [demo, setDemo] = useState(!supabase);
   const [shops, setShops] = useState<Shop[]>([]);
   const [shop, setShop] = useState<Shop | null>(null);
@@ -95,15 +97,18 @@ export default function App() {
   useEffect(() => {
     if (!supabase) return;
     let active = true;
+    setAuthStartupError('');
+    const deadline=setTimeout(()=>{if(active)setAuthStartupError('Your saved sign-in is taking too long to load. Check your connection and retry.');},25000);
     Promise.all([supabase.auth.getSession(), businessAuth!.auth.getSession()]).then(([staff, business]) => {
       if (!active) return;
+      clearTimeout(deadline);
       if (staff.error || business.error) setMessage(staff.error?.message || business.error?.message || '');
       setSession(staff.data.session); setBusinessSession(business.data.session); setAuthReady(true);
-    }).catch(error => { if (active) { setMessage(errorMessage(error)); setAuthReady(true); } });
+    }).catch(error => { clearTimeout(deadline);if (active) { setMessage(errorMessage(error)); setAuthReady(true); } });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, current) => { if (active) setSession(current); });
     const { data: businessListener } = businessAuth!.auth.onAuthStateChange((_event, current) => { if (active) setBusinessSession(current); });
-    return () => { active = false; listener.subscription.unsubscribe(); businessListener.subscription.unsubscribe(); };
-  }, []);
+    return () => { active = false;clearTimeout(deadline); listener.subscription.unsubscribe(); businessListener.subscription.unsubscribe(); };
+  }, [authEpoch]);
 
   useEffect(() => {
     if (!businessSession || demo || !supabase) { setShops([]); setShop(null); return; }
@@ -117,9 +122,12 @@ export default function App() {
       try {
         let available: Shop[];
         if (navigator.onLine) {
-          const { data: businesses, error: businessError } = await businessAuth!.rpc('list_business_shops').abortSignal(AbortSignal.timeout(20000));
+          const [businessResult,staff]=await Promise.all([
+            businessAuth!.rpc('list_business_shops').abortSignal(AbortSignal.timeout(20000)),
+            session ? supabase!.rpc('list_my_shops').abortSignal(AbortSignal.timeout(20000)) : Promise.resolve({data:[],error:null})
+          ]);
+          const {data:businesses,error:businessError}=businessResult;
           if (businessError) throw businessError;
-          const staff = session ? await supabase!.rpc('list_my_shops').abortSignal(AbortSignal.timeout(20000)) : { data: [], error: null };
           if (staff.error) throw staff.error;
           available = (businesses ?? []).map((business: {id:string;name:string}) => ({
             ...business, userId:'', role: '', rank: 0, accessLevel: 0, username: '', staffName: '',
@@ -315,7 +323,7 @@ export default function App() {
       allocations:payment=>payment.allocations.map(allocation=>ledger.jobs.find(job=>job.id===allocation.jobId)?.description??'').join(', ')});
 
 
-  if (!authReady) return <main className="auth"><p>Opening PrintShopLedger.</p></main>;
+  if (!authReady) return <main className="auth"><section className="auth-card"><h1>{authStartupError?"Could not restore your sign-in":"Opening PrintShopLedger…"}</h1>{authStartupError&&<><p role="alert">{authStartupError}</p><button onClick={()=>setAuthEpoch(value=>value+1)}>Retry sign-in loading</button></>}</section></main>;
   if (!demo && !businessSession) return <main className="auth"><div className="auth-card">
     <div className="brand-mark">S</div><h1>PrintShopLedger</h1><p>Every job. Every payment. Clearly tracked.</p>
     <form onSubmit={login}><label>Business email<input name="email" type="email" autoComplete="username" required /></label>

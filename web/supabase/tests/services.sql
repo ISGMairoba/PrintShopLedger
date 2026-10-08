@@ -45,7 +45,7 @@ begin
   if actual.price<>0 or actual.created_at<>original.created_at or actual.created_by<>original.created_by or actual.version<>2 then raise exception 'Update or creation audit preservation failed'; end if;
   if (select price from public.services where id=b)<>10000 then raise exception 'Other service price changed'; end if;
   rejected:=false;
-  begin perform public.apply_service_event(s,jsonb_set(e,'{id}',to_jsonb(gen_random_uuid()))); exception when serialization_failure then rejected:=true; end;
+  begin perform public.apply_service_event(s,jsonb_set(e,'{id}',to_jsonb(gen_random_uuid()))); exception when sqlstate 'PT409' then rejected:=true; end;
   if not rejected then raise exception 'Stale service edit accepted'; end if;
   rejected:=false;
   begin perform public.apply_service_event(s,jsonb_set(e,'{data,price}','1')); exception when others then rejected:=true; end;

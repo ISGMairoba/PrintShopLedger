@@ -16,14 +16,14 @@ begin
  perform public.finish_drawer_handover(s,b,a,opening,1000,array[br],null,'Opening cash');
  insert into public.checkout_records(shop_id,id,customer_id,data) values(s,br2,c,jsonb_build_object('createdBy',b,'cashReceived',3000,'method','Cash','walletUsed',0,'total',3000));
  ids=array[r1,r2,r3,r4];
- begin perform public.finish_drawer_handover(s,a,b,closing,7500,array[r1],opening,'Shortage');raise exception 'Stale close accepted';exception when serialization_failure then null;end;
+ begin perform public.finish_drawer_handover(s,a,b,closing,7500,array[r1],opening,'Shortage');raise exception 'Stale close accepted';exception when sqlstate 'PT409' then null;end;
  if exists(select 1 from public.drawer_closings where id=closing) or exists(select 1 from public.checkout_records where id=r1 and drawer_closing_id is not null) then raise exception 'Failed close made partial changes';end if;
  result=public.finish_drawer_handover(s,a,b,closing,7500,ids,opening,'Shortage');
  if (result->>'cashCollected')::bigint<>7000 or (result->>'expectedCash')::bigint<>8000 or (result->>'difference')::bigint<>-500 or (result->>'totalCollected')::bigint<>15000 or (result->>'walletUsed')::bigint<>2000 then raise exception 'Cash totals wrong: %',result;end if;
  if (select count(*) from public.checkout_records where shop_id=s and drawer_closing_id=closing)<>4 or exists(select 1 from public.checkout_records where id=br2 and drawer_closing_id is not null) then raise exception 'Closing touched wrong transactions';end if;
  again=public.finish_drawer_handover(s,a,b,closing,7500,ids,opening,'Shortage');
  if again<>result or (select count(*) from public.drawer_closings where id=closing)<>1 then raise exception 'Retry duplicated closing';end if;
- begin perform public.finish_drawer_handover(s,a,b,gen_random_uuid(),7500,ids,opening,'');raise exception 'Closed receipts reused';exception when serialization_failure then null;end;
+ begin perform public.finish_drawer_handover(s,a,b,gen_random_uuid(),7500,ids,opening,'');raise exception 'Closed receipts reused';exception when sqlstate 'PT409' then null;end;
  begin perform public.finish_drawer_handover(s,a,outsider,gen_random_uuid(),0,'{}',null,'');raise exception 'Outsider receiver accepted';exception when others then if sqlerrm='Outsider receiver accepted' then raise;end if;end;
  update public.shop_members set access_level=0 where shop_id=s and user_id=a;
  begin perform public.finish_drawer_handover(s,b,a,gen_random_uuid(),10500,array[br2],closing,'');raise exception 'Revoked receiver accepted';exception when others then if sqlerrm='Revoked receiver accepted' then raise;end if;end;
