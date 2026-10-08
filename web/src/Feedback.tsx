@@ -27,5 +27,5 @@ export function useFeedbackMessage(defaultTone:FeedbackTone='info'){
 export function FeedbackBanner({message,tone='info',login=false}:{message:string;tone?:FeedbackTone;login?:boolean}){
  const ref=useRef<HTMLDivElement>(null);
  useEffect(()=>{if(login&&tone==='error'&&message){ref.current?.focus();ref.current?.scrollIntoView({block:'nearest'});}},[message,tone,login]);
- return message?<div ref={ref} tabIndex={login?-1:undefined} className={`notice notice-${tone}${login?' login-feedback':''}`} role={tone==='error'?'alert':'status'}>{login&&tone==='error'&&<strong>Sign-in failed</strong>}{message}</div>:null;
+ return message?<div ref={ref} tabIndex={login?-1:undefined} className={`notice notice-${tone}${login?' login-feedback':''}`} role={tone==='error'?'alert':'status'}>{login&&tone==='error'&&<strong>Sign-in failed</strong>}<span className="feedback-message">{message}</span></div>:null;
 }
