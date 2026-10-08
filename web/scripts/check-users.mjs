@@ -154,12 +154,14 @@ try {
  await page.getByRole('button',{name:'Audit view',exact:true}).click();
  await page.getByRole('button',{name:'Created by',exact:true}).waitFor();
  await page.getByLabel('Search users').fill('amina.print');
- let row=page.locator('tbody tr');
+ let row=page.locator('tbody tr').filter({hasText:'amina.print'});
  await row.getByRole('button',{name:'Edit',exact:true}).click();
  dialog=page.getByRole('dialog',{name:'Edit user'});
  await dialog.getByLabel('Name',{exact:true}).fill('Amina Updated');
  await dialog.getByRole('button',{name:'Save user',exact:true}).click();
  await dialog.waitFor({state:'detached'});
+ assert.equal(await page.getByLabel('Search users').inputValue(),'amina.print','Editing another user preserves the list search');
+ assert.equal(await page.getByRole('button',{name:'Normal view',exact:true}).count(),1,'Editing another user preserves audit view');
  await row.getByRole('button',{name:'Revoke access',exact:true}).click();
  await page.getByRole('dialog').getByRole('button',{name:'Revoke access',exact:true}).click();
  await page.getByRole('dialog').waitFor({state:'detached'});

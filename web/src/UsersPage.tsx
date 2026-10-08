@@ -64,7 +64,7 @@ export default function UsersPage({shopId,actorId,businessUserId,role,online,dem
     const {error:failure}=await supabase.rpc('save_shop_user',{p_shop:shopId,p_action:'edit',p_data:{...profile,id:editor.id,version:editor.version}});
     if(failure)throw new Error(failure.message);
    }
-   setEditor(null);setError('');onChanged();
+   setEditor(null);setError('');if(editor!=='new'&&editor?.userId===actorId)onChanged();
    try{await load();}catch{setError('User saved. Refresh to load the latest list.');}
   }catch(cause){setFormError(cause instanceof Error?cause.message:'Could not save user.');}
   finally{setBusy(false);}
@@ -75,7 +75,7 @@ export default function UsersPage({shopId,actorId,businessUserId,role,online,dem
   try{
    const {error:failure}=await supabase.rpc('save_shop_user',{p_shop:shopId,p_action:confirmation.archived?'restore':'archive',p_data:{id:confirmation.id,version:confirmation.version}});
    if(failure)throw new Error(failure.message);
-   setConfirmation(null);setError('');onChanged();
+   setConfirmation(null);setError('');if(confirmation.userId===actorId)onChanged();
    try{await load();}catch{setError('Status saved. Refresh to load the latest list.');}
   }catch(cause){setFormError(cause instanceof Error?cause.message:'Could not save user.');}
   finally{setBusy(false);}
@@ -86,7 +86,7 @@ export default function UsersPage({shopId,actorId,businessUserId,role,online,dem
   try{
    const {error:failure}=await supabase.rpc('save_shop_user',{p_shop:shopId,p_action:accessChange.accessLevel===0?'grant':'revoke',p_data:{id:accessChange.id,version:accessChange.version}});
    if(failure)throw new Error(failure.message);
-   setAccessChange(null);onChanged();await load();
+   setAccessChange(null);if(accessChange.userId===actorId)onChanged();await load();
   }catch(cause){setFormError(cause instanceof Error?cause.message:'Could not change access.');}finally{setBusy(false);}
  }
  async function resetPassword(event:FormEvent<HTMLFormElement>){
@@ -99,7 +99,7 @@ export default function UsersPage({shopId,actorId,businessUserId,role,online,dem
    const {data:result,error:failure}=await supabase.functions.invoke('manage-users',{body:{action:'reset-password',shopId,id:passwordReset.id,version:passwordReset.version,password}});
    if(failure){let message=failure.message;const response=(failure as {context?:Response}).context;if(response)try{message=(await response.json()).error||message;}catch{}throw new Error(message);}
    if(result?.error)throw new Error(result.error);
-   setPasswordReset(null);setError(result?.warning??'Password reset successfully.');onChanged();await load();
+   setPasswordReset(null);setError(result?.warning??'Password reset successfully.');await load();
   }catch(cause){setFormError(cause instanceof Error?cause.message:'Could not reset password.');}finally{setBusy(false);}
  }
  const visible=sorting.sortRows(users.filter(user=>(filter==='all'||user.archived===(filter==='archived'))&&
