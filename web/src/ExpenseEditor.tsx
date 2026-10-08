@@ -64,7 +64,7 @@ export default function ExpenseEditor({expense,materials,expenses,actor,busy,mod
    {(paymentOnly||!expense&&recordPayment)&&<section className="expense-payment"><h3>Payment details</h3><div className="form-grid">
     <label>Amount paid (₦)<CurrencyInput value={paid} max={paymentMaximum} onValueChange={setPaidOverride} required={paymentOnly} placeholder="0.00"/></label>
     <label>Payment date<input name="paidOn" type="date" defaultValue={expenseDay(new Date().toISOString())} required/></label>
-    <label>Payment method<select name="method" defaultValue={paymentMethods[0].label}>{paymentMethods.map(item=><option key={item.label}>{item.label}</option>)}</select></label>
+    <label>Payment method<select aria-label="Payment method" name="method" defaultValue={paymentMethods[0].label}>{paymentMethods.map(item=><option key={item.label}>{item.label}</option>)}</select></label>
     <label>Paid from<select name="source" defaultValue="Business cash">{expenseSources.map(value=><option key={value}>{value}</option>)}</select></label>
     <label>Payment reference<input name="reference" maxLength={160}/></label>
    </div><p className="muted">Leave the amount at zero for an unpaid expense. Record later payments from the expense list.</p></section>}
