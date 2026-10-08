@@ -15,3 +15,9 @@ test('ordinary restocking can merge with late sales, and acknowledged count retr
  const ledger=base(),offline=sale(ledger),restocked=applyEvent(ledger,stock('material.stock_added','delivery',20));assert.equal(applyCheckout(restocked,offline).materials[0].available,110);
  const counted=applyEvent(ledger,stock('material.stock_set','count',90)),operation=sale(counted),saved=applyCheckout(counted,operation);assert.deepEqual(applyCheckout(saved,operation),saved);
 });
+
+test('reviewed usage already included in the count preserves stock and still records the sale',()=>{
+ const counted=applyEvent(base(),stock('material.stock_set','count',90));
+ const normal=sale(counted),reviewed=prepareCheckout(counted,{customerId:'customer',lines:normal.data.jobs,countedMaterialJobs:['job'],cashReceived:100000,useWallet:false,method:'Cash',paidOn:'2026-10-08'},actor,'sale','2026-10-08T13:00:00Z');
+ const saved=applyCheckout(counted,reviewed);assert.equal(saved.materials[0].available,90);assert.equal(saved.payments[0].amount,100000);assert.equal(saved.jobs[0].materialNeeded,10);assert.match(saved.materialHistory.at(-1).reason,/Already included/);assert.deepEqual(applyCheckout(saved,reviewed),saved);
+});

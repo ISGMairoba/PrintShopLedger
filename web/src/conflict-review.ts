@@ -18,9 +18,10 @@ export async function approveConflictReview(business:SupabaseClient,scope:string
 }
 export async function requireConflictReviewer(staff:SupabaseClient,scope:string,shopId:string){
  const {data,error}=await staff.rpc('list_my_shops').abortSignal(AbortSignal.timeout(20000));if(error)throw Error(error.message);
- if(data?.some((item:{id:string;accessLevel:number})=>item.id===shopId&&item.accessLevel>=2))return;
+ if(data?.some((item:{id:string;accessLevel:number})=>item.id===shopId&&item.accessLevel>=2))return staff;
  const current=approval;
  if(!current||current.scope!==scope||current.shopId!==shopId||current.expires<Date.now()){clearConflictApproval();throw Error('An Admin or higher rank must sign in to review this conflict.');}
  const {data:shops,error:lookupError}=await current.client.rpc('list_my_shops').abortSignal(AbortSignal.timeout(20000));
  if(lookupError||!shops?.some((item:{id:string;accessLevel:number})=>item.id===shopId&&item.accessLevel>=2)){clearConflictApproval();throw Error('Supervisor access is no longer available. Ask an Admin to sign in again.');}
+ return current.client;
 }

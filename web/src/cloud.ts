@@ -175,11 +175,12 @@ export async function resolveCloudCustomer(scope: string, shopId: string, custom
 
 export async function resolvePendingWork(scope:string,shopId:string,eventId:string,replacement:CheckoutEvent|null,jobId?:string){
  if(!supabase||!navigator.onLine||!navigator.locks)throw Error('Connect to the internet to review this pending work.');
- await requireConflictReviewer(supabase,scope,shopId);
+ const reviewer=await requireConflictReviewer(supabase,scope,shopId);
   return navigator.locks.request(`printshopledger-sync:${scope}`,async()=>{
   const check=async()=>{const {data,error}=await supabase!.auth.getSession();if(error||data.session?.user.id!==scope.split(':')[0])throw Error('Your sign-in changed. Sign in again.');};
   await check();const {data,error}=await supabase!.rpc('get_ledger',{p_shop:shopId}).abortSignal(AbortSignal.timeout(20000));if(error)throw Error(error.message);await check();
   const cloud=normalizeLedger(data);
+  if(replacement){const {error:approvalError}=await reviewer.rpc('approve_checkout_review',{p_shop:shopId,p_event:replacement}).abortSignal(AbortSignal.timeout(20000));if(approvalError)throw Error(approvalError.message);await check();}
   return mutateState(scope,state=>{try{return replacement?replacePendingCheckout(state,cloud,eventId,replacement):adoptJobStatus(state,cloud,jobId!);}catch(cause){const event=state.pending.find(e=>e.id===eventId);if(event?.kind==='checkout.completed')throw new CheckoutSyncConflict(event,cloud);throw cause;}});
  });
 }

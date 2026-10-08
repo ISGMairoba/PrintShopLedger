@@ -229,7 +229,7 @@ export default function App() {
   }
   const hasConflict=!!(expenseConflict||conflict||serviceConflict||customerConflict||checkoutConflict||jobConflict);
   const canReviewConflicts=demo||(shop?.accessLevel??0)>=2||!!supervisor;
-  useEffect(()=>{if(!hasConflict){clearConflictApproval();setSupervisor('');setSupervisorLogin(false);}},[hasConflict]);
+  useEffect(()=>{if(!hasConflict&&!state.pending.length){clearConflictApproval();setSupervisor('');setSupervisorLogin(false);}},[hasConflict,state.pending.length]);
   useEffect(()=>{if(!supervisor)return;const timer=setTimeout(()=>{clearConflictApproval();setSupervisor('');setConflictReviewHidden(true);},5*60000);return()=>clearTimeout(timer);},[supervisor]);
   const syncStatus=useAutoSync({
     scope,enabled:!demo&&!!scope&&ready&&!switchUser,online,
