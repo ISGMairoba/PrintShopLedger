@@ -1,4 +1,4 @@
-export const pages = ['Point of Service', 'My Sales', 'Jobs', 'Customers', 'Payments', 'Expenses', 'Materials', 'Services', 'Stock History', 'Print Settings', 'Users', 'My Account', 'Business Settings'];
+export const pages = ['Point of Service', 'My Sales', 'Jobs', 'Customers', 'Payments', 'Expenses', 'Materials', 'Services', 'Stock History', 'Print Settings', 'Users', 'My Account', 'Business Settings', 'Conflict Inbox'];
 export function canAccessPage(page, access) {
  if (!pages.includes(page) || access < 1) return false;
  if (page === 'Business Settings') return access >= 3;

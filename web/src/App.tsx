@@ -1,3 +1,5 @@
+import ConflictInbox from './ConflictInbox';
+import {blockedWork} from './sync-dependencies.mjs';
 import {approveConflictReview,clearConflictApproval} from './conflict-review';
 import {paymentName} from './business-options.mjs';
 import {BusinessOptionsContext} from './BusinessOptionsContext';
@@ -39,7 +41,7 @@ import StockHistoryPage from './StockHistoryPage';
 import type { LedgerEvent, LocalState, Payment, MaterialEvent, ServiceEvent, CustomerEvent, Job, CheckoutEvent, CheckoutRecord, DrawerCommand, ExpenseEvent } from './types';
 
 type Shop = { id: string; name: string; userId:string; role: string; rank: number; accessLevel: number; username: string; staffName: string };
-type Page = 'My Sales' | 'Point of Service' | 'Jobs' | 'Customers' | 'Payments' | 'Materials' | 'Stock History' | 'Services' | 'Print Settings' | 'Users' | 'Expenses' | 'My Account' | 'Business Settings';
+type Page = 'My Sales' | 'Point of Service' | 'Jobs' | 'Customers' | 'Payments' | 'Materials' | 'Stock History' | 'Services' | 'Print Settings' | 'Users' | 'Expenses' | 'My Account' | 'Business Settings' | 'Conflict Inbox';
 const currency = (amount: number) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount / 100);
 const shortId = (id: string) => id.slice(0, 8).toUpperCase();
 const dateLabel = (value: string) => new Date(value).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Africa/Lagos' });
@@ -61,7 +63,8 @@ export default function App() {
   const [state, setState] = useState<LocalState>({ ledger: emptyLedger(), pending: [] });
   const [ready, setReady] = useState(false);
   const [page, setPage] = useState<Page>('Point of Service');
-  const pageAllowed = demo || canAccessPage(page, shop?.accessLevel ?? 0);
+  const [supervisor,setSupervisor]=useState('');
+  const pageAllowed = demo || (page==='Conflict Inbox'&&!!supervisor) || canAccessPage(page, shop?.accessLevel ?? 0);
   useEffect(() => { if (!demo && session && shop?.userId === session.user.id && !pageAllowed) {setPage('Point of Service');setForm(null);setSelectedJob(null);setReceipt(null);} }, [pageAllowed, demo, session?.user.id, shop?.userId]);
   const [query, setQuery] = useState('');
   const [form, setForm] = useState<'customer' | 'job' | 'payment' | null>(null);
@@ -77,7 +80,7 @@ export default function App() {
   const [customerConflict, setCustomerConflict] = useState<CustomerSyncConflict | null>(null);
   const [serviceConflict, setServiceConflict] = useState<ServiceSyncConflict | null>(null);
   const [conflict, setConflict] = useState<MaterialSyncConflict | null>(null);
-  const [supervisor,setSupervisor]=useState('');
+
   const [supervisorLogin,setSupervisorLogin]=useState(false);
   const [conflictReviewHidden, setConflictReviewHidden] = useState(false);
   const [online, setOnline] = useState(navigator.onLine);
@@ -89,6 +92,7 @@ export default function App() {
   const channel = useRef<BroadcastChannel | null>(null);
   const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW();
   const ledger = state.ledger;
+  useEffect(()=>{if(ready&&receipt&&!ledger.checkouts.some(item=>item.id===receipt.id)&&!state.pending.some(item=>item.id===receipt.id))setReceipt(null);},[ready,receipt,ledger.checkouts,state.pending]);
   const total = ledger.jobs.reduce((sum, job) => sum + job.amount, 0);
   const paid = ledger.payments.reduce((sum, payment) => sum + payment.allocations.reduce((allocated,item)=>allocated+item.amount,0), 0);
 
@@ -174,7 +178,7 @@ export default function App() {
     try { await save(operation); } finally { setBusy(false); }
   }
   async function completeCheckout(operation:CheckoutEvent):Promise<CheckoutRecord>{
-    if(busy||!ready||!scope||hasConflict)throw Error('Resolve the pending conflict before making another sale.');
+    if(busy||!ready||!scope||legacyConflict)throw Error('Please wait until the workspace is ready.');
     const target=scope;setBusy(true);
     try{
       let next=await saveEvent(target,operation,!demo);
@@ -198,6 +202,7 @@ export default function App() {
       const synced=await syncLedger(target,shopId);
       if(activeScope.current!==target)throw Error('Your signed-in user changed. Reopen the drawer.');
       setState(synced);channel.current?.postMessage('changed');
+      if(synced.pending.length)throw Error('Finish syncing and reviewing pending sales before handing over the drawer.');
       if(synced.pending.length)throw Error('Finish syncing pending sales before closing.');
       const {data,error}=await supabase!.functions.invoke('close-drawer',{body:{shopId,...command}});
       if(error){let message=error.message;const response=(error as {context?:Response}).context;if(response)try{message=(await response.json()).error||message;}catch{}throw Error(message);}
@@ -227,13 +232,15 @@ export default function App() {
       throw error;
     }finally{setBusy(false);}
   }
-  const hasConflict=!!(expenseConflict||conflict||serviceConflict||customerConflict||checkoutConflict||jobConflict);
+  const legacyConflict=!!(expenseConflict||conflict||serviceConflict||customerConflict||checkoutConflict||jobConflict);
+  const heldWork=blockedWork(state);
+  const hasConflict=legacyConflict||heldWork.eventIds.size>0;
   const canReviewConflicts=demo||(shop?.accessLevel??0)>=2||!!supervisor;
   useEffect(()=>{if(!hasConflict&&!state.pending.length){clearConflictApproval();setSupervisor('');setSupervisorLogin(false);}},[hasConflict,state.pending.length]);
   useEffect(()=>{if(!supervisor)return;const timer=setTimeout(()=>{clearConflictApproval();setSupervisor('');setConflictReviewHidden(true);},5*60000);return()=>clearTimeout(timer);},[supervisor]);
   const syncStatus=useAutoSync({
     scope,enabled:!demo&&!!scope&&ready&&!switchUser,online,
-    paused:busy||hasConflict,
+    paused:busy||legacyConflict,
     pendingKey:state.pending.map(item=>item.id).join(','),
     run:async()=>{
       const target=scope;
@@ -241,6 +248,8 @@ export default function App() {
       if(activeScope.current===target){setState(next);channel.current?.postMessage('changed');}
     },
     onError:(error)=>{
+      const target=scope;void readState(target).then(next=>{if(activeScope.current===target)setState(next);});
+      setMessage(errorMessage(error));
       if(error instanceof ExpenseSyncConflict||error instanceof CheckoutSyncConflict||error instanceof JobSyncConflict||error instanceof MaterialSyncConflict||error instanceof ServiceSyncConflict||error instanceof CustomerSyncConflict){
         setMessage(errorMessage(error));setConflictReviewHidden(false);
         if(error instanceof ExpenseSyncConflict)setExpenseConflict(error);if(error instanceof CheckoutSyncConflict)setCheckoutConflict(error);if(error instanceof JobSyncConflict)setJobConflict(error);
@@ -367,17 +376,18 @@ export default function App() {
         if(failure)setMessage(failure.message);else{setSession(null);setBusinessSession(null);setShop(null);setMessage('Business signed out.');}
       }}>{demo ? 'Business sign in' : 'Sign out business'}</button>}
     </>}>
-      <nav aria-label="Main">{(pages as Page[]).filter(item=>demo||canAccessPage(item,shop?.accessLevel??0)).map(item => <button key={item} className={page === item ? 'active' : ''}
-        onClick={() => { setPage(item); setSelectedJob(null); setForm(null); setQuery(''); }}><Icon name={({'Point of Service':'services','My Sales':'drawer',Jobs:'jobs',Customers:'customers',Payments:'payments',Expenses:'expenses',Materials:'materials',Services:'services','Stock History':'history','Print Settings':'quantity',Users:'customers','My Account':'customers','Business Settings':'quantity'} as const)[item]}/>{item}</button>)}</nav>
+      <nav aria-label="Main">{(pages as Page[]).filter(item=>demo||(item==='Conflict Inbox'&&!!supervisor)||canAccessPage(item,shop?.accessLevel??0)).map(item => <button key={item} className={page === item ? 'active' : ''}
+        onClick={() => { setPage(item); setSelectedJob(null); setForm(null); setQuery(''); }}><Icon name={({'Point of Service':'services','My Sales':'drawer',Jobs:'jobs',Customers:'customers',Payments:'payments',Expenses:'expenses',Materials:'materials',Services:'services','Stock History':'history','Print Settings':'quantity',Users:'customers','My Account':'customers','Business Settings':'quantity','Conflict Inbox':'history'} as const)[item]}/>{item}</button>)}</nav>
     </Sidebar>
-    <main><header><div><span className="eyebrow">{demo ? 'LOCAL TRIAL' : businessName}</span><h1>{page}</h1><p>{page === 'Business Settings' ? '' : page === 'My Account' ? 'Manage your username and password.' : page === 'Expenses' ? 'Record expenses, payments and material purchases.' : page === 'My Sales' ? 'Review your transactions and record a verified drawer handover.' : page === 'Users' ? 'Manage staff accounts, ranks and business access.' : page === 'Print Settings' ? 'Set default printer, paper, font and margins for this device.' : page === 'Customers' ? 'Manage customer details and credit limits.' : page === 'Materials' ? 'Manage materials, quantities and pricing requirements.' : page === 'Stock History' ? 'Review every material change and stock adjustment.' : page === 'Services' ? 'Define services, their base materials and prices.' : 'Track work and keep every payment attached to its job.'}</p></div>
+    <main><header><div><span className="eyebrow">{demo ? 'LOCAL TRIAL' : businessName}</span><h1>{page}</h1><p>{page === 'Business Settings' ? '' : page === 'Conflict Inbox' ? 'Review pending work from connected staff devices.' : page === 'My Account' ? 'Manage your username and password.' : page === 'Expenses' ? 'Record expenses, payments and material purchases.' : page === 'My Sales' ? 'Review your transactions and record a verified drawer handover.' : page === 'Users' ? 'Manage staff accounts, ranks and business access.' : page === 'Print Settings' ? 'Set default printer, paper, font and margins for this device.' : page === 'Customers' ? 'Manage customer details and credit limits.' : page === 'Materials' ? 'Manage materials, quantities and pricing requirements.' : page === 'Stock History' ? 'Review every material change and stock adjustment.' : page === 'Services' ? 'Define services, their base materials and prices.' : 'Track work and keep every payment attached to its job.'}</p></div>
       {!demo&&scope&&<span className="sync-status" role="status" aria-live="polite"><Icon name="sync"/> {syncLabel}{state.pending.length>0&&` (${state.pending.length})`}</span>}</header>
       {switchUser&&<Modal title="Switch user" busy={busy} onClose={()=>setSwitchUser(false)}><p>Business: {shop?.name}. Sign in with your staff username and password.</p>{staffLoginForm()}{message&&<p role="alert">{message}</p>}</Modal>}
       {needRefresh && <div className="notice">An app update is ready. <button className="secondary" disabled={busy} onClick={() => void updateServiceWorker(true)}>Update app</button></div>}
       {branding.error&&<div className="notice" role="status">{branding.error}</div>}{message && <div className="notice" role="status">{message}</div>}
-      {hasConflict&&!canReviewConflicts&&<div className="notice" role="alert"><strong>Admin review required.</strong><p>Your pending work is saved on this device. Sync and new sales are paused so later jobs cannot depend on unresolved records. An Admin, Manager or Developer must review this workspace.</p><button className="secondary" disabled={!online||busy} onClick={()=>setSupervisorLogin(true)}>Supervisor review</button></div>}
+      {hasConflict&&!canReviewConflicts&&<div className="notice" role="alert"><strong>Admin review required.</strong><p>Conflicts have been sent to the business inbox when connected. An Admin, Manager or Developer can review them remotely. Sales sharing affected stock or customer accounts wait; unrelated sales can continue. Pending work remains saved on this device.</p><button className="secondary" disabled={!online||busy} onClick={()=>setSupervisorLogin(true)}>Supervisor review</button></div>}
+      {Object.keys(state.syncConflicts??{}).length>0&&canReviewConflicts&&<div className="notice">{heldWork.eventIds.size} pending operations await review. Unaffected sales can continue. <button className="secondary" onClick={()=>setPage('Conflict Inbox')}>Open conflict inbox</button></div>}
       {hasConflict&&supervisor&&<div className="notice">Supervisor review: {supervisor}. The cashier remains signed in.<button className="secondary" onClick={()=>{clearConflictApproval();setSupervisor('');}}>End supervisor review</button></div>}
-      {supervisorLogin&&<Modal title="Supervisor conflict review" busy={busy} onClose={()=>setSupervisorLogin(false)}><p>An Admin or higher rank must enter their credentials and personally review the pending work. This does not switch the cashier or move their saved sales.</p><form onSubmit={async event=>{event.preventDefault();if(busy||!online||!businessAuth||!shop)return;const form=new FormData(event.currentTarget);setBusy(true);try{const name=await approveConflictReview(businessAuth,scope,shop.id,String(form.get('username')),String(form.get('password')));if(activeScope.current===scope){setSupervisor(name);setSupervisorLogin(false);setConflictReviewHidden(false);setMessage('Supervisor access verified for five minutes.');}else clearConflictApproval();}catch(error){setMessage(errorMessage(error));}finally{setBusy(false);}}}><label>Supervisor username<input name="username" autoComplete="username" required/></label><label>Supervisor password<input name="password" type="password" autoComplete="current-password" required/></label><button disabled={busy||!online}>Verify supervisor</button></form>{message&&<p role="alert">{message}</p>}</Modal>}
+      {supervisorLogin&&<Modal title="Supervisor conflict review" busy={busy} onClose={()=>setSupervisorLogin(false)}><p>An Admin or higher rank must enter their credentials and personally review the pending work. This does not switch the cashier or move their saved sales.</p><form onSubmit={async event=>{event.preventDefault();if(busy||!online||!businessAuth||!shop)return;const form=new FormData(event.currentTarget);setBusy(true);try{const name=await approveConflictReview(businessAuth,scope,shop.id,String(form.get('username')),String(form.get('password')));if(activeScope.current===scope){setSupervisor(name);setSupervisorLogin(false);setConflictReviewHidden(false);if(Object.keys(state.syncConflicts??{}).length)setPage('Conflict Inbox');setMessage('Supervisor access verified for five minutes.');}else clearConflictApproval();}catch(error){setMessage(errorMessage(error));}finally{setBusy(false);}}}><label>Supervisor username<input name="username" autoComplete="username" required/></label><label>Supervisor password<input name="password" type="password" autoComplete="current-password" required/></label><button disabled={busy||!online}>Verify supervisor</button></form>{message&&<p role="alert">{message}</p>}</Modal>}
       {hasConflict&&canReviewConflicts&&conflictReviewHidden&&<div className="notice">Sync is paused while you review an edit conflict. <button className="secondary" onClick={()=>setConflictReviewHidden(false)}>Review changes</button></div>}
       {expenseConflict&&!conflictReviewHidden && canReviewConflicts&&<Modal title="Review expense changes" wide busy={busy} onClose={()=>setConflictReviewHidden(true)}>
         <p>{expenseConflict.message}</p><div className="table-wrap"><table><thead><tr><th>Field</th><th>This device</th><th>Business version</th></tr></thead><tbody>
@@ -416,7 +426,7 @@ export default function App() {
         <div className="material-actions"><button disabled={busy} onClick={() => void resolveConflict('local')}>Reapply pending edits</button><button className="secondary" disabled={busy} onClick={() => void resolveConflict('cloud')}>Keep business version</button></div>
       </Modal>}
       {!demo && !shop ? <section className="auth-card"><h2>Create your business workspace</h2><p>Each business gets its own customers, jobs and payments.</p><form onSubmit={createWorkspace}><label>Business name<input name="businessName" maxLength={160} required /></label><button disabled={busy || !online}>Create workspace</button></form><p className="muted">If you should join an existing business, ask its administrator to add your account.</p></section> : <>
-        {!pageAllowed ? <p role="alert">You do not have access to this page.</p> : page === 'My Account' ? <AccountPage key={`${scope}:${shop?.username}`} shopId={shop?.id??''} userId={session?.user.id??''} businessAccount={!!session && session.user.id===businessSession?.user.id} username={shop?.username??''} online={online} demo={demo} themePreference={branding.preference} setThemePreference={branding.setTheme} onChanged={message=>{setMessage(message);setStaffEpoch(value=>value+1);}}/> : page === 'Business Settings' ? <BusinessSettingsPage key={scope} settings={branding.settings} version={branding.version} ready={branding.ready} online={online} demo={demo} modifiedAt={branding.modifiedAt} onSave={branding.save} onReload={branding.reload}/> : page === 'Expenses' ? <ExpensesPage key={scope} ledger={ledger} ready={ready} busy={(!demo&&(shop?.accessLevel??0)<2)||busy||hasConflict} actor={{id:demo?'local-trial':session!.user.id,label:demo?'Local trial user':shop?.staffName||session!.user.email||session!.user.id}} pending={state.pending} onSave={saveCatalogue}/> : page === 'My Sales' ? <MySalesPage key={scope} ledger={ledger} userId={demo?'local-trial':session!.user.id} username={demo?'trial':shop?.username??''} name={demo?'Local trial user':shop?.staffName??''} ready={ready} busy={busy||hasConflict} online={online} demo={demo} pending={state.pending.length} onReceipt={setReceipt} onHandover={closeDrawer}/> : page === 'Point of Service' ? <PointOfServicePage ledger={ledger} busy={busy||hasConflict} ready={ready} onCheckout={()=>{setPaymentCustomer('');setForm('job');}} onPayment={()=>openPayment()} onJob={setSelectedJob} onNext={(job,mode)=>setJobToAdvance({job,mode})} onReceipt={setReceipt}/> : page === 'Users' ? <UsersPage key={scope} shopId={shop?.id ?? ''} actorId={session?.user.id ?? ''} businessUserId={businessSession?.user.id ?? ''} role={shop?.role ?? ''} online={online} demo={demo} onChanged={()=>setStaffEpoch(value=>value+1)} /> : page === 'Print Settings' ? <PrintSettingsPage key={scope} scope={scope} ready={ready}/> : page === 'Customers' ? <CustomersPage key={scope} ledger={ledger} ready={ready} busy={busy || hasConflict}
+        {!pageAllowed ? <p role="alert">You do not have access to this page.</p> : page === 'Conflict Inbox' ? (demo?<section className="panel"><h2>Conflict inbox</h2><p>Remote reviews are available in a connected business workspace.</p></section>:<ConflictInbox key={scope} scope={scope} shopId={shop!.id} online={online} onChanged={()=>{void readState(scope).then(setState);setMessage('Review saved. The original device will receive it automatically when connected.');}}/>) : page === 'My Account' ? <AccountPage key={`${scope}:${shop?.username}`} shopId={shop?.id??''} userId={session?.user.id??''} businessAccount={!!session && session.user.id===businessSession?.user.id} username={shop?.username??''} online={online} demo={demo} themePreference={branding.preference} setThemePreference={branding.setTheme} onChanged={message=>{setMessage(message);setStaffEpoch(value=>value+1);}}/> : page === 'Business Settings' ? <BusinessSettingsPage key={scope} settings={branding.settings} version={branding.version} ready={branding.ready} online={online} demo={demo} modifiedAt={branding.modifiedAt} onSave={branding.save} onReload={branding.reload}/> : page === 'Expenses' ? <ExpensesPage key={scope} ledger={ledger} ready={ready} busy={(!demo&&(shop?.accessLevel??0)<2)||busy||hasConflict} actor={{id:demo?'local-trial':session!.user.id,label:demo?'Local trial user':shop?.staffName||session!.user.email||session!.user.id}} pending={state.pending} onSave={saveCatalogue}/> : page === 'My Sales' ? <MySalesPage key={scope} ledger={ledger} userId={demo?'local-trial':session!.user.id} username={demo?'trial':shop?.username??''} name={demo?'Local trial user':shop?.staffName??''} ready={ready} busy={busy||hasConflict} online={online} demo={demo} pending={state.pending.length} onReceipt={setReceipt} onHandover={closeDrawer}/> : page === 'Point of Service' ? <PointOfServicePage ledger={ledger} busy={busy||legacyConflict} ready={ready} onCheckout={()=>{setPaymentCustomer('');setForm('job');}} onPayment={()=>openPayment()} onJob={setSelectedJob} onNext={(job,mode)=>setJobToAdvance({job,mode})} onReceipt={setReceipt}/> : page === 'Users' ? <UsersPage key={scope} shopId={shop?.id ?? ''} actorId={session?.user.id ?? ''} businessUserId={businessSession?.user.id ?? ''} role={shop?.role ?? ''} online={online} demo={demo} onChanged={()=>setStaffEpoch(value=>value+1)} /> : page === 'Print Settings' ? <PrintSettingsPage key={scope} scope={scope} ready={ready}/> : page === 'Customers' ? <CustomersPage key={scope} ledger={ledger} ready={ready} busy={busy || hasConflict}
           actor={{id:demo?'local-trial':session!.user.id,label:demo?'Local trial user':shop?.staffName||session!.user.user_metadata.full_name||session!.user.email||session!.user.id}} onSave={saveCatalogue} onRecordPayment={id=>openPayment(id)} /> : page === 'Materials' ? <MaterialsPage key={scope} materials={ledger.materials} history={ledger.materialHistory} ready={ready} busy={(!demo && shop?.role === 'cashier') || busy || hasConflict}
           actor={{ id: demo ? 'local-trial' : session!.user.id, label: demo ? 'Local trial user' : shop?.staffName || session!.user.user_metadata.full_name || session!.user.email || session!.user.id }}
           onSave={saveCatalogue} /> : page === 'Services' ? <ServicesPage key={scope} services={ledger.services} materials={ledger.materials} ready={ready} busy={(!demo && shop?.role === 'cashier') || busy || hasConflict}
@@ -427,12 +437,12 @@ export default function App() {
         <section className="panel"><div className="toolbar"><label className="list-sort-select">Sort by<select aria-label={page==='Jobs'?'Sort jobs by':'Sort payments by'} value={page==='Jobs'?jobSorting.key:paymentSorting.key} onChange={e=>(page==='Jobs'?jobSorting:paymentSorting).toggle(e.target.value)}>
           {page==='Jobs'?<><option value="createdAt">Created at</option><option value="id">Job ID</option><option value="description">Description</option><option value="service">Service</option><option value="customer">Customer</option><option value="amount">Job amount</option><option value="paid">Paid</option><option value="outstanding">Outstanding</option><option value="status">Job stage</option><option value="lastPayment">Last payment date</option></>:<><option value="createdAt">Created at</option><option value="id">Payment ID</option><option value="date">Payment date</option><option value="customer">Customer</option><option value="amount">Amount</option><option value="method">Method</option><option value="allocations">Job allocations</option></>}
         </select></label><button className="secondary" onClick={()=>{const sorting=page==='Jobs'?jobSorting:paymentSorting;sorting.toggle(sorting.key);}}>{(page==='Jobs'?jobSorting:paymentSorting).direction==='asc'?'Ascending ↑':'Descending ↓'}</button><input aria-label={`Search ${page.toLowerCase()}`} placeholder={`Search ${page.toLowerCase()}.`} value={query} onChange={e => setQuery(e.target.value)} />
-          <button disabled={!ready || busy || hasConflict || (page==='Payments'&&!ledger.customers.length)} onClick={() => {
+          <button disabled={!ready || busy || legacyConflict || (page==='Payments'&&!ledger.customers.length)} onClick={() => {
             setMessage(''); if (page === 'Payments') openPayment(); else setForm('job');
           }}><Icon name="add"/> {page === 'Jobs' ? 'New job' : 'Record payment'}</button></div>
           {!ready ? <div className="empty">Loading saved records.</div> : page === 'Jobs' ? <>
             {!ledger.jobs.length ? <div className="empty"><div className="empty-icon">?</div><h2>Your jobs start here</h2><p>Add a customer, create their job, then record payments against it.</p>
-              {!ledger.customers.length && <button onClick={() => setForm('customer')}>Add your first customer</button>}</div> : <div className="table-wrap"><JobTable ledger={ledger} jobs={matchingJobs} sorting={jobSorting} busy={busy||hasConflict} onJob={setSelectedJob} onAction={(job,mode)=>setJobToAdvance({job,mode})}/>{!matchingJobs.length && <p className="empty">No matching jobs.</p>}</div>}</>
+              {!ledger.customers.length && <button onClick={() => setForm('customer')}>Add your first customer</button>}</div> : <div className="table-wrap"><JobTable ledger={ledger} jobs={matchingJobs} sorting={jobSorting} busy={busy||legacyConflict} onJob={setSelectedJob} onAction={(job,mode)=>setJobToAdvance({job,mode})}/>{!matchingJobs.length && <p className="empty">No matching jobs.</p>}</div>}</>
           : <>{!ledger.payments.length ? <div className="empty"><h2>A clear payment trail</h2><p>Payments appear here with the jobs they cover.</p></div> : <div className="table-wrap"><ResponsiveTable extraSortOptions={[{key:"createdAt",label:"Created at"},{key:"date",label:"Payment date"}]} columns={[{index:0,label:"Payment",details:[1]},{index:2,label:"Amount",details:[3]},{index:4,label:"Jobs"}]}><table><thead><tr><SortHeader label="Payment" column="id" sort={paymentSorting}/><SortHeader label="Customer" column="customer" sort={paymentSorting}/><SortHeader label="Amount" column="amount" sort={paymentSorting}/><SortHeader label="Method" column="method" sort={paymentSorting}/><SortHeader label="Job allocations" column="allocations" sort={paymentSorting}/></tr></thead><tbody>
             {matchingPayments.map(payment => <tr key={payment.id}>
               <td>#{shortId(payment.id)}<small>{dateLabel(payment.paidOn)}{payment.reference && ` · ${payment.reference}`}</small></td><td>{customerName(payment.customerId)}</td><td>{currency(payment.amount)}<small>Wallet used: {currency(payment.walletUsed??0)}</small><small>Wallet added: {currency(payment.walletAdded??0)}</small></td><td>{paymentName(payment)}</td>

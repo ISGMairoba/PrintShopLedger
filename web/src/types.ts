@@ -20,7 +20,7 @@ export interface DrawerClosing {id:string;fromUserId:string;fromUserLabel:string
 export interface DrawerCommand {id:string;currentPassword:string;nextUsername:string;nextPassword:string;countedCash:number;checkoutIds:string[];openingId:string|null;note:string}
 export interface Ledger { expenses:Expense[];expenseHistory:ExpenseHistoryEntry[]; drawerClosings:DrawerClosing[];checkouts:CheckoutRecord[]; services: Service[]; materialHistory: MaterialHistoryEntry[]; materials: Material[]; customers: Customer[]; jobs: Job[]; payments: Payment[] }
 export type LedgerEvent = ExpenseEvent | CheckoutEvent | JobStatusEvent | CustomerEvent | { id: string; kind: 'job.created'; data: Job } | { id: string; kind: 'payment.recorded'; data: Payment } | MaterialEvent | ServiceEvent;
-export interface LocalState { ledger: Ledger; pending: LedgerEvent[]; lastSynced?: string }
+export interface LocalState { syncConflicts?:Record<string,string>; ledger: Ledger; pending: LedgerEvent[]; lastSynced?: string }
 
 
 export interface ExpenseMaterial { materialId:string;name:string;measurementUnit:string;quantity:number }

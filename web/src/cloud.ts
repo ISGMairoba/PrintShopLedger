@@ -1,3 +1,4 @@
+import {acknowledgeReviews,blockedWork,projectPending} from './sync-dependencies.mjs';
 import {requireConflictReviewer} from './conflict-review';
 import { resolveExpenseState } from './expense-conflicts.mjs';
 import { checkoutReviewBase, replacePendingCheckout, adoptJobStatus } from './checkout-conflicts.mjs';
@@ -34,71 +35,39 @@ export const supabase = url && key ? createClient(url, key) : null;
 export const businessAuth = url && key ? createClient(url, key, { auth: { storageKey: 'printshopledger-business-auth' } }) : null;
 
 async function synchronize(scope: string, shopId: string) {
-  if (!supabase || !navigator.onLine) throw new Error('Connect to the internet to sync.');
-  const expectedUser = scope.split(':')[0];
-  async function requireSameUser() {
-    const { data, error } = await supabase!.auth.getSession();
-    if (error || data.session?.user.id !== expectedUser) throw new Error('Your sign-in changed. Sign in again before syncing this workspace.');
+ if(!supabase||!navigator.onLine)throw Error('Connect to the internet to sync.');
+ const check=async()=>{const {data,error}=await supabase!.auth.getSession();if(error||data.session?.user.id!==scope.split(':')[0])throw Error('Your sign-in changed. Sign in again before syncing this workspace.');};
+ await check();let state=await readState(scope);
+ const conflictIds=Object.keys(state.syncConflicts??{});
+ if(conflictIds.length){
+  const {data,error}=await supabase.rpc('list_sync_conflicts',{p_shop:shopId,p_events:conflictIds}).abortSignal(AbortSignal.timeout(20000));if(error)throw Error(error.message);await check();
+  const known=new Set((data as RemoteConflict[]).map(item=>item.event_id));
+  for(const id of conflictIds.filter(id=>!known.has(id))){const event=state.pending.find(item=>item.id===id);if(!event)continue;const {error:uploadError}=await supabase.rpc('submit_sync_conflict',{p_shop:shopId,p_event:event,p_message:state.syncConflicts![id]}).abortSignal(AbortSignal.timeout(20000));if(uploadError)throw Error('Could not send the held operation for remote review: '+uploadError.message);await check();}
+  const resolved=new Set((data as RemoteConflict[]).filter(item=>item.status==='resolved').map(item=>item.event_id));
+  if(resolved.size){const {data:latest,error:readError}=await supabase.rpc('get_ledger',{p_shop:shopId}).abortSignal(AbortSignal.timeout(20000));if(readError)throw Error(readError.message);await check();state=await mutateState(scope,current=>acknowledgeReviews(current,normalizeLedger(latest),(data as RemoteConflict[]).filter(item=>resolved.has(item.event_id))));}
+ }
+ for(const event of state.pending){
+  await check();const current=await readState(scope);
+  if(!current.pending.some(item=>item.id===event.id)||blockedWork(current).eventIds.has(event.id))continue;
+  const {error}=await supabase.rpc(event.kind.startsWith('expense.')?'apply_expense_event':event.kind==='checkout.completed'?'apply_checkout_event':event.kind==='job.status_changed'?'apply_job_status_event':event.kind.startsWith('customer.')?'apply_customer_event':event.kind.startsWith('material.')?'apply_material_event':event.kind.startsWith('service.')?'apply_service_event':'apply_ledger_event',{p_shop:shopId,p_event:event}).abortSignal(AbortSignal.timeout(20000));
+  if(error&&['PT409','40001','P0002'].includes(error.code)){
+   // Upload only after the server rejects an operation, and persist the hold before proceeding.
+   await check();await mutateState(scope,current=>({...current,syncConflicts:{...current.syncConflicts,[event.id]:error.message}}));
+   const {error:uploadError}=await supabase.rpc('submit_sync_conflict',{p_shop:shopId,p_event:event,p_message:error.message}).abortSignal(AbortSignal.timeout(20000));
+   if(uploadError)throw Error('Could not send the conflict for remote review: '+uploadError.message+'. Pending work is saved locally.');
+   await check();continue;
   }
-  await requireSameUser();
-  let state = await readState(scope);
-  // Stable UUIDs make retries safe. Failed operations remain in the outbox.
-  for (const event of state.pending) {
-    await requireSameUser();
-    const { error } = await supabase.rpc(event.kind.startsWith('expense.') ? 'apply_expense_event' : event.kind==='checkout.completed' ? 'apply_checkout_event' : event.kind==='job.status_changed' ? 'apply_job_status_event' : event.kind.startsWith('customer.') ? 'apply_customer_event' : event.kind.startsWith('material.') ? 'apply_material_event' : event.kind.startsWith('service.') ? 'apply_service_event' : 'apply_ledger_event', { p_shop: shopId, p_event: event }).abortSignal(AbortSignal.timeout(20000));
-    if (error && ['PT409','40001','P0002'].includes(error.code) && event.kind.startsWith('expense.')) {
-      const {data,error:readError}=await supabase.rpc('get_ledger',{p_shop:shopId}).abortSignal(AbortSignal.timeout(20000));
-      if(readError)throw Error(readError.message);await requireSameUser();
-      const cloud=normalizeLedger(data);const local=(await readState(scope)).ledger.expenses.find(item=>item.id===event.data.id);
-      if(local)throw new ExpenseSyncConflict(local,cloud.expenses.find((item:Expense)=>item.id===local.id)??null,cloud);
-    }
-    if(error && ['PT409','40001'].includes(error.code)&&(event.kind==='checkout.completed'||event.kind==='job.status_changed')){
-      const {data,error:readError}=await supabase.rpc('get_ledger',{p_shop:shopId}).abortSignal(AbortSignal.timeout(20000));
-      if(readError)throw Error(readError.message);await requireSameUser();
-      if(event.kind==='checkout.completed')throw new CheckoutSyncConflict(event,normalizeLedger(data));
-      throw new JobSyncConflict(event,normalizeLedger(data));
-    }
-    if (error && ['PT409', '40001', 'P0002'].includes(error.code) && event.kind.startsWith('customer.')) {
-      await requireSameUser();
-      const { data, error: readError } = await supabase.rpc('get_ledger', { p_shop: shopId }).abortSignal(AbortSignal.timeout(20000));
-      if (readError) throw new Error(readError.message);
-      await requireSameUser();
-      const cloud = normalizeLedger(data as Ledger);
-      const local = (await readState(scope)).ledger.customers.find(item => item.id === event.data.id);
-      if (local) throw new CustomerSyncConflict(local, cloud.customers.find((item: Customer) => item.id === event.data.id) ?? null);
-    }
-    if (error && ['PT409', '40001', 'P0002'].includes(error.code) && event.kind.startsWith('service.')) {
-      await requireSameUser();
-      const { data, error: readError } = await supabase.rpc('get_ledger', { p_shop: shopId }).abortSignal(AbortSignal.timeout(20000));
-      if (readError) throw new Error(readError.message);
-      await requireSameUser();
-      const remote = (data as Ledger).services.find(item => item.id === event.data.id) ?? null;
-      const local = (await readState(scope)).ledger.services.find(item => item.id === event.data.id);
-      if (local) throw new ServiceSyncConflict(local, remote, (data as Ledger).materials);
-    }
-    if (error && ['PT409', '40001', 'P0002'].includes(error.code) && event.kind.startsWith('material.')) {
-      await requireSameUser();
-      const { data, error: readError } = await supabase.rpc('get_ledger', { p_shop: shopId }).abortSignal(AbortSignal.timeout(20000));
-      if (readError) throw new Error(readError.message);
-      const remote = (data as Ledger).materials.find(item => item.id === event.data.id);
-      const local = (await readState(scope)).ledger.materials.find(item => item.id === event.data.id);
-      if (remote && local) throw new MaterialSyncConflict(local, remote);
-    }
-    if (error) throw new Error(`Sync paused: ${error.message}. Your pending work is still saved locally.`);
-    await mutateState(scope, current => ({ ...current, pending: current.pending.filter(item => item.id !== event.id) }));
-  }
-  await requireSameUser();
-  const { data, error } = await supabase.rpc('get_ledger', { p_shop: shopId }).abortSignal(AbortSignal.timeout(20000));
-  if (error) throw new Error(error.message);
-  await requireSameUser();
-  state = await mutateState(scope, current => {
-    let ledger: Ledger = normalizeLedger(data as Ledger);
-    // Preserve work added by another tab while the download was in flight.
-    for (const event of current.pending) {try{ledger = applyEvent(ledger, event);}catch(error){if(event.kind.startsWith('expense.')){const local=current.ledger.expenses.find(item=>item.id===event.data.id);const cloud=normalizeLedger(data);if(local)throw new ExpenseSyncConflict(local,cloud.expenses.find((item:Expense)=>item.id===local.id)??null,cloud);}if(event.kind==='checkout.completed')throw new CheckoutSyncConflict(event,normalizeLedger(data as Ledger));if(event.kind==='job.status_changed')throw new JobSyncConflict(event,normalizeLedger(data as Ledger));throw error;}}
-    return { ...current, ledger, lastSynced: new Date().toISOString() };
-  });
-  return state;
+  if(error)throw Error('Sync paused: '+error.message+'. Your pending work is still saved locally.');
+  await check();await mutateState(scope,current=>({...current,pending:current.pending.filter(item=>item.id!==event.id)}));
+ }
+ await check();const {data,error}=await supabase.rpc('get_ledger',{p_shop:shopId}).abortSignal(AbortSignal.timeout(20000));if(error)throw Error(error.message);await check();
+ return mutateState(scope,current=>({...current,ledger:projectPending(normalizeLedger(data),current),lastSynced:new Date().toISOString()}));
 }
+export type RemoteConflict={event_id:string;actor_id:string;actor_label:string;source:LedgerEvent;message:string;status:'pending'|'resolved';submitted_at:string;resolved_at:string|null;reviewer_label:string|null;decision:string|null;reason:string|null;replacements:LedgerEvent[]|null};
+export async function listRemoteConflicts(scope:string,shopId:string){const client=await requireConflictReviewer(supabase!,scope,shopId);const {data,error}=await client.rpc('list_sync_conflicts',{p_shop:shopId}).abortSignal(AbortSignal.timeout(20000));if(error)throw Error(error.message);return data as RemoteConflict[];}
+export async function getRemoteConflict(scope:string,shopId:string,eventId:string){const client=await requireConflictReviewer(supabase!,scope,shopId);const {data,error}=await client.rpc('get_sync_conflict',{p_shop:shopId,p_event:eventId}).abortSignal(AbortSignal.timeout(20000));if(error)throw Error(error.message);return {...data,ledger:normalizeLedger(data.ledger)} as {conflict:RemoteConflict;ledger:Ledger;token:string};}
+export async function resolveRemoteConflict(scope:string,shopId:string,eventId:string,token:string,replacements:LedgerEvent[],reason:string){const client=await requireConflictReviewer(supabase!,scope,shopId);const {error}=await client.rpc('resolve_sync_conflict',{p_shop:shopId,p_event:eventId,p_token:token,p_replacements:replacements,p_reason:reason}).abortSignal(AbortSignal.timeout(20000));if(error)throw Error(error.message);}
+
 export async function syncLedger(scope: string, shopId: string) {
   if (!navigator.locks) throw new Error('Cloud sync requires a browser with Web Locks support.');
   return navigator.locks.request(`printshopledger-sync:${scope}`, () => synchronize(scope, shopId));

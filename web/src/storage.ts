@@ -1,3 +1,4 @@
+import {assertIndependent} from './sync-dependencies.mjs';
 import { applyEvent, emptyLedger } from './domain.mjs';
 import { normalizeLedger } from './materials.mjs';
 import type { LedgerEvent, LocalState } from './types';
@@ -39,11 +40,11 @@ export async function mutateState(scope: string, mutate: (state: LocalState) => 
     tx.onerror = () => { failure ??= tx.error; };
   });
 }
-export const saveEvent = (scope: string, event: LedgerEvent, cloud: boolean) => mutateState(scope, state => ({
+export const saveEvent = (scope: string, event: LedgerEvent, cloud: boolean) => mutateState(scope, state => {assertIndependent(state,event);return {
   ...state, ledger: applyEvent(state.ledger, event), pending: cloud ? [...state.pending, event] : []
-}));
+};});
 
 
-export const saveEvents = (scope:string,events:LedgerEvent[],cloud:boolean) => mutateState(scope,state=>({
+export const saveEvents = (scope:string,events:LedgerEvent[],cloud:boolean) => mutateState(scope,state=>{for(const event of events)assertIndependent(state,event);return {
  ...state,ledger:events.reduce((ledger,event)=>applyEvent(ledger,event),state.ledger),pending:cloud?[...state.pending,...events]:[]
-}));
+};});

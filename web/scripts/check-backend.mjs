@@ -93,3 +93,6 @@ const expenseRpc = await fetch(url + '/rest/v1/rpc/apply_expense_event', {
 const expenseBody = await expenseRpc.json();
 if (![401, 403].includes(expenseRpc.status) || expenseBody.code !== '42501') throw new Error('Expense RPC is missing or permits anonymous execution.');
 console.log('Expense RPC exists and requires authorized sign-in.');
+for(const [name,body] of [['submit_sync_conflict',{p_shop:null,p_event:{},p_message:'test'}],['list_sync_conflicts',{p_shop:null}],['get_sync_conflict',{p_shop:null,p_event:null}],['resolve_sync_conflict',{p_shop:null,p_event:null,p_token:'',p_replacements:[],p_reason:'test'}]]){
+ const response=await fetch(url+'/rest/v1/rpc/'+name,{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(20000)});const result=await response.json();if(![401,403].includes(response.status)||result.code!=='42501')throw Error('Remote review RPC is missing or permits anonymous execution: '+name);console.log('Remote review RPC requires sign-in: '+name);
+}
