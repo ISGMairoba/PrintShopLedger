@@ -52,7 +52,7 @@ export function applyWaste(input,event){
  if(mat.version!==d.baseVersion)throw Error('Material changed. Sync and reopen the waste entry.');
  if(!['Waste','Damage','Reprint'].includes(d.category))throw Error('Choose waste, damage or reprint.');
  if(typeof d.quantity!=='number'||!Number.isFinite(d.quantity)||d.quantity<=0||d.quantity>1000000000000||Math.abs(d.quantity*1000-Math.round(d.quantity*1000))>0.001)throw Error('Enter a positive quantity with at most three decimals.');
- if(d.jobId&&!ledger.jobs.some(j=>j.id===d.jobId))throw Error('Linked job not found.');
+ if(d.jobId){const job=ledger.jobs.find(j=>j.id===d.jobId);if(!job)throw Error('Linked job not found.');if(job.materialId!==mat.id)throw Error('Linked job must use the selected material.');}
  const next={...mat,available:Math.round((mat.available-d.quantity)*1000)/1000,version:mat.version+1,modifiedBy:a.changedBy,modifiedByLabel:a.changedByLabel,modifiedAt:a.changedAt,lastEventId:event.id};validateMaterial(next);
  const record={id:event.id,materialId:mat.id,materialName:mat.name,measurementUnit:mat.measurementUnit,quantity:d.quantity,category:d.category,jobId:d.jobId||null,...a,beforeAvailable:mat.available,afterAvailable:next.available,event};
  return {...ledger,materials:ledger.materials.map(m=>m.id===mat.id?next:m),materialWaste:[...ledger.materialWaste,record],materialHistory:[...ledger.materialHistory,{id:event.id,materialId:mat.id,materialName:mat.name,measurementUnit:mat.measurementUnit,action:'material.wasted',jobId:d.jobId||null,beforeAvailable:mat.available,afterAvailable:next.available,reason:a.reason,changedBy:a.changedBy,changedByLabel:a.changedByLabel,changedAt:a.changedAt,before:materialSnapshot(mat),after:materialSnapshot(next),detailsComplete:true}]};
