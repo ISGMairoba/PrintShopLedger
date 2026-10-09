@@ -17,7 +17,8 @@ export function dashboardSummary(ledger,from,to){
  const refunds=ledger.saleAdjustments.filter(a=>a.action==='sale.refunded'&&inRange(a.paidOn||a.changedAt));
  const expenses=ledger.expenses.filter(e=>!e.voided);
  const periodExpenses=expenses.filter(e=>inRange(e.incurredOn));
- const expensePayments=expenses.flatMap(e=>e.payments).filter(p=>inRange(p.paidOn));
+ // Voiding an expense does not refund a payment already made.
+ const expensePayments=ledger.expenses.flatMap(e=>e.payments).filter(p=>inRange(p.paidOn));
  const sum=(rows,key)=>rows.reduce((n,r)=>n+(r[key]||0),0);
  const sales=sum(jobs,'amount'),collected=sum(payments,'amount'),refunded=sum(refunds,'refundAmount'),expensePaid=sum(expensePayments,'amount');
  const paidByJob=new Map();for(const p of ledger.payments)for(const a of p.allocations)paidByJob.set(a.jobId,(paidByJob.get(a.jobId)||0)+a.amount);

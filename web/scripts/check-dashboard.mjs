@@ -33,12 +33,12 @@ try{
   if(rank===1){assert.equal(await nav.getByRole('button',{name:'Dashboard',exact:true}).count(),0);await context.close();continue;}
   await nav.getByRole('button',{name:'Dashboard',exact:true}).click();await page.getByRole('heading',{name:'Dashboard',exact:true}).waitFor();await page.getByLabel('From',{exact:true}).fill('2026-10-09');await page.getByLabel('To',{exact:true}).fill('2026-10-09');
   const values=page.locator('.dashboard-stats').first();await values.getByText('₦45,000.00',{exact:true}).waitFor();await values.getByText('₦15,000.00',{exact:true}).waitFor();await values.getByText('₦13,000.00',{exact:true}).waitFor();await page.getByText('₦30,000.00',{exact:true}).waitFor();
-  await page.getByText('Flex roll',{exact:true}).waitFor();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Dashboard fits viewport');
+  await page.locator('.dashboard-row').filter({hasText:'Flex roll'}).waitFor();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Dashboard fits viewport');
   await page.screenshot({path:mobile?'/tmp/ledger-dashboard-mobile.png':'/tmp/ledger-dashboard-desktop.png',fullPage:true});
   await page.getByLabel('From',{exact:true}).fill('2026-10-10');await page.getByRole('alert').filter({hasText:'Choose valid From'}).waitFor();assert.equal(await page.locator('.dashboard-chart').count(),0);
   await page.getByLabel('From',{exact:true}).fill('2026-10-09');await context.setOffline(true);await page.getByText(/Offline — showing saved device records/).waitFor();await context.setOffline(false);
   if(rank===2||rank===3){settings={...settings,pageAccess:{...settings.pageAccess,[String(rank)]:['Dashboard','My Account']}};await page.reload();await page.getByRole('heading',{name:'Dashboard',exact:true}).waitFor();await page.getByText('No summary sections are available under your current page permissions.',{exact:true}).waitFor();assert.equal(await page.locator('.dashboard-stats article').count(),0);assert.equal(await page.locator('.dashboard-chart').count(),0);}
-  assert.deepEqual(errors,[]);await context.close();
+  assert.deepEqual(errors,[]);console.log(`${mobile?'Mobile':'Desktop'} rank ${rank} dashboard passed.`);await context.close();
  }
  console.log('Dashboard figures, dates, permission filtering, offline notice and mobile layout passed.');
 }finally{await browser?.close();server.kill();}

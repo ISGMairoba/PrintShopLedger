@@ -26,8 +26,8 @@ export default function DashboardPage({ledger,ready,online,pending,lastSynced,ac
  {access.sales&&card('Sales value',summary.sales,`${summary.jobs} jobs · ${summary.cancelled} cancelled`,change(summary.sales,summary.previous.sales))}
  {access.payments&&card('Net collected',summary.netCollected,`${money(summary.collected)} received − ${money(summary.refunded)} refunded`,change(summary.netCollected,summary.previous.netCollected))}
  {access.expenses&&card('Expenses incurred',summary.expenseIncurred,'Expenses dated in this period; voided records excluded')}
- {access.expenses&&card('Expenses paid',summary.expensePaid,'Money paid during this period, including older expenses')}
- {access.payments&&access.expenses&&card('Net cash flow',summary.netCashFlow,'Net collected − expenses paid. This is not profit.')}
+ {access.expenses&&card('Expenses paid',summary.expensePaid,'Recorded payments, including older or voided expenses')}
+ {access.payments&&access.expenses&&card('Collections less expense payments',summary.netCashFlow,'All payment funding sources included. Not profit or a bank balance.')}
  </section>
  {(access.sales||access.payments)&&<section className="panel dashboard-panel"><h2>{summary.monthly?'Monthly':'Daily'} trend</h2><Trend rows={summary.trend} sales={access.sales} payments={access.payments}/><small>Comparison period: {summary.previous.from} to {summary.previous.to}. Corrections revise the original sale/payment figures.</small></section>}
  <h2>Current position</h2><p>These balances and stock figures cover all dates, not only the selected period.</p><section className="stats dashboard-stats" aria-label="Current balances">
