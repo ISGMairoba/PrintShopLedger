@@ -1,10 +1,11 @@
 import {useMemo,useState} from 'react';
+import DashboardBreakdowns from './DashboardBreakdowns';
 import {dashboardRange,dashboardSummary,validRange} from './dashboard.mjs';
 import type {Ledger,Material} from './types';
 import './dashboard.css';
 const money=(value:number)=>new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN'}).format(value/100);
 const change=(value:number,previous:number)=>previous===0?(value===0?'No change':'No previous value to compare'):`${value>=previous?'+':''}${((value-previous)/Math.abs(previous)*100).toFixed(1)}% vs previous period`;
-type Access={sales:boolean;payments:boolean;expenses:boolean;materials:boolean};
+type Access={sales:boolean;payments:boolean;expenses:boolean;materials:boolean;customers:boolean};
 function Trend({rows,sales,payments}:{rows:{date:string;sales:number;collected:number}[];sales:boolean;payments:boolean}){
  const values=rows.flatMap(r=>[...(sales?[r.sales]:[]),...(payments?[r.collected]:[])]),max=Math.max(1,...values),min=Math.min(0,...values),y=(n:number)=>190-(n-min)/(max-min)*165,zero=y(0),width=620/Math.max(1,rows.length);
  return <><div className="dashboard-legend">{sales&&<span><i className="sales-key"/>Sales value</span>}{payments&&<span><i className="collections-key"/>Net collected</span>}</div><svg className="dashboard-chart" viewBox="0 0 700 230" role="img" aria-label="Sales value and net money collected by date. Exact amounts are in the trend data table.">
@@ -26,19 +27,19 @@ export default function DashboardPage({ledger,ready,online,pending,lastSynced,ac
  {access.sales&&card('Sales value',summary.sales,`${summary.jobs} jobs · ${summary.cancelled} cancelled`,change(summary.sales,summary.previous.sales))}
  {access.payments&&card('Net collected',summary.netCollected,`${money(summary.collected)} received − ${money(summary.refunded)} refunded`,change(summary.netCollected,summary.previous.netCollected))}
  {access.expenses&&card('Expenses incurred',summary.expenseIncurred,'Expenses dated in this period; voided records excluded')}
+ {access.sales&&access.expenses&&card('Income − expenses',summary.netIncome,'Sales value minus expenses incurred; includes unpaid sales and expenses.')}
  {access.expenses&&card('Expenses paid',summary.expensePaid,'Recorded payments, including older or voided expenses')}
- {access.payments&&access.expenses&&card('Collections less expense payments',summary.netCashFlow,'All payment funding sources included. Not profit or a bank balance.')}
+ {access.payments&&access.expenses&&card('Money In − Money Out',summary.netCashFlow,'Payments received minus expenses paid. Not your bank balance.')}
  </section>
  {(access.sales||access.payments)&&<section className="panel dashboard-panel"><h2>{summary.monthly?'Monthly':'Daily'} trend</h2><Trend rows={summary.trend} sales={access.sales} payments={access.payments}/><small>Comparison period: {summary.previous.from} to {summary.previous.to}. Corrections revise the original sale/payment figures.</small></section>}
  <h2>Current position</h2><p>These balances and stock figures cover all dates, not only the selected period.</p><section className="stats dashboard-stats" aria-label="Current balances">
  {access.sales&&access.payments&&card('Outstanding from customers',summary.outstanding,`${summary.outstandingJobs} jobs awaiting payment`)}
  {access.expenses&&card('Unpaid expenses',summary.expenseOutstanding,'Current remaining expense balances')}
  </section><div className="dashboard-grid">
- {access.sales&&<section className="panel dashboard-panel"><h2>Top services</h2><small>By selected-period sales value</small>{summary.services.length?summary.services.map(s=><div className="dashboard-row" key={s.name}><span>{s.name}<small>{s.jobs} jobs</small></span><strong>{money(s.sales)}</strong></div>):<p>No sales in this period.</p>}</section>}
- {access.payments&&<section className="panel dashboard-panel"><h2>Payment methods</h2><small>Selected-period collections less refunds</small>{summary.methods.length?summary.methods.map(m=><div className="dashboard-row" key={m.name}><span>{m.name}</span><strong>{money(m.amount)}</strong></div>):<p>No collections or refunds in this period.</p>}</section>}
+ <DashboardBreakdowns services={summary.services} sources={summary.sources} customers={summary.customers} methods={summary.methods} missingQuantity={summary.missingQuantity} access={access}/>
  {access.sales&&<section className="panel dashboard-panel"><h2>Job stages</h2><small>All current jobs</small>{summary.stages.length?summary.stages.map(s=><div className="dashboard-row" key={s.name}><span>{s.name}</span><strong>{s.count}</strong></div>):<p>No jobs yet.</p>}</section>}
  {access.materials&&<section className="panel dashboard-panel"><h2>Stock alerts</h2><small>Active materials at zero or below.</small>{summary.stockAlerts.length?<div className="dashboard-warning" role="status">{summary.stockAlerts.map((m:Material)=><div className="dashboard-row" key={m.id}><span>{m.name}<small>ID: {m.id.slice(0,8).toUpperCase()}</small></span><strong>{m.available} {m.measurementUnit}</strong></div>)}</div>:<p>No materials at zero or below.</p>}</section>}
- </div>{!Object.values(access).some(Boolean)&&<section className="panel empty">No summary sections are available under your current page permissions.</section>}
+ </div>{![access.sales,access.payments,access.expenses,access.materials].some(Boolean)&&<section className="panel empty">No summary sections are available under your current page permissions.</section>}
  </>}
  </div>;
 }

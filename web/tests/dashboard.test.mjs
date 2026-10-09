@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {emptyLedger} from '../src/domain.mjs';
-import {businessDay,dashboardRange,dashboardSummary,validRange} from '../src/dashboard.mjs';
+import {businessDay,dashboardRange,dashboardSummary,validRange,rankDashboardRows} from '../src/dashboard.mjs';
 import {canAccessPage,validatePageAccess,defaultPageAccess} from '../src/page-access.mjs';
 test('Dashboard dates are Lagos business days and inclusive presets',()=>{
  assert.equal(businessDay('2026-10-08T23:30:00Z'),'2026-10-09');assert.equal(businessDay('2026-10-08'),'2026-10-08');assert.equal(businessDay('invalid'),'');
@@ -27,4 +27,12 @@ test('Equal-length previous period excludes current days and corrected figures a
 test('Dashboard requires Admin+, can be disabled, and cannot be granted to Cashier',()=>{
  assert.equal(canAccessPage('Dashboard',1),false);assert.equal(canAccessPage('Dashboard',2),true);assert.equal(canAccessPage('Dashboard',3),true);assert.equal(canAccessPage('Dashboard',4),true);
  const custom=defaultPageAccess();custom['2']=custom['2'].filter(p=>p!=='Dashboard');assert.equal(canAccessPage('Dashboard',2,custom),false);custom['1'].push('Dashboard');assert.throws(()=>validatePageAccess(custom));
+});
+test('Top-five service ranking switches across all services, with cancellations excluded',()=>{
+ const l=emptyLedger();l.jobs=Array.from({length:6},(_,i)=>({id:'job'+i,serviceId:'service'+i,service:'Service '+i,customerId:'customer'+i,source:i%2?'WhatsApp':'In shop',amount:600-i*100,quantity:i===5?100:1,createdAt:'2026-10-09'}));l.jobs.push({id:'cancelled',service:'Cancelled',customerId:'customer0',quantity:1000,amount:0,source:'Email',productionStatus:'Cancelled',createdAt:'2026-10-09'});
+ const s=dashboardSummary(l,'2026-10-09','2026-10-09');assert.equal(s.services.length,6);assert.equal(rankDashboardRows(s.services,'sales')[0].name,'Service 0');assert.equal(rankDashboardRows(s.services,'quantity')[0].name,'Service 5');assert.equal(rankDashboardRows(s.services,'quantity').length,5);assert.equal(s.sources.find(x=>x.name==='WhatsApp').quantity,102);assert.equal(s.sources.find(x=>x.name==='Email'),undefined);assert.equal(s.customers.find(x=>x.id==='customer0').jobs,1);assert.equal(rankDashboardRows(s.customers,'quantity')[0].id,'customer5');
+});
+test('Missing quantities and sources are explicit; customers group by identity, not name',()=>{
+ const l=emptyLedger();l.customers=[{id:'a',name:'Same name'},{id:'b',name:'Same name'}];l.jobs=[{id:'1',service:'Printing',customerId:'a',amount:500,createdAt:'2026-10-09'},{id:'2',service:'Printing',customerId:'b',amount:800,quantity:5,createdAt:'2026-10-09'}];l.expenses=[{amount:300,incurredOn:'2026-10-09',payments:[]},{amount:900,incurredOn:'2026-10-09',voided:true,payments:[]}];
+ const s=dashboardSummary(l,'2026-10-09','2026-10-09');assert.equal(s.netIncome,1000);assert.equal(s.missingQuantity,1);assert.equal(s.sources[0].name,'Not recorded');assert.equal(s.sources[0].quantity,5);assert.equal(s.customers.length,2);assert.equal(rankDashboardRows(s.customers,'sales')[0].id,'b');assert.equal(rankDashboardRows(s.customers,'quantity').length,1);
 });
