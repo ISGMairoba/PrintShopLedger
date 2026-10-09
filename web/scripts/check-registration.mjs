@@ -35,7 +35,7 @@ try{
   await page.getByLabel('Business name',{exact:true}).fill('New Print Shop');await page.getByLabel('Owner’s full name',{exact:true}).fill('Owner Name');
   await page.getByLabel('Business email',{exact:true}).fill('owner@example.invalid');await page.getByLabel('Password',{exact:true}).fill('example-password');await page.getByLabel('Confirm password',{exact:true}).fill('different-password');
   await page.getByRole('button',{name:'Register business',exact:true}).click();await page.getByText('The passwords do not match.',{exact:true}).waitFor();assert.equal(signedUp,0);
-  await page.getByLabel('Confirm password',{exact:true}).fill('example-password');await context.setOffline(true);assert.equal(await page.getByRole('button',{name:'Register business',exact:true}).isEnabled(),false);await context.setOffline(false);
+  await page.getByLabel('Confirm password',{exact:true}).fill('example-password');await context.setOffline(true);await page.waitForFunction(()=>document.querySelector('form button')?.disabled);assert.equal(await page.getByRole('button',{name:'Register business',exact:true}).isEnabled(),false);await context.setOffline(false);await page.waitForFunction(()=>!document.querySelector('form button')?.disabled);
   await page.getByRole('button',{name:'Register business',exact:true}).click();await page.getByText(/Check your email to confirm/).waitFor();
   assert.equal(signedUp,1);assert.equal(created,0);assert.deepEqual(lastSignup.data,{full_name:'Owner Name',business_name:'New Print Shop'});assert.ok(!JSON.stringify(lastSignup).includes('mairobaprints'));
   await page.screenshot({path:`/tmp/ledger-registration-${mobile?'mobile':'desktop'}.png`,fullPage:true});
