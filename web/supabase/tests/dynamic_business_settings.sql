@@ -2,7 +2,7 @@
 begin;
 insert into auth.users(id,email) values('3fe7f4ce-f2d3-4ac4-a56c-e239fb8f34de','3fe7f4ce-f2d3-4ac4-a56c-e239fb8f34de@example.invalid'),('aabec74a-cc33-4101-81da-c1f2ce485b28','aabec74a-cc33-4101-81da-c1f2ce485b28@example.invalid'),('821f423c-50a3-4a12-a214-4dbee970c8d2','821f423c-50a3-4a12-a214-4dbee970c8d2@example.invalid');
 insert into public.shops(id,name) values('fc84b3cf-d4d9-4c0a-ace4-3243a09a90a3','Sales adjustment integration test');
-insert into public.shop_members(shop_id,user_id,role,name,username,rank,access_level) values('fc84b3cf-d4d9-4c0a-ace4-3243a09a90a3','3fe7f4ce-f2d3-4ac4-a56c-e239fb8f34de','manager','Manager','manager',3,3),('fc84b3cf-d4d9-4c0a-ace4-3243a09a90a3','aabec74a-cc33-4101-81da-c1f2ce485b28','cashier','Cashier','cashier',1,1);
+insert into public.shop_members(shop_id,user_id,role,name,username,rank,access_level) values('fc84b3cf-d4d9-4c0a-ace4-3243a09a90a3','3fe7f4ce-f2d3-4ac4-a56c-e239fb8f34de','developer','Developer','developer',4,4),('fc84b3cf-d4d9-4c0a-ace4-3243a09a90a3','aabec74a-cc33-4101-81da-c1f2ce485b28','cashier','Cashier','cashier',1,1);
 select set_config('test.adjust_shop','fc84b3cf-d4d9-4c0a-ace4-3243a09a90a3',true),set_config('test.adjust_user','3fe7f4ce-f2d3-4ac4-a56c-e239fb8f34de',true),set_config('test.adjust_cashier','aabec74a-cc33-4101-81da-c1f2ce485b28',true),set_config('test.adjust_other','821f423c-50a3-4a12-a214-4dbee970c8d2',true);
 insert into public.shop_members(shop_id,user_id,role,name,username,rank,access_level) values('fc84b3cf-d4d9-4c0a-ace4-3243a09a90a3','821f423c-50a3-4a12-a214-4dbee970c8d2','admin','Admin','admin',2,2);
 set local role authenticated;
@@ -16,4 +16,17 @@ perform set_config('request.jwt.claim.sub',current_setting('test.adjust_other'),
 rejected=false;begin perform public.apply_supervised_event(s,jsonb_build_object('id',gen_random_uuid(),'kind','sale.corrected','data','{}'::jsonb));exception when others then if sqlerrm<>'Page access denied' then raise;end if;rejected=true;end;if not rejected then raise exception 'Disabled correction page still approved via API';end if;
 perform set_config('request.jwt.claim.sub',current_setting('test.adjust_cashier'),true);
 rejected=false;begin perform public.save_business_settings(s,1,config);exception when others then rejected=true;end;if not rejected then raise exception 'Cashier changed access settings';end if;
+end;$$;
+reset role;
+-- Downgrade only this rollback-only fixture to verify Manager cannot bypass maintenance access.
+update public.shop_members set role='manager',rank=3,access_level=3 where shop_id='fc84b3cf-d4d9-4c0a-ace4-3243a09a90a3' and user_id='3fe7f4ce-f2d3-4ac4-a56c-e239fb8f34de';
+set local role authenticated;
+select set_config('request.jwt.claim.sub','3fe7f4ce-f2d3-4ac4-a56c-e239fb8f34de',true);
+do $$declare s uuid:='fc84b3cf-d4d9-4c0a-ace4-3243a09a90a3';config jsonb;rejected boolean;changed integer;begin
+select settings into config from public.business_settings where shop_id=s;
+if config is null then raise exception 'Manager must still read branding for normal operation';end if;
+rejected=false;begin perform public.save_business_settings(s,1,config);exception when others then if sqlerrm<>'Developer maintenance access required' then raise;end if;rejected=true;end;if not rejected then raise exception 'Manager saved business settings';end if;
+update public.business_settings set settings=config where shop_id=s;get diagnostics changed=row_count;if changed<>0 then raise exception 'Manager bypassed maintenance RPC via table update';end if;
+update public.shops set name='Unauthorized Manager rename' where id=s;get diagnostics changed=row_count;if changed<>0 then raise exception 'Manager renamed business directly';end if;
+if exists(select 1 from public.business_settings_history where shop_id=s) then raise exception 'Manager accessed maintenance history';end if;
 end;$$;reset role;rollback;
