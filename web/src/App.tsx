@@ -432,6 +432,7 @@ export default function App() {
           <tr><td>Name</td><td>{conflict.local.name}</td><td>{conflict.remote.name}</td></tr>
           <tr><td>Available</td><td>{conflict.local.available}</td><td>{conflict.remote.available}</td></tr>
           <tr><td>Measurement unit</td><td>{conflict.local.measurementUnit}</td><td>{conflict.remote.measurementUnit}</td></tr>
+          <tr><td>Minimum stock</td><td>{conflict.local.minimumStock ?? 0}</td><td>{conflict.remote.minimumStock ?? 0}</td></tr>
           <tr><td>Require size</td><td>{conflict.local.requireSize ? 'Yes' : 'No'}</td><td>{conflict.remote.requireSize ? 'Yes' : 'No'}</td></tr>
           <tr><td>Status</td><td>{conflict.local.archived ? 'Archived' : 'Active'}</td><td>{conflict.remote.archived ? 'Archived' : 'Active'}</td></tr>
           <tr><td>Modified by</td><td>{conflict.local.modifiedByLabel}</td><td>{conflict.remote.modifiedByLabel}</td></tr>
@@ -492,5 +493,6 @@ export default function App() {
     </main>
   </div></BusinessOptionsContext.Provider>;
 }
+
 
 

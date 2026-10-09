@@ -10,7 +10,7 @@ type Props = { history: MaterialHistoryEntry[]; materials: Material[]; pending: 
 const quantity = (value: number | null | undefined) => value == null ? '-' : value.toLocaleString(undefined, { maximumFractionDigits: 3 });
 const dateKey = (value: string) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Lagos', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(value));
 const dateLabel = (value: string) => new Date(value).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' });
-const fields: { key: keyof MaterialSnapshot; label: string }[] = [{ key: 'name', label: 'Name' }, { key: 'available', label: 'Available' }, { key: 'measurementUnit', label: 'Measurement unit' }, { key: 'requireSize', label: 'Require size' }, { key: 'archived', label: 'Archived' }];
+const fields: { key: keyof MaterialSnapshot; label: string }[] = [{ key: 'name', label: 'Name' }, { key: 'available', label: 'Available' }, { key: 'minimumStock', label: 'Minimum stock' }, { key: 'measurementUnit', label: 'Measurement unit' }, { key: 'requireSize', label: 'Require size' }, { key: 'archived', label: 'Archived' }];
 const valueLabel = (value: unknown) => value == null ? '-' : typeof value === 'boolean' ? value ? 'Yes' : 'No' : String(value);
 
 export default function StockHistoryPage({ history, materials, pending, ready, demo }: Props) {
@@ -65,4 +65,5 @@ export default function StockHistoryPage({ history, materials, pending, ready, d
     </Modal>}
   </>;
 }
+
 

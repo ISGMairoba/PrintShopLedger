@@ -5,7 +5,7 @@ import Icon from './Icon';
 import { useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import { SortHeader, useTableSort } from './TableSort';
-import { materialCode } from './material-display.mjs';
+import { materialCode, stockLevel } from './material-display.mjs';
 import type { Material, MaterialEvent, MaterialHistoryEntry } from './types';
 
 type Props = { history: MaterialHistoryEntry[]; materials: Material[]; ready: boolean; busy: boolean; actor: { id: string; label: string }; onSave: (event: MaterialEvent) => Promise<void> };
@@ -39,7 +39,7 @@ export default function MaterialsPage({ materials, history, ready, busy, actor, 
     const data = new FormData(e.currentTarget);
     await commit(editing ? 'material.updated' : 'material.created', {
       id: editing?.id ?? crypto.randomUUID(), baseVersion: editing?.version,
-      name: String(data.get('name')).trim(), available: editing?.available ?? 0,
+      minimumStock: Number(data.get('minimumStock')), name: String(data.get('name')).trim(), available: editing?.available ?? 0,
       measurementUnit: String(data.get('measurementUnit')).trim(), requireSize: data.get('requireSize') === 'on',
       modifiedBy: actor.id, modifiedByLabel: actor.label, modifiedAt: ''
     });
@@ -59,7 +59,7 @@ export default function MaterialsPage({ materials, history, ready, busy, actor, 
           <SortHeader label="Available" column="available" sort={sorting} /><SortHeader label="Measurement unit" column="unit" sort={sorting} /><SortHeader label="Require size" column="requireSize" sort={sorting} /><SortHeader label="Status" column="status" sort={sorting} />{audit && <><SortHeader label="Created by" column="createdBy" sort={sorting} /><SortHeader label="Created at" column="createdAt" sort={sorting} /><SortHeader label="Modified by" column="modifiedBy" sort={sorting} /><SortHeader label="Modified at" column="modifiedAt" sort={sorting} /></>}<th>Actions</th></tr></thead><tbody>
           {visible.map(material => <tr key={material.id}><td><strong>{material.name}</strong></td><td className="material-id">{materialCode(material.id, materials)}</td>
 
-              <td>{material.available.toLocaleString(undefined, { maximumFractionDigits: 3 })}</td><td>{material.measurementUnit}</td><td>{material.requireSize ? 'Yes' : 'No'}</td><td><span className={`badge ${material.archived ? 'unpaid' : 'paid'}`}>{material.archived ? 'Archived' : 'Active'}</span></td>
+              <td>{material.available.toLocaleString(undefined, { maximumFractionDigits: 3 })}<small>Minimum: {material.minimumStock ?? 0} {material.measurementUnit}</small>{stockLevel(material) && <small className={stockLevel(material) === 'Critical' ? 'danger-text' : 'stock-near-text'}>{stockLevel(material)}</small>}</td><td>{material.measurementUnit}</td><td>{material.requireSize ? 'Yes' : 'No'}</td><td><span className={`badge ${material.archived ? 'unpaid' : 'paid'}`}>{material.archived ? 'Archived' : 'Active'}</span></td>
             {audit && <><td>{material.createdByLabel}</td><td>{timestamp(material.createdAt)}</td><td>{material.modifiedByLabel}</td><td>{timestamp(material.modifiedAt)}</td></>}
             <td><div className="material-actions">{!material.archived && <>
               <button className="text-button" disabled={busy} onClick={() => { setEditor(material); setConfirmation(null); setStock(null); setError(''); }}><Icon name="edit"/> Edit</button>
@@ -93,11 +93,13 @@ export default function MaterialsPage({ materials, history, ready, busy, actor, 
         {editing ? <p className="material-id">Material ID: {materialCode(editing.id, materials)}</p> : <p className="muted">A permanent unique ID is generated when you save. New materials start with zero stock; use Add to stock afterwards.</p>}
         <fieldset disabled={busy}><div className="form-grid"><label>Name<input name="name" defaultValue={editing?.name ?? ''} maxLength={160} required /></label>
           <label>Measurement unit<input name="measurementUnit" list="material-units" placeholder="e.g. sheet, metre, square metre" maxLength={40} defaultValue={editing?.measurementUnit ?? ''} required /></label>
+          <label>Minimum stock level<input name="minimumStock" type="number" inputMode="decimal" min="0" max="1000000000000" step="0.001" defaultValue={editing?.minimumStock ?? 0} required /><small>In this material’s measurement unit. Stock up to 20% above this level is near minimum.</small></label>
           <label className="material-checkbox"><span><input name="requireSize" type="checkbox" defaultChecked={editing?.requireSize ?? false} /> Require size</span><small>Enable when the service price depends on dimensions. Otherwise pricing uses quantity only. Checkout uses quantity × width × height when size is required.</small></label></div>
           <datalist id="material-units">{materialUnits.map(unit => <option key={unit} value={unit} />)}</datalist>
           <button type="submit"><Icon name="save"/> {busy ? 'Saving...' : 'Save material'}</button></fieldset>
       </form></Modal>}
   </>;
 }
+
 
 

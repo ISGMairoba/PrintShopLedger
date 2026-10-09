@@ -15,7 +15,7 @@ try{
   const token=[{alg:'HS256',typ:'JWT'},{sub:id,role:'authenticated',exp:Math.floor(Date.now()/1000)+3600},'c2lnbmF0dXJl'].map(x=>typeof x==='string'?x:Buffer.from(JSON.stringify(x)).toString('base64url')).join('.');
   const user={id,aud:'authenticated',role:'authenticated',email:'test@example.invalid',user_metadata:{full_name:'Test User'},app_metadata:{provider:'email'},created_at:now};
   let settings={...defaultBranding(),businessName:'Mairoba Studios'};
-  const ledger=emptyLedger();ledger.jobs=[{id:'test-job',customerId:'customer',service:'Banner printing',quantity:3,source:'WhatsApp',description:'Test banner',amount:4500000,createdAt:'2026-10-09T09:00:00Z',productionStatus:'Queued'}];ledger.customers=[{id:'customer',name:'Test customer',creditLimit:10000000}];ledger.payments=[{id:'payment',customerId:'customer',amount:1000000,method:'Cash',paidOn:'2026-10-09',createdAt:'2026-10-09',allocations:[{jobId:'test-job',amount:1000000}]}];ledger.payments.push({id:'transfer',customerId:'customer',amount:500000,method:'Bank transfer',paidOn:'2026-10-09',createdAt:'2026-10-09',allocations:[{jobId:'test-job',amount:500000}]});ledger.materials=[{id:'material',name:'Flex roll',available:-2,measurementUnit:'ft',archived:false}];
+  const ledger=emptyLedger();ledger.jobs=[{id:'test-job',customerId:'customer',service:'Banner printing',quantity:3,source:'WhatsApp',description:'Test banner',amount:4500000,createdAt:'2026-10-09T09:00:00Z',productionStatus:'Queued'}];ledger.customers=[{id:'customer',name:'Test customer',creditLimit:10000000}];ledger.payments=[{id:'payment',customerId:'customer',amount:1000000,method:'Cash',paidOn:'2026-10-09',createdAt:'2026-10-09',allocations:[{jobId:'test-job',amount:1000000}]}];ledger.payments.push({id:'transfer',customerId:'customer',amount:500000,method:'Bank transfer',paidOn:'2026-10-09',createdAt:'2026-10-09',allocations:[{jobId:'test-job',amount:500000}]});ledger.materials=[{id:'material',name:'Flex roll',available:-2,minimumStock:5,measurementUnit:'ft',archived:false},{id:'near',name:'Paper near minimum',available:12,minimumStock:10,measurementUnit:'sheet',archived:false},{id:'healthy',name:'Healthy paper',available:13,minimumStock:10,measurementUnit:'sheet',archived:false}];
   ledger.expenses=[{id:'expense',description:'Transport',amount:500000,incurredOn:'2026-10-09',payments:[{amount:200000,paidOn:'2026-10-09'}],voided:false}];
   await context.route('https://*.supabase.co/**',async route=>{
    const path=new URL(route.request().url()).pathname;let result={};
@@ -34,6 +34,13 @@ try{
   await nav.getByRole('button',{name:'Dashboard',exact:true}).click();await page.getByRole('heading',{name:'Dashboard',exact:true}).waitFor();await page.getByLabel('From',{exact:true}).fill('2026-10-09');await page.getByLabel('To',{exact:true}).fill('2026-10-09');
   const values=page.locator('.dashboard-stats').first();await values.getByText('₦45,000.00',{exact:true}).waitFor();await values.getByText('₦15,000.00',{exact:true}).waitFor();await values.getByText('₦13,000.00',{exact:true}).waitFor();await page.getByText('₦30,000.00',{exact:true}).waitFor();
   await page.locator('.dashboard-row').filter({hasText:'Flex roll'}).waitFor();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Dashboard fits viewport');
+  await page.getByRole('heading',{name:'Critical stock',exact:true}).waitFor();
+  await page.locator('.dashboard-row.stock-near').filter({hasText:'Paper near minimum'}).waitFor();
+  assert.equal(await page.locator('.dashboard-row').filter({hasText:'Healthy paper'}).count(),0);
+  const positions=await values.locator('article').evaluateAll(items=>items.map(item=>({top:item.getBoundingClientRect().top,left:item.getBoundingClientRect().left})));
+  assert.equal(positions.length,6);
+  if(!mobile){assert.equal(positions[0].top,positions[2].top);assert.equal(positions[3].top,positions[5].top);assert.ok(positions[3].top>positions[0].top);}
+  else {assert.equal(positions[0].top,positions[1].top);assert.ok(positions[2].top>positions[0].top);}
   await values.getByText('Money In − Money Out',{exact:true}).waitFor();await values.getByText('₦40,000.00',{exact:true}).waitFor();
   assert.equal(await page.locator('.dashboard-pie').count(),2);
   const services=page.getByRole('region',{name:'Top 5 services'});await page.getByLabel('Rank services by',{exact:true}).selectOption('quantity');await services.locator('.dashboard-row').getByText('3',{exact:true}).waitFor();await page.getByLabel('Rank services by',{exact:true}).selectOption('sales');await services.locator('.dashboard-row').getByText('₦45,000.00',{exact:true}).waitFor();
@@ -62,3 +69,4 @@ try{
  }
  console.log('Dashboard figures, dates, permission filtering, offline notice and mobile layout passed.');
 }catch(error){const page=browser?.contexts()[0]?.pages()[0];if(page){await page.screenshot({path:'/tmp/ledger-dashboard-failure.png',fullPage:true});console.error('Chart failure details:',await page.locator('.interactive-chart').allTextContents());}throw error;}finally{await browser?.close();server.kill();}
+

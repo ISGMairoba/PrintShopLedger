@@ -23,6 +23,15 @@ export function stockReasonSuggestions(history) {
 }
 export function materialSnapshot(material) {
   if (!material) return null;
-  return { name: material.name, available: material.available, measurementUnit: material.measurementUnit, requireSize: material.requireSize, archived: material.archived };
+  return { name: material.name, available: material.available, minimumStock: material.minimumStock ?? 0, measurementUnit: material.measurementUnit, requireSize: material.requireSize, archived: material.archived };
 }
 
+
+
+export function stockLevel(material) {
+ if (material.archived) return null;
+ const minimum = material.minimumStock ?? 0;
+ if (material.available <= minimum) return 'Critical';
+ if (minimum > 0 && material.available <= Math.round(minimum * 1.2 * 1000) / 1000) return 'Near minimum';
+ return null;
+}

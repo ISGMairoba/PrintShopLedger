@@ -149,3 +149,6 @@ nav button { display: flex; align-items: center; gap: .8rem; }
 .page-access-grid small{display:block;width:100%}
 .combined-payment{border:1px solid var(--line,#ccc);border-radius:10px;padding:12px;margin:12px 0;min-width:0}
 @media(max-width:600px){.page-access-grid{grid-template-columns:1fr}.settings-tabs button{font-size:14px}.listed-combobox-list button{overflow-wrap:anywhere}}
+
+
+.stock-near-text{color:#805300}

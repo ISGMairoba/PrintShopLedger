@@ -1,3 +1,4 @@
+import {stockLevel} from './material-display.mjs';
 // All amounts remain integer kobo. Dates use the business day in Lagos.
 export function businessDay(value){
  if(typeof value!=='string'||!value)return '';
@@ -47,9 +48,10 @@ export function dashboardSummary(ledger,from,to){
  return {sales,collected,refunded,netCollected:collected-refunded,expenseIncurred:sum(periodExpenses,'amount'),netIncome:sales-sum(periodExpenses,'amount'),expensePaid,netCashFlow:collected-refunded-expensePaid,jobs:jobs.filter(j=>j.productionStatus!=='Cancelled').length,cancelled:jobs.filter(j=>j.productionStatus==='Cancelled').length,
   outstanding:outstandingJobs.reduce((n,x)=>n+x.outstanding,0),outstandingJobs:outstandingJobs.length,
   expenseOutstanding:expenses.reduce((n,e)=>n+Math.max(0,e.amount-sum(e.payments,'amount')),0),
-  stockAlerts:ledger.materials.filter(m=>!m.archived&&m.available<=0).sort((a,b)=>a.available-b.available||a.name.localeCompare(b.name)),
+  stockAlerts:ledger.materials.filter(m=>stockLevel(m)).sort((a,b)=>(stockLevel(a)==='Critical'?0:1)-(stockLevel(b)==='Critical'?0:1)||a.available-b.available||a.name.localeCompare(b.name)),
   stages:Object.entries(ledger.jobs.reduce((s,j)=>{const key=j.productionStatus||'Queued';s[key]=(s[key]||0)+1;return s;},{})).map(([name,count])=>({name,count})),
   services:[...serviceMap.values()],sources:[...sourceMap.values()],customers:[...customerMap.values()],missingQuantity,methods:[...methods.entries()].map(([name,amount])=>({name,amount})).sort((a,b)=>b.amount-a.amount),trend:[...bucketMap.values()],monthly,
   previous:{from:previousFrom,to:previousTo,sales:sum(ledger.jobs.filter(j=>previous(j.createdAt)),'amount'),netCollected:sum(ledger.payments.filter(p=>!p.refundId&&previous(p.paidOn)),'amount')-sum(ledger.saleAdjustments.filter(a=>a.action==='sale.refunded'&&previous(a.paidOn||a.changedAt)),'refundAmount')}
  };
 }
+

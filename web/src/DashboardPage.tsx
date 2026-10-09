@@ -1,3 +1,4 @@
+import {stockLevel} from './material-display.mjs';
 import {useMemo,useState} from 'react';
 import DashboardBreakdowns from './DashboardBreakdowns';
 import {InteractiveTrend} from './InteractiveCharts';
@@ -32,8 +33,9 @@ export default function DashboardPage({ledger,ready,online,pending,lastSynced,ac
  </section><div className="dashboard-grid">
  <DashboardBreakdowns services={summary.services} sources={summary.sources} customers={summary.customers} methods={summary.methods} missingQuantity={summary.missingQuantity} access={access}/>
  {access.sales&&<section className="panel dashboard-panel"><h2>Job stages</h2><small>All current jobs</small>{summary.stages.length?summary.stages.map(s=><div className="dashboard-row" key={s.name}><span>{s.name}</span><strong>{s.count}</strong></div>):<p>No jobs yet.</p>}</section>}
- {access.materials&&<section className="panel dashboard-panel"><h2>Stock alerts</h2><small>Active materials at zero or below.</small>{summary.stockAlerts.length?<div className="dashboard-warning" role="status">{summary.stockAlerts.map((m:Material)=><div className="dashboard-row" key={m.id}><span>{m.name}<small>ID: {m.id.slice(0,8).toUpperCase()}</small></span><strong>{m.available} {m.measurementUnit}</strong></div>)}</div>:<p>No materials at zero or below.</p>}</section>}
+ {access.materials&&<section className="panel dashboard-panel"><h2>Critical stock</h2><small>At/below minimum, or near minimum (up to 20% above).</small>{summary.stockAlerts.length?<div className="dashboard-warning" role="status">{summary.stockAlerts.map((m:Material)=><div className={`dashboard-row ${stockLevel(m)==='Critical'?'stock-critical':'stock-near'}`} key={m.id}><span>{m.name}<small>{stockLevel(m)} · Minimum: {m.minimumStock ?? 0} {m.measurementUnit}</small><small>ID: {m.id.slice(0,8).toUpperCase()}</small></span><strong>{m.available} {m.measurementUnit}</strong></div>)}</div>:<p>All active materials are above their stock warning levels.</p>}</section>}
  </div>{![access.sales,access.payments,access.expenses,access.materials].some(Boolean)&&<section className="panel empty">No summary sections are available under your current page permissions.</section>}
  </>}
  </div>;
 }
+

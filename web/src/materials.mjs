@@ -4,6 +4,8 @@ export function normalizeLedger(ledger) {
   return { ...ledger, saleAdjustments: ledger.saleAdjustments ?? [], materialWaste: ledger.materialWaste ?? [], expenses: ledger.expenses ?? [], expenseHistory: ledger.expenseHistory ?? [], drawerClosings: ledger.drawerClosings ?? [], checkouts: ledger.checkouts ?? [], customers: (ledger.customers ?? []).map(normalizeCustomer), materials: ledger.materials ?? [], materialHistory: ledger.materialHistory ?? [], services: ledger.services ?? [] };
 }
 export function validateMaterial(data) {
+  const minimum = data.minimumStock ?? 0;
+  if (typeof minimum !== 'number' || !Number.isFinite(minimum) || minimum < 0 || minimum > 1000000000000 || Math.abs(minimum * 1000 - Math.round(minimum * 1000)) > 0.001) throw new Error('Minimum stock must be zero or greater, with at most three decimal places.');
   if (typeof data.name !== 'string' || !data.name.trim() || data.name.trim().length > 160) throw new Error('Enter a material name (up to 160 characters).');
   if (typeof data.measurementUnit !== 'string' || !data.measurementUnit.trim() || data.measurementUnit.trim().length > 40) throw new Error('Enter a measurement unit (up to 40 characters).');
   if (typeof data.requireSize !== 'boolean') throw new Error('Require Size must be Yes or No.');
@@ -26,7 +28,7 @@ export function applyMaterialEvent(input, event) {
   if (event.kind === 'material.created') {
     if (existing) throw new Error('This material ID is already in use.');
     validateMaterial(data);
-    next = { id: data.id, name: data.name.trim(), available: data.available, measurementUnit: data.measurementUnit.trim(), requireSize: data.requireSize,
+    next = { id: data.id, name: data.name.trim(), available: data.available, measurementUnit: data.measurementUnit.trim(), requireSize: data.requireSize, minimumStock: data.minimumStock ?? 0,
       archived: false, version: 1, createdBy: data.modifiedBy, createdByLabel: audit.modifiedByLabel, createdAt: data.modifiedAt, ...audit };
     return { ...ledger, materials: [...ledger.materials, next], materialHistory: [...ledger.materialHistory, record(next)] };
   }
@@ -35,7 +37,7 @@ export function applyMaterialEvent(input, event) {
   if (event.kind === 'material.updated') {
     if (existing.archived) throw new Error('Restore this material before editing it.');
     validateMaterial(data);
-    next = { ...existing, name: data.name.trim(), available: existing.available, measurementUnit: data.measurementUnit.trim(), requireSize: data.requireSize, ...audit, version: existing.version + 1 };
+    next = { ...existing, name: data.name.trim(), available: existing.available, measurementUnit: data.measurementUnit.trim(), requireSize: data.requireSize, minimumStock: data.minimumStock ?? existing.minimumStock ?? 0, ...audit, version: existing.version + 1 };
   } else if (event.kind === 'material.stock_added' || event.kind === 'material.stock_set') {
     if (existing.archived) throw new Error('Restore this material before changing stock.');
     validateMaterial({ ...existing, available: data.quantity });
@@ -51,4 +53,5 @@ export function applyMaterialEvent(input, event) {
   } else throw new Error('Unknown material operation.');
   return { ...ledger, materials: ledger.materials.map(material => material.id === data.id ? next : material), materialHistory: [...ledger.materialHistory, record(next)] };
 }
+
 
