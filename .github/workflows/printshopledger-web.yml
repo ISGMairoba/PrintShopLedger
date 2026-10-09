@@ -29,6 +29,8 @@ jobs:
         timeout-minutes: 5
         run: npx playwright install chromium webkit
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: node scripts/check-dashboard.mjs
+      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/check-login-sync.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/check-feedback.mjs
@@ -38,8 +40,6 @@ jobs:
         run: node scripts/check-remote-review.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/check-access-account.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/check-dashboard.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/check-business-branding.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
