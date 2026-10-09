@@ -30,7 +30,7 @@ function positiveAmount(value) {
 }
 export function applyEvent(ledger, event) {
   ledger = normalizeLedger(ledger);
-  if(event.kind.startsWith('sale.')) return applySaleAdjustment(ledger,event);
+  if(event.kind.startsWith('sale.')||event.kind==='payment.corrected') return applySaleAdjustment(ledger,event);
   if(event.kind==='material.wasted') return applyWaste(ledger,event);
   if (event.kind.startsWith('expense.')) return applyExpenseEvent(ledger, event);
   if (event.kind.startsWith('customer.')) return applyCustomerEvent(ledger,event);

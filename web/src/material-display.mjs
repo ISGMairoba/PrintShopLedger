@@ -7,7 +7,7 @@ export function materialCode(id, materials = []) {
   return 'MAT-' + compact;
 }
 export const materialActionLabels = {
- 'material.wasted':'Waste / damage / reprint', 'material.sale_returned':'Cancelled sale: stock returned',
+ 'material.wasted':'Waste / damage / reprint', 'material.job_corrected':'Job entry stock correction', 'material.sale_returned':'Cancelled sale: stock returned',
   'material.expense_stock_changed': 'Expense stock change', 'material.job_used': 'Job material used', 'material.created': 'Material created', 'material.updated': 'Material edited',
   'material.stock_added': 'Stock added', 'material.stock_set': 'Quantity set',
   'material.archived': 'Material archived', 'material.restored': 'Material restored'

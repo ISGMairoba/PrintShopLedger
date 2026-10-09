@@ -186,7 +186,7 @@ export default function App() {
     const target=scope;setBusy(true);
     try{
       const next=demo?await saveEvent(target,operation,false):await saveSupervisedEvent(target,shop!.id,operation);
-      if(activeScope.current===target){setState(next);channel.current?.postMessage('changed');const low=operation.kind==='material.wasted'&&next.ledger.materials.some(m=>m.id===operation.data.materialId&&m.available<0);setMessage(operation.kind==='material.wasted'?`Waste saved. Stock and history updated.${low?' Stock warning: this material is below zero.':''}`:operation.kind==='sale.refunded'?'Refund saved. Customer credit and drawer totals updated.':'Sale adjustment saved. Account and history updated.',low?'warning':'success');}
+      if(activeScope.current===target){setState(next);channel.current?.postMessage('changed');const low=next.ledger.materials.some(m=>m.available<0&&(operation.kind==='material.wasted'?m.id===operation.data.materialId:next.ledger.saleAdjustments.find(a=>a.id===operation.id)?.stockChanges?.some(c=>c.materialId===m.id)));setMessage(operation.kind==='material.wasted'?`Waste saved. Stock and history updated.${low?' Stock warning: this material is below zero.':''}`:operation.kind==='sale.refunded'?'Refund saved. Customer credit and drawer totals updated.':`Sale adjustment saved. Account, stock and history updated.${low?' Stock warning: a material is below zero.':''}`,low?'warning':'success');}
     }finally{setBusy(false);}
   }
   async function completeCheckout(operation:CheckoutEvent):Promise<CheckoutRecord>{
@@ -470,14 +470,14 @@ export default function App() {
           <span>{dateLabel(payment.paidOn)} · {paymentName(payment)}<small>{payment.reference || `Payment #${shortId(payment.id)}`}</small></span><strong>{currency(payment.allocations.find(allocation => allocation.jobId === currentJob.id)!.amount)}</strong></div>)}
         {!ledger.payments.some(payment => payment.allocations.some(allocation => allocation.jobId === currentJob.id)) && <p className="muted">No payments recorded yet.</p>}
         {(demo||(shop?.accessLevel??0)>=2)&&<button className="secondary" disabled={busy||hasConflict||(!demo&&!online)} onClick={()=>{setSelectedJob(null);setAdjustingJob(currentJob);}}>Adjust sale / refund</button>}
-        <AdjustmentHistory records={ledger.saleAdjustments.filter(r=>r.jobId===currentJob.id)}/>
+        <AdjustmentHistory records={ledger.saleAdjustments.filter(r=>r.jobId===currentJob.id||r.paymentChanges.some(p=>[...p.before.allocations,...p.after.allocations].some(a=>a.jobId===currentJob.id)))}/>
         <JobActions job={currentJob} busy={busy||legacyConflict} onAction={(job,mode)=>setJobToAdvance({job,mode})}/>
         <button disabled={busy || legacyConflict || heldWork.resources.has('customer:'+currentJob.customerId) || jobBalance(ledger, currentJob).outstanding <= 0} onClick={() => openPayment(currentJob.customerId)}>Receive customer payment</button>
       </Modal>}
       {form === 'customer' && <CustomerEditor customers={ledger.customers} busy={busy} actor={{id:demo?'local-trial':session!.user.id,label:demo?'Local trial user':shop?.staffName||session!.user.user_metadata.full_name||session!.user.email||session!.user.id}} onSave={saveCatalogue} onClose={()=>setForm(null)} />}
       {form && form !== 'customer' && <CheckoutEditor ledger={ledger} actor={{id:demo?'local-trial':session!.user.id,label:demo?'Local trial user':shop?.staffName||session!.user.email||session!.user.id}} busy={busy} paymentOnly={form==='payment'} initialCustomer={form==='payment'?paymentCustomer:''} onSave={completeCheckout} onClose={()=>setForm(null)} onReceipt={setReceipt}/>}
       {adjustingJob&&<SaleAdjustmentEditor ledger={ledger} job={adjustingJob} busy={busy} actor={{id:demo?'local-trial':session!.user.id,label:demo?'Local trial user':shop?.staffName||session!.user.email||session!.user.id}} onClose={()=>setAdjustingJob(null)} onSave={approveOperation}/>}
-      {receipt&&<ReceiptView record={ledger.checkouts.find(r=>r.id===receipt.id)??receipt} scope={scope} business={branding.settings} adjustments={ledger.saleAdjustments.filter(a=>a.before.checkoutId===receipt.id||receipt.jobBalances.some(j=>j.id===a.jobId))} pending={state.pending.some(e=>e.id===receipt.id)} onClose={()=>setReceipt(null)}/>}
+      {receipt&&<ReceiptView ledger={ledger} record={ledger.checkouts.find(r=>r.id===receipt.id)??receipt} scope={scope} business={branding.settings} adjustments={ledger.saleAdjustments.filter(a=>a.before.checkoutId===receipt.id||receipt.jobBalances.some(j=>j.id===a.jobId)||a.paymentChanges.some(p=>p.before.id===receipt.id||p.before.checkoutId===receipt.id||[...p.before.allocations,...p.after.allocations].some(x=>receipt.jobBalances.some(j=>j.id===x.jobId))))} pending={state.pending.some(e=>e.id===receipt.id)} onClose={()=>setReceipt(null)}/>}
       {jobToAdvance&&<JobProgressDialog job={jobToAdvance.job} mode={jobToAdvance.mode} busy={busy} onClose={()=>setJobToAdvance(null)} onSave={async targetStage=>{
         if(busy||!ready||!scope||legacyConflict)throw Error('Wait until the workspace is ready.');
         const targetScope=scope;setBusy(true);

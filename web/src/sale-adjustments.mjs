@@ -1,12 +1,14 @@
+import {applyFullCorrection,correctionKinds} from './full-corrections.mjs';
 import {normalizeLedger,validateMaterial} from './materials.mjs';
 import {materialSnapshot} from './material-display.mjs';
 import {accountToken,walletBalance} from './checkout.mjs';
 export const sameEvent=(a,b)=>JSON.stringify(a,(_,v)=>v&&typeof v==='object'&&!Array.isArray(v)?Object.fromEntries(Object.keys(v).sort().map(k=>[k,v[k]])):v)===JSON.stringify(b,(_,v)=>v&&typeof v==='object'&&!Array.isArray(v)?Object.fromEntries(Object.keys(v).sort().map(k=>[k,v[k]])):v);
-export const adjustmentLabels={'sale.corrected':'Sale corrected','sale.cancelled':'Sale cancelled','sale.refunded':'Customer refunded'};
-export function returnableStock(ledger,jobId){return Math.max(0,Math.round(ledger.materialHistory.filter(h=>h.jobId===jobId&&['material.job_used','material.sale_returned'].includes(h.action)).reduce((n,h)=>n+(h.beforeAvailable??h.afterAvailable)-h.afterAvailable,0)*1000)/1000);}
+export const adjustmentLabels={'sale.details_corrected':'Job details corrected','payment.corrected':'Payment corrected','sale.corrected':'Sale corrected','sale.cancelled':'Sale cancelled','sale.refunded':'Customer refunded'};
+export function returnableStock(ledger,jobId){return Math.max(0,Math.round(ledger.materialHistory.filter(h=>h.jobId===jobId&&h.materialId===ledger.jobs.find(j=>j.id===jobId)?.materialId&&['material.job_used','material.sale_returned','material.job_corrected'].includes(h.action)).reduce((n,h)=>n+(h.beforeAvailable??h.afterAvailable)-h.afterAvailable,0)*1000)/1000);}
 function audit(event){const d=event.data;if(!event.id||!d.modifiedBy||!d.modifiedAt||Number.isNaN(Date.parse(d.modifiedAt))||typeof d.reason!=='string'||!d.reason.trim()||d.reason.trim().length>500)throw Error('An approver, date and reason (up to 500 characters) are required.');return {changedBy:d.modifiedBy,changedByLabel:d.modifiedByLabel||d.modifiedBy,changedAt:d.modifiedAt,reason:d.reason.trim()};}
 function amount(n,positive=false){if(!Number.isSafeInteger(n)||n<0||positive&&n===0||n>100000000000)throw Error('Enter a valid amount within the supported limit.');}
 export function applySaleAdjustment(input,event){
+ if(correctionKinds.includes(event.kind))return applyFullCorrection(input,event);
  const ledger=normalizeLedger(input),d=event.data,a=audit(event);
  const old=ledger.saleAdjustments.find(r=>r.id===event.id);if(old){if(!sameEvent(old.event,event))throw Error('Adjustment ID already used for different details.');return ledger;}
  const job=ledger.jobs.find(j=>j.id===d.jobId);if(!job)throw Error('Job not found.');
