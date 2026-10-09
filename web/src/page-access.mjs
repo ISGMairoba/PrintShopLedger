@@ -1,6 +1,6 @@
-export const pages = ['Point of Service', 'My Sales', 'Jobs', 'Customers', 'Payments', 'Expenses', 'Materials', 'Services', 'Stock History', 'Print Settings', 'Users', 'My Account', 'Business Settings', 'Conflict Inbox', 'Sale Adjustments', 'Material Waste'];
+export const pages = ['Dashboard', 'Point of Service', 'My Sales', 'Jobs', 'Customers', 'Payments', 'Expenses', 'Materials', 'Services', 'Stock History', 'Print Settings', 'Users', 'My Account', 'Business Settings', 'Conflict Inbox', 'Sale Adjustments', 'Material Waste'];
 export const roleNames={1:'Cashier',2:'Admin',3:'Manager',4:'Developer'};
-export const minimumPageAccess=page=>page==='Business Settings'?4:['Users','Conflict Inbox','Sale Adjustments','Material Waste'].includes(page)?2:1;
+export const minimumPageAccess=page=>page==='Business Settings'?4:['Dashboard','Users','Conflict Inbox','Sale Adjustments','Material Waste'].includes(page)?2:1;
 export const defaultPageAccess=()=>Object.fromEntries([1,2,3].map(rank=>[String(rank),pages.filter(page=>rank>=2?page!=='Business Settings':['Point of Service','My Sales','Print Settings','My Account'].includes(page))]));
 export function validatePageAccess(input){
  const value=input===undefined?defaultPageAccess():structuredClone(input);
