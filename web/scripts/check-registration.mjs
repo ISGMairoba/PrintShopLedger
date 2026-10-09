@@ -44,6 +44,7 @@ try{
   await page.reload();await page.getByRole('heading',{name:'Point of Service',exact:true}).waitFor();assert.equal(created,1);
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   await page.goto('http://127.0.0.1:4182/#developer_activation='+'a'.repeat(64));await page.getByRole('heading',{name:'Activate Developer account',exact:true}).waitFor();
+  await page.reload();await page.getByRole('heading',{name:'Activate Developer account',exact:true}).waitFor();
   assert.equal(activated,0,'Opening an email link must not consume it');
   await page.getByLabel('New password',{exact:true}).fill('developer-password');await page.getByLabel('Confirm password',{exact:true}).fill('developer-password');
   await page.getByRole('button',{name:'Activate account',exact:true}).click();await page.getByText(/Developer account activated for New Print Shop/).waitFor();assert.equal(activated,1);assert.ok(!page.url().includes('developer_activation'));

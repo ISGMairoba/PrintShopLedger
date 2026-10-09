@@ -55,7 +55,12 @@ const errorMessage = (error: unknown) => error && typeof error === 'object' && '
 
 export default function App() {
   const [registering,setRegistering]=useState(false);
-  const [activationToken]=useState(()=>new URLSearchParams(location.hash.slice(1)).get('developer_activation')??'');
+  const [activationToken,setActivationToken]=useState(()=>new URLSearchParams(location.hash.slice(1)).get('developer_activation')??'');
+  useEffect(()=>{
+    const readActivation=()=>setActivationToken(new URLSearchParams(location.hash.slice(1)).get('developer_activation')??'');
+    window.addEventListener('hashchange',readActivation);
+    return ()=>window.removeEventListener('hashchange',readActivation);
+  },[]);
   const automaticRegistration=useRef('');
   const [session, setSession] = useState<Session | null>(null);
   const [businessSession, setBusinessSession] = useState<Session | null>(null);
@@ -378,7 +383,7 @@ export default function App() {
       allocations:payment=>payment.allocations.map(allocation=>ledger.jobs.find(job=>job.id===allocation.jobId)?.description??'').join(', ')});
 
 
-  if(validActivationToken(activationToken))return <DeveloperActivation token={activationToken} online={online}/>;
+  if(validActivationToken(activationToken))return <DeveloperActivation key={activationToken} token={activationToken} online={online}/>;
   if (!authReady) return <main className="auth"><section className="auth-card"><h1>{authStartupError?"Could not restore your sign-in":"Opening PrintShopLedger…"}</h1>{authStartupError&&<><p role="alert">{authStartupError}</p><button onClick={()=>setAuthEpoch(value=>value+1)}>Retry sign-in loading</button></>}</section></main>;
   if (!demo && !businessSession && registering) return <BusinessSignup online={online} onBack={()=>{setRegistering(false);setMessage('');}}/>;
   if (!demo && !businessSession) return <main className="auth"><div className="auth-card">
