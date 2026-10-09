@@ -3,7 +3,7 @@ import {materialSnapshot} from './material-display.mjs';
 import {quoteLine,accountToken,walletBalance} from './checkout.mjs';
 import {jobBalance} from './domain.mjs';
 import {sameEvent} from './sale-adjustments.mjs';
-export const correctionKinds=['sale.details_corrected','payment.corrected'];
+export const correctionKinds=['sale.combined_corrected','sale.details_corrected','payment.corrected'];
 export const paymentCorrectionToken=p=>({amount:p.amount,method:p.method,methodLabel:p.methodLabel??p.method,paidOn:p.paidOn,reference:p.reference,walletUsed:p.walletUsed??0,walletAdded:p.walletAdded??0,allocations:[...p.allocations].sort((a,b)=>a.jobId.localeCompare(b.jobId))});
 export function quoteCorrectedJob(ledger,job,d){
  const service=ledger.services.find(s=>s.id===d.serviceId&&!s.archived);if(!service||service.version!==d.serviceVersion)throw Error('Service changed. Sync and reopen the correction.');
@@ -18,7 +18,27 @@ export function stockCorrectionPlan(ledger,job,after,mode){
  const actual=id=>Math.max(0,Math.round(ledger.materialHistory.filter(h=>h.jobId===job.id&&h.materialId===id&&['material.job_used','material.sale_returned','material.job_corrected'].includes(h.action)).reduce((n,h)=>n+(h.beforeAvailable??h.afterAvailable)-h.afterAvailable,0)*1000)/1000);
  return ids.map(id=>{const used=actual(id);let target=0;if(id===after.materialId){target=id===job.materialId?used+after.materialNeeded-(job.materialNeeded??0):after.materialNeeded;if(target<-.0001)throw Error('This stock was already covered by a stock count or was returned. Keep actual usage; do not restore unrecorded deductions.');}const delta=Math.round((used-Math.max(0,target))*1000)/1000;if(delta){const firstUsage=ledger.materialHistory.filter(h=>h.jobId===job.id&&h.materialId===id&&['material.job_used','material.job_corrected'].includes(h.action)).map(h=>Date.parse(h.changedAt));if(firstUsage.length&&ledger.materialHistory.some(h=>h.materialId===id&&h.action==='material.stock_set'&&h.id!==job.stockCountEventId&&Date.parse(h.changedAt)>=Math.min(...firstUsage)))throw Error('A later stock count already reconciled this usage. Keep actual usage and current stock.');}return {materialId:id,delta};}).filter(x=>x.delta!==0);
 }
+export function applyCombinedCorrection(input,event){
+ const ledger=normalizeLedger(input),d=event.data;
+ const existing=ledger.saleAdjustments.find(r=>r.id===event.id);if(existing){if(!sameEvent(existing.event,event))throw Error('Adjustment ID already used for different details.');return ledger;}
+ if(!event.id||!d.modifiedBy||!d.modifiedAt||Number.isNaN(Date.parse(d.modifiedAt))||!d.reason?.trim()||d.reason.trim().length>500)throw Error('An approver, date and reason are required.');
+ const job=ledger.jobs.find(j=>j.id===d.jobId);if(!job||d.baseVersion!==(job.version??1)||d.expectedAccount!==accountToken(ledger,job?.customerId))throw Error('The job or customer account changed. Sync and reopen the correction.');
+ if(job.productionStatus==='Cancelled')throw Error('This sale is already cancelled.');
+ if(!Array.isArray(d.paymentEdits)||d.paymentEdits.length>100)throw Error('Invalid payment corrections.');
+ const ids=[event.id,d.detailsId,...d.paymentEdits.map(p=>p.eventId)];if(ids.some(id=>!id)||new Set(ids).size!==ids.length||new Set(d.paymentEdits.map(p=>p.paymentId)).size!==d.paymentEdits.length||ids.slice(1).some(id=>ledger.saleAdjustments.some(r=>r.id===id)))throw Error('Invalid or reused correction IDs.');
+ for(const edit of d.paymentEdits){const payment=ledger.payments.find(p=>p.id===edit.paymentId&&p.customerId===job.customerId&&!p.refundId);if(!payment||!sameEvent(edit.expectedPayment,paymentCorrectionToken(payment)))throw Error('Payment changed. Sync and reopen the correction.');}
+ const quoted=quoteCorrectedJob(ledger,job,d),jobChanged=['description','quantity','width','height','serviceId','materialId','unitPrice','amount'].some(k=>(quoted[k]??null)!==(job[k]??null));
+ let next=ledger;const children=[];
+ if(jobChanged){next=applyFullCorrection(next,{id:d.detailsId,kind:'sale.details_corrected',data:{...d,groupId:event.id}});children.push(d.detailsId);}
+ const edits=[...d.paymentEdits].sort((a,b)=>(b.paymentAmount-ledger.payments.find(p=>p.id===b.paymentId).amount)-(a.paymentAmount-ledger.payments.find(p=>p.id===a.paymentId).amount));
+ for(const edit of edits){const original=ledger.payments.find(p=>p.id===edit.paymentId);if(original.amount===edit.paymentAmount&&original.method===edit.method&&(original.methodLabel??original.method)===edit.methodLabel&&original.reference===edit.reference.trim())continue;const payment=next.payments.find(p=>p.id===edit.paymentId),current=next.jobs.find(j=>j.id===job.id);next=applyFullCorrection(next,{id:edit.eventId,kind:'payment.corrected',data:{...d,...edit,groupId:event.id,baseVersion:current.version??1,expectedAccount:accountToken(next,job.customerId),expectedPayment:paymentCorrectionToken(payment)}});children.push(edit.eventId);}
+ if(!children.length)throw Error('Nothing changed.');
+ const records=next.saleAdjustments.filter(r=>children.includes(r.id)),after=next.jobs.find(j=>j.id===job.id);
+ const record={id:event.id,action:event.kind,jobId:job.id,customerId:job.customerId,reason:d.reason.trim(),changedBy:d.modifiedBy,changedByLabel:d.modifiedByLabel||d.modifiedBy,changedAt:d.modifiedAt,before:job,after,creditReleased:records.reduce((n,r)=>n+r.creditReleased,0),refundAmount:0,returnQuantity:0,stockMode:d.stockMode,stockChanges:records.flatMap(r=>r.stockChanges??[]),paymentChanges:ledger.payments.flatMap(before=>{const after=next.payments.find(p=>p.id===before.id);return sameEvent(before,after)?[]:[{before,after}];}),childIds:children,event};
+ return {...next,saleAdjustments:[...next.saleAdjustments.map(r=>children.includes(r.id)?{...r,groupId:event.id}:r),record]};
+}
 export function applyFullCorrection(input,event){
+ if(event.kind==='sale.combined_corrected')return applyCombinedCorrection(input,event);
  const ledger=normalizeLedger(input),d=event.data;
  if(!event.id||!d.modifiedBy||!d.modifiedAt||Number.isNaN(Date.parse(d.modifiedAt))||!d.reason?.trim()||d.reason.trim().length>500)throw Error('An approver, date and reason are required.');
  const previous=ledger.saleAdjustments.find(r=>r.id===event.id);if(previous){if(!sameEvent(previous.event,event))throw Error('Adjustment ID already used for different details.');return ledger;}
@@ -47,6 +67,6 @@ export function applyFullCorrection(input,event){
  }else throw Error('Choose a correction type.');
  after={...after,version:(job.version??1)+1,modifiedBy:audit.changedBy,modifiedByLabel:audit.changedByLabel,modifiedAt:audit.changedAt,lastEventId:event.id};
  const paymentChanges=ledger.payments.flatMap(before=>{const after=payments.find(p=>p.id===before.id);return sameEvent(before,after)?[]:[{before,after}];});
- const record={id:event.id,jobId:job.id,customerId:job.customerId,action:event.kind,...audit,before:job,after,creditReleased:released,refundAmount:0,returnQuantity:0,paymentChanges,stockChanges,stockMode:d.stockMode,cashDelta,methodDeltas,drawerActor,historicalClosingId,paymentId,affectedJobIds:[...new Set([job.id,...paymentChanges.flatMap(p=>[...p.before.allocations,...p.after.allocations].map(a=>a.jobId))])],event};
+ const record={groupId:d.groupId,id:event.id,jobId:job.id,customerId:job.customerId,action:event.kind,...audit,before:job,after,creditReleased:released,refundAmount:0,returnQuantity:0,paymentChanges,stockChanges,stockMode:d.stockMode,cashDelta,methodDeltas,drawerActor,historicalClosingId,paymentId,affectedJobIds:[...new Set([job.id,...paymentChanges.flatMap(p=>[...p.before.allocations,...p.after.allocations].map(a=>a.jobId))])],event};
  return {...ledger,jobs:ledger.jobs.map(j=>j.id===job.id?after:j),payments,materials,materialHistory:history,saleAdjustments:[...ledger.saleAdjustments,record]};
 }

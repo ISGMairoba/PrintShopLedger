@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
 import {setTimeout as delay} from 'node:timers/promises';
 import {chromium} from 'playwright';
+import {defaultBranding} from '../src/business-branding.mjs';
 import {pages,canAccessPage} from '../src/page-access.mjs';
 const server=spawn(process.execPath,['node_modules/vite/bin/vite.js','preview','--host','127.0.0.1','--port','4178','--strictPort'],{stdio:'inherit'});
 let browser;
@@ -11,7 +12,7 @@ try{
  for(const mobile of [false,true])for(const rank of [1,2,3,4]){
   const context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1280,height:900},serviceWorkers:'block'});
   const id='11111111-1111-4111-8111-111111111111',shop='22222222-2222-4222-8222-222222222222',role=['','cashier','admin','manager','developer'][rank];
-  const now=new Date().toISOString();let username=role,calls=0,workspaceFailure=rank===3;
+  const now=new Date().toISOString();let username=role,calls=0,workspaceFailure=rank===3,customSettings=null;
   const token=[{alg:'HS256',typ:'JWT'},{sub:id,role:'authenticated',exp:Math.floor(Date.now()/1000)+3600},'c2lnbmF0dXJl'].map(x=>typeof x==='string'?x:Buffer.from(JSON.stringify(x)).toString('base64url')).join('.');
   const user={id,aud:'authenticated',role:'authenticated',email:'test@example.invalid',user_metadata:{full_name:'Test User'},app_metadata:{provider:'email'},created_at:now};
   await context.route('https://*.supabase.co/**',async route=>{
@@ -20,7 +21,7 @@ try{
    else if(path==='/auth/v1/user')result=user;
    else if(path.endsWith('/list_business_shops')){if(workspaceFailure){await route.fulfill({status:504,contentType:'application/json',body:JSON.stringify({message:'Business lookup timed out'})});return;}result=[{id:shop,name:'Test business'}];}
    else if(path.endsWith('/list_my_shops'))result=[{id:shop,name:'Test business',role,rank,accessLevel:rank,userId:id,username,staffName:'Test User'}];
-   else if(path.endsWith('/business_settings'))result=[];
+   else if(path.endsWith('/business_settings'))result=customSettings?[{settings:customSettings,version:1}]:[];
    else if(path.endsWith('/get_ledger'))result={customers:[],jobs:[],payments:[],materials:[],materialHistory:[],services:[],checkouts:[],drawerClosings:[],expenses:[],expenseHistory:[]};
    else if(path.endsWith('/update-credentials')){
     calls++;assert.equal(body.userId,id);assert.equal(body.shopId,shop);assert.equal(body.currentPassword,'current-password');
@@ -43,6 +44,7 @@ try{
   await page.getByLabel('Confirm new password',{exact:true}).fill('new-test-password');await page.getByRole('button',{name:'Save password',exact:true}).click();await page.getByText('Password saved.',{exact:true}).waitFor();assert.equal(calls,2);
   await context.setOffline(true);await page.getByRole('button',{name:'Save password',exact:true}).waitFor({state:'visible'});await delay(50);assert.equal(await page.getByRole('button',{name:'Save password',exact:true}).isDisabled(),true);await context.setOffline(false);
   if(rank>=3){await open();await nav.getByRole('button',{name:'Business Settings',exact:true}).click();await page.getByLabel('Business name',{exact:true}).waitFor();assert.equal(await page.getByLabel('Business name',{exact:true}).inputValue(),'Test business');}
+  customSettings={...defaultBranding(),businessName:'Test business',pageAccess:{'1':['Point of Service','Jobs','My Account'],'2':['Point of Service','My Account','Sale Adjustments']}};await page.reload();await page.getByRole('heading',{name:'Point of Service',exact:true}).waitFor();await page.getByRole('heading',{name:'Point of Service',exact:true}).waitFor();await delay(150);await open();assert.deepEqual(await nav.getByRole('button').allTextContents(),pages.filter(p=>canAccessPage(p,rank,customSettings.pageAccess)));
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),'Layout fits screen');await context.close();
  }
  console.log('Page access and account checks passed on desktop and mobile for all ranks.');

@@ -139,3 +139,13 @@ nav button { display: flex; align-items: center; gap: .8rem; }
 .correction-comparison{min-width:0;width:100%}.correction-comparison table{width:100%;table-layout:fixed;border-collapse:collapse}.correction-comparison th,.correction-comparison td{padding:10px 8px;text-align:left;vertical-align:top;overflow-wrap:anywhere;border-bottom:1px solid var(--border,#ccc);white-space:normal}.correction-comparison th:first-child{width:28%}.correction-comparison small{display:block;font-weight:normal}.comparison-changed td:last-child{background:color-mix(in srgb,var(--accent,#167e67) 10%,transparent)}@media(max-width:600px){.correction-comparison th,.correction-comparison td{padding:8px 4px;font-size:14px}}
 
 .correction-comparison th{text-transform:none;letter-spacing:normal}
+
+.settings-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
+.settings-tabs button{padding:8px 12px;flex:0 1 auto}
+.settings-tabs .active{outline:2px solid var(--brand-accent);outline-offset:2px}
+.business-settings fieldset[hidden],.business-settings div[hidden]{display:none}
+.page-access-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
+.page-access-grid .check-label{flex-wrap:wrap}
+.page-access-grid small{display:block;width:100%}
+.combined-payment{border:1px solid var(--line,#ccc);border-radius:10px;padding:12px;margin:12px 0;min-width:0}
+@media(max-width:600px){.page-access-grid{grid-template-columns:1fr}.settings-tabs button{font-size:14px}.listed-combobox-list button{overflow-wrap:anywhere}}

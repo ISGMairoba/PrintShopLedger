@@ -5,6 +5,7 @@ import { receiptIntegrityError } from './receipts.mjs';
 import type { CheckoutRecord, SaleAdjustment } from './types';
 const money=(amount:number)=>`NGN ${(amount/100).toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
 export function createReceiptPdf(record:CheckoutRecord,business:string|import('./useBusinessBranding').Branding,pending=false,adjustments:SaleAdjustment[]=[]){
+ adjustments=adjustments.filter(item=>!item.groupId||!adjustments.some(parent=>parent.id===item.groupId));
  const warning=receiptIntegrityError(record);if(warning)throw Error(warning);
  const doc=new jsPDF({unit:'mm',format:'a4'});let y=18;
  const line=(text:string,bold=false)=>{

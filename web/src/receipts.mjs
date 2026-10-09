@@ -11,6 +11,7 @@ export function receiptIntegrityError(record){
  return '';
 }
 export function receiptHtml(record,business,pending=false,adjustments=[]){
+ adjustments=adjustments.filter(item=>!item.groupId||!adjustments.some(parent=>parent.id===item.groupId));
  const e=escapeHtml,c=record.customerSnapshot,b=receiptBusiness(business);
  const logo=b.receipt.showLogo&&b.logo&&validLogo(b.logo)?`<img src="${e(b.logo)}" alt="Business logo" style="max-width:180px;max-height:90px;object-fit:contain"/>`:'';
  const details=[...(b.receipt.showAddress&&b.address?[b.address]:[]),...(b.receipt.showContacts?[b.phones,b.email,b.website,b.socials].filter(Boolean):[])];
