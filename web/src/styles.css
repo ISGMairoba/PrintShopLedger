@@ -137,3 +137,5 @@ nav button { display: flex; align-items: center; gap: .8rem; }
 .supervisor-form .check-label{flex-direction:row;align-items:flex-start;font-weight:500}.supervisor-form .check-label input{margin-top:3px;flex:none}.supervisor-form textarea:focus-visible{outline:3px solid var(--brand-accent);outline-offset:2px}
 
 .correction-comparison{min-width:0;width:100%}.correction-comparison table{width:100%;table-layout:fixed;border-collapse:collapse}.correction-comparison th,.correction-comparison td{padding:10px 8px;text-align:left;vertical-align:top;overflow-wrap:anywhere;border-bottom:1px solid var(--border,#ccc);white-space:normal}.correction-comparison th:first-child{width:28%}.correction-comparison small{display:block;font-weight:normal}.comparison-changed td:last-child{background:color-mix(in srgb,var(--accent,#167e67) 10%,transparent)}@media(max-width:600px){.correction-comparison th,.correction-comparison td{padding:8px 4px;font-size:14px}}
+
+.correction-comparison th{text-transform:none;letter-spacing:normal}
