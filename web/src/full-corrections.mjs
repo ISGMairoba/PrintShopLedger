@@ -9,14 +9,14 @@ export function quoteCorrectedJob(ledger,job,d){
  const service=ledger.services.find(s=>s.id===d.serviceId&&!s.archived);if(!service||service.version!==d.serviceVersion)throw Error('Service changed. Sync and reopen the correction.');
  const material=d.materialId?ledger.materials.find(m=>m.id===d.materialId&&!m.archived):null;if(d.materialId&&!material)throw Error('Choose an active material.');
  if(!Number.isSafeInteger(d.unitPrice)||d.unitPrice<0||d.unitPrice>100000000000)throw Error('Enter a valid unit price.');
- return {...job,...quoteLine({...ledger,services:[{...service,materialId:material?.id??null,price:d.unitPrice}]},{serviceId:service.id,description:d.description,quantity:d.quantity,width:d.width,height:d.height,source:job.source??'Other',sourceNote:job.sourceNote??''})};
+ return {...job,...quoteLine({...ledger,services:[{...service,materialId:material?.id??null,price:d.unitPrice}]},{serviceId:service.id,description:d.description,quantity:d.quantity,width:d.width,height:d.height,source:job.source??'Other',sourceNote:job.sourceNote??''}),stockCountEventId:job.stockCountEventId??null};
 }
 export function stockCorrectionPlan(ledger,job,after,mode){
  if(!['reconcile','keep'].includes(mode))throw Error('Choose whether to correct the stock deduction or keep actual usage.');
  if(mode==='keep')return [];
  const ids=[...new Set([job.materialId,after.materialId].filter(Boolean))];
  const actual=id=>Math.max(0,Math.round(ledger.materialHistory.filter(h=>h.jobId===job.id&&h.materialId===id&&['material.job_used','material.sale_returned','material.job_corrected'].includes(h.action)).reduce((n,h)=>n+(h.beforeAvailable??h.afterAvailable)-h.afterAvailable,0)*1000)/1000);
- return ids.map(id=>{const used=actual(id);let target=0;if(id===after.materialId){target=id===job.materialId?used+after.materialNeeded-(job.materialNeeded??0):after.materialNeeded;if(target<-.0001)throw Error('This stock was already covered by a stock count or was returned. Keep actual usage; do not restore unrecorded deductions.');}const delta=Math.round((used-Math.max(0,target))*1000)/1000;return {materialId:id,delta};}).filter(x=>x.delta!==0);
+ return ids.map(id=>{const used=actual(id);let target=0;if(id===after.materialId){target=id===job.materialId?used+after.materialNeeded-(job.materialNeeded??0):after.materialNeeded;if(target<-.0001)throw Error('This stock was already covered by a stock count or was returned. Keep actual usage; do not restore unrecorded deductions.');}const delta=Math.round((used-Math.max(0,target))*1000)/1000;if(delta){const firstUsage=ledger.materialHistory.filter(h=>h.jobId===job.id&&h.materialId===id&&['material.job_used','material.job_corrected'].includes(h.action)).map(h=>Date.parse(h.changedAt));if(firstUsage.length&&ledger.materialHistory.some(h=>h.materialId===id&&h.action==='material.stock_set'&&h.id!==job.stockCountEventId&&Date.parse(h.changedAt)>=Math.min(...firstUsage)))throw Error('A later stock count already reconciled this usage. Keep actual usage and current stock.');}return {materialId:id,delta};}).filter(x=>x.delta!==0);
 }
 export function applyFullCorrection(input,event){
  const ledger=normalizeLedger(input),d=event.data;

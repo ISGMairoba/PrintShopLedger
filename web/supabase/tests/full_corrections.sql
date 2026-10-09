@@ -18,6 +18,15 @@ e=jsonb_build_object('id',gen_random_uuid(),'kind','sale.details_corrected','dat
 perform public.apply_supervised_event(s,e);perform public.apply_supervised_event(s,e);
 if (select available from public.materials where shop_id=s and id=m)<>6 or (select amount from public.jobs where shop_id=s and id=j)<>40000 or (select count(*) from public.material_stock_changes where shop_id=s and action='material.job_corrected')<>1 then raise exception 'Quantity correction or idempotency failed';end if;
 rejected=false;begin perform public.apply_supervised_event(s,jsonb_set(e,'{id}',to_jsonb(gen_random_uuid())));exception when sqlstate 'PT409' then rejected=true;end;if not rejected then raise exception 'Stale job correction accepted';end if;
+-- A later physical count must not be undone by a job entry correction.
+begin
+ perform public.apply_material_event(s,jsonb_build_object('id',gen_random_uuid(),'kind','material.stock_set','data',jsonb_build_object('id',m,'baseVersion',3,'quantity',6,'reason','Stock count correction','modifiedBy',u)));
+ d=(e->'data')||jsonb_build_object('baseVersion',2,'expectedAccount',public.checkout_account_token(s,cu),'quantity',5,'stockIds',jsonb_build_object(m::text,gen_random_uuid()),'materialVersions',jsonb_build_object(m::text,4));
+ rejected=false;begin perform public.apply_supervised_event(s,jsonb_build_object('id',gen_random_uuid(),'kind','sale.details_corrected','data',d));exception when others then if sqlerrm not like '%later stock count%' then raise;end if;rejected=true;end;
+ if not rejected then raise exception 'Counted usage was deducted again';end if;
+ raise exception 'rollback stock-count fixture';
+exception when raise_exception then if sqlerrm<>'rollback stock-count fixture' then raise;end if;
+end;
 d=e->'data';d=d||jsonb_build_object('baseVersion',2,'expectedAccount',public.checkout_account_token(s,cu),'quantity',1,'stockIds',jsonb_build_object(m::text,gen_random_uuid()),'materialVersions',jsonb_build_object(m::text,3));e=jsonb_build_object('id',gen_random_uuid(),'kind','sale.details_corrected','data',d);perform public.apply_supervised_event(s,e);
 if (select available from public.materials where shop_id=s and id=m)<>9 or (select sum(wallet_added-wallet_used) from public.payments where shop_id=s and customer_id=cu)<>10000 then raise exception 'Reduced quantity stock or credit failed';end if;
 d=d||jsonb_build_object('baseVersion',3,'expectedAccount',public.checkout_account_token(s,cu),'quantity',2,'stockMode','keep');e=jsonb_build_object('id',gen_random_uuid(),'kind','sale.details_corrected','data',d);perform public.apply_supervised_event(s,e);
