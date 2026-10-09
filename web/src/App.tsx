@@ -469,7 +469,7 @@ export default function App() {
         <h3>Payment history</h3>{ledger.payments.filter(payment => payment.allocations.some(allocation => allocation.jobId === currentJob.id)).map(payment => <div className="history" key={payment.id}>
           <span>{dateLabel(payment.paidOn)} · {paymentName(payment)}<small>{payment.reference || `Payment #${shortId(payment.id)}`}</small></span><strong>{currency(payment.allocations.find(allocation => allocation.jobId === currentJob.id)!.amount)}</strong></div>)}
         {!ledger.payments.some(payment => payment.allocations.some(allocation => allocation.jobId === currentJob.id)) && <p className="muted">No payments recorded yet.</p>}
-        {(demo||(shop?.accessLevel??0)>=2)&&<button className="secondary" disabled={busy||hasConflict||(!demo&&!online)} onClick={()=>{setSelectedJob(null);setAdjustingJob(currentJob);}}>Adjust sale / refund</button>}
+        {(demo||canAccessPage('Sale Adjustments',shop?.accessLevel??0,branding.settings.pageAccess))&&<button className="secondary" disabled={busy||hasConflict||(!demo&&!online)} onClick={()=>{setSelectedJob(null);setAdjustingJob(currentJob);}}>Adjust sale / refund</button>}
         <AdjustmentHistory records={ledger.saleAdjustments.filter(r=>r.jobId===currentJob.id||r.paymentChanges.some(p=>[...p.before.allocations,...p.after.allocations].some(a=>a.jobId===currentJob.id)))}/>
         <JobActions job={currentJob} busy={busy||legacyConflict} onAction={(job,mode)=>setJobToAdvance({job,mode})}/>
         <button disabled={busy || legacyConflict || heldWork.resources.has('customer:'+currentJob.customerId) || jobBalance(ledger, currentJob).outstanding <= 0} onClick={() => openPayment(currentJob.customerId)}>Receive customer payment</button>
