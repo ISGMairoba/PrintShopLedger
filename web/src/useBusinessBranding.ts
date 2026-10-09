@@ -1,6 +1,6 @@
 import {useEffect,useRef,useState} from 'react';
 import {supabase} from './cloud';
-import {defaultBranding,validateBranding,contrastText} from './business-branding.mjs';
+import {defaultBranding,validateBranding,themeVariables} from './business-branding.mjs';
 export type Branding=ReturnType<typeof defaultBranding>;
 type Saved={settings:Branding;version:number;modified_at?:string;modified_by?:string};
 export default function useBusinessBranding(shopId:string,scope:string,name:string,online:boolean,demo:boolean){
@@ -37,7 +37,8 @@ export default function useBusinessBranding(shopId:string,scope:string,name:stri
  useEffect(()=>{
   const settings=scope?saved.settings:defaultBranding(),media=matchMedia('(prefers-color-scheme: dark)');
   const mode=scope&&preference!=='business'?preference:settings.theme;
-  const apply=()=>{document.documentElement.dataset.theme=mode==='system'?(media.matches?'dark':'light'):mode;document.documentElement.style.setProperty('--brand-primary',settings.primary);document.documentElement.style.setProperty('--brand-accent',settings.accent);document.documentElement.style.setProperty('--brand-on-primary',contrastText(settings.primary));};apply();media.addEventListener('change',apply);return()=>media.removeEventListener('change',apply);
+  const apply=()=>{const resolved=mode==='system'?(media.matches?'dark':'light'):mode;document.documentElement.dataset.theme=resolved;for(const [key,value] of Object.entries(themeVariables(settings,resolved)))document.documentElement.style.setProperty(key,value);};apply();media.addEventListener('change',apply);return()=>media.removeEventListener('change',apply);
  },[saved.settings,scope,preference]);
  return {settings:{...saved.settings,businessName:saved.settings.businessName||name},version:saved.version,modifiedAt:saved.modified_at,ready,error,save,reload,preference,setTheme};
 }
+

@@ -45,6 +45,8 @@ jobs:
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/check-business-branding.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: node scripts/check-theme-backgrounds.mjs
+      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/check-checkout.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/check-materialless-services.mjs
@@ -66,4 +68,3 @@ jobs:
             /tmp/ledger-dashboard-*.png
             /tmp/ledger-registration-*.png
           retention-days: 7
-
