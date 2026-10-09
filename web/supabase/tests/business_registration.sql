@@ -1,0 +1,30 @@
+begin;
+do $$
+declare owner uuid:=gen_random_uuid();dev uuid:=gen_random_uuid();other uuid:=gen_random_uuid();r jsonb;r2 jsonb;s uuid;claimed jsonb;c uuid:=gen_random_uuid();failed boolean;
+begin
+ insert into auth.users(id,email,email_confirmed_at) values(owner,'registration-test@example.invalid',now()),(dev,'staff-developer-test@staff.printshopledger.invalid',now()),(other,'unverified@example.invalid',null);
+ r:=public.complete_business_registration(owner,dev,'Registration test','Test Owner',repeat('a',64),'https://print-shop-ledger.vercel.app/#developer_activation='||repeat('a',64));s:=(r->>'shopId')::uuid;
+ if (select count(*) from public.shop_members where shop_id=s)<>2 then raise exception 'Missing accounts';end if;
+ if not exists(select 1 from public.shop_members where shop_id=s and user_id=owner and rank=3 and access_level=3 and username='manager') then raise exception 'Manager access missing';end if;
+ if not exists(select 1 from public.shop_members where shop_id=s and user_id=dev and rank=4 and access_level=0 and username='developer') then raise exception 'Developer must await activation';end if;
+ if (select recipient from private.registration_mail where shop_id=s)<>'mairobaprints@gmail.com' then raise exception 'Wrong recipient';end if;
+ r2:=public.complete_business_registration(owner,dev,'Changed name','Other Owner',repeat('b',64),'https://print-shop-ledger.vercel.app/#developer_activation='||repeat('b',64));
+ if r2->>'shopId'<>s::text or (r2->>'created')::boolean then raise exception 'Retry duplicated registration';end if;
+ failed:=false;begin perform public.complete_business_registration(other,dev,'Unverified','Owner',repeat('c',64),'https://print-shop-ledger.vercel.app/#developer_activation='||repeat('c',64));exception when others then failed:=true;end;
+ if not failed or exists(select 1 from public.business_accounts where user_id=other) then raise exception 'Unverified email accepted';end if;
+ claimed:=public.claim_registration_mail(s);
+ if jsonb_array_length(claimed)<>1 or jsonb_array_length(public.claim_registration_mail(s))<>0 then raise exception 'Mail claim duplicated';end if;
+ perform public.finish_registration_mail((claimed->0->>'id')::uuid,(claimed->0->>'claim_id')::uuid,false,'Test failure',null);
+ if not exists(select 1 from private.registration_mail where shop_id=s and status='pending' and next_attempt_at>now() and activation_url is not null) then raise exception 'Failed mail not retryable';end if;
+ r:=public.claim_developer_activation(repeat('a',64),c);
+ if r->>'userId'<>dev::text then raise exception 'Wrong activation identity';end if;
+ failed:=false;begin perform public.claim_developer_activation(repeat('a',64),gen_random_uuid());exception when others then failed:=true;end;
+ if not failed then raise exception 'Concurrent activation accepted';end if;
+ perform public.finish_developer_activation(repeat('a',64),c,true);
+ if not exists(select 1 from public.shop_members where shop_id=s and user_id=dev and access_level=4) then raise exception 'Developer not activated';end if;
+ failed:=false;begin perform public.claim_developer_activation(repeat('a',64),gen_random_uuid());exception when others then failed:=true;end;
+ if not failed then raise exception 'Used token accepted';end if;
+ if has_function_privilege('authenticated','public.complete_business_registration(uuid,uuid,text,text,text,text)','EXECUTE') or has_function_privilege('anon','public.claim_developer_activation(text,uuid)','EXECUTE') then raise exception 'Provisioning function exposed';end if;
+ if has_table_privilege('authenticated','private.registration_mail','SELECT') then raise exception 'Activation links exposed';end if;
+end $$;
+rollback;

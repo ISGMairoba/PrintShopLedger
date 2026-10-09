@@ -41,7 +41,7 @@ try {
    else if(path.endsWith('/list_sync_conflicts'))result=queue;
    else if(path.endsWith('/get_sync_conflict'))result={conflict:queue.find(item=>item.event_id===route.request().postDataJSON().p_event),ledger:cloud,token:'current-review'};
    else if(path.endsWith('/resolve_sync_conflict')){const item=queue.find(item=>item.event_id===route.request().postDataJSON().p_event);item.status='resolved';item.replacements=[];}
-   else if(path.endsWith('/create_shop')){creations++;noBusiness=false;failBusiness=true;result=shop;}
+   else if(path.endsWith('/register-business')){creations++;noBusiness=false;failBusiness=true;result=shop;}
    else if(path.endsWith('/staff-login'))result={access_token:route.request().postDataJSON().username==='supervisor'?supervisorToken:token,refresh_token:'mock-refresh'};
    else throw Error('Unexpected request '+path);
    await route.fulfill({status,contentType:'application/json',body:JSON.stringify(result)});
@@ -135,3 +135,4 @@ try {
  await loading.getByLabel('Business email',{exact:true}).waitFor();await recovery.close();
  console.log('Login recovery, session restoration, staff logout/sign-in and conflict pause checks passed on desktop and mobile.');
 }finally{await browser?.close();server.kill();}
+

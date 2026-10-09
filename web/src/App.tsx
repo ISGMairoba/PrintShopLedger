@@ -1,3 +1,5 @@
+import {BusinessSignup,DeveloperActivation,registrationError} from './BusinessRegistration';
+import {validateBusinessRegistration,validActivationToken} from './registration.mjs';
 import SaleAdjustmentsPage,{SaleAdjustmentEditor,AdjustmentHistory} from './SaleAdjustmentsPage';
 import MaterialWastePage from './MaterialWastePage';
 import {useFeedbackMessage, FeedbackBanner} from './Feedback';
@@ -52,6 +54,9 @@ const dateLabel = (value: string) => new Date(value).toLocaleDateString('en-NG',
 const errorMessage = (error: unknown) => error && typeof error === 'object' && 'message' in error && typeof error.message === 'string' ? error.message : 'Something went wrong.';
 
 export default function App() {
+  const [registering,setRegistering]=useState(false);
+  const [activationToken]=useState(()=>new URLSearchParams(location.hash.slice(1)).get('developer_activation')??'');
+  const automaticRegistration=useRef('');
   const [session, setSession] = useState<Session | null>(null);
   const [businessSession, setBusinessSession] = useState<Session | null>(null);
   const [switchUser, setSwitchUser] = useState(false);
@@ -329,15 +334,27 @@ export default function App() {
         const {error}=await supabase!.auth.setSession({access_token:businessSession.access_token,refresh_token:businessSession.refresh_token});
         if(error)throw error;
       }
-      const {error}=await businessAuth!.rpc('create_shop',{p_name:String(data.get('businessName')).trim()}).abortSignal(AbortSignal.timeout(20000));
+      const profile=validateBusinessRegistration({businessName:String(data.get('businessName')).trim(),ownerName:businessSession.user.user_metadata.full_name||String(data.get('ownerName')??'')});
+      const {error}=await businessAuth!.functions.invoke('register-business',{body:profile});
       if(error)throw error;
       // Reload through the guarded lookup; a failed read after creation must
       // never leave the creation form open and invite a duplicate business.
       setWorkspaceLookup({key:workspaceIdentity,status:'loading',error:''});
-      setStaffEpoch(value=>value+1);setMessage('Business workspace created.');
-    }catch(error){setMessage(errorMessage(error),'error');}
+      setStaffEpoch(value=>value+1);setMessage('Business workspace created. Manager access is ready; Developer activation will be sent to maintenance.');
+    }catch(error){setMessage(await registrationError(error),'error');}
     finally{setBusy(false);}
   }
+  useEffect(()=>{
+    if(!demo&&businessSession&&online&&workspaceLookup.key===workspaceIdentity&&workspaceLookup.status==='ready'&&!shops.length&&businessSession.user.user_metadata.business_name&&automaticRegistration.current!==businessSession.user.id){
+      automaticRegistration.current=businessSession.user.id;
+      void (async()=>{setBusy(true);try{
+        const profile=validateBusinessRegistration({businessName:businessSession.user.user_metadata.business_name,ownerName:businessSession.user.user_metadata.full_name});
+        const {error}=await businessAuth!.functions.invoke('register-business',{body:profile});if(error)throw error;
+        const {error:sessionError}=await supabase!.auth.setSession({access_token:businessSession.access_token,refresh_token:businessSession.refresh_token});if(sessionError)throw sessionError;
+        setWorkspaceLookup({key:workspaceIdentity,status:'loading',error:''});setStaffEpoch(value=>value+1);setMessage('Business workspace created. Manager access is ready; Developer activation will be sent to maintenance.');
+      }catch(error){setMessage(await registrationError(error),'error');}finally{setBusy(false);}})();
+    }
+  },[demo,businessSession?.user.id,online,workspaceLookup.status,workspaceLookup.key,shops.length]);
   async function staffLogin(e:FormEvent<HTMLFormElement>){
     e.preventDefault();if(!shop||!businessAuth||busy)return;setBusy(true);setMessage('');
     const form=new FormData(e.currentTarget);
@@ -361,12 +378,15 @@ export default function App() {
       allocations:payment=>payment.allocations.map(allocation=>ledger.jobs.find(job=>job.id===allocation.jobId)?.description??'').join(', ')});
 
 
+  if(validActivationToken(activationToken))return <DeveloperActivation token={activationToken} online={online}/>;
   if (!authReady) return <main className="auth"><section className="auth-card"><h1>{authStartupError?"Could not restore your sign-in":"Opening PrintShopLedger…"}</h1>{authStartupError&&<><p role="alert">{authStartupError}</p><button onClick={()=>setAuthEpoch(value=>value+1)}>Retry sign-in loading</button></>}</section></main>;
+  if (!demo && !businessSession && registering) return <BusinessSignup online={online} onBack={()=>{setRegistering(false);setMessage('');}}/>;
   if (!demo && !businessSession) return <main className="auth"><div className="auth-card">
     <div className="brand-mark">S</div><h1>PrintShopLedger</h1><p>Every job. Every payment. Clearly tracked.</p>
     <form onSubmit={login}><label>Business email<input name="email" type="email" autoComplete="username" aria-invalid={messageTone==='error'&&!!message} required /></label>
       <label>Business password<input name="password" type="password" autoComplete="current-password" aria-invalid={messageTone==='error'&&!!message} required /></label>
       <button disabled={busy || !online}>Sign in</button></form>
+    <button className="secondary" disabled={busy||!online} onClick={()=>{setRegistering(true);setMessage('');}}>Register your business</button>
     <button className="secondary" onClick={() => { setDemo(true); setMessage(''); }}>Try locally on this device</button>
     <p className="muted">Local trial data stays separate from business workspaces.</p><FeedbackBanner message={message} tone={messageTone} login/>
   </div></main>;
@@ -439,7 +459,7 @@ export default function App() {
         </tbody></table></div><p>Reapplying your edits preserves business stock movements. Stock additions add your pending quantities to the current business stock; stock-count corrections use your chosen count. Keeping the business version discards pending edits to this material. Other pending records are kept.</p>
         <div className="material-actions"><button disabled={busy} onClick={() => void resolveConflict('local')}>Reapply pending edits</button><button className="secondary" disabled={busy} onClick={() => void resolveConflict('cloud')}>Keep business version</button></div>
       </Modal>}
-      {!demo && !shop ? <section className="auth-card"><h2>Create your business workspace</h2><p>Each business gets its own customers, jobs and payments.</p><form onSubmit={createWorkspace}><label>Business name<input name="businessName" maxLength={160} required /></label><button disabled={busy || !online}>Create workspace</button></form><p className="muted">If you should join an existing business, ask its administrator to add your account.</p></section> : <>
+      {!demo && !shop ? <section className="auth-card"><h2>Create your business workspace</h2><p>Each business gets its own customers, jobs and payments.</p><form onSubmit={createWorkspace}><label>Business name<input name="businessName" maxLength={160} defaultValue={businessSession?.user.user_metadata.business_name??''} required /></label>{!businessSession?.user.user_metadata.full_name&&<label>Owner’s full name<input name="ownerName" maxLength={160} required/></label>}<button disabled={busy || !online}>Create workspace</button></form><p className="muted">If you should join an existing business, ask its administrator to add your account.</p></section> : <>
         {page === 'Dashboard' && pageAllowed ? <Suspense fallback={<section className="panel empty" role="status">Loading dashboard charts…</section>}><DashboardPage ledger={ledger} ready={ready} online={online} pending={state.pending.length} lastSynced={state.lastSynced} access={{customers:demo||canAccessPage('Customers',shop?.accessLevel??0,branding.settings.pageAccess),sales:demo||canAccessPage('Jobs',shop?.accessLevel??0,branding.settings.pageAccess),payments:demo||canAccessPage('Payments',shop?.accessLevel??0,branding.settings.pageAccess),expenses:demo||canAccessPage('Expenses',shop?.accessLevel??0,branding.settings.pageAccess),materials:demo||canAccessPage('Materials',shop?.accessLevel??0,branding.settings.pageAccess)}}/></Suspense> : !pageAllowed ? <p role="alert">You do not have access to this page.</p> : page === 'Sale Adjustments' ? <SaleAdjustmentsPage recentDays={branding.settings.corrections.recentDays} ledger={ledger} ready={ready} busy={busy||hasConflict} canSave={demo||online} onAdjust={setAdjustingJob}/> : page === 'Material Waste' ? <MaterialWastePage ledger={ledger} ready={ready} busy={busy||hasConflict} canSave={demo||online} actor={{id:demo?'local-trial':session!.user.id,label:demo?'Local trial user':shop?.staffName||session!.user.email||session!.user.id}} onSave={approveOperation}/> : page === 'Conflict Inbox' ? (demo?<section className="panel"><h2>Conflict inbox</h2><p>Remote reviews are available in a connected business workspace.</p></section>:<ConflictInbox key={scope} scope={scope} shopId={shop!.id} online={online} onChanged={()=>{if(activeScope.current!==scope)return;void readState(scope).then(next=>{if(activeScope.current===scope)setState(next);});setMessage('Review saved. The original device will receive it automatically when connected.');}}/>) : page === 'My Account' ? <AccountPage key={`${scope}:${shop?.username}`} shopId={shop?.id??''} userId={session?.user.id??''} businessAccount={!!session && session.user.id===businessSession?.user.id} username={shop?.username??''} online={online} demo={demo} themePreference={branding.preference} setThemePreference={branding.setTheme} onChanged={message=>{setMessage(message);setStaffEpoch(value=>value+1);}}/> : page === 'Business Settings' ? <BusinessSettingsPage key={scope} settings={branding.settings} version={branding.version} ready={branding.ready} online={online} demo={demo} modifiedAt={branding.modifiedAt} onSave={branding.save} onReload={branding.reload}/> : page === 'Expenses' ? <ExpensesPage key={scope} ledger={ledger} ready={ready} busy={(!demo&&(shop?.accessLevel??0)<2)||busy||hasConflict} actor={{id:demo?'local-trial':session!.user.id,label:demo?'Local trial user':shop?.staffName||session!.user.email||session!.user.id}} pending={state.pending} onSave={saveCatalogue}/> : page === 'My Sales' ? <MySalesPage key={scope} ledger={ledger} userId={demo?'local-trial':session!.user.id} username={demo?'trial':shop?.username??''} name={demo?'Local trial user':shop?.staffName??''} ready={ready} busy={busy||hasConflict} online={online} demo={demo} pending={state.pending.length} onReceipt={setReceipt} onHandover={closeDrawer}/> : page === 'Point of Service' ? <PointOfServicePage ledger={ledger} busy={busy||legacyConflict} ready={ready} onCheckout={()=>{setPaymentCustomer('');setForm('job');}} onPayment={()=>openPayment()} onJob={setSelectedJob} onNext={(job,mode)=>setJobToAdvance({job,mode})} onReceipt={setReceipt}/> : page === 'Users' ? <UsersPage key={scope} shopId={shop?.id ?? ''} actorId={session?.user.id ?? ''} businessUserId={businessSession?.user.id ?? ''} role={shop?.role ?? ''} online={online} demo={demo} onChanged={()=>setStaffEpoch(value=>value+1)} /> : page === 'Print Settings' ? <PrintSettingsPage key={scope} scope={scope} ready={ready}/> : page === 'Customers' ? <CustomersPage key={scope} ledger={ledger} ready={ready} busy={busy || hasConflict}
           actor={{id:demo?'local-trial':session!.user.id,label:demo?'Local trial user':shop?.staffName||session!.user.user_metadata.full_name||session!.user.email||session!.user.id}} onSave={saveCatalogue} onRecordPayment={id=>openPayment(id)} /> : page === 'Materials' ? <MaterialsPage key={scope} materials={ledger.materials} history={ledger.materialHistory} ready={ready} busy={(!demo && shop?.role === 'cashier') || busy || hasConflict}
           actor={{ id: demo ? 'local-trial' : session!.user.id, label: demo ? 'Local trial user' : shop?.staffName || session!.user.user_metadata.full_name || session!.user.email || session!.user.id }}

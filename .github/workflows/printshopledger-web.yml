@@ -29,6 +29,8 @@ jobs:
         timeout-minutes: 5
         run: npx playwright install chromium webkit
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: node scripts/check-registration.mjs
+      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/check-dashboard.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/check-login-sync.mjs
@@ -60,5 +62,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dashboard-preview
-          path: /tmp/ledger-dashboard-*.png
+          path: |
+            /tmp/ledger-dashboard-*.png
+            /tmp/ledger-registration-*.png
           retention-days: 7
+
