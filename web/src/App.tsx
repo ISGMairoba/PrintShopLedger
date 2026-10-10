@@ -327,25 +327,34 @@ export default function App() {
     } catch (error) { setMessage(errorMessage(error),'error'); }
     finally { setBusy(false); }
   }
+  // Never copy the business session's tokens into the staff client: Supabase refresh
+  // tokens are single-use, so two clients sharing one would revoke each other and sign
+  // people out. If the staff slot holds a different user, clear it and let the owner
+  // sign in through the normal staff sign-in (username "manager").
+  async function releaseForeignStaffSession(){
+    const {data}=await supabase!.auth.getSession();
+    if(!data.session||data.session.user.id===businessSession?.user.id)return !data.session;
+    await supabase!.auth.signOut({scope:'local'});setSession(null);
+    return true;
+  }
+  const workspaceCreatedMessage=(signInNeeded:boolean)=>signInNeeded
+    ?'Business workspace created. Sign in with username "manager" and your business password. Developer activation will be sent to maintenance.'
+    :'Business workspace created. Manager access is ready; Developer activation will be sent to maintenance.';
   async function createWorkspace(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if(!businessSession||busy||!online)return;
     setBusy(true);setMessage('');
     const data=new FormData(e.currentTarget);
     try {
-      // Workspace creation belongs to the business identity, including when an
-      // old staff session remains on this device after another business login.
-      if(session?.user.id!==businessSession.user.id){
-        const {error}=await supabase!.auth.setSession({access_token:businessSession.access_token,refresh_token:businessSession.refresh_token});
-        if(error)throw error;
-      }
+      // Workspace creation belongs to the business identity (businessAuth).
       const profile=validateBusinessRegistration({businessName:String(data.get('businessName')).trim(),ownerName:businessSession.user.user_metadata.full_name||String(data.get('ownerName')??'')});
       const {error}=await businessAuth!.functions.invoke('register-business',{body:profile});
       if(error)throw error;
+      const signInNeeded=await releaseForeignStaffSession();
       // Reload through the guarded lookup; a failed read after creation must
       // never leave the creation form open and invite a duplicate business.
       setWorkspaceLookup({key:workspaceIdentity,status:'loading',error:''});
-      setStaffEpoch(value=>value+1);setMessage('Business workspace created. Manager access is ready; Developer activation will be sent to maintenance.');
+      setStaffEpoch(value=>value+1);setMessage(workspaceCreatedMessage(signInNeeded));
     }catch(error){setMessage(await registrationError(error),'error');}
     finally{setBusy(false);}
   }
@@ -355,8 +364,8 @@ export default function App() {
       void (async()=>{setBusy(true);try{
         const profile=validateBusinessRegistration({businessName:businessSession.user.user_metadata.business_name,ownerName:businessSession.user.user_metadata.full_name});
         const {error}=await businessAuth!.functions.invoke('register-business',{body:profile});if(error)throw error;
-        const {error:sessionError}=await supabase!.auth.setSession({access_token:businessSession.access_token,refresh_token:businessSession.refresh_token});if(sessionError)throw sessionError;
-        setWorkspaceLookup({key:workspaceIdentity,status:'loading',error:''});setStaffEpoch(value=>value+1);setMessage('Business workspace created. Manager access is ready; Developer activation will be sent to maintenance.');
+        const signInNeeded=await releaseForeignStaffSession();
+        setWorkspaceLookup({key:workspaceIdentity,status:'loading',error:''});setStaffEpoch(value=>value+1);setMessage(workspaceCreatedMessage(signInNeeded));
       }catch(error){setMessage(await registrationError(error),'error');}finally{setBusy(false);}})();
     }
   },[demo,businessSession?.user.id,online,workspaceLookup.status,workspaceLookup.key,shops.length]);
