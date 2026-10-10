@@ -31,7 +31,9 @@ export class CheckoutSyncConflict extends Error {constructor(public event:Checko
 export class JobSyncConflict extends Error {constructor(public event:LedgerEvent,public cloud:Ledger){super('This job status changed on another device. Review the latest status.');}}
 const url = import.meta.env.VITE_SUPABASE_URL;
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-export const supabase = url && key ? createClient(url, key) : null;
+// Only the business client may adopt a session from an email link. If both clients read
+// the same link they would share one single-use refresh token and sign each other out.
+export const supabase = url && key ? createClient(url, key, { auth: { detectSessionInUrl: false } }) : null;
 // Business identity remains signed in while the operational staff session changes.
 export const businessAuth = url && key ? createClient(url, key, { auth: { storageKey: 'printshopledger-business-auth' } }) : null;
 
