@@ -18,8 +18,8 @@ jobs:
         with:
           node-version: 22
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: npm test
-      - run: npm run build
+      - run: node scripts/run-check.mjs npm test
+      - run: node scripts/run-check.mjs npm run build
 
       - run: npm run check:backend
       - id: browser_dependencies
@@ -29,37 +29,37 @@ jobs:
         timeout-minutes: 5
         run: npx playwright install chromium webkit
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/check-registration.mjs
+        run: node scripts/run-check.mjs node scripts/check-registration.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/check-dashboard.mjs
+        run: node scripts/run-check.mjs node scripts/check-dashboard.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/check-login-sync.mjs
+        run: node scripts/run-check.mjs node scripts/check-login-sync.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/check-feedback.mjs
+        run: node scripts/run-check.mjs node scripts/check-feedback.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/check-sale-adjustments.mjs
+        run: node scripts/run-check.mjs node scripts/check-sale-adjustments.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/check-remote-review.mjs
+        run: node scripts/run-check.mjs node scripts/check-remote-review.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/check-access-account.mjs
+        run: node scripts/run-check.mjs node scripts/check-access-account.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/check-business-branding.mjs
+        run: node scripts/run-check.mjs node scripts/check-business-branding.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/check-theme-backgrounds.mjs
+        run: node scripts/run-check.mjs node scripts/check-theme-backgrounds.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/check-checkout.mjs
+        run: node scripts/run-check.mjs node scripts/check-checkout.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/check-materialless-services.mjs
+        run: node scripts/run-check.mjs node scripts/check-materialless-services.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/check-expenses.mjs
+        run: node scripts/run-check.mjs node scripts/check-expenses.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: npm run test:ui
+        run: node scripts/run-check.mjs npm run test:ui
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/check-print-settings.mjs
+        run: node scripts/run-check.mjs node scripts/check-print-settings.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: npm run test:users-ui
+        run: node scripts/run-check.mjs npm run test:users-ui
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/check-iphone.mjs
+        run: node scripts/run-check.mjs node scripts/check-iphone.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         uses: actions/upload-artifact@v4
         with:

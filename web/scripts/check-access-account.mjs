@@ -3,7 +3,7 @@ import {spawn} from 'node:child_process';
 import {setTimeout as delay} from 'node:timers/promises';
 import {chromium} from 'playwright';
 import {defaultBranding} from '../src/business-branding.mjs';
-import {pages,canAccessPage} from '../src/page-access.mjs';
+import {navigationPages,canAccessPage} from '../src/page-access.mjs';
 const server=spawn(process.execPath,['node_modules/vite/bin/vite.js','preview','--host','127.0.0.1','--port','4178','--strictPort'],{stdio:'inherit'});
 let browser;
 try{
@@ -36,7 +36,7 @@ try{
   await page.getByRole('heading',{name:'Point of Service',exact:true}).waitFor();
   const open=async()=>{if(mobile)await page.getByRole('button',{name:'Menu',exact:true}).click();};
   await open();const nav=page.getByRole('navigation',{name:'Main'});await nav.getByRole('button',{name:'Point of Service',exact:true}).waitFor();
-  assert.deepEqual(await nav.getByRole('button').allTextContents(),pages.filter(p=>canAccessPage(p,rank)));
+  assert.deepEqual(await nav.getByRole('button').allTextContents(),navigationPages.filter(p=>canAccessPage(p,rank)));
   await nav.getByRole('button',{name:'My Account',exact:true}).click();
   await page.getByLabel('Username',{exact:true}).fill('bad name');assert.equal(await page.getByRole('button',{name:'Save username',exact:true}).isDisabled(),true);
   await page.getByLabel('Username',{exact:true}).fill('valid.user');await page.getByLabel('Current password',{exact:true}).first().fill('current-password');await page.getByRole('button',{name:'Save username',exact:true}).click();if(mobile)await open();await page.locator('.sidebar-user').getByText('Test User (valid.user)',{exact:true}).waitFor({state:'attached'});assert.equal(calls,1);if(mobile)await nav.getByRole('button',{name:'My Account',exact:true}).click();
