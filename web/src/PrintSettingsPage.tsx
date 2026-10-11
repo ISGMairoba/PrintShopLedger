@@ -9,11 +9,26 @@ import {
   validatePrintSettings,
   paperSizes,
 } from './print-settings.mjs';
-import { discoverPrinters, printHtml, type PrintSettings } from './printing';
+import {
+  discoverPrinters,
+  printCertificate,
+  printHtml,
+  type PrinterMedia,
+  type PrintSettings,
+} from './printing';
 const sample =
   '<h1>PrintShopLedger</h1><p>TEST PRINT — no transaction recorded</p><table><tr><th>Item</th><th>Quantity</th><th>Amount</th></tr><tr><td>Sample printing</td><td>2</td><td>NGN 2,000.00</td></tr></table><p>Total: NGN 2,000.00</p><p>Thank you for your business.</p>';
 const fonts = ['Arial', 'Calibri', 'Courier New', 'Georgia', 'Tahoma', 'Times New Roman', 'Verdana'];
-export default function PrintSettingsPage({ scope, ready }: { scope: string; ready: boolean }) {
+export default function PrintSettingsPage({
+  scope,
+  ready,
+  trusted,
+}: {
+  scope: string;
+  ready: boolean;
+  /** Signed in to a business workspace, so trusted printing is available. */
+  trusted: boolean;
+}) {
   const [message, setMessage, messageTone] = useFeedbackMessage('success');
   const [settings, setSettings] = useState<PrintSettings>(() => {
     try {
@@ -24,6 +39,7 @@ export default function PrintSettingsPage({ scope, ready }: { scope: string; rea
   });
   const [draft, setDraft] = useState<PrintSettings | null>(null);
   const [printers, setPrinters] = useState<string[]>([]);
+  const [media, setMedia] = useState<Record<string, PrinterMedia>>({});
   const [busy, setBusy] = useState(false);
   const [connected, setConnected] = useState(false);
   const [help, setHelp] = useState(false);
@@ -34,6 +50,7 @@ export default function PrintSettingsPage({ scope, ready }: { scope: string; rea
     try {
       const result = await discoverPrinters();
       setPrinters(result.printers);
+      setMedia(result.media);
       setConnected(true);
       setDraft((current) =>
         current && !current.printer ? { ...current, printer: result.defaultPrinter } : current,
@@ -65,6 +82,23 @@ export default function PrintSettingsPage({ scope, ready }: { scope: string; rea
       setMessage(error instanceof Error ? error.message : String(error), 'error');
     }
   }
+  async function downloadCertificate() {
+    setBusy(true);
+    setMessage('');
+    try {
+      const certificate = await printCertificate();
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(new Blob([certificate], { type: 'application/x-x509-ca-cert' }));
+      link.download = 'override.crt';
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+      setMessage('Certificate downloaded. Copy override.crt into the QZ Tray folder, then restart QZ Tray.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error), 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
   async function test() {
     setBusy(true);
     setMessage('');
@@ -77,6 +111,15 @@ export default function PrintSettingsPage({ scope, ready }: { scope: string; rea
       setBusy(false);
     }
   }
+  const printerSizes = (draft?.printer && media[draft.printer]?.sizes) || [];
+  const printerTrays = (draft?.printer && media[draft.printer]?.trays) || [];
+  const commonSizes = Object.entries(paperSizes).map(([name, [width, height]]) => ({ name, width, height }));
+  const listed = printerSizes.length ? printerSizes : commonSizes;
+  // Keep a saved size visible even when the selected printer does not list it.
+  const paperOptions =
+    draft && draft.paper !== 'Custom' && !listed.some((option) => option.name === draft.paper)
+      ? [...listed, { name: draft.paper, width: draft.width, height: draft.height }]
+      : listed;
   return (
     <section className="panel print-settings-panel">
       <div className="toolbar">
@@ -157,10 +200,37 @@ export default function PrintSettingsPage({ scope, ready }: { scope: string; rea
           <dd>{connected ? 'Connected during this session' : 'Not checked'}</dd>
         </div>
       </dl>
-      <p className="notice">
-        Automatic printing sends receipts after checkout when enabled. QZ Tray may ask for approval until
-        trusted message signing is configured.
-      </p>
+      <section className="trusted-printing">
+        <h3>Trusted printing</h3>
+        {trusted ? (
+          <>
+            <p>
+              Install this business’s printing certificate in QZ Tray once on each printing computer. QZ Tray
+              then recognises print requests from this business and stops asking for approval.
+            </p>
+            <ol>
+              <li>Download the certificate below.</li>
+              <li>
+                Copy <code>override.crt</code> into the QZ Tray folder — Windows:{' '}
+                <code>C:\Program Files\QZ Tray</code>; Mac:{' '}
+                <code>/Applications/QZ Tray.app/Contents/Resources</code>; Linux: <code>/opt/qz-tray</code>.
+                The computer may ask for administrator permission.
+              </li>
+              <li>Restart QZ Tray (right-click its icon, choose Exit, then open QZ Tray again).</li>
+              <li>Select Connect printers. Printing no longer asks for approval.</li>
+            </ol>
+            <button className="secondary" disabled={busy || !ready} onClick={downloadCertificate}>
+              <Icon name="save" /> Download certificate (override.crt)
+            </button>
+            <p className="muted">
+              Each business has its own certificate; a computer trusts one business at a time. Without an
+              internet connection, QZ Tray asks for approval as usual.
+            </p>
+          </>
+        ) : (
+          <p className="muted">Sign in to a business workspace to set up trusted printing.</p>
+        )}
+      </section>
       {draft && (
         <Modal
           title="Edit print settings"
@@ -196,21 +266,30 @@ export default function PrintSettingsPage({ scope, ready }: { scope: string; rea
                 Paper size
                 <select
                   aria-label="Paper size"
-                  value={draft.paper}
+                  value={paperOptions.some((option) => option.name === draft.paper) ? draft.paper : 'Custom'}
                   onChange={(e) => {
-                    const size = paperSizes[e.target.value as keyof typeof paperSizes];
+                    const size = paperOptions.find((option) => option.name === e.target.value);
                     setDraft({
                       ...draft,
                       paper: e.target.value,
-                      ...(size ? { width: size[0], height: size[1] } : {}),
+                      ...(size ? { width: size.width, height: size.height } : {}),
                     });
                   }}
                 >
-                  {Object.keys(paperSizes).map((paper) => (
-                    <option key={paper}>{paper}</option>
+                  {paperOptions.map((option) => (
+                    <option key={option.name} value={option.name}>
+                      {option.name} ({option.width} × {option.height} mm)
+                    </option>
                   ))}
-                  <option>Custom</option>
+                  <option value="Custom">Custom size</option>
                 </select>
+                <small>
+                  {printerSizes.length
+                    ? 'Sizes reported by this printer’s driver.'
+                    : draft.printer && connected
+                      ? 'This printer did not report its sizes; common sizes are shown. QZ Tray 2.2.3 or newer lists them.'
+                      : 'Select Find installed printers to list the sizes this printer supports.'}
+                </small>
               </label>
               <label>
                 Paper width (mm)
@@ -249,14 +328,31 @@ export default function PrintSettingsPage({ scope, ready }: { scope: string; rea
               </label>
               <label>
                 Paper source / tray
-                <input
-                  aria-label="Paper source / tray"
-                  value={draft.paperSource}
-                  maxLength={200}
-                  placeholder="Leave blank for printer default"
-                  onChange={(e) => setDraft({ ...draft, paperSource: e.target.value })}
-                />
-                <small>Use the exact tray name from your printer driver.</small>
+                {printerTrays.length ? (
+                  <select
+                    aria-label="Paper source / tray"
+                    value={draft.paperSource}
+                    onChange={(e) => setDraft({ ...draft, paperSource: e.target.value })}
+                  >
+                    <option value="">Printer default</option>
+                    {Array.from(
+                      new Set([...printerTrays, ...(draft.paperSource ? [draft.paperSource] : [])]),
+                    ).map((tray) => (
+                      <option key={tray}>{tray}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <>
+                    <input
+                      aria-label="Paper source / tray"
+                      value={draft.paperSource}
+                      maxLength={200}
+                      placeholder="Leave blank for printer default"
+                      onChange={(e) => setDraft({ ...draft, paperSource: e.target.value })}
+                    />
+                    <small>Use the exact tray name from your printer driver.</small>
+                  </>
+                )}
               </label>
               <label>
                 Font
@@ -396,9 +492,8 @@ export default function PrintSettingsPage({ scope, ready }: { scope: string; rea
           </p>
           <h3>Printing without prompts</h3>
           <p>
-            QZ Tray sends print jobs without a browser print preview. Its security prompts require trusted
-            message signing to remove. Signing setup is still pending; no private signing key belongs in this
-            app.
+            QZ Tray sends print jobs without a browser print preview. To stop its approval prompts, install
+            the business certificate as described under Trusted printing on this page.
           </p>
         </Modal>
       )}

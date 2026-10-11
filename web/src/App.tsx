@@ -20,7 +20,7 @@ import PointOfServicePage from './PointOfServicePage';
 import CheckoutEditor from './CheckoutEditor';
 import ReceiptView from './ReceiptView';
 import { receiptIntegrityError } from './receipts.mjs';
-import { printAfterTransaction, printReceipt } from './printing';
+import { printAfterTransaction, printReceipt, setPrintSigner } from './printing';
 import useAutoSync from './useAutoSync';
 import Sidebar from './Sidebar';
 import Icon from './Icon';
@@ -146,6 +146,18 @@ export default function App() {
     : businessSession && session && shop && shop.userId === session.user.id && shop.accessLevel > 0
       ? `${session.user.id}:${shop.id}`
       : '';
+  // Trusted printing signs QZ Tray requests with this business's key (staff sign-in required).
+  const signingShop = !demo && scope && supabase ? (shop?.id ?? '') : '';
+  useEffect(() => {
+    setPrintSigner(
+      signingShop
+        ? {
+            shopId: signingShop,
+            invoke: (body) => supabase!.functions.invoke('print-signing', { body }),
+          }
+        : null,
+    );
+  }, [signingShop]);
   const branding = useBusinessBranding(
     shop?.id ?? '',
     scope,
@@ -1403,7 +1415,7 @@ export default function App() {
                   onChanged={() => setStaffEpoch((value) => value + 1)}
                 />
               ) : page === 'Print Settings' ? (
-                <PrintSettingsPage key={scope} scope={scope} ready={ready} />
+                <PrintSettingsPage key={scope} scope={scope} ready={ready} trusted={!!signingShop} />
               ) : page === 'Customers' ? (
                 <CustomersPage
                   key={scope}

@@ -118,3 +118,42 @@ export function qzPdfOptions(settings, name = 'PrintShopLedger', pageHeight = nu
     margins: 0,
   };
 }
+
+const standardPrefix = /^(iso|na|jis|jpn|prc|roc|om|oufuko)-/;
+/** A readable label for a paper name reported by the printer driver ("iso-a4" → "A4"). */
+export function paperLabel(name) {
+  const text = String(name ?? '').trim();
+  if (!standardPrefix.test(text)) return text;
+  const [prefix, ...rest] = text.split('-');
+  const words = rest.map((word) =>
+    /^[a-z]\d+$/.test(word) ? word.toUpperCase() : word[0].toUpperCase() + word.slice(1),
+  );
+  return (prefix === 'jis' || prefix === 'prc' ? [prefix.toUpperCase(), ...words] : words).join(' ');
+}
+
+/**
+ * Paper sizes and trays from QZ Tray's printer details (QZ Tray 2.2.3+ reports sizes; 2.1+ trays).
+ * Sizes are returned once each, in millimetres rounded to 0.1, sorted by area.
+ */
+export function printerMedia(details) {
+  const sizes = [];
+  const seen = new Set();
+  for (const size of Array.isArray(details?.sizes) ? details.sizes : []) {
+    const width = Math.round(Number(size?.mm?.width) * 10) / 10,
+      height = Math.round(Number(size?.mm?.height) * 10) / 10;
+    const label = paperLabel(size?.name).slice(0, 200);
+    if (!label || !(width >= 20 && width <= 1000 && height >= 20 && height <= 2000) || seen.has(label))
+      continue;
+    seen.add(label);
+    sizes.push({ name: label, width, height });
+  }
+  sizes.sort((a, b) => a.width * a.height - b.width * b.height || a.name.localeCompare(b.name));
+  const trays = [
+    ...new Set(
+      (Array.isArray(details?.trays) ? details.trays : [])
+        .map((tray) => String(tray).trim())
+        .filter((tray) => tray && tray.length <= 200),
+    ),
+  ];
+  return { sizes, trays };
+}
