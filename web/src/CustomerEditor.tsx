@@ -4,7 +4,7 @@ import Icon from './Icon';
 import { useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import { money } from './domain.mjs';
-import { createCustomerEvent, customerCode } from './customers.mjs';
+import { createCustomerEvent, customerCode, phoneKey, phoneOwner } from './customers.mjs';
 import type { Customer, CustomerEvent } from './types';
 type Props = {
   customer?: Customer;
@@ -25,6 +25,12 @@ export default function CustomerEditor({
   onSaved,
 }: Props) {
   const [error, setError] = useFeedbackMessage('error');
+  const [phone, setPhone] = useState(customer?.phone ?? '');
+  // Each number belongs to one customer; an older shared number may be kept unchanged.
+  const phoneTakenBy =
+    customer && phoneKey(phone) === phoneKey(customer.phone)
+      ? null
+      : phoneOwner(customers, phone, customer?.id);
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (busy) return;
@@ -51,6 +57,10 @@ export default function CustomerEditor({
             },
           }
         : (createCustomerEvent(fields, actor) as CustomerEvent);
+      if (phoneTakenBy)
+        throw new Error(
+          `This phone number already belongs to ${phoneTakenBy.name}. Use that customer or enter a different number.`,
+        );
       await onSave(operation);
       onSaved?.(operation.data.id);
       onClose();
@@ -85,10 +95,18 @@ export default function CustomerEditor({
                 name="phone"
                 type="tel"
                 maxLength={40}
-                defaultValue={customer?.phone ?? ''}
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
                 autoComplete="tel"
+                aria-invalid={!!phoneTakenBy}
                 required
               />
+              {phoneTakenBy && (
+                <small className="field-error" role="alert">
+                  Already used by {phoneTakenBy.name} ({customerCode(phoneTakenBy.id, customers)})
+                  {phoneTakenBy.archived ? ', archived' : ''}.
+                </small>
+              )}
             </label>
             <label>
               Address

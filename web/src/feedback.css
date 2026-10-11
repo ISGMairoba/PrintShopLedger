@@ -172,3 +172,12 @@
     width: calc(100vw - 24px);
   }
 }
+.field-error {
+  display: block;
+  margin-top: 4px;
+  color: #b3261e;
+  font-weight: 600;
+}
+[data-theme="dark"] .field-error {
+  color: #ff8a80;
+}
