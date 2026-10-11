@@ -1,0 +1,6 @@
+.reports .report-header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px;flex-wrap:wrap}
+.reports .report-header h2{margin:0}.reports .report-header p{margin:4px 0}
+.reports section.panel>h2{padding:18px 20px 0}.reports section.panel>p.muted{padding:0 20px}
+.reports .report-filters .checkbox{flex-direction:row;align-items:center;gap:8px;flex:0 0 auto}.reports .report-filters .checkbox input{width:auto}
+.reports .table-wrap{max-height:none}
+@media(max-width:740px){.reports .report-header{padding:16px}.reports .report-header .material-actions{width:100%}.reports .report-header button{flex:1}}

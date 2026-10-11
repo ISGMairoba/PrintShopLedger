@@ -11,9 +11,9 @@ import { customerCode, customerMatches } from './customers.mjs';
 import { servicePrice } from './services.mjs';
 import { SortHeader, useTableSort } from './TableSort';
 import type { Customer,CustomerEvent,Ledger } from './types';
-type Props={ledger:Ledger;ready:boolean;busy:boolean;actor:{id:string;label:string};onSave:(event:CustomerEvent)=>Promise<void>;onRecordPayment:(id:string)=>void};
+type Props={ledger:Ledger;ready:boolean;busy:boolean;actor:{id:string;label:string};onSave:(event:CustomerEvent)=>Promise<void>;onRecordPayment:(id:string)=>void;onStatement?:(id:string)=>void};
 const date=(value:string)=>new Date(value).toLocaleString('en-NG',{timeZone:'Africa/Lagos'});
-export default function CustomersPage({ledger,ready,busy,actor,onSave,onRecordPayment}:Props) {
+export default function CustomersPage({ledger,ready,busy,actor,onSave,onRecordPayment,onStatement}:Props) {
   const [query,setQuery]=useState('');
   const [filter,setFilter]=useState('active');
   const [audit,setAudit]=useState(false);
@@ -45,7 +45,7 @@ export default function CustomersPage({ledger,ready,busy,actor,onSave,onRecordPa
         {audit&&<>{heading('createdBy','Created by')}{heading('createdAt','Created at')}{heading('modifiedBy','Modified by')}{heading('modifiedAt','Modified at')}</>}<th>Actions</th></tr></thead><tbody>
         {visible.map(customer=><tr key={customer.id}><td className="material-id">{customerCode(customer.id,ledger.customers)}</td><td><strong>{customer.name}</strong></td><td>{customer.phone||'-'}</td><td>{customer.address||'-'}</td><td>{servicePrice(customer.creditLimit)}</td><td>{jobs(customer.id)}</td><td>{servicePrice(customerBalance(ledger,customer.id))}</td><td><span className={`badge ${customer.archived?'unpaid':'paid'}`}>{customer.archived?'Archived':'Active'}</span></td><td>{servicePrice(walletBalance(ledger,customer.id))}</td>
           {audit&&<><td>{customer.createdByLabel}</td><td>{date(customer.createdAt)}</td><td>{customer.modifiedByLabel}</td><td>{date(customer.modifiedAt)}</td></>}
-          <td><div className="material-actions"><button className="text-button" onClick={()=>setAccount(customer)}>Account records</button>{!customer.archived&&<button className="text-button" disabled={busy} onClick={()=>setEditor(customer)}><Icon name="edit"/> Edit</button>}
+          <td><div className="material-actions"><button className="text-button" onClick={()=>setAccount(customer)}>Account records</button>{onStatement&&<button className="text-button" onClick={()=>onStatement(customer.id)}>Statement</button>}{!customer.archived&&<button className="text-button" disabled={busy} onClick={()=>setEditor(customer)}><Icon name="edit"/> Edit</button>}
             <button className={`text-button ${customer.archived?'':'danger-text'}`} disabled={busy} onClick={()=>{setConfirmation(customer);setError('');}}><Icon name={customer.archived?'restore':'archive'}/> {customer.archived ? 'Restore' : 'Archive'}</button>
             <button className="text-button" disabled={busy||customer.archived} onClick={()=>onRecordPayment(customer.id)}>Record payment</button></div></td></tr>)}
       </tbody></table></ResponsiveTable></div>}
