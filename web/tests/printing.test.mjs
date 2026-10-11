@@ -29,3 +29,15 @@ test('print document applies font settings and escapes the title', () => {
   const doc = printDocument(s, '<customer>', '<p>Safe body</p>');
   assert.ok(doc.includes('<title>&lt;customer&gt;</title>')); assert.ok(doc.includes('font-size:12pt')); assert.ok(doc.includes('font-weight:bold')); assert.ok(doc.includes('font-style:italic'));
 });
+
+import { receiptMedia, qzPdfOptions } from '../src/print-settings.mjs';
+test('receipt media follows paper, orientation, margins, colour and font size', () => {
+  const roll = receiptMedia({ ...defaultPrintSettings(), paper: 'Receipt 80mm', width: 80, height: 200, fontSize: 12, margins: { top: 2, right: 3, bottom: 2, left: 3 } });
+  assert.equal(roll.layout, 'roll'); assert.equal(roll.width, 80); assert.equal(roll.fontScale, 1.2); assert.deepEqual(roll.margins, { top: 2, right: 3, bottom: 2, left: 3 });
+  assert.equal(receiptMedia({ ...defaultPrintSettings(), width: 58, height: 200 }).layout, 'roll');
+  const a4 = receiptMedia(defaultPrintSettings()); assert.equal(a4.layout, 'page'); assert.deepEqual([a4.width, a4.height], [210, 297]); assert.equal(a4.color, false);
+  const land = receiptMedia({ ...defaultPrintSettings(), orientation: 'landscape' }); assert.deepEqual([land.width, land.height], [297, 210]);
+  assert.equal(receiptMedia({ ...defaultPrintSettings(), fontSize: 72 }).fontScale, 1.6);
+  const q = qzPdfOptions({ ...defaultPrintSettings(), width: 80, height: 200 }, 'R', 143.5);
+  assert.deepEqual(q.size, { width: 80, height: 143.5 }); assert.equal(q.margins, 0); assert.equal(q.scaleContent, false);
+});
