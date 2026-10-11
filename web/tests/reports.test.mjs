@@ -94,3 +94,89 @@ test('Reports follow Dashboard access: Admin+ by default, off when Dashboard is 
  const saved=defaultPageAccess();saved['1'].push('Reports');assert.throws(()=>validatePageAccess(saved));
  assert.equal(canAccessPage('toString',4),false);
 });
+
+import {filterStatement,statementSections as sections2,transactionRegister,filterTransactions,transactionSections} from '../src/reports.mjs';
+import {currency} from '../src/receipts.mjs';
+import {validateBranding,defaultBranding,receiptBusiness} from '../src/business-branding.mjs';
+
+test('Statement search and filters narrow records but keep account totals',()=>{
+ const s=customerStatement(sample(),'ada','2026-09-01','2026-11-30');
+ const banner=filterStatement(s,{query:'banner'});
+ assert.deepEqual(banner.jobs.map(j=>j.id),['oct-1']);
+ assert.deepEqual(banner.payments.map(p=>p.id),['p-oct'],'payments that paid the matching job are found by job name');
+ assert.equal(banner.totals.owedNow,s.totals.owedNow);
+ assert.equal(filterStatement(s,{paymentStatus:'Fully paid'}).jobs.map(j=>j.id).join(),'old-paid');
+ assert.equal(filterStatement(s,{stage:'Printing'}).jobs.length,1);
+ assert.deepEqual(filterStatement(s,{method:'Cash'}).payments.map(p=>p.id),['p-sep','r-oct']);
+ const onlyPayments=filterStatement(s,{show:'payments'});
+ assert.equal(onlyPayments.jobs.length+onlyPayments.adjustments.length,0);
+ assert.equal(sections2(onlyPayments).some(x=>x.title==='Jobs in this period'),false);
+ assert.match(filterStatement(s,{query:' cards  business '}).filters[0],/cards  business|cards business/);
+ assert.equal(filterStatement(s,{query:'cards business'}).jobs[0]?.id,'nov-1','every search word must match, in any order');
+ assert.equal(filterStatement(s,{query:'₦120'},currency).jobs[0]?.id,'oct-1','search understands formatted amounts');
+});
+
+test('PDF sections use the app currency format; spreadsheets keep plain numbers',()=>{
+ const s=customerStatement(sample(),'ada','2026-10-01','2026-10-31');
+ const pdf=sections2(s,{money:currency,unit:''});
+ const jobs=pdf.find(x=>x.title==='Jobs in this period');
+ assert.equal(jobs.rows[0][5],currency(12000));
+ assert.match(jobs.rows[0][5],/₦120\.00/);
+ assert.equal(jobs.columns[5],'Amount');
+ assert.equal(sections2(s).find(x=>x.title==='Jobs in this period').rows[0][5],'120.00');
+});
+
+function activity(){
+ const l=sample();
+ l.checkouts=[{id:'co-1',createdByLabel:'Cashier Joy',drawerClosingId:'drawer-aaaa1111'}];
+ l.jobs[2].checkoutId='co-1';l.payments[1].checkoutId='co-1';
+ l.expenses=[{id:'exp-1',description:'Ink',category:'Materials',payee:'Ink Ltd',voided:false,payments:[{id:'ep1',amount:2500,paidOn:'2026-10-04',createdAt:'2026-10-04T08:00:00Z',methodLabel:'Cash',createdByLabel:'Manager'}]}];
+ l.materialHistory=[
+  {id:'h1',materialId:'m',materialName:'Flex',measurementUnit:'sqm',action:'material.stock_added',beforeAvailable:10,afterAvailable:25,reason:'Restocking',changedBy:'u',changedByLabel:'Manager',changedAt:'2026-10-03T09:00:00Z'},
+  {id:'h2',materialId:'m',materialName:'Flex',measurementUnit:'sqm',action:'material.job_used',beforeAvailable:25,afterAvailable:22.5,reason:'',changedByLabel:'Cashier Joy',changedAt:'2026-10-03T10:00:00Z'},
+  {id:'h3',materialId:'m',materialName:'Flex',measurementUnit:'sqm',action:'material.updated',beforeAvailable:22.5,afterAvailable:22.5,reason:'Renamed',changedByLabel:'Manager',changedAt:'2026-10-03T11:00:00Z'}
+ ];
+ l.saleAdjustments.push({id:'adj-fix',customerId:'ada',jobId:'oct-1',action:'sale.corrected',changedAt:'2026-10-07T10:00:00Z',before:{amount:13000},after:{amount:12000},refundAmount:0,creditReleased:0,reason:'Price error',changedByLabel:'Manager'});
+ return l;
+}
+
+test('Transactions list jobs, money, corrections and stock changes without double counting',()=>{
+ const r=transactionRegister(activity(),'2026-10-01','2026-10-31');
+ const types=r.rows.map(x=>x.type);
+ assert.deepEqual([...new Set(types)].sort(),['Expense payment','Job created','Payment received','Refund paid','Sale correction','Stock change']);
+ assert.equal(types.filter(t=>t==='Stock change').length,2,'edits that do not change quantity are left out');
+ assert.equal(r.rows.filter(x=>x.type==='Sale correction').length,1,'refund adjustments appear once, as the refund paid; grouped children are folded');
+ assert.ok(r.rows.every((x,i)=>i===0||r.rows[i-1].at>=x.at),'newest first');
+ const all=filterTransactions(r);
+ assert.equal(all.totals.moneyIn,10999,'payments in the period, any customer');
+ assert.equal(all.totals.moneyOut,400+2500,'refunds and expense payments');
+ assert.equal(all.totals.net,10999-2900);
+ assert.equal(all.totals.charge,12000+999);
+ const pay=r.rows.find(x=>x.id==='pay-p-oct');
+ assert.equal(pay.staff,'Cashier Joy');assert.equal(pay.drawer,'DRAWER-A');assert.equal(pay.method,'GTBank transfer');
+ assert.equal(r.rows.find(x=>x.id==='stock-h2').stock,'-2.5 sqm (now 22.5)');
+});
+
+test('Transactions filters, search and access limits',()=>{
+ const l=activity();
+ const r=transactionRegister(l,'2026-10-01','2026-10-31');
+ assert.equal(filterTransactions(r,{type:'Stock change'}).rows.length,2);
+ assert.equal(filterTransactions(r,{staff:'Cashier Joy'}).rows.length,3);
+ assert.equal(filterTransactions(r,{method:'Cash'}).totals.moneyOut,2900);
+ assert.deepEqual(filterTransactions(r,{query:'ink ltd'}).rows.map(x=>x.type),['Expense payment']);
+ const cashier=transactionRegister(l,'2026-10-01','2026-10-31',{jobs:true,payments:true,expenses:false,stock:false,customers:false});
+ assert.ok(cashier.rows.every(x=>!['Expense payment','Stock change'].includes(x.type)));
+ assert.ok(!cashier.types.includes('Stock change'));
+ assert.ok(cashier.rows.every(x=>x.party!=='Ada Okafor'),'customer names hidden without customer access');
+ const csv=sectionsToCsv(['x'],transactionSections(filterTransactions(r)));
+ assert.match(csv,/Net \(in minus out\) \(NGN\),80\.99/);
+});
+
+test('Watermark setting defaults off, validates, and older saved settings still load',()=>{
+ assert.equal(defaultBranding().documents.watermark,false);
+ const old=defaultBranding();old.businessName='Shop';delete old.documents;
+ assert.deepEqual(validateBranding(old).documents,{watermark:false});
+ assert.throws(()=>validateBranding({...old,documents:{watermark:'yes'}}),/document options/);
+ assert.equal(receiptBusiness({businessName:'x'}).documents.watermark,false);
+ assert.equal(validateBranding({...old,documents:{watermark:true}}).documents.watermark,true);
+});
