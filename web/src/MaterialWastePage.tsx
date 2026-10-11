@@ -1,12 +1,240 @@
-import {useState} from 'react';
+import { useState } from 'react';
 import Modal from './Modal';
-import {useFeedbackMessage} from './Feedback';
-import {applyWaste} from './sale-adjustments.mjs';
-import type {Ledger,SupervisedEvent} from './types';
-export default function MaterialWastePage({ledger,ready,busy,canSave,actor,onSave}:{ledger:Ledger;ready:boolean;busy:boolean;canSave:boolean;actor:{id:string;label:string};onSave:(event:SupervisedEvent)=>Promise<void>}){
- const [submitted,setSubmitted]=useState<SupervisedEvent|null>(null);
- const [query,setQuery]=useState(''),[id,setId]=useState<string|null>(null),[material,setMaterial]=useState(''),[quantity,setQuantity]=useState(''),[category,setCategory]=useState('Waste'),[jobId,setJobId]=useState(''),[reason,setReason]=useState(''),[error,setError]=useFeedbackMessage('error');
- const eligibleJobs=ledger.jobs.filter(j=>ledger.materials.some(m=>m.id===j.materialId&&!m.archived)&&(!material||j.materialId===material));
- const mat=ledger.materials.find(m=>m.id===material),records=[...ledger.materialWaste].reverse().filter(r=>[r.materialName,r.reason,r.changedByLabel,r.category,r.jobId].join(' ').toLowerCase().includes(query.toLowerCase()));
- return <section className="panel supervisor-page"><div className="toolbar"><h2>Material waste, damage and reprints</h2><button disabled={!ready||busy||!canSave} onClick={()=>{setSubmitted(null);setId(crypto.randomUUID());setMaterial('');setQuantity('');setCategory('Waste');setJobId('');setReason('');setError('');}}>Record material waste</button></div><p>Record extra material use only. Material already deducted for the original sale must not be deducted again.</p><p className="muted">Admin, Manager or Developer approval requires a connected, fully synced workspace.</p><input aria-label="Search material waste" placeholder="Search material, reason, job or approver" value={query} onChange={e=>setQuery(e.target.value)}/>{!ready?<p>Loading material waste…</p>:records.map(r=><article className="history" key={r.id}><div><strong>{r.materialName} · {r.category}</strong><p>{r.reason}</p><small>{r.changedByLabel} · {new Date(r.changedAt).toLocaleString()}{r.jobId&&` · Job ${r.jobId.slice(0,8).toUpperCase()}`}</small><small>Stock: {r.beforeAvailable} → {r.afterAvailable} {r.measurementUnit}</small></div><strong>{r.quantity} {r.measurementUnit}</strong></article>)}{ready&&!records.length&&<p className="empty">No matching waste records.</p>}{id&&<Modal title="Record material waste" busy={busy} onClose={()=>setId(null)}>{error&&<p role="alert" className="notice">{error}</p>}<form className="supervisor-form" onSubmit={async e=>{e.preventDefault();if(busy)return;setError('');try{const event:SupervisedEvent=submitted??{id,kind:'material.wasted',data:{materialId:material,baseVersion:mat?.version??0,quantity:Number(quantity),category,...(jobId?{jobId}:{}),reason,modifiedBy:actor.id,modifiedByLabel:actor.label,modifiedAt:new Date().toISOString()}};applyWaste(ledger,event);setSubmitted(event);await onSave(event);setId(null);}catch(cause){setError(cause instanceof Error?cause.message:String(cause));}}}><fieldset disabled={busy||!!submitted}><label>Material<select aria-label="Material" value={material} onChange={e=>{setMaterial(e.target.value);if(jobId&&ledger.jobs.find(j=>j.id===jobId)?.materialId!==e.target.value)setJobId('');}} required><option value="">Choose a material</option>{ledger.materials.filter(m=>!m.archived).map(m=><option value={m.id} key={m.id}>{m.name} ({m.measurementUnit})</option>)}</select></label><label>Type<select aria-label="Type" value={category} onChange={e=>setCategory(e.target.value)}><option>Waste</option><option>Damage</option><option>Reprint</option></select></label><label>Additional quantity used {mat&&`(${mat.measurementUnit})`}<input type="number" min="0.001" step="0.001" max="1000000000000" value={quantity} onChange={e=>setQuantity(e.target.value)} required/><small className="muted">Enter extra material used. The original job usage has already been deducted.</small></label><label>Related job (optional)<select value={jobId} onChange={e=>{setJobId(e.target.value);const job=ledger.jobs.find(j=>j.id===e.target.value);if(job?.materialId)setMaterial(job.materialId);}}><option value="">No linked job</option>{eligibleJobs.map(j=><option value={j.id} key={j.id}>{j.description} · {j.id.slice(0,8).toUpperCase()}</option>)}</select></label><label>Reason<textarea value={reason} onChange={e=>setReason(e.target.value)} required maxLength={500}/></label>{mat&&quantity&&<p className={mat.available-Number(quantity)<0?'notice notice-warning':'checkout-summary'} role="status">Stock after saving: {Math.round((mat.available-Number(quantity))*1000)/1000} {mat.measurementUnit}{mat.available-Number(quantity)<0?' · Stock will be below zero.':''}</p>}</fieldset>{submitted&&<p className="muted">This request is fixed for a safe retry. If the stock changed, close this dialog, sync and reopen it.</p>}<button disabled={busy}>{busy?'Saving waste…':submitted?'Retry same waste entry':'Approve and save waste'}</button></form></Modal>}</section>;
+import { useFeedbackMessage } from './Feedback';
+import { applyWaste } from './sale-adjustments.mjs';
+import type { Ledger, SupervisedEvent } from './types';
+export default function MaterialWastePage({
+  ledger,
+  ready,
+  busy,
+  canSave,
+  actor,
+  onSave,
+}: {
+  ledger: Ledger;
+  ready: boolean;
+  busy: boolean;
+  canSave: boolean;
+  actor: { id: string; label: string };
+  onSave: (event: SupervisedEvent) => Promise<void>;
+}) {
+  const [submitted, setSubmitted] = useState<SupervisedEvent | null>(null);
+  const [query, setQuery] = useState(''),
+    [id, setId] = useState<string | null>(null),
+    [material, setMaterial] = useState(''),
+    [quantity, setQuantity] = useState(''),
+    [category, setCategory] = useState('Waste'),
+    [jobId, setJobId] = useState(''),
+    [reason, setReason] = useState(''),
+    [error, setError] = useFeedbackMessage('error');
+  const eligibleJobs = ledger.jobs.filter(
+    (j) =>
+      ledger.materials.some((m) => m.id === j.materialId && !m.archived) &&
+      (!material || j.materialId === material),
+  );
+  const mat = ledger.materials.find((m) => m.id === material),
+    records = [...ledger.materialWaste]
+      .reverse()
+      .filter((r) =>
+        [r.materialName, r.reason, r.changedByLabel, r.category, r.jobId]
+          .join(' ')
+          .toLowerCase()
+          .includes(query.toLowerCase()),
+      );
+  return (
+    <section className="panel supervisor-page">
+      <div className="toolbar">
+        <h2>Material waste, damage and reprints</h2>
+        <button
+          disabled={!ready || busy || !canSave}
+          onClick={() => {
+            setSubmitted(null);
+            setId(crypto.randomUUID());
+            setMaterial('');
+            setQuantity('');
+            setCategory('Waste');
+            setJobId('');
+            setReason('');
+            setError('');
+          }}
+        >
+          Record material waste
+        </button>
+      </div>
+      <p>
+        Record extra material use only. Material already deducted for the original sale must not be deducted
+        again.
+      </p>
+      <p className="muted">
+        Admin, Manager or Developer approval requires a connected, fully synced workspace.
+      </p>
+      <input
+        aria-label="Search material waste"
+        placeholder="Search material, reason, job or approver"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+      />
+      {!ready ? (
+        <p>Loading material waste…</p>
+      ) : (
+        records.map((r) => (
+          <article className="history" key={r.id}>
+            <div>
+              <strong>
+                {r.materialName} · {r.category}
+              </strong>
+              <p>{r.reason}</p>
+              <small>
+                {r.changedByLabel} · {new Date(r.changedAt).toLocaleString()}
+                {r.jobId && ` · Job ${r.jobId.slice(0, 8).toUpperCase()}`}
+              </small>
+              <small>
+                Stock: {r.beforeAvailable} → {r.afterAvailable} {r.measurementUnit}
+              </small>
+            </div>
+            <strong>
+              {r.quantity} {r.measurementUnit}
+            </strong>
+          </article>
+        ))
+      )}
+      {ready && !records.length && <p className="empty">No matching waste records.</p>}
+      {id && (
+        <Modal title="Record material waste" busy={busy} onClose={() => setId(null)}>
+          {error && (
+            <p role="alert" className="notice">
+              {error}
+            </p>
+          )}
+          <form
+            className="supervisor-form"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (busy) return;
+              setError('');
+              try {
+                const event: SupervisedEvent = submitted ?? {
+                  id,
+                  kind: 'material.wasted',
+                  data: {
+                    materialId: material,
+                    baseVersion: mat?.version ?? 0,
+                    quantity: Number(quantity),
+                    category,
+                    ...(jobId ? { jobId } : {}),
+                    reason,
+                    modifiedBy: actor.id,
+                    modifiedByLabel: actor.label,
+                    modifiedAt: new Date().toISOString(),
+                  },
+                };
+                applyWaste(ledger, event);
+                setSubmitted(event);
+                await onSave(event);
+                setId(null);
+              } catch (cause) {
+                setError(cause instanceof Error ? cause.message : String(cause));
+              }
+            }}
+          >
+            <fieldset disabled={busy || !!submitted}>
+              <label>
+                Material
+                <select
+                  aria-label="Material"
+                  value={material}
+                  onChange={(e) => {
+                    setMaterial(e.target.value);
+                    if (jobId && ledger.jobs.find((j) => j.id === jobId)?.materialId !== e.target.value)
+                      setJobId('');
+                  }}
+                  required
+                >
+                  <option value="">Choose a material</option>
+                  {ledger.materials
+                    .filter((m) => !m.archived)
+                    .map((m) => (
+                      <option value={m.id} key={m.id}>
+                        {m.name} ({m.measurementUnit})
+                      </option>
+                    ))}
+                </select>
+              </label>
+              <label>
+                Type
+                <select aria-label="Type" value={category} onChange={(e) => setCategory(e.target.value)}>
+                  <option>Waste</option>
+                  <option>Damage</option>
+                  <option>Reprint</option>
+                </select>
+              </label>
+              <label>
+                Additional quantity used {mat && `(${mat.measurementUnit})`}
+                <input
+                  type="number"
+                  min="0.001"
+                  step="0.001"
+                  max="1000000000000"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  required
+                />
+                <small className="muted">
+                  Enter extra material used. The original job usage has already been deducted.
+                </small>
+              </label>
+              <label>
+                Related job (optional)
+                <select
+                  value={jobId}
+                  onChange={(e) => {
+                    setJobId(e.target.value);
+                    const job = ledger.jobs.find((j) => j.id === e.target.value);
+                    if (job?.materialId) setMaterial(job.materialId);
+                  }}
+                >
+                  <option value="">No linked job</option>
+                  {eligibleJobs.map((j) => (
+                    <option value={j.id} key={j.id}>
+                      {j.description} · {j.id.slice(0, 8).toUpperCase()}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Reason
+                <textarea
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  required
+                  maxLength={500}
+                />
+              </label>
+              {mat && quantity && (
+                <p
+                  className={
+                    mat.available - Number(quantity) < 0 ? 'notice notice-warning' : 'checkout-summary'
+                  }
+                  role="status"
+                >
+                  Stock after saving: {Math.round((mat.available - Number(quantity)) * 1000) / 1000}{' '}
+                  {mat.measurementUnit}
+                  {mat.available - Number(quantity) < 0 ? ' · Stock will be below zero.' : ''}
+                </p>
+              )}
+            </fieldset>
+            {submitted && (
+              <p className="muted">
+                This request is fixed for a safe retry. If the stock changed, close this dialog, sync and
+                reopen it.
+              </p>
+            )}
+            <button disabled={busy}>
+              {busy ? 'Saving waste…' : submitted ? 'Retry same waste entry' : 'Approve and save waste'}
+            </button>
+          </form>
+        </Modal>
+      )}
+    </section>
+  );
 }

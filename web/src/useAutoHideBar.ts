@@ -14,7 +14,10 @@ export default function useAutoHideBar(enabled: boolean, menuOpen: boolean) {
     let frame = 0;
     let lastY = Math.max(0, window.scrollY);
     const focused = () => !!barRef.current?.querySelector(':focus-visible');
-    const clear = () => { if (timer !== undefined) clearTimeout(timer); timer = undefined; };
+    const clear = () => {
+      if (timer !== undefined) clearTimeout(timer);
+      timer = undefined;
+    };
     const arm = () => {
       clear();
       if (menuOpen || focused() || window.scrollY <= 12) return;
@@ -22,7 +25,10 @@ export default function useAutoHideBar(enabled: boolean, menuOpen: boolean) {
         if (!menuOpen && !focused() && window.scrollY > 12) setVisible(false);
       }, BAR_HIDE_DELAY);
     };
-    const reveal = () => { setVisible(true); arm(); };
+    const reveal = () => {
+      setVisible(true);
+      arm();
+    };
     wake.current = reveal;
     const readScroll = () => {
       frame = 0;
@@ -30,15 +36,21 @@ export default function useAutoHideBar(enabled: boolean, menuOpen: boolean) {
       if (y <= 12 || menuOpen || focused()) reveal();
       else if (Math.abs(y - lastY) >= 4) {
         if (y < lastY) reveal();
-        else { clear(); setVisible(false); }
+        else {
+          clear();
+          setVisible(false);
+        }
       }
       if (Math.abs(y - lastY) >= 4 || y <= 12) lastY = y;
     };
-    const onScroll = () => { if (!frame) frame = requestAnimationFrame(readScroll); };
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(readScroll);
+    };
     window.addEventListener('scroll', onScroll, { passive: true });
     arm();
     return () => {
-      clear(); cancelAnimationFrame(frame);
+      clear();
+      cancelAnimationFrame(frame);
       window.removeEventListener('scroll', onScroll);
       wake.current = () => {};
     };

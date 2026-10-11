@@ -3,7 +3,14 @@ export function formatAmount(raw, complete = false) {
   if (!/^\d*(?:\.\d*)?$/.test(raw) || !raw) return raw;
   const [whole, fraction] = (complete ? normalizeAmount(raw) : raw).split('.');
   const grouped = (whole || '0').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  return grouped + (complete && /^\d*(?:\.\d{0,2})?$/.test(raw) ? '.' + (fraction ?? '').padEnd(2, '0') : fraction !== undefined ? '.' + fraction : '');
+  return (
+    grouped +
+    (complete && /^\d*(?:\.\d{0,2})?$/.test(raw)
+      ? '.' + (fraction ?? '').padEnd(2, '0')
+      : fraction !== undefined
+        ? '.' + fraction
+        : '')
+  );
 }
 export function amountError(raw, max = 1000000000) {
   if (!raw) return '';

@@ -3,173 +3,281 @@ import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from 'playwright';
 
-const server=spawn(process.execPath,['node_modules/vite/bin/vite.js','preview','--host','127.0.0.1','--port','4173','--strictPort'],{stdio:'inherit'});
+const server = spawn(
+  process.execPath,
+  ['node_modules/vite/bin/vite.js', 'preview', '--host', '127.0.0.1', '--port', '4173', '--strictPort'],
+  { stdio: 'inherit' },
+);
 let browser;
 try {
-  let ready=false;
-  for(let attempt=0;attempt<100;attempt++){
-    try { if((await fetch('http://127.0.0.1:4173')).ok){ready=true;break;} } catch {}
+  let ready = false;
+  for (let attempt = 0; attempt < 100; attempt++) {
+    try {
+      if ((await fetch('http://127.0.0.1:4173')).ok) {
+        ready = true;
+        break;
+      }
+    } catch {}
     await delay(100);
   }
-  assert.ok(ready,'Preview server starts');
-  browser=await chromium.launch({headless:true});
-  const page=await browser.newPage({viewport:{width:1280,height:800}});
+  assert.ok(ready, 'Preview server starts');
+  browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   page.setDefaultTimeout(10000);
   await page.goto('http://127.0.0.1:4173');
-  await page.getByRole('button',{name:'Try locally on this device'}).click();
-  await page.getByRole('button',{name:'Materials',exact:true}).click();
-  const add=page.getByRole('button',{name:'Add material',exact:true});
+  await page.getByRole('button', { name: 'Try locally on this device' }).click();
+  await page.getByRole('button', { name: 'Materials', exact: true }).click();
+  const add = page.getByRole('button', { name: 'Add material', exact: true });
   await add.click();
-  let dialog=page.getByRole('dialog',{name:'Add material',exact:true});
+  let dialog = page.getByRole('dialog', { name: 'Add material', exact: true });
   await dialog.waitFor();
-  const box=await dialog.boundingBox();
-  assert.ok(Math.abs(box.x+box.width/2-640)<3,'Modal centred horizontally');
-  assert.ok(Math.abs(box.y+box.height/2-400)<3,'Modal centred vertically');
-  assert.equal(await page.evaluate(()=>document.body.style.overflow),'hidden');
-  await assert.rejects(page.getByRole('button',{name:'Services',exact:true,includeHidden:true}).click({timeout:400}),'Background interaction is blocked');
-  for(let i=0;i<10;i++){
+  const box = await dialog.boundingBox();
+  assert.ok(Math.abs(box.x + box.width / 2 - 640) < 3, 'Modal centred horizontally');
+  assert.ok(Math.abs(box.y + box.height / 2 - 400) < 3, 'Modal centred vertically');
+  assert.equal(await page.evaluate(() => document.body.style.overflow), 'hidden');
+  await assert.rejects(
+    page.getByRole('button', { name: 'Services', exact: true, includeHidden: true }).click({ timeout: 400 }),
+    'Background interaction is blocked',
+  );
+  for (let i = 0; i < 10; i++) {
     await page.keyboard.press('Tab');
-    assert.ok(await page.evaluate(()=>document.activeElement?.closest('dialog')!==null),'Keyboard stays in modal');
+    assert.ok(
+      await page.evaluate(() => document.activeElement?.closest('dialog') !== null),
+      'Keyboard stays in modal',
+    );
   }
   await page.keyboard.press('Escape');
-  await dialog.waitFor({state:'detached'});
-  assert.equal(await page.evaluate(()=>document.body.style.overflow),'');
-  assert.equal(await add.evaluate(element=>document.activeElement===element),true,'Focus returns to opening button');
+  await dialog.waitFor({ state: 'detached' });
+  assert.equal(await page.evaluate(() => document.body.style.overflow), '');
+  assert.equal(
+    await add.evaluate((element) => document.activeElement === element),
+    true,
+    'Focus returns to opening button',
+  );
   await add.click();
-  await dialog.getByLabel('Name',{exact:true}).fill('Modal test paper');
-  await dialog.getByLabel('Measurement unit',{exact:true}).fill('sheet');
-  await dialog.getByRole('button',{name:'Save material',exact:true}).click();
-  await dialog.waitFor({state:'detached'});
-  await page.getByRole('button',{name:'Add to stock',exact:true}).click();
-  dialog=page.getByRole('dialog',{name:'Add to stock: Modal test paper'});
+  await dialog.getByLabel('Name', { exact: true }).fill('Modal test paper');
+  await dialog.getByLabel('Measurement unit', { exact: true }).fill('sheet');
+  await dialog.getByRole('button', { name: 'Save material', exact: true }).click();
+  await dialog.waitFor({ state: 'detached' });
+  await page.getByRole('button', { name: 'Add to stock', exact: true }).click();
+  dialog = page.getByRole('dialog', { name: 'Add to stock: Modal test paper' });
   await dialog.getByLabel('Quantity to add').fill('25');
-  await dialog.getByRole('button',{name:'Add to stock',exact:true}).click();
-  await dialog.waitFor({state:'detached'});
-  await page.getByRole('button',{name:'Edit',exact:true}).click();
-  await page.getByRole('dialog',{name:'Edit material'}).getByRole('button',{name:'Close',exact:true}).click();
-  await page.getByRole('button',{name:'Archive',exact:true}).click();
-  await page.getByRole('dialog',{name:'Archive Modal test paper?'}).getByRole('button',{name:'Cancel',exact:true}).click();
-  await page.getByRole('button',{name:'Services',exact:true}).click();
-  await page.getByRole('button',{name:'Add service',exact:true}).click();
-  dialog=page.getByRole('dialog',{name:'Add service'});
+  await dialog.getByRole('button', { name: 'Add to stock', exact: true }).click();
+  await dialog.waitFor({ state: 'detached' });
+  await page.getByRole('button', { name: 'Edit', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Edit material' })
+    .getByRole('button', { name: 'Close', exact: true })
+    .click();
+  await page.getByRole('button', { name: 'Archive', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Archive Modal test paper?' })
+    .getByRole('button', { name: 'Cancel', exact: true })
+    .click();
+  await page.getByRole('button', { name: 'Services', exact: true }).click();
+  await page.getByRole('button', { name: 'Add service', exact: true }).click();
+  dialog = page.getByRole('dialog', { name: 'Add service' });
   await dialog.getByLabel('Service description').fill('Modal test printing');
-  await dialog.getByLabel('Base material').selectOption({index:1});
-  const price=dialog.getByLabel('Price (₦)');await price.fill('70000.50');assert.equal(await price.inputValue(),'70,000.50');assert.equal(await dialog.evaluate(el=>new FormData(el.querySelector('form')).get('price')),'70000.50');await price.fill('1.001');assert.equal(await price.inputValue(),'70,000.50','Excess decimals are blocked without rounding');assert.equal(await price.evaluate(el=>el.checkValidity()),true);await price.fill('-10');assert.equal(await price.inputValue(),'70,000.50','Negative entry is blocked');assert.equal(await price.evaluate(el=>el.checkValidity()),true);await price.fill('123456');await price.evaluate(el=>el.setSelectionRange(3,3));await price.press('9');assert.equal(await price.inputValue(),'1,239,456');assert.equal(await price.evaluate(el=>el.selectionStart),5,'Cursor stays beside the inserted digit');await price.press('Backspace');assert.equal(await price.inputValue(),'123,456');await price.evaluate(el=>el.setSelectionRange(4,4));await price.press('Backspace');assert.equal(await price.inputValue(),'123,456');assert.equal(await price.evaluate(el=>el.selectionStart),3,'Deleting a separator keeps the cursor in place');await price.press('Backspace');assert.equal(await price.inputValue(),'12,456');await price.fill('70,000.50');assert.equal(await dialog.evaluate(el=>new FormData(el.querySelector('form')).get('price')),'70000.50','Formatted pasted amount saves exactly');await price.fill('500');await dialog.getByLabel('Service description').focus();assert.equal(await price.inputValue(),'500.00');await price.fill('300');assert.equal(await price.inputValue(),'300','Replacing a formatted value must not append to the old amount');await price.fill('200');
-  await dialog.getByRole('button',{name:'Save service',exact:true}).click();
-  await dialog.waitFor({state:'detached'});
-  await page.getByRole('button',{name:'Edit',exact:true}).click();
-  await page.getByRole('dialog',{name:'Edit service'}).getByRole('button',{name:'Close',exact:true}).click();
-  await page.getByRole('button',{name:'Customers',exact:true}).click();
-  await page.getByRole('button',{name:'Add customer',exact:true}).click();
-  dialog=page.getByRole('dialog',{name:'Add customer'});
+  await dialog.getByLabel('Base material').selectOption({ index: 1 });
+  const price = dialog.getByLabel('Price (₦)');
+  await price.fill('70000.50');
+  assert.equal(await price.inputValue(), '70,000.50');
+  assert.equal(
+    await dialog.evaluate((el) => new FormData(el.querySelector('form')).get('price')),
+    '70000.50',
+  );
+  await price.fill('1.001');
+  assert.equal(await price.inputValue(), '70,000.50', 'Excess decimals are blocked without rounding');
+  assert.equal(await price.evaluate((el) => el.checkValidity()), true);
+  await price.fill('-10');
+  assert.equal(await price.inputValue(), '70,000.50', 'Negative entry is blocked');
+  assert.equal(await price.evaluate((el) => el.checkValidity()), true);
+  await price.fill('123456');
+  await price.evaluate((el) => el.setSelectionRange(3, 3));
+  await price.press('9');
+  assert.equal(await price.inputValue(), '1,239,456');
+  assert.equal(await price.evaluate((el) => el.selectionStart), 5, 'Cursor stays beside the inserted digit');
+  await price.press('Backspace');
+  assert.equal(await price.inputValue(), '123,456');
+  await price.evaluate((el) => el.setSelectionRange(4, 4));
+  await price.press('Backspace');
+  assert.equal(await price.inputValue(), '123,456');
+  assert.equal(
+    await price.evaluate((el) => el.selectionStart),
+    3,
+    'Deleting a separator keeps the cursor in place',
+  );
+  await price.press('Backspace');
+  assert.equal(await price.inputValue(), '12,456');
+  await price.fill('70,000.50');
+  assert.equal(
+    await dialog.evaluate((el) => new FormData(el.querySelector('form')).get('price')),
+    '70000.50',
+    'Formatted pasted amount saves exactly',
+  );
+  await price.fill('500');
+  await dialog.getByLabel('Service description').focus();
+  assert.equal(await price.inputValue(), '500.00');
+  await price.fill('300');
+  assert.equal(
+    await price.inputValue(),
+    '300',
+    'Replacing a formatted value must not append to the old amount',
+  );
+  await price.fill('200');
+  await dialog.getByRole('button', { name: 'Save service', exact: true }).click();
+  await dialog.waitFor({ state: 'detached' });
+  await page.getByRole('button', { name: 'Edit', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Edit service' })
+    .getByRole('button', { name: 'Close', exact: true })
+    .click();
+  await page.getByRole('button', { name: 'Customers', exact: true }).click();
+  await page.getByRole('button', { name: 'Add customer', exact: true }).click();
+  dialog = page.getByRole('dialog', { name: 'Add customer' });
   await dialog.getByLabel('Full name').fill('Modal test customer');
   await dialog.getByLabel('Phone number').fill('08012345678');
   await dialog.getByLabel('Address').fill('15 Market Road');
   await dialog.getByLabel('Credit limit (₦)').fill('500.25');
-  await dialog.getByRole('button',{name:'Save customer',exact:true}).click();
-  await dialog.waitFor({state:'detached'});
-  await page.getByRole('button',{name:'Full name',exact:true}).click();
-  assert.equal(await page.locator('th[aria-sort="descending"]').count(),1);
-  await page.getByRole('button',{name:'Credit limit',exact:true}).click();
-  assert.equal(await page.locator('th[aria-sort="ascending"]').count(),1);
-  await page.getByRole('button',{name:'Edit',exact:true}).click();
-  dialog=page.getByRole('dialog',{name:'Edit customer'});
-  assert.equal(await dialog.getByLabel('Credit limit (₦)').inputValue(),'500.25');
+  await dialog.getByRole('button', { name: 'Save customer', exact: true }).click();
+  await dialog.waitFor({ state: 'detached' });
+  await page.getByRole('button', { name: 'Full name', exact: true }).click();
+  assert.equal(await page.locator('th[aria-sort="descending"]').count(), 1);
+  await page.getByRole('button', { name: 'Credit limit', exact: true }).click();
+  assert.equal(await page.locator('th[aria-sort="ascending"]').count(), 1);
+  await page.getByRole('button', { name: 'Edit', exact: true }).click();
+  dialog = page.getByRole('dialog', { name: 'Edit customer' });
+  assert.equal(await dialog.getByLabel('Credit limit (₦)').inputValue(), '500.25');
   await dialog.getByLabel('Full name').fill('Updated customer');
-  await dialog.getByRole('button',{name:'Save customer',exact:true}).click();
-  await dialog.waitFor({state:'detached'});
-  await page.getByRole('button',{name:'Archive',exact:true}).click();
-  dialog=page.getByRole('dialog');
-  await dialog.getByRole('button',{name:'Archive customer',exact:true}).click();
-  await dialog.waitFor({state:'detached'});
+  await dialog.getByRole('button', { name: 'Save customer', exact: true }).click();
+  await dialog.waitFor({ state: 'detached' });
+  await page.getByRole('button', { name: 'Archive', exact: true }).click();
+  dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: 'Archive customer', exact: true }).click();
+  await dialog.waitFor({ state: 'detached' });
   await page.getByLabel('Customer status').selectOption('archived');
-  await page.getByRole('button',{name:'Restore',exact:true}).click();
-  dialog=page.getByRole('dialog');
-  await dialog.getByRole('button',{name:'Restore customer',exact:true}).click();
-  await dialog.waitFor({state:'detached'});
+  await page.getByRole('button', { name: 'Restore', exact: true }).click();
+  dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: 'Restore customer', exact: true }).click();
+  await dialog.waitFor({ state: 'detached' });
   await page.getByLabel('Customer status').selectOption('active');
-  for(const query of ['Market Road','08012345678','500.25','Local trial user']){
+  for (const query of ['Market Road', '08012345678', '500.25', 'Local trial user']) {
     await page.getByLabel('Search customers').fill(query);
-    assert.equal(await page.locator('tbody tr').count(),1,'Search includes '+query);
+    assert.equal(await page.locator('tbody tr').count(), 1, 'Search includes ' + query);
   }
   await page.getByLabel('Search customers').fill('');
-  await page.getByRole('button',{name:'Audit view',exact:true}).click();
-  assert.equal(await page.locator('thead th').count(),14,'Audit contains normal and audit columns');
-  await page.getByRole('button',{name:'Add customer',exact:true}).click();
-  dialog=page.getByRole('dialog',{name:'Add customer'});
+  await page.getByRole('button', { name: 'Audit view', exact: true }).click();
+  assert.equal(await page.locator('thead th').count(), 14, 'Audit contains normal and audit columns');
+  await page.getByRole('button', { name: 'Add customer', exact: true }).click();
+  dialog = page.getByRole('dialog', { name: 'Add customer' });
   await dialog.getByLabel('Full name').fill('Alpha customer');
   await dialog.getByLabel('Phone number').fill('080999');
   await dialog.getByLabel('Credit limit (₦)').fill('20');
-  await dialog.getByRole('button',{name:'Save customer',exact:true}).click();
-  await dialog.waitFor({state:'detached'});
-  await page.getByRole('button',{name:'Credit limit',exact:true}).click();
-  assert.match(await page.locator('tbody tr').first().innerText(),/Updated customer/,'Numeric descending credit sort');
-  await page.getByRole('button',{name:'Credit limit',exact:true}).click();
-  assert.match(await page.locator('tbody tr').first().innerText(),/Alpha customer/,'Numeric ascending credit sort');
-  await page.getByRole('navigation',{name:'Main'}).getByRole('button',{name:'Jobs',exact:true}).click();
-  await page.getByRole('button',{name:'New job',exact:true}).click();
-  dialog=page.getByRole('dialog',{name:'New checkout'});
-  await dialog.getByRole('combobox',{name:'Customer name or phone'}).fill('Alpha');
-  await dialog.getByRole('listbox',{name:'Customer suggestions'}).getByRole('option').first().click();
-  await dialog.getByLabel('Service',{exact:true}).selectOption({index:1});
+  await dialog.getByRole('button', { name: 'Save customer', exact: true }).click();
+  await dialog.waitFor({ state: 'detached' });
+  await page.getByRole('button', { name: 'Credit limit', exact: true }).click();
+  assert.match(
+    await page.locator('tbody tr').first().innerText(),
+    /Updated customer/,
+    'Numeric descending credit sort',
+  );
+  await page.getByRole('button', { name: 'Credit limit', exact: true }).click();
+  assert.match(
+    await page.locator('tbody tr').first().innerText(),
+    /Alpha customer/,
+    'Numeric ascending credit sort',
+  );
+  await page
+    .getByRole('navigation', { name: 'Main' })
+    .getByRole('button', { name: 'Jobs', exact: true })
+    .click();
+  await page.getByRole('button', { name: 'New job', exact: true }).click();
+  dialog = page.getByRole('dialog', { name: 'New checkout' });
+  await dialog.getByRole('combobox', { name: 'Customer name or phone' }).fill('Alpha');
+  await dialog.getByRole('listbox', { name: 'Customer suggestions' }).getByRole('option').first().click();
+  await dialog.getByLabel('Service', { exact: true }).selectOption({ index: 1 });
   await dialog.getByLabel('Job description').fill('Mobile test job');
   await dialog.getByLabel('Money received (₦)').fill('0');
-  await dialog.getByRole('button',{name:'Complete checkout',exact:true}).click();
-  await dialog.waitFor({state:'detached'});
-  await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click();
-  await page.getByRole('button',{name:'Payments',exact:true}).click();
-  await page.getByRole('button',{name:'Record payment',exact:true}).click();
-  dialog=page.getByRole('dialog',{name:'Receive payment'});
-  await dialog.getByRole('combobox',{name:'Customer name or phone'}).fill('Alpha');
-  await dialog.getByRole('listbox',{name:'Customer suggestions'}).getByRole('option').first().click();
+  await dialog.getByRole('button', { name: 'Complete checkout', exact: true }).click();
+  await dialog.waitFor({ state: 'detached' });
+  await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
+  await page.getByRole('button', { name: 'Payments', exact: true }).click();
+  await page.getByRole('button', { name: 'Record payment', exact: true }).click();
+  dialog = page.getByRole('dialog', { name: 'Receive payment' });
+  await dialog.getByRole('combobox', { name: 'Customer name or phone' }).fill('Alpha');
+  await dialog.getByRole('listbox', { name: 'Customer suggestions' }).getByRole('option').first().click();
   await dialog.getByLabel('Money received (₦)').fill('20');
-  await dialog.getByRole('button',{name:'Complete checkout',exact:true}).click();
-  await dialog.waitFor({state:'detached'});
-  await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click();
-  await page.getByRole('button',{name:'Stock History',exact:true}).click();
-  await page.getByRole('button',{name:'Details',exact:true}).first().click();
-  await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click();
-  await page.setViewportSize({width:375,height:667});
-  const openMenu=async()=>{await page.evaluate(()=>window.scrollTo(0,0));await delay(250);await page.getByRole('button',{name:'Menu',exact:true}).click();};
+  await dialog.getByRole('button', { name: 'Complete checkout', exact: true }).click();
+  await dialog.waitFor({ state: 'detached' });
+  await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
+  await page.getByRole('button', { name: 'Stock History', exact: true }).click();
+  await page.getByRole('button', { name: 'Details', exact: true }).first().click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
+  await page.setViewportSize({ width: 375, height: 667 });
+  const openMenu = async () => {
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await delay(250);
+    await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  };
   await openMenu();
-  await page.getByRole('button',{name:'Materials',exact:true}).click();
+  await page.getByRole('button', { name: 'Materials', exact: true }).click();
   await add.click();
-  dialog=page.getByRole('dialog',{name:'Add material',exact:true});
-  const mobileBox=await dialog.boundingBox();
-  assert.ok(mobileBox.x>=0&&mobileBox.width<=375&&mobileBox.y>=0&&mobileBox.height<=667,'Modal fits small screen');
-  await dialog.getByRole('button',{name:'Close',exact:true}).click();
-  assert.equal(await page.getByRole('navigation',{name:'Main'}).count(),0,'Mobile sidebar is closed');
+  dialog = page.getByRole('dialog', { name: 'Add material', exact: true });
+  const mobileBox = await dialog.boundingBox();
+  assert.ok(
+    mobileBox.x >= 0 && mobileBox.width <= 375 && mobileBox.y >= 0 && mobileBox.height <= 667,
+    'Modal fits small screen',
+  );
+  await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+  assert.equal(await page.getByRole('navigation', { name: 'Main' }).count(), 0, 'Mobile sidebar is closed');
   await openMenu();
-  await page.getByRole('dialog',{name:'Navigation'}).waitFor();
-  await page.getByRole('dialog',{name:'Navigation'}).getByRole('button',{name:'Menu',exact:true}).click();
-  await page.getByRole('dialog',{name:'Navigation'}).waitFor({state:'detached'});
-  for(const width of [320,390,740]) {
-    await page.setViewportSize({width,height:844});
-    for(const name of ['Materials','Services','Customers','Stock History','Jobs','Payments']) {
+  await page.getByRole('dialog', { name: 'Navigation' }).waitFor();
+  await page
+    .getByRole('dialog', { name: 'Navigation' })
+    .getByRole('button', { name: 'Menu', exact: true })
+    .click();
+  await page.getByRole('dialog', { name: 'Navigation' }).waitFor({ state: 'detached' });
+  for (const width of [320, 390, 740]) {
+    await page.setViewportSize({ width, height: 844 });
+    for (const name of ['Materials', 'Services', 'Customers', 'Stock History', 'Jobs', 'Payments']) {
       await openMenu();
-      await page.getByRole('button',{name,exact:true}).click();
+      await page.getByRole('button', { name, exact: true }).click();
       await page.locator('.mobile-list').waitFor();
-      assert.ok(await page.locator('.mobile-list thead th').count()<=3,name+' has at most three columns');
-      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),name+' fits '+width+'px');
-      await page.getByLabel('Sort list by').selectOption({index:0});
-      await page.getByRole('button',{name:'Reverse sort direction'}).click();
+      assert.ok(
+        (await page.locator('.mobile-list thead th').count()) <= 3,
+        name + ' has at most three columns',
+      );
+      assert.ok(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+        name + ' fits ' + width + 'px',
+      );
+      await page.getByLabel('Sort list by').selectOption({ index: 0 });
+      await page.getByRole('button', { name: 'Reverse sort direction' }).click();
     }
   }
   await openMenu();
-  await page.getByRole('button',{name:'Materials',exact:true}).click();
-  assert.match(await page.locator('.mobile-list').innerText(),/ID:.*MAT-/s);
-  assert.match(await page.locator('.mobile-list').innerText(),/Unit:.*sheet/s);
-  await page.getByRole('button',{name:'More',exact:true}).click();
-  await page.getByRole('dialog',{name:'More actions'}).getByRole('button',{name:'Add to stock',exact:true}).click();
-  await page.getByRole('dialog',{name:'Add to stock: Modal test paper'}).waitFor();
-  assert.equal(await page.getByRole('dialog',{name:'More actions'}).count(),0,'Action menu closes before editor');
+  await page.getByRole('button', { name: 'Materials', exact: true }).click();
+  assert.match(await page.locator('.mobile-list').innerText(), /ID:.*MAT-/s);
+  assert.match(await page.locator('.mobile-list').innerText(), /Unit:.*sheet/s);
+  await page.getByRole('button', { name: 'More', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'More actions' })
+    .getByRole('button', { name: 'Add to stock', exact: true })
+    .click();
+  await page.getByRole('dialog', { name: 'Add to stock: Modal test paper' }).waitFor();
+  assert.equal(
+    await page.getByRole('dialog', { name: 'More actions' }).count(),
+    0,
+    'Action menu closes before editor',
+  );
   await page.keyboard.press('Escape');
-  await page.setViewportSize({width:1280,height:800});
-  await page.getByRole('navigation',{name:'Main'}).waitFor();
-  assert.ok(await page.locator('thead th').count()>3,'Desktop table is restored');
-  console.log('Modal browser checks passed: centred placement, blocked background, keyboard focus, Escape, focus restoration, save/close, all editors, and mobile layout.');
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.getByRole('navigation', { name: 'Main' }).waitFor();
+  assert.ok((await page.locator('thead th').count()) > 3, 'Desktop table is restored');
+  console.log(
+    'Modal browser checks passed: centred placement, blocked background, keyboard focus, Escape, focus restoration, save/close, all editors, and mobile layout.',
+  );
 } finally {
   await browser?.close();
   server.kill('SIGTERM');
 }
-

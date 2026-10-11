@@ -1,37 +1,492 @@
-export interface Customer { id: string; name: string; phone: string; address: string; creditLimit: number; archived: boolean; version: number; createdAt: string; createdBy: string | null; createdByLabel: string; modifiedBy: string | null; modifiedByLabel: string; modifiedAt: string; lastEventId: string | null }
-export interface CustomerCommand { id: string; name?: string; phone?: string; address?: string; creditLimit?: number; createdAt?: string; baseVersion?: number; modifiedBy?: string; modifiedByLabel?: string; modifiedAt?: string }
-export type CustomerEvent = { id: string; kind: 'customer.created' | 'customer.updated' | 'customer.archived' | 'customer.restored'; data: CustomerCommand };
-export interface Job { workflow?:string[]; id: string; customerId: string; service: string; description: string; amount: number; createdAt: string; checkoutId?: string; checkoutPosition?: number; serviceId?: string; materialId?: string | null; quantity?: number; width?: number | null; height?: number | null; source?: string; sourceNote?: string; unitPrice?:number; materialNeeded?:number; measurementUnit?:string; requireSize?:boolean; serviceVersion?:number; productionStatus?: string; version?: number; modifiedBy?:string|null; modifiedByLabel?:string|null; modifiedAt?:string|null; lastEventId?:string|null }
-export interface Allocation { jobId: string; amount: number }
-export interface Payment { refundId?:string; methodLabel?:string; id: string; customerId: string; amount: number; method: 'Cash' | 'POS' | 'Transfer'; paidOn: string; reference: string; allocations: Allocation[]; createdAt: string; walletUsed?: number; walletAdded?: number; checkoutId?: string }
-export interface Material { minimumStock?: number; id: string; name: string; available: number; measurementUnit: string; requireSize: boolean; archived: boolean; version: number; createdBy: string; createdByLabel: string; createdAt: string; modifiedBy: string; modifiedByLabel: string; modifiedAt: string; lastEventId: string }
-export interface MaterialCommand { minimumStock?: number; id: string; name?: string; available?: number; measurementUnit?: string; requireSize?: boolean; baseVersion?: number; quantity?: number; reason?: string; modifiedBy: string; modifiedByLabel: string; modifiedAt: string }
-export type MaterialEvent = { id: string; kind: 'material.created' | 'material.updated' | 'material.archived' | 'material.restored' | 'material.stock_added' | 'material.stock_set'; data: MaterialCommand };
-export interface MaterialSnapshot { minimumStock?: number; name?: string; available?: number; measurementUnit?: string; requireSize?: boolean; archived?: boolean }
-export interface MaterialHistoryEntry { id: string; materialId: string; materialName: string; measurementUnit: string; action: MaterialEvent['kind'] | 'material.job_used' | 'material.expense_stock_changed' | 'material.wasted' | 'material.sale_returned' | 'material.job_corrected'; expenseId?:string; jobId?:string; checkoutId?:string; beforeAvailable: number | null; afterAvailable: number; reason: string; changedBy: string; changedByLabel: string; changedAt: string; before: MaterialSnapshot | null; after: MaterialSnapshot; detailsComplete: boolean }
-export interface Service { id: string; description: string; materialId: string | null; price: number; archived: boolean; version: number; createdBy: string; createdByLabel: string; createdAt: string; modifiedBy: string; modifiedByLabel: string; modifiedAt: string; lastEventId: string }
-export interface ServiceCommand { id: string; description?: string; materialId?: string | null; price?: number; baseVersion?: number; modifiedBy: string; modifiedByLabel: string; modifiedAt: string }
-export type ServiceEvent = { id: string; kind: 'service.created' | 'service.updated' | 'service.archived' | 'service.restored'; data: ServiceCommand };
-export interface CheckoutJob extends Job { stockCountEventId?:string|null; materialId:string|null; materialNeeded:number; serviceId:string; unitPrice:number; measurementUnit:string; requireSize:boolean; serviceVersion:number }
-export interface CheckoutRecord {corrected?:boolean; countedMaterialJobs?:string[]; methodLabel?:string; drawerClosingId?:string|null;id:string;customerId:string;newCustomer:CustomerEvent|null;customerSnapshot:{id:string;name:string;phone:string;address:string};jobBalances:{id:string;description:string;service:string;amount:number;paidBefore:number;paidThisCheckout:number;outstandingAfter:number}[];jobs:CheckoutJob[];expectedAccount:string;cashReceived:number;useWallet:boolean;override:Allocation[]|null;method:string;paidOn:string;reference:string;createdBy:string;createdByLabel:string;createdAt:string;total:number;allocations:Allocation[];allocated:number;walletUsed:number;walletAdded:number;walletAfter:number;outstandingBefore:number;outstandingAfter:number }
-export type CheckoutEvent={id:string;kind:'checkout.completed';data:CheckoutRecord};
-export type JobStatusEvent={id:string;kind:'job.status_changed';data:{id:string;baseVersion:number;status:string;modifiedBy:string;modifiedByLabel:string;modifiedAt:string}};
-export interface DrawerClosing {cashCorrection?:number;refundIds?:string[];cashRefunded?:number;totalRefunded?:number;id:string;fromUserId:string;fromUserLabel:string;toUserId:string;toUserLabel:string;closedAt:string;checkoutIds:string[];openingId:string|null;openingCash:number;cashCollected:number;totalCollected:number;posCollected:number;transferCollected:number;walletUsed:number;jobSales:number;expectedCash:number;countedCash:number;difference:number;note:string}
-export interface DrawerCommand {id:string;currentPassword:string;nextUsername:string;nextPassword:string;countedCash:number;checkoutIds:string[];refundIds?:string[];openingId:string|null;note:string}
-export interface Ledger { saleAdjustments:SaleAdjustment[];materialWaste:MaterialWaste[]; expenses:Expense[];expenseHistory:ExpenseHistoryEntry[]; drawerClosings:DrawerClosing[];checkouts:CheckoutRecord[]; services: Service[]; materialHistory: MaterialHistoryEntry[]; materials: Material[]; customers: Customer[]; jobs: Job[]; payments: Payment[] }
-export type LedgerEvent = SupervisedEvent | ExpenseEvent | CheckoutEvent | JobStatusEvent | CustomerEvent | { id: string; kind: 'job.created'; data: Job } | { id: string; kind: 'payment.recorded'; data: Payment } | MaterialEvent | ServiceEvent;
-export interface LocalState { syncConflicts?:Record<string,string>; ledger: Ledger; pending: LedgerEvent[]; lastSynced?: string }
+export interface Customer {
+  id: string;
+  name: string;
+  phone: string;
+  address: string;
+  creditLimit: number;
+  archived: boolean;
+  version: number;
+  createdAt: string;
+  createdBy: string | null;
+  createdByLabel: string;
+  modifiedBy: string | null;
+  modifiedByLabel: string;
+  modifiedAt: string;
+  lastEventId: string | null;
+}
+export interface CustomerCommand {
+  id: string;
+  name?: string;
+  phone?: string;
+  address?: string;
+  creditLimit?: number;
+  createdAt?: string;
+  baseVersion?: number;
+  modifiedBy?: string;
+  modifiedByLabel?: string;
+  modifiedAt?: string;
+}
+export type CustomerEvent = {
+  id: string;
+  kind: 'customer.created' | 'customer.updated' | 'customer.archived' | 'customer.restored';
+  data: CustomerCommand;
+};
+export interface Job {
+  workflow?: string[];
+  id: string;
+  customerId: string;
+  service: string;
+  description: string;
+  amount: number;
+  createdAt: string;
+  checkoutId?: string;
+  checkoutPosition?: number;
+  serviceId?: string;
+  materialId?: string | null;
+  quantity?: number;
+  width?: number | null;
+  height?: number | null;
+  source?: string;
+  sourceNote?: string;
+  unitPrice?: number;
+  materialNeeded?: number;
+  measurementUnit?: string;
+  requireSize?: boolean;
+  serviceVersion?: number;
+  productionStatus?: string;
+  version?: number;
+  modifiedBy?: string | null;
+  modifiedByLabel?: string | null;
+  modifiedAt?: string | null;
+  lastEventId?: string | null;
+}
+export interface Allocation {
+  jobId: string;
+  amount: number;
+}
+export interface Payment {
+  refundId?: string;
+  methodLabel?: string;
+  id: string;
+  customerId: string;
+  amount: number;
+  method: 'Cash' | 'POS' | 'Transfer';
+  paidOn: string;
+  reference: string;
+  allocations: Allocation[];
+  createdAt: string;
+  walletUsed?: number;
+  walletAdded?: number;
+  checkoutId?: string;
+}
+export interface Material {
+  minimumStock?: number;
+  id: string;
+  name: string;
+  available: number;
+  measurementUnit: string;
+  requireSize: boolean;
+  archived: boolean;
+  version: number;
+  createdBy: string;
+  createdByLabel: string;
+  createdAt: string;
+  modifiedBy: string;
+  modifiedByLabel: string;
+  modifiedAt: string;
+  lastEventId: string;
+}
+export interface MaterialCommand {
+  minimumStock?: number;
+  id: string;
+  name?: string;
+  available?: number;
+  measurementUnit?: string;
+  requireSize?: boolean;
+  baseVersion?: number;
+  quantity?: number;
+  reason?: string;
+  modifiedBy: string;
+  modifiedByLabel: string;
+  modifiedAt: string;
+}
+export type MaterialEvent = {
+  id: string;
+  kind:
+    | 'material.created'
+    | 'material.updated'
+    | 'material.archived'
+    | 'material.restored'
+    | 'material.stock_added'
+    | 'material.stock_set';
+  data: MaterialCommand;
+};
+export interface MaterialSnapshot {
+  minimumStock?: number;
+  name?: string;
+  available?: number;
+  measurementUnit?: string;
+  requireSize?: boolean;
+  archived?: boolean;
+}
+export interface MaterialHistoryEntry {
+  id: string;
+  materialId: string;
+  materialName: string;
+  measurementUnit: string;
+  action:
+    | MaterialEvent['kind']
+    | 'material.job_used'
+    | 'material.expense_stock_changed'
+    | 'material.wasted'
+    | 'material.sale_returned'
+    | 'material.job_corrected';
+  expenseId?: string;
+  jobId?: string;
+  checkoutId?: string;
+  beforeAvailable: number | null;
+  afterAvailable: number;
+  reason: string;
+  changedBy: string;
+  changedByLabel: string;
+  changedAt: string;
+  before: MaterialSnapshot | null;
+  after: MaterialSnapshot;
+  detailsComplete: boolean;
+}
+export interface Service {
+  id: string;
+  description: string;
+  materialId: string | null;
+  price: number;
+  archived: boolean;
+  version: number;
+  createdBy: string;
+  createdByLabel: string;
+  createdAt: string;
+  modifiedBy: string;
+  modifiedByLabel: string;
+  modifiedAt: string;
+  lastEventId: string;
+}
+export interface ServiceCommand {
+  id: string;
+  description?: string;
+  materialId?: string | null;
+  price?: number;
+  baseVersion?: number;
+  modifiedBy: string;
+  modifiedByLabel: string;
+  modifiedAt: string;
+}
+export type ServiceEvent = {
+  id: string;
+  kind: 'service.created' | 'service.updated' | 'service.archived' | 'service.restored';
+  data: ServiceCommand;
+};
+export interface CheckoutJob extends Job {
+  stockCountEventId?: string | null;
+  materialId: string | null;
+  materialNeeded: number;
+  serviceId: string;
+  unitPrice: number;
+  measurementUnit: string;
+  requireSize: boolean;
+  serviceVersion: number;
+}
+export interface CheckoutRecord {
+  corrected?: boolean;
+  countedMaterialJobs?: string[];
+  methodLabel?: string;
+  drawerClosingId?: string | null;
+  id: string;
+  customerId: string;
+  newCustomer: CustomerEvent | null;
+  customerSnapshot: { id: string; name: string; phone: string; address: string };
+  jobBalances: {
+    id: string;
+    description: string;
+    service: string;
+    amount: number;
+    paidBefore: number;
+    paidThisCheckout: number;
+    outstandingAfter: number;
+  }[];
+  jobs: CheckoutJob[];
+  expectedAccount: string;
+  cashReceived: number;
+  useWallet: boolean;
+  override: Allocation[] | null;
+  method: string;
+  paidOn: string;
+  reference: string;
+  createdBy: string;
+  createdByLabel: string;
+  createdAt: string;
+  total: number;
+  allocations: Allocation[];
+  allocated: number;
+  walletUsed: number;
+  walletAdded: number;
+  walletAfter: number;
+  outstandingBefore: number;
+  outstandingAfter: number;
+}
+export type CheckoutEvent = { id: string; kind: 'checkout.completed'; data: CheckoutRecord };
+export type JobStatusEvent = {
+  id: string;
+  kind: 'job.status_changed';
+  data: {
+    id: string;
+    baseVersion: number;
+    status: string;
+    modifiedBy: string;
+    modifiedByLabel: string;
+    modifiedAt: string;
+  };
+};
+export interface DrawerClosing {
+  cashCorrection?: number;
+  refundIds?: string[];
+  cashRefunded?: number;
+  totalRefunded?: number;
+  id: string;
+  fromUserId: string;
+  fromUserLabel: string;
+  toUserId: string;
+  toUserLabel: string;
+  closedAt: string;
+  checkoutIds: string[];
+  openingId: string | null;
+  openingCash: number;
+  cashCollected: number;
+  totalCollected: number;
+  posCollected: number;
+  transferCollected: number;
+  walletUsed: number;
+  jobSales: number;
+  expectedCash: number;
+  countedCash: number;
+  difference: number;
+  note: string;
+}
+export interface DrawerCommand {
+  id: string;
+  currentPassword: string;
+  nextUsername: string;
+  nextPassword: string;
+  countedCash: number;
+  checkoutIds: string[];
+  refundIds?: string[];
+  openingId: string | null;
+  note: string;
+}
+export interface Ledger {
+  saleAdjustments: SaleAdjustment[];
+  materialWaste: MaterialWaste[];
+  expenses: Expense[];
+  expenseHistory: ExpenseHistoryEntry[];
+  drawerClosings: DrawerClosing[];
+  checkouts: CheckoutRecord[];
+  services: Service[];
+  materialHistory: MaterialHistoryEntry[];
+  materials: Material[];
+  customers: Customer[];
+  jobs: Job[];
+  payments: Payment[];
+}
+export type LedgerEvent =
+  | SupervisedEvent
+  | ExpenseEvent
+  | CheckoutEvent
+  | JobStatusEvent
+  | CustomerEvent
+  | { id: string; kind: 'job.created'; data: Job }
+  | { id: string; kind: 'payment.recorded'; data: Payment }
+  | MaterialEvent
+  | ServiceEvent;
+export interface LocalState {
+  syncConflicts?: Record<string, string>;
+  ledger: Ledger;
+  pending: LedgerEvent[];
+  lastSynced?: string;
+}
 
+export interface ExpenseMaterial {
+  materialId: string;
+  name: string;
+  measurementUnit: string;
+  quantity: number;
+}
+export interface ExpensePayment {
+  methodLabel?: string;
+  id: string;
+  amount: number;
+  paidOn: string;
+  method: string;
+  source: string;
+  reference: string;
+  createdBy?: string;
+  createdByLabel?: string;
+  createdAt?: string;
+}
+export interface Expense {
+  id: string;
+  description: string;
+  category: string;
+  incurredOn: string;
+  amount: number;
+  payee: string;
+  note: string;
+  receiptReference: string;
+  materials: ExpenseMaterial[];
+  payments: ExpensePayment[];
+  voided: boolean;
+  voidReason: string;
+  version: number;
+  createdBy: string;
+  createdByLabel: string;
+  createdAt: string;
+  modifiedBy: string;
+  modifiedByLabel: string;
+  modifiedAt: string;
+  lastEventId: string;
+}
+export interface ExpenseCommand {
+  id: string;
+  baseVersion?: number;
+  description?: string;
+  category?: string;
+  incurredOn?: string;
+  amount?: number;
+  payee?: string;
+  note?: string;
+  receiptReference?: string;
+  materials?: ExpenseMaterial[];
+  payment?: ExpensePayment;
+  reason?: string;
+  stockIds: Record<string, string>;
+  modifiedBy: string;
+  modifiedByLabel: string;
+  modifiedAt: string;
+}
+export type ExpenseEvent = {
+  id: string;
+  kind: 'expense.created' | 'expense.updated' | 'expense.payment_recorded' | 'expense.voided';
+  data: ExpenseCommand;
+};
+export interface ExpenseHistoryEntry {
+  id: string;
+  expenseId: string;
+  action: ExpenseEvent['kind'];
+  before: Expense | null;
+  after: Expense;
+  changedBy: string;
+  changedByLabel: string;
+  changedAt: string;
+  event: ExpenseEvent;
+}
 
-export interface ExpenseMaterial { materialId:string;name:string;measurementUnit:string;quantity:number }
-export interface ExpensePayment {methodLabel?:string;id:string;amount:number;paidOn:string;method:string;source:string;reference:string;createdBy?:string;createdByLabel?:string;createdAt?:string}
-export interface Expense { id:string;description:string;category:string;incurredOn:string;amount:number;payee:string;note:string;receiptReference:string;materials:ExpenseMaterial[];payments:ExpensePayment[];voided:boolean;voidReason:string;version:number;createdBy:string;createdByLabel:string;createdAt:string;modifiedBy:string;modifiedByLabel:string;modifiedAt:string;lastEventId:string }
-export interface ExpenseCommand { id:string;baseVersion?:number;description?:string;category?:string;incurredOn?:string;amount?:number;payee?:string;note?:string;receiptReference?:string;materials?:ExpenseMaterial[];payment?:ExpensePayment;reason?:string;stockIds:Record<string,string>;modifiedBy:string;modifiedByLabel:string;modifiedAt:string }
-export type ExpenseEvent={id:string;kind:'expense.created'|'expense.updated'|'expense.payment_recorded'|'expense.voided';data:ExpenseCommand};
-export interface ExpenseHistoryEntry {id:string;expenseId:string;action:ExpenseEvent['kind'];before:Expense|null;after:Expense;changedBy:string;changedByLabel:string;changedAt:string;event:ExpenseEvent}
-
-export interface SupervisedCommand {detailsId?:string;paymentEdits?:{eventId:string;paymentId:string;expectedPayment:unknown;paymentAmount:number;method:string;methodLabel:string;reference:string}[];serviceId?:string;serviceVersion?:number;unitPrice?:number;width?:number|null;height?:number|null;stockMode?:string;stockIds?:Record<string,string>;materialVersions?:Record<string,number>;paymentId?:string;expectedPayment?:unknown;paymentAmount?:number;reference?:string;id?:string;jobId?:string;materialId?:string;baseVersion:number;expectedAccount?:string;description?:string;amount?:number;refundAmount?:number;method?:string;methodLabel?:string;paidOn?:string;returnQuantity?:number;materialVersion?:number;stockEventId?:string;quantity?:number;category?:string;reason:string;modifiedBy:string;modifiedByLabel:string;modifiedAt:string}
-export type SupervisedEvent={id:string;kind:'sale.combined_corrected'|'sale.details_corrected'|'payment.corrected'|'sale.corrected'|'sale.cancelled'|'sale.refunded'|'material.wasted';data:SupervisedCommand};
-export interface SaleAdjustment {groupId?:string;childIds?:string[];affectedJobIds?:string[];stockChanges?:{materialId:string;delta:number}[];stockMode?:string;cashDelta?:number;methodDeltas?:Record<string,number>;drawerActor?:string|null;historicalClosingId?:string|null;paymentId?:string|null;id:string;jobId:string;customerId:string;action:string;reason:string;changedBy:string;changedByLabel:string;changedAt:string;before:Job;after:Job;creditReleased:number;refundAmount:number;method?:string;methodLabel?:string;paidOn?:string;returnQuantity:number;paymentChanges:{before:Payment;after:Payment}[];event:SupervisedEvent;drawerClosingId?:string|null}
-export interface MaterialWaste {id:string;materialId:string;materialName:string;measurementUnit:string;quantity:number;category:string;jobId:string|null;reason:string;changedBy:string;changedByLabel:string;changedAt:string;beforeAvailable:number;afterAvailable:number;event:SupervisedEvent}
-
+export interface SupervisedCommand {
+  detailsId?: string;
+  paymentEdits?: {
+    eventId: string;
+    paymentId: string;
+    expectedPayment: unknown;
+    paymentAmount: number;
+    method: string;
+    methodLabel: string;
+    reference: string;
+  }[];
+  serviceId?: string;
+  serviceVersion?: number;
+  unitPrice?: number;
+  width?: number | null;
+  height?: number | null;
+  stockMode?: string;
+  stockIds?: Record<string, string>;
+  materialVersions?: Record<string, number>;
+  paymentId?: string;
+  expectedPayment?: unknown;
+  paymentAmount?: number;
+  reference?: string;
+  id?: string;
+  jobId?: string;
+  materialId?: string;
+  baseVersion: number;
+  expectedAccount?: string;
+  description?: string;
+  amount?: number;
+  refundAmount?: number;
+  method?: string;
+  methodLabel?: string;
+  paidOn?: string;
+  returnQuantity?: number;
+  materialVersion?: number;
+  stockEventId?: string;
+  quantity?: number;
+  category?: string;
+  reason: string;
+  modifiedBy: string;
+  modifiedByLabel: string;
+  modifiedAt: string;
+}
+export type SupervisedEvent = {
+  id: string;
+  kind:
+    | 'sale.combined_corrected'
+    | 'sale.details_corrected'
+    | 'payment.corrected'
+    | 'sale.corrected'
+    | 'sale.cancelled'
+    | 'sale.refunded'
+    | 'material.wasted';
+  data: SupervisedCommand;
+};
+export interface SaleAdjustment {
+  groupId?: string;
+  childIds?: string[];
+  affectedJobIds?: string[];
+  stockChanges?: { materialId: string; delta: number }[];
+  stockMode?: string;
+  cashDelta?: number;
+  methodDeltas?: Record<string, number>;
+  drawerActor?: string | null;
+  historicalClosingId?: string | null;
+  paymentId?: string | null;
+  id: string;
+  jobId: string;
+  customerId: string;
+  action: string;
+  reason: string;
+  changedBy: string;
+  changedByLabel: string;
+  changedAt: string;
+  before: Job;
+  after: Job;
+  creditReleased: number;
+  refundAmount: number;
+  method?: string;
+  methodLabel?: string;
+  paidOn?: string;
+  returnQuantity: number;
+  paymentChanges: { before: Payment; after: Payment }[];
+  event: SupervisedEvent;
+  drawerClosingId?: string | null;
+}
+export interface MaterialWaste {
+  id: string;
+  materialId: string;
+  materialName: string;
+  measurementUnit: string;
+  quantity: number;
+  category: string;
+  jobId: string | null;
+  reason: string;
+  changedBy: string;
+  changedByLabel: string;
+  changedAt: string;
+  beforeAvailable: number;
+  afterAvailable: number;
+  event: SupervisedEvent;
+}
