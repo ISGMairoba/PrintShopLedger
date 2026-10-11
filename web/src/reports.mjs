@@ -1,6 +1,6 @@
 import {jobBalance,customerBalance} from './domain.mjs';
 import {walletBalance} from './checkout.mjs';
-import {businessDay,validRange} from './dashboard.mjs';
+import {businessDay,validRange,dashboardSummary} from './dashboard.mjs';
 import {paymentName} from './business-options.mjs';
 import {adjustmentLabels} from './sale-adjustments.mjs';
 import {customerCode} from './customers.mjs';
@@ -174,3 +174,82 @@ export function sectionsToCsv(titleLines,sections){
 }
 
 export const reportFileName=(...parts)=>parts.filter(Boolean).join(' - ').replace(/[\\/:*?"<>|\x00-\x1f]/g,'').replace(/\s+/g,' ').trim().slice(0,150);
+
+const AGE_BUCKETS=[['0 to 30 days',0,30],['31 to 60 days',31,60],['61 to 90 days',61,90],['Over 90 days',91,Infinity]];
+const daysBetween=(from,to)=>Math.round((Date.parse(to+'T12:00:00Z')-Date.parse(from+'T12:00:00Z'))/86400000);
+
+/**
+ * Business summary for a period, built on the Dashboard's calculations so both always agree.
+ * access: {jobs, payments, expenses, stock, customers}; sections the user cannot see are left out.
+ * today: the Lagos business day used for the age of amounts owed.
+ */
+export function summaryReport(ledger,from,to,access={jobs:true,payments:true,expenses:true,stock:true,customers:true},{compare=false,today=businessDay(new Date().toISOString())}={}){
+ const base=dashboardSummary(ledger,from,to);
+ const prev=compare?dashboardSummary(ledger,base.previous.from,base.previous.to):null;
+ const figures=[];
+ const add=(key,label,value,note,previous)=>figures.push({key,label,value,note,previous:prev?previous:null});
+ if(access.jobs){add('sales','Sales value',base.sales,`${base.jobs} jobs, ${base.cancelled} cancelled`,prev?.sales);}
+ if(access.payments){add('collected','Money received',base.collected,'Customer payments dated in the period',prev?.collected);add('refunded','Refunds paid',base.refunded,'Money returned to customers',prev?.refunded);add('netCollected','Net collected',base.netCollected,'Received minus refunds',prev?.netCollected);}
+ if(access.expenses){add('expenseIncurred','Expenses incurred',base.expenseIncurred,'Expenses dated in the period; voided excluded',prev?.expenseIncurred);add('expensePaid','Expenses paid',base.expensePaid,'Expense payments made in the period',prev?.expensePaid);}
+ if(access.jobs&&access.expenses)add('netIncome','Income minus expenses',base.netIncome,'Sales value minus expenses incurred',prev?.netIncome);
+ if(access.payments&&access.expenses)add('netCashFlow','Money in minus money out',base.netCashFlow,'Net collected minus expenses paid; not a bank balance',prev?.netCashFlow);
+ const result={from,to,today,compare,previous:prev?{from:base.previous.from,to:base.previous.to}:null,figures,access};
+ if(access.payments)result.methods=base.methods;
+ if(access.expenses){
+  const map=new Map();
+  for(const e of ledger.expenses)if(!e.voided&&inRange(e.incurredOn,from,to)){const row=map.get(e.category)??{name:e.category,count:0,amount:0,paid:0};row.count++;row.amount+=e.amount;row.paid+=(e.payments??[]).reduce((n,p)=>n+p.amount,0);map.set(e.category,row);}
+  result.expenseCategories=[...map.values()].sort((a,b)=>b.amount-a.amount||a.name.localeCompare(b.name));
+  result.expenseOutstanding=base.expenseOutstanding;
+ }
+ if(access.jobs&&access.payments){
+  // Age of money owed now, by when each job was created.
+  const buckets=AGE_BUCKETS.map(([label])=>({label,jobs:0,amount:0}));
+  const debtors=new Map();
+  for(const job of ledger.jobs){
+   const owed=jobBalance(ledger,job).outstanding;if(owed<=0)continue;
+   const age=Math.max(0,daysBetween(businessDay(job.createdAt),today));
+   const i=AGE_BUCKETS.findIndex(([,lo,hi])=>age>=lo&&age<=hi);buckets[i].jobs++;buckets[i].amount+=owed;
+   const d=debtors.get(job.customerId)??{id:job.customerId,name:access.customers?(ledger.customers.find(c=>c.id===job.customerId)?.name??'Unknown customer'):'Customer '+shortId(job.customerId),jobs:0,amount:0,oldest:age};
+   d.jobs++;d.amount+=owed;d.oldest=Math.max(d.oldest,age);debtors.set(job.customerId,d);
+  }
+  result.aging=buckets;result.owedTotal=buckets.reduce((n,b)=>n+b.amount,0);
+  result.debtors=[...debtors.values()].sort((a,b)=>b.amount-a.amount||a.name.localeCompare(b.name)).slice(0,10);
+ }
+ if(access.jobs){
+  const rank=rows=>[...rows].sort((a,b)=>b.sales-a.sales||a.name.localeCompare(b.name)).slice(0,10);
+  result.services=rank(base.services);result.sources=rank(base.sources);
+  if(access.customers)result.customers=rank(base.customers);
+ }
+ if(access.stock){
+  const usage=new Map(ledger.materials.filter(m=>!m.archived).map(m=>[m.id,{id:m.id,name:m.name,unit:m.measurementUnit,used:0,wasted:0,added:0,now:m.available,minimum:m.minimumStock??0,level:''}]));
+  for(const h of ledger.materialHistory){if(!inRange(h.changedAt,from,to))continue;const row=usage.get(h.materialId);if(!row)continue;
+   const delta=(h.afterAvailable??0)-(h.beforeAvailable??0);
+   if(h.action==='material.job_used'||h.action==='material.job_corrected'||h.action==='material.sale_returned')row.used-=delta;
+   else if(h.action==='material.wasted')row.wasted-=delta;
+   else if(delta>0)row.added+=delta;}
+  const round=n=>Math.round(n*1000)/1000;
+  result.materials=[...usage.values()].map(r=>({...r,used:round(r.used),wasted:round(r.wasted),added:round(r.added),level:r.now<=r.minimum&&r.minimum>0||r.now<0?'Critical':r.minimum>0&&r.now<=r.minimum*1.2?'Near minimum':'OK'}))
+   .filter(r=>r.used||r.wasted||r.added||r.level!=='OK').sort((a,b)=>b.used-a.used||a.name.localeCompare(b.name));
+ }
+ return result;
+}
+
+const change=(value,previous)=>previous===0?(value===0?'No change':'New'):`${value>=previous?'+':''}${((value-previous)/Math.abs(previous)*100).toFixed(1)}%`;
+export function summarySections(summary,{money=naira,unit=' (NGN)'}={}){
+ const sections=[];
+ const p=summary.previous;
+ sections.push(p?{title:'Financial summary',columns:['Figure',`This period${unit}`,`Previous period${unit}`,'Change','Notes'],widths:[16,11,11,8,26],numeric:[1,2,3],rows:summary.figures.map(f=>[f.label,money(f.value),money(f.previous??0),change(f.value,f.previous??0),f.note])}
+  :{title:'Financial summary',columns:['Figure',`Amount${unit}`,'Notes'],widths:[16,12,30],numeric:[1],rows:summary.figures.map(f=>[f.label,money(f.value),f.note])});
+ if(summary.methods)sections.push({title:'Collections by payment method',columns:['Method',`Net collected${unit}`],widths:[3,2],numeric:[1],rows:summary.methods.map(m=>[m.name,money(m.amount)])});
+ if(summary.expenseCategories)sections.push({title:'Expenses by category',columns:['Category','Expenses',`Amount${unit}`,`Paid${unit}`,`Unpaid${unit}`],widths:[4,2,3,3,3],numeric:[1,2,3,4],rows:summary.expenseCategories.map(c=>[c.name,String(c.count),money(c.amount),money(c.paid),money(c.amount-c.paid)])});
+ if(summary.aging){
+  sections.push({title:`Amounts owed by age (as of ${summary.today})`,columns:['Age','Jobs',`Amount owed${unit}`],widths:[3,2,3],numeric:[1,2],rows:[...summary.aging.map(b=>[b.label,String(b.jobs),money(b.amount)]),['Total',String(summary.aging.reduce((n,b)=>n+b.jobs,0)),money(summary.owedTotal)]]});
+  sections.push({title:'Customers owing the most',columns:['Customer','Jobs owing',`Amount owed${unit}`,'Oldest (days)'],widths:[5,2,3,2],numeric:[1,2,3],rows:summary.debtors.map(d=>[d.name,String(d.jobs),money(d.amount),String(d.oldest)])});
+ }
+ const top=(title,rows)=>({title,columns:['Name','Jobs','Quantity',`Sales${unit}`],widths:[6,2,2,3],numeric:[1,2,3],rows:rows.map(r=>[r.name,String(r.jobs),String(r.quantity),money(r.sales)])});
+ if(summary.services)sections.push(top('Top services',summary.services));
+ if(summary.customers)sections.push(top('Top customers',summary.customers));
+ if(summary.sources)sections.push(top('How jobs came in',summary.sources));
+ if(summary.materials)sections.push({title:'Materials used and stock',columns:['Material','Unit','Used on jobs','Wasted','Added','In stock now','Minimum','Status'],widths:[6,3,2.5,2,2,2.5,2,3],numeric:[2,3,4,5,6],rows:summary.materials.map(m=>[m.name,m.unit,String(m.used),String(m.wasted),String(m.added),String(m.now),String(m.minimum),m.level])});
+ return sections;
+}
