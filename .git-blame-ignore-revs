@@ -1,0 +1,2 @@
+# Whole-codebase formatting with Biome; skip in git blame (git config blame.ignoreRevsFile .git-blame-ignore-revs)
+050e54e708c8492283b8eb35ccf11af6300218eb
