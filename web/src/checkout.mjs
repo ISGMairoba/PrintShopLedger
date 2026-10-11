@@ -412,6 +412,9 @@ export function applyJobStatus(ledger, event) {
  * Why a customer added offline with a checkout can no longer be created against the current
  * ledger (for example, its phone number now belongs to another customer), or null if it can.
  * The owner is the existing customer with the same phone number, when there is one.
+ * @param {import('./types').Ledger} ledger
+ * @param {import('./types').CustomerEvent | null} event
+ * @returns {{ message: string, owner: import('./types').Customer | null } | null}
  */
 export function offlineCustomerClash(ledger, event) {
   if (!event || ledger.customers.some((c) => c.id === event.data.id)) return null;

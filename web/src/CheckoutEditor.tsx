@@ -109,9 +109,7 @@ export default function CheckoutEditor({
     return { event, clash: offlineCustomerClash(ledger, event) };
   });
   const clash = offlineCustomer.clash;
-  const [customerId, setCustomerId] = useState(
-    clash ? '' : (initialCheckout?.customerId ?? initialCustomer),
-  );
+  const [customerId, setCustomerId] = useState(clash ? '' : (initialCheckout?.customerId ?? initialCustomer));
   const [query, setQuery] = useState(
     clash
       ? ''
@@ -122,9 +120,7 @@ export default function CheckoutEditor({
   const [suggest, setSuggest] = useState(false),
     [active, setActive] = useState(0),
     [addingCustomer, setAddingCustomer] = useState(false);
-  const [newCustomer, setNewCustomer] = useState<CustomerEvent | null>(
-    clash ? null : offlineCustomer.event,
-  );
+  const [newCustomer, setNewCustomer] = useState<CustomerEvent | null>(clash ? null : offlineCustomer.event);
   const [cashOverride, setCashOverride] = useState<string | null>(
     initialCheckout ? (initialCheckout.cashReceived / 100).toFixed(2) : null,
   );
@@ -549,10 +545,7 @@ export default function CheckoutEditor({
                   different phone number.
                 </p>
                 {clash.owner && !clash.owner.archived && (
-                  <button
-                    type="button"
-                    onClick={() => choose(clash.owner!.id, clash.owner!.name)}
-                  >
+                  <button type="button" onClick={() => choose(clash.owner!.id, clash.owner!.name)}>
                     Use {clash.owner.name}
                   </button>
                 )}
