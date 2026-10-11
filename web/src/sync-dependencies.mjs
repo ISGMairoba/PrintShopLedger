@@ -121,6 +121,21 @@ export function projectPending(cloud, state) {
 // Replace the old local receipt with the remotely committed receipt before projecting later holds.
 export function acknowledgeReviews(state, cloud, reviews) {
   const resolved = new Set(reviews.map((item) => item.event_id));
+  // Keeping the business status for a job also settles the stage changes this device queued
+  // after it offline: they were based on the same outdated job and would each be held for
+  // review in turn. Status changes based on the current job version are still sent.
+  const keptJobs = new Set(
+    reviews
+      .filter((item) => item.source.kind === 'job.status_changed' && !item.replacements?.length)
+      .map((item) => item.source.data.id),
+  );
+  for (const event of state.pending)
+    if (
+      event.kind === 'job.status_changed' &&
+      keptJobs.has(event.data.id) &&
+      (event.data.baseVersion ?? 0) < (cloud.jobs.find((job) => job.id === event.data.id)?.version ?? 1)
+    )
+      resolved.add(event.id);
   let ledger = normalizeLedger(state.ledger);
   const affected = new Set();
   const receiptIds = new Set(),
