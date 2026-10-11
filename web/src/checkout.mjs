@@ -1,3 +1,4 @@
+import { validDueAt } from './job-deadlines.mjs';
 import { validateWorkflow, jobWorkflow } from './business-options.mjs';
 import { applyCustomerEvent, phoneOwner } from './customers.mjs';
 import { jobBalance, customerBalance } from './domain.mjs';
@@ -53,8 +54,12 @@ export function quoteLine(ledger, line) {
     String(line.sourceNote ?? '').length > 200
   )
     throw Error('Choose how the job was received.');
+  // An empty deadline is left off the job rather than stored as ''.
+  const { dueAt: rawDue, ...rest } = line;
+  const dueAt = validDueAt(rawDue);
   return {
-    ...line,
+    ...rest,
+    ...(dueAt ? { dueAt } : {}),
     stockCountEventId: material ? stockCountEvent(ledger, material.id) : null,
     ...(line.workflow ? { workflow: validateWorkflow(line.workflow) } : {}),
     description: line.description.trim(),

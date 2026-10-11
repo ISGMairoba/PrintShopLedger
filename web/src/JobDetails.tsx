@@ -1,10 +1,21 @@
 import Modal from './Modal';
+import { deadlineState } from './job-deadlines.mjs';
 import JobActions, { type ProgressMode } from './JobActions';
 import { AdjustmentHistory } from './SaleAdjustmentsPage';
 import { paymentName } from './business-options.mjs';
 import { jobBalance } from './domain.mjs';
 import { currency, dateLabel, shortId } from './app/shared';
 import type { Job, Ledger } from './types';
+
+const lagosTime = (value: string) =>
+  new Date(value).toLocaleString('en-NG', {
+    timeZone: 'Africa/Lagos',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 
 type Props = {
   job: Job;
@@ -49,6 +60,19 @@ export default function JobDetails({
       <p>
         {customerName(job.customerId)} · {job.service}
       </p>
+      <p className="muted">
+        Added by {job.createdByLabel || 'Not recorded'} on {lagosTime(job.createdAt)}
+        {job.modifiedAt && job.modifiedAt !== job.createdAt
+          ? ` · Last changed by ${job.modifiedByLabel || 'Not recorded'} on ${lagosTime(job.modifiedAt)}`
+          : ''}
+      </p>
+      {job.dueAt && !Number.isNaN(Date.parse(job.dueAt)) && (
+        <p className={`deadline deadline-${deadlineState(job)}`}>
+          Deadline: {lagosTime(job.dueAt)}
+          {deadlineState(job) === 'overdue' && <span className="badge unpaid">Overdue</span>}
+          {deadlineState(job) === 'soon' && <span className="badge partial">Due soon</span>}
+        </p>
+      )}
       <div className="detail-summary">
         <span>
           Job amount <strong>{currency(job.amount)}</strong>

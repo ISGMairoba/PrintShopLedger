@@ -1,3 +1,4 @@
+import PeriodFilter from './PeriodFilter';
 import { stockLevel } from './material-display.mjs';
 import { useMemo, useState } from 'react';
 import DashboardBreakdowns from './DashboardBreakdowns';
@@ -59,45 +60,13 @@ export default function DashboardPage({
   return (
     <div className="dashboard">
       <section className="panel dashboard-filters">
-        <label>
-          Period
-          <select
-            value={preset}
-            onChange={(e) => {
-              const value = e.target.value;
-              setPreset(value);
-              if (value !== 'custom') setRange(dashboardRange(value));
-            }}
-          >
-            <option value="today">Today</option>
-            <option value="week">Last 7 days</option>
-            <option value="month">This month</option>
-            <option value="30days">Last 30 days</option>
-            <option value="custom">Custom dates</option>
-          </select>
-        </label>
-        <label>
-          From
-          <input
-            type="date"
-            value={range.from}
-            onChange={(e) => {
-              setPreset('custom');
-              setRange({ ...range, from: e.target.value });
-            }}
-          />
-        </label>
-        <label>
-          To
-          <input
-            type="date"
-            value={range.to}
-            onChange={(e) => {
-              setPreset('custom');
-              setRange({ ...range, to: e.target.value });
-            }}
-          />
-        </label>
+        <PeriodFilter
+          value={{ preset, ...range }}
+          onChange={(next) => {
+            setPreset(next.preset);
+            setRange({ from: next.from, to: next.to });
+          }}
+        />
         <small>Dates use Africa/Lagos.</small>
       </section>
       {!online || pending > 0 ? (

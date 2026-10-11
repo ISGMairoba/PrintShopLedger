@@ -5,6 +5,7 @@ import JobActions, { type ProgressMode } from './JobActions';
 import { jobBalance } from './domain.mjs';
 import { currency } from './receipts.mjs';
 import { lastJobPayment } from './job-progress.mjs';
+import { deadlineState } from './job-deadlines.mjs';
 import type { Ledger, Job } from './types';
 const date = (value: string) =>
   new Date(value).toLocaleDateString('en-NG', {
@@ -25,6 +26,7 @@ export default function JobTable({
   sorting,
   busy,
   pointOfService = false,
+  audit = false,
   onJob,
   onAction,
 }: {
@@ -33,6 +35,8 @@ export default function JobTable({
   sorting: ReturnType<typeof useTableSort<Job>>;
   busy: boolean;
   pointOfService?: boolean;
+  /** Show who added and last changed each job. */
+  audit?: boolean;
   onJob: (id: string) => void;
   onAction: (job: Job, mode: ProgressMode) => void;
 }) {
@@ -41,9 +45,9 @@ export default function JobTable({
       columns={[
         { index: 0, label: 'Job', details: [1, 3, 4] },
         { index: 2, label: 'Amount' },
-        { index: 5, label: 'Actions', actions: true },
+        { index: -1, label: 'Actions', actions: true },
       ]}
-      labels={{ 1: 'Customer', 3: 'Progress', 4: 'Date' }}
+      labels={{ 1: 'Customer', 3: 'Progress', 4: 'Date', 5: 'Added by', 6: 'Last changed' }}
       extraSortOptions={[
         { key: 'description', label: 'Description' },
         { key: 'id', label: 'Job ID' },
@@ -51,6 +55,7 @@ export default function JobTable({
         { key: 'outstanding', label: 'Outstanding' },
         { key: 'lastPayment', label: 'Last payment' },
         { key: 'source', label: 'Source' },
+        { key: 'dueAt', label: 'Deadline' },
       ]}
     >
       <table className="jobs-table">
@@ -61,6 +66,12 @@ export default function JobTable({
             <SortHeader label="Amount" column="amount" sort={sorting} />
             <SortHeader label="Status / progress" column="status" sort={sorting} />
             <SortHeader label="Date" column="createdAt" sort={sorting} />
+            {audit && (
+              <>
+                <SortHeader label="Added by" column="createdBy" sort={sorting} />
+                <SortHeader label="Last changed" column="modifiedAt" sort={sorting} />
+              </>
+            )}
             <th>Actions</th>
           </tr>
         </thead>
@@ -122,7 +133,32 @@ export default function JobTable({
                   {date(job.createdAt)}
                   <small>{time(job.createdAt)}</small>
                   {!pointOfService && <small>Last payment: {lastPaid ? date(lastPaid) : 'None'}</small>}
+                  {job.dueAt && !Number.isNaN(Date.parse(job.dueAt)) && (
+                    <small className={`deadline deadline-${deadlineState(job)}`}>
+                      Due {date(job.dueAt)}, {time(job.dueAt)}
+                      {deadlineState(job) === 'overdue' && <span className="badge unpaid">Overdue</span>}
+                      {deadlineState(job) === 'soon' && <span className="badge partial">Due soon</span>}
+                    </small>
+                  )}
                 </td>
+                {audit && (
+                  <>
+                    <td>
+                      {job.createdByLabel || 'Not recorded'}
+                      <small>
+                        {date(job.createdAt)}, {time(job.createdAt)}
+                      </small>
+                    </td>
+                    <td>
+                      {job.modifiedByLabel || job.createdByLabel || 'Not recorded'}
+                      {job.modifiedAt && (
+                        <small>
+                          {date(job.modifiedAt)}, {time(job.modifiedAt)}
+                        </small>
+                      )}
+                    </td>
+                  </>
+                )}
                 <td>
                   <JobActions job={job} busy={busy} onAction={onAction} />
                 </td>

@@ -12,6 +12,7 @@ export function sampleReceipt(now = new Date().toISOString()) {
       width: 2,
       height: 1,
       source: 'WhatsApp',
+      dueAt: new Date(Date.parse(now) + 2 * 86400000).toISOString(),
       createdAt: now,
     },
     {

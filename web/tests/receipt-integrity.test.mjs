@@ -136,6 +136,7 @@ test('Each business chooses what its receipt shows and which line leads each job
     showQuantity: false,
     showSize: false,
     showSource: false,
+    showDueDate: false,
     showPaidBefore: false,
     showPaidNow: false,
     showItemBalance: false,

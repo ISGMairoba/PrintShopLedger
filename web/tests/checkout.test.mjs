@@ -249,3 +249,13 @@ test('offline customer whose phone was taken elsewhere is reported, not applied'
   // Already synchronised: nothing to create.
   assert.equal(offlineCustomerClash(apply(cloud, other), other), null);
 });
+
+test('a job deadline is kept on the job; an empty one is left off', () => {
+  const ledger = fixture();
+  const due = quoteLine(ledger, { ...job(), dueAt: '2026-10-14T09:00:00.000Z' });
+  assert.equal(due.dueAt, '2026-10-14T09:00:00.000Z');
+  assert.ok(!('dueAt' in quoteLine(ledger, { ...job(), dueAt: '' })));
+  assert.throws(() => quoteLine(ledger, { ...job(), dueAt: 'tomorrow' }), /valid deadline/);
+  const event = checkout(ledger, [{ ...job(), dueAt: '2026-10-14T09:00:00.000Z' }], 10000);
+  assert.equal(applyCheckout(ledger, event).jobs.at(-1).dueAt, '2026-10-14T09:00:00.000Z');
+});

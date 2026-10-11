@@ -9,6 +9,7 @@ export const receiptContentDefaults = () => ({
   showQuantity: true,
   showSize: true,
   showSource: true,
+  showDueDate: true,
   showPaidBefore: true,
   showPaidNow: true,
   showItemBalance: true,
@@ -19,6 +20,12 @@ export const receiptContentDefaults = () => ({
   showWalletMovements: true,
   showAccountBalances: true,
   showNote: true,
+});
+// Jobs and checkout. defaultDuration: how long a new job is given before it is due (0 = no deadline
+// unless one is entered). paymentPrefill: what the payment amount box starts with at checkout.
+export const jobSettingsDefaults = () => ({
+  defaultDuration: { value: 0, unit: 'days' },
+  paymentPrefill: 'suggested',
 });
 export const defaultBackgrounds = () => ({
   light: { canvas: '', surface: '', surfaceAlt: '' },
@@ -38,9 +45,11 @@ export const defaultBranding = () => ({
   backgrounds: defaultBackgrounds(),
   options: defaultOptions(),
   corrections: { recentDays: 7 },
+  jobs: jobSettingsDefaults(),
   pageAccess: defaultPageAccess(),
   receipt: {
     showLogo: true,
+    showBusinessName: true,
     showAddress: true,
     showContacts: true,
     footer: 'Thank you for your business.',
@@ -84,7 +93,8 @@ export function validateBranding(input) {
     if (!/^#[0-9a-f]{6}$/i.test(value[key])) throw Error('Choose valid brand colors.');
   if (!['light', 'dark', 'system'].includes(value.theme)) throw Error('Choose Light, Dark or System.');
   value.backgrounds = validateBackgrounds(value.backgrounds);
-  for (const key of ['showLogo', 'showAddress', 'showContacts'])
+  if (value.receipt && value.receipt.showBusinessName === undefined) value.receipt.showBusinessName = true;
+  for (const key of ['showLogo', 'showBusinessName', 'showAddress', 'showContacts'])
     if (typeof value.receipt?.[key] !== 'boolean') throw Error('Invalid receipt options.');
   if (typeof value.receipt.footer !== 'string' || value.receipt.footer.length > 500)
     throw Error('Receipt footer must be up to 500 characters.');
@@ -104,6 +114,7 @@ export function validateBranding(input) {
   value.documents = { watermark: value.documents.watermark };
   value.options = validateOptions(value.options);
   value.pageAccess = validatePageAccess(value.pageAccess);
+  value.jobs = validateJobSettings(value.jobs);
   value.corrections ??= { recentDays: 7 };
   if (
     !Number.isInteger(value.corrections.recentDays) ||
@@ -242,6 +253,24 @@ export function themeVariables(settings, mode) {
     '--line': c.line,
     '--control-line': c.controlLine,
     '--brand-link': c.link,
+  };
+}
+export function validateJobSettings(input) {
+  const value = { ...jobSettingsDefaults(), ...input };
+  const duration = value.defaultDuration;
+  if (
+    !duration ||
+    !Number.isInteger(duration.value) ||
+    duration.value < 0 ||
+    !['hours', 'days'].includes(duration.unit) ||
+    duration.value > (duration.unit === 'hours' ? 720 : 365)
+  )
+    throw Error('Default job duration must be 0–720 hours or 0–365 days.');
+  if (!['suggested', 'zero'].includes(value.paymentPrefill))
+    throw Error('Choose how the payment amount is filled in.');
+  return {
+    defaultDuration: { value: duration.value, unit: duration.unit },
+    paymentPrefill: value.paymentPrefill,
   };
 }
 export function receiptBusiness(input) {

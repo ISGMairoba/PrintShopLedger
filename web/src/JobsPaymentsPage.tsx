@@ -7,6 +7,9 @@ import { paymentName } from './business-options.mjs';
 import { jobBalance } from './domain.mjs';
 import { lastJobPayment } from './job-progress.mjs';
 import { currency, dateLabel, shortId } from './app/shared';
+import { useState } from 'react';
+import PeriodFilter, { allDates } from './PeriodFilter';
+import { inPeriod } from './dashboard.mjs';
 import type { CheckoutRecord, Job, Ledger, Payment } from './types';
 
 type Props = {
@@ -49,13 +52,17 @@ export default function JobsPaymentsPage({
   const customerName = (id: string) =>
     ledger.customers.find((customer) => customer.id === id)?.name ?? 'Unknown customer';
   const search = query.toLowerCase();
+  const [period, setPeriod] = useState(allDates);
+  const [audit, setAudit] = useState(false);
   const jobSorting = useTableSort<Job>('createdAt', 'desc');
   const paymentSorting = useTableSort<Payment>('createdAt', 'desc');
   const matchingJobs = jobSorting.sortRows(
-    ledger.jobs.filter((job) =>
-      `${job.description} ${job.service} ${customerName(job.customerId)} ${ledger.customers.find((c) => c.id === job.customerId)?.phone ?? ''} ${job.productionStatus ?? 'Added'} ${job.id}`
-        .toLowerCase()
-        .includes(search),
+    ledger.jobs.filter(
+      (job) =>
+        inPeriod(job.createdAt, period) &&
+        `${job.createdByLabel ?? ''} ${job.modifiedByLabel ?? ''} ${job.description} ${job.service} ${customerName(job.customerId)} ${ledger.customers.find((c) => c.id === job.customerId)?.phone ?? ''} ${job.productionStatus ?? 'Added'} ${job.id}`
+          .toLowerCase()
+          .includes(search),
     ),
     {
       createdAt: (job) => Date.parse(job.createdAt),
@@ -69,13 +76,18 @@ export default function JobsPaymentsPage({
       status: (job) => job.productionStatus ?? 'Added',
       lastPayment: (job) => Date.parse(lastJobPayment(ledger, job) ?? '') || 0,
       source: (job) => job.source ?? '',
+      dueAt: (job) => Date.parse(job.dueAt ?? '') || Number.MAX_SAFE_INTEGER,
+      createdBy: (job) => job.createdByLabel ?? '',
+      modifiedAt: (job) => Date.parse(job.modifiedAt ?? job.createdAt),
     },
   );
   const matchingPayments = paymentSorting.sortRows(
-    ledger.payments.filter((payment) =>
-      `${payment.id} ${customerName(payment.customerId)} ${payment.reference} ${paymentName(payment)}`
-        .toLowerCase()
-        .includes(search),
+    ledger.payments.filter(
+      (payment) =>
+        inPeriod(payment.paidOn, period) &&
+        `${payment.id} ${customerName(payment.customerId)} ${payment.reference} ${paymentName(payment)}`
+          .toLowerCase()
+          .includes(search),
     ),
     {
       createdAt: (payment) => Date.parse(payment.createdAt),
@@ -133,6 +145,9 @@ export default function JobsPaymentsPage({
                   <option value="outstanding">Outstanding</option>
                   <option value="status">Job stage</option>
                   <option value="lastPayment">Last payment date</option>
+                  <option value="dueAt">Deadline</option>
+                  <option value="createdBy">Added by</option>
+                  <option value="modifiedAt">Last changed</option>
                 </>
               ) : (
                 <>
@@ -164,6 +179,12 @@ export default function JobsPaymentsPage({
             value={query}
             onChange={(e) => onQuery(e.target.value)}
           />
+          <PeriodFilter value={period} onChange={setPeriod} allowAll />
+          {page === 'Jobs' && (
+            <button className="secondary" aria-pressed={audit} onClick={() => setAudit(!audit)}>
+              <Icon name={audit ? 'table' : 'audit'} /> {audit ? 'Normal view' : 'Audit view'}
+            </button>
+          )}
           <button
             disabled={!ready || busy || legacyConflict || (page === 'Payments' && !ledger.customers.length)}
             onClick={onCreate}
@@ -189,6 +210,7 @@ export default function JobsPaymentsPage({
                   jobs={matchingJobs}
                   sorting={jobSorting}
                   busy={busy || legacyConflict}
+                  audit={audit}
                   onJob={onJob}
                   onAction={onAction}
                 />
