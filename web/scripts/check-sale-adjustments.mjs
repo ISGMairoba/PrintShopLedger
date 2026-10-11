@@ -1,50 +1,460 @@
 import assert from 'node:assert/strict';
-import {spawn} from 'node:child_process';
-import {setTimeout as delay} from 'node:timers/promises';
-import {chromium,webkit} from 'playwright';
-import {emptyLedger,applyEvent} from '../src/domain.mjs';
-import {prepareCheckout,walletBalance} from '../src/checkout.mjs';
-import {drawerSnapshot} from '../src/my-sales.mjs';
-const server=spawn(process.execPath,['node_modules/vite/bin/vite.js','preview','--host','127.0.0.1','--port','4196','--strictPort'],{stdio:'inherit'});
-const uuid=n=>`00000000-0000-4000-8000-${String(n).padStart(12,'0')}`,actor={id:uuid(1),label:'Admin'},shop=uuid(2),customer=uuid(3),material=uuid(4),service=uuid(5),now=new Date().toISOString();
-function base(){let ledger=emptyLedger();for(const [kind,data] of [['customer',{id:customer,name:'Adjustment customer',phone:'0801',address:'Road',creditLimit:0}],['material',{id:material,name:'Paper',available:10,measurementUnit:'sheet',requireSize:false}],['service',{id:service,description:'Printing',materialId:material,price:10000}]])ledger=applyEvent(ledger,{id:crypto.randomUUID(),kind:kind+'.created',data:{...data,modifiedBy:actor.id,modifiedByLabel:actor.label,modifiedAt:now}});ledger.materials.push({...ledger.materials[0],id:uuid(8),name:'Vinyl'});ledger=applyEvent(ledger,prepareCheckout(ledger,{customerId:customer,lines:[{id:uuid(6),serviceId:service,description:'Original sale',quantity:2,source:'WhatsApp'}],cashReceived:20000,useWallet:false,method:'Cash',paidOn:now.slice(0,10)},actor,uuid(7),now));ledger.jobs.push({...ledger.jobs[0],id:uuid(9),description:'Vinyl job',service:'Vinyl printing',materialId:uuid(8),checkoutId:undefined},{...ledger.jobs[0],id:uuid(10),description:'Design only',service:'Design',materialId:null,checkoutId:undefined});return ledger;}
-const user={id:actor.id,aud:'authenticated',role:'authenticated',email:'adjustments@example.invalid',user_metadata:{},app_metadata:{provider:'email'},created_at:now},token=[{alg:'HS256',typ:'JWT'},{sub:actor.id,role:'authenticated',exp:Math.floor(Date.now()/1000)+3600},'c2lnbmF0dXJl'].map(x=>typeof x==='string'?x:Buffer.from(JSON.stringify(x)).toString('base64url')).join('.');
-try{
- for(let i=0;i<100;i++){try{if((await fetch('http://127.0.0.1:4196')).ok)break;}catch{}await delay(100);}
- for(const engine of [chromium,webkit]){const browser=await engine.launch();try{for(const mobile of [false,true]){
-  const context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1280,height:900},serviceWorkers:'block'});let cloud=base(),writes=[],cashier=false,stale=false;const errors=[];
-  await context.route('https://*.supabase.co/**',async route=>{const path=new URL(route.request().url()).pathname;let result={},status=200;
-   if(path==='/auth/v1/token')result={access_token:token,token_type:'bearer',expires_in:3600,refresh_token:'mock',user};
-   else if(path==='/auth/v1/user')result=user;
-   else if(path==='/auth/v1/logout')result={};
-   else if(path.endsWith('/list_business_shops'))result=[{id:shop,name:'Adjustment business'}];
-   else if(path.endsWith('/list_my_shops'))result=[{id:shop,name:'Adjustment business',userId:actor.id,role:cashier?'cashier':'admin',rank:cashier?1:2,accessLevel:cashier?1:2,username:cashier?'cashier':'admin',staffName:cashier?'Cashier':'Admin'}];
-   else if(path.endsWith('/business_settings'))result=[];
-   else if(path.endsWith('/get_ledger'))result=cloud;
-   else if(path.endsWith('/apply_supervised_event')){const event=route.request().postDataJSON().p_event;writes.push(event);if(cashier){status=403;result={message:'Admin approval required'};}else if(stale){status=409;result={code:'PT409',message:'The job or customer account changed. Sync and reopen the adjustment.'};stale=false;}else{try{cloud=applyEvent(cloud,event);result=cloud;}catch(e){status=409;result={code:'PT409',message:e.message};}}}
-   else throw Error('Unexpected adjustments request '+path);
-   await route.fulfill({status,contentType:'application/json',body:JSON.stringify(result)});
-  });
-  const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));await page.goto('http://127.0.0.1:4196');await page.getByLabel('Business email').fill(user.email);await page.getByLabel('Business password').fill('mock-password');await page.getByRole('button',{name:'Sign in',exact:true}).click();await page.getByRole('heading',{name:'Point of Service',exact:true}).waitFor();await page.getByRole('button',{name:'Printing',exact:true}).waitFor();
-  const nav=async name=>{if(mobile){await page.evaluate(()=>scrollTo(0,0));await page.getByRole('button',{name:'Menu',exact:true}).click();}await page.getByRole('navigation',{name:'Main'}).getByRole('button',{name,exact:true}).click();};
-  const dismiss=async()=>{const popup=page.locator('.feedback-viewport button');if(await popup.count())await popup.first().click();};
-  await nav('Sale Adjustments');await page.getByLabel('Job to adjust').fill(uuid(6));await page.getByRole('option').first().click();await page.getByRole('button',{name:'Adjust selected sale'}).click();let d=page.getByRole('dialog',{name:'Adjust sale'});await d.getByLabel('Corrected charge (₦)').fill('150');await d.getByLabel('Corrected description').fill('Corrected sale');await d.getByLabel('Reason',{exact:true}).fill('Agreed discount');await d.getByRole('checkbox').check();await d.getByRole('button',{name:'Approve and save adjustment'}).click();await d.waitFor({state:'detached'});assert.equal(cloud.jobs[0].amount,15000);assert.equal(walletBalance(cloud,customer),5000);await page.getByRole('group',{name:'Success notification'}).waitFor();await dismiss();
-  await page.getByRole('button',{name:'Adjust selected sale'}).click();d=page.getByRole('dialog');await d.getByLabel('Adjustment type').selectOption('sale.refunded');await d.getByLabel('Money returned (₦)').fill('60');await d.getByLabel('Reason',{exact:true}).fill('Invalid excess refund');await d.getByRole('checkbox').check();await d.getByRole('button',{name:'Approve and save adjustment'}).click();assert.equal(await d.getByLabel('Money returned (₦)').evaluate(el=>el.checkValidity()),false);assert.equal(writes.length,1,'Invalid refund did not reach API');await d.getByLabel('Money returned (₦)').fill('40');await d.getByRole('button',{name:'Approve and save adjustment'}).click();await d.waitFor({state:'detached'});assert.equal(walletBalance(cloud,customer),1000);assert.equal(drawerSnapshot(cloud,actor.id).expectedCash,16000);await dismiss();
-  await page.getByRole('button',{name:'Adjust selected sale'}).click();d=page.getByRole('dialog');await d.getByLabel('Adjustment type').selectOption('sale.cancelled');await d.getByLabel('Usable material returned (sheet)').fill('1');await d.getByLabel('Reason',{exact:true}).fill('Customer cancelled; one sheet reusable');await d.getByRole('checkbox').check();await d.getByRole('button',{name:'Approve and save adjustment'}).click();await d.waitFor({state:'detached'});assert.equal(cloud.jobs[0].productionStatus,'Cancelled');assert.equal(cloud.materials[0].available,9);assert.equal(cloud.checkouts[0].jobs[0].amount,20000);assert.equal(walletBalance(cloud,customer),16000);await dismiss();
-  await nav('Jobs');await page.getByRole('button',{name:'Printing',exact:true}).click();d=page.getByRole('dialog');assert.equal(await d.getByRole('button',{name:'Mark as Complete',exact:true}).isDisabled(),true);assert.match(await d.innerText(),/Sale cancelled/);await d.getByRole('button',{name:'Close',exact:true}).click();
-  await nav('Point of Service');await page.getByRole('button',{name:'Receipts',exact:true}).click();await page.getByRole('button',{name:'Receipt',exact:true}).click();d=page.getByRole('dialog');assert.match(await d.locator('.receipt-sheet').innerText(),/Original receipt/);assert.match(await d.locator('.receipt-sheet').innerText(),/Later adjustments/);const downloadPromise=page.waitForEvent('download');await d.getByRole('button',{name:'Download PDF (A4)',exact:true}).click();const download=await downloadPromise;assert.match(download.suggestedFilename(),/^Receipt-.*\.pdf$/);await dismiss();await d.getByRole('button',{name:'Close',exact:true}).click();
-  await nav('My Sales');await page.getByRole('button',{name:'Close drawer',exact:true}).click();d=page.getByRole('dialog');assert.match(await d.innerText(),/Cash refunded/);assert.match(await d.innerText(),/₦160\.00/);await d.getByRole('button',{name:'Close',exact:true}).click();
-  await nav('Material Waste');await page.getByRole('button',{name:'Record material waste'}).click();d=page.getByRole('dialog');assert.equal(await d.getByLabel('Related job (optional)').locator('option').count(),3);await d.getByLabel('Related job (optional)').selectOption(uuid(9));assert.equal(await d.getByLabel('Material',{exact:true}).inputValue(),uuid(8));await d.getByLabel('Material',{exact:true}).selectOption(material);assert.equal(await d.getByLabel('Related job (optional)').inputValue(),'');assert.equal(await d.getByLabel('Related job (optional)').locator('option').count(),2);await d.getByLabel('Type',{exact:true}).selectOption('Reprint');await d.getByLabel('Additional quantity used (sheet)').fill('10');await d.getByLabel('Related job (optional)').selectOption(uuid(6));await d.getByLabel('Reason',{exact:true}).fill('Extra spoiled reprint');assert.equal(await d.getByRole('checkbox').count(),0);assert.match(await d.innerText(),/Enter extra material used/);assert.match(await d.innerText(),/below zero/);await d.getByRole('button',{name:'Approve and save waste'}).click();await d.waitFor({state:'detached'});assert.equal(cloud.materials[0].available,-1);assert.equal(cloud.materialWaste.length,1);await page.getByRole('group',{name:'Warning notification'}).waitFor();await dismiss();
-  await nav('Stock History');assert.match(await page.locator('main').innerText(),/Waste \/ damage \/ reprint/);assert.match(await page.locator('main').innerText(),/Cancelled sale: stock returned/);
-  await context.setOffline(true);await nav('Material Waste');assert.equal(await page.getByRole('button',{name:'Record material waste'}).isDisabled(),true);await context.setOffline(false);
-  await nav('Sale Adjustments');await page.getByLabel('Job to adjust').fill(uuid(6));await page.getByRole('option').first().click();await page.getByRole('button',{name:'Adjust selected sale'}).click();d=page.getByRole('dialog');await d.getByLabel('Money returned (₦)').fill('10');await d.getByLabel('Reason',{exact:true}).fill('Stale request');await d.getByRole('checkbox').check();stale=true;await d.getByRole('button',{name:'Approve and save adjustment'}).click();await d.getByRole('alert').waitFor();assert.match(await d.innerText(),/changed/);assert.equal(await d.getByLabel('Money returned (₦)').isDisabled(),true,'Failed submitted request is fixed for safe retry');await dismiss();await d.getByRole('button',{name:'Close',exact:true}).click();
-  cloud=base();cloud.jobs=cloud.jobs.filter(j=>j.id===uuid(6));await page.reload();await page.getByRole('heading',{name:'Point of Service',exact:true}).waitFor();
-  await nav('Sale Adjustments');await page.getByLabel('Job to adjust').fill(uuid(6));await page.getByRole('option').first().click();await page.getByRole('button',{name:'Adjust selected sale'}).click();d=page.getByRole('dialog');await d.getByLabel('Adjustment type').selectOption('sale.details_corrected');await d.getByLabel('Corrected quantity',{exact:true}).fill('4');await d.getByLabel('Material usage treatment').selectOption('reconcile');await d.getByLabel('Reason',{exact:true}).fill('Quantity entered incorrectly');await d.getByRole('checkbox').check();assert.match(await d.getByRole('region',{name:'Correction comparison'}).innerText(),/Stock · Paper/);assert.match(await d.getByRole('row',{name:/Stock · Paper/}).innerText(),/8 sheet.*6 sheet/s);assert.match(await d.getByRole('row',{name:/Quantity/}).innerText(),/2.*4/s);await d.getByRole('button',{name:'Approve and save adjustment'}).click();await d.waitFor({state:'detached'});assert.equal(cloud.jobs[0].quantity,4);assert.equal(cloud.jobs[0].amount,40000);assert.equal(cloud.materials[0].available,6);await dismiss();
-  await page.getByRole('button',{name:'Adjust selected sale'}).click();d=page.getByRole('dialog');await d.getByLabel('Adjustment type').selectOption('payment.corrected');await d.getByLabel('Corrected amount paid (₦)').fill('100');await d.getByLabel('Corrected payment method').selectOption('POS');await d.getByLabel('Reason',{exact:true}).fill('Wrong recorded method and amount');await d.getByRole('checkbox').check();await d.getByRole('button',{name:'Approve and save adjustment'}).click();await d.waitFor({state:'detached'});assert.equal(cloud.payments[0].amount,10000);assert.equal(cloud.payments[0].method,'POS');assert.equal(drawerSnapshot(cloud,actor.id).expectedCash,0);assert.equal(drawerSnapshot(cloud,actor.id).pos,10000);assert.equal(cloud.checkouts[0].cashReceived,20000);await dismiss();
-  await nav('Point of Service');await page.getByRole('button',{name:'Receipts',exact:true}).click();await page.getByRole('button',{name:'Receipt',exact:true}).click();d=page.getByRole('dialog');await d.getByRole('button',{name:'Corrected receipt',exact:true}).click();assert.match(await d.locator('.receipt-sheet').innerText(),/Corrected receipt/);assert.match(await d.locator('.receipt-sheet').innerText(),/Qty 4/);const correctedDownload=page.waitForEvent('download');await d.getByRole('button',{name:'Download PDF (A4)',exact:true}).click();assert.match((await correctedDownload).suggestedFilename(),/-corrected\.pdf$/);await d.getByRole('button',{name:'Original receipt',exact:true}).click();assert.match(await d.locator('.receipt-sheet').innerText(),/Qty 2/);await d.getByRole('button',{name:'Close',exact:true}).click();
-  await nav('Sale Adjustments');await page.getByLabel('Job to adjust').fill(uuid(6));await page.getByRole('option').first().click();await page.getByRole('button',{name:'Adjust selected sale'}).click();d=page.getByRole('dialog');await d.getByLabel('Adjustment type').selectOption('sale.details_corrected');await d.getByLabel('Corrected quantity',{exact:true}).fill('1');await d.getByLabel('Material usage treatment').selectOption('keep');await d.getByLabel('Reason',{exact:true}).fill('Material already consumed');await d.getByRole('checkbox').check();await d.getByRole('button',{name:'Approve and save adjustment'}).click();await d.waitFor({state:'detached'});assert.equal(cloud.materials[0].available,6);assert.equal(cloud.jobs[0].amount,10000);await dismiss();
-  cloud=base();cloud.jobs=cloud.jobs.filter(j=>j.id===uuid(6));cloud.jobs.push({...cloud.jobs[0],id:uuid(99),description:'Older job',createdAt:new Date(Date.now()-9*86400000).toISOString()});await page.reload();await page.getByRole('heading',{name:'Point of Service',exact:true}).waitFor();await nav('Sale Adjustments');await page.getByLabel('Job to adjust').fill('Older job');assert.equal(await page.getByRole('option').count(),0);assert.equal(await page.getByRole('button',{name:'Adjust selected sale'}).isDisabled(),true);await page.getByLabel('Job to adjust').fill('Printing');assert.equal(await page.getByRole('option').count(),1);await page.getByLabel('Job to adjust').fill('Original sale');await page.getByRole('option').first().click();await page.getByRole('button',{name:'Adjust selected sale'}).click();d=page.getByRole('dialog');await d.getByLabel('Adjustment type').selectOption('sale.combined_corrected');await d.getByLabel('Corrected quantity',{exact:true}).fill('4');await d.getByLabel('Material usage treatment').selectOption('reconcile');await d.getByLabel('Corrected amount paid (₦)').fill('300');await d.getByLabel('Corrected payment method').selectOption('POS');await d.getByLabel('Corrected payment reference').fill('Combined reference');await d.getByLabel('Reason',{exact:true}).fill('Wrong quantity and payment');await d.getByRole('checkbox').check();assert.match(await d.getByRole('region',{name:'Correction comparison'}).innerText(),/Combined reference/);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await d.getByRole('button',{name:'Approve and save adjustment'}).click();await d.waitFor({state:'detached'});assert.equal(cloud.jobs[0].quantity,4);assert.equal(cloud.materials[0].available,6);assert.equal(cloud.payments[0].method,'POS');assert.equal(cloud.payments[0].amount,30000);assert.equal(cloud.checkouts[0].cashReceived,20000);assert.equal(cloud.saleAdjustments.at(-1).childIds.length,2);assert.equal(await page.locator('.history-detail').count(),1,'Combined change is shown once in history');await dismiss();
-  cashier=true;await page.reload();await page.getByRole('heading',{name:'Point of Service',exact:true}).waitFor();if(mobile)await page.getByRole('button',{name:'Menu',exact:true}).click();assert.equal(await page.getByRole('navigation',{name:'Main'}).getByRole('button',{name:'Sale Adjustments',exact:true}).count(),0);assert.equal(await page.getByRole('navigation',{name:'Main'}).getByRole('button',{name:'Material Waste',exact:true}).count(),0);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Responsive page fits');assert.deepEqual(errors,[]);await context.close();
- }}finally{await browser.close();}}
- console.log('Sale adjustments and waste passed Chromium/WebKit desktop/mobile: correction, refund, stock return, immutable receipt/PDF, drawer outflow, waste warning, stale request, offline gating and cashier access.');
-}finally{server.kill();}
+import { spawn } from 'node:child_process';
+import { setTimeout as delay } from 'node:timers/promises';
+import { chromium, webkit } from 'playwright';
+import { emptyLedger, applyEvent } from '../src/domain.mjs';
+import { prepareCheckout, walletBalance } from '../src/checkout.mjs';
+import { drawerSnapshot } from '../src/my-sales.mjs';
+const server = spawn(
+  process.execPath,
+  ['node_modules/vite/bin/vite.js', 'preview', '--host', '127.0.0.1', '--port', '4196', '--strictPort'],
+  { stdio: 'inherit' },
+);
+const uuid = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`,
+  actor = { id: uuid(1), label: 'Admin' },
+  shop = uuid(2),
+  customer = uuid(3),
+  material = uuid(4),
+  service = uuid(5),
+  now = new Date().toISOString();
+function base() {
+  let ledger = emptyLedger();
+  for (const [kind, data] of [
+    [
+      'customer',
+      { id: customer, name: 'Adjustment customer', phone: '0801', address: 'Road', creditLimit: 0 },
+    ],
+    [
+      'material',
+      { id: material, name: 'Paper', available: 10, measurementUnit: 'sheet', requireSize: false },
+    ],
+    ['service', { id: service, description: 'Printing', materialId: material, price: 10000 }],
+  ])
+    ledger = applyEvent(ledger, {
+      id: crypto.randomUUID(),
+      kind: kind + '.created',
+      data: { ...data, modifiedBy: actor.id, modifiedByLabel: actor.label, modifiedAt: now },
+    });
+  ledger.materials.push({ ...ledger.materials[0], id: uuid(8), name: 'Vinyl' });
+  ledger = applyEvent(
+    ledger,
+    prepareCheckout(
+      ledger,
+      {
+        customerId: customer,
+        lines: [
+          { id: uuid(6), serviceId: service, description: 'Original sale', quantity: 2, source: 'WhatsApp' },
+        ],
+        cashReceived: 20000,
+        useWallet: false,
+        method: 'Cash',
+        paidOn: now.slice(0, 10),
+      },
+      actor,
+      uuid(7),
+      now,
+    ),
+  );
+  ledger.jobs.push(
+    {
+      ...ledger.jobs[0],
+      id: uuid(9),
+      description: 'Vinyl job',
+      service: 'Vinyl printing',
+      materialId: uuid(8),
+      checkoutId: undefined,
+    },
+    {
+      ...ledger.jobs[0],
+      id: uuid(10),
+      description: 'Design only',
+      service: 'Design',
+      materialId: null,
+      checkoutId: undefined,
+    },
+  );
+  return ledger;
+}
+const user = {
+    id: actor.id,
+    aud: 'authenticated',
+    role: 'authenticated',
+    email: 'adjustments@example.invalid',
+    user_metadata: {},
+    app_metadata: { provider: 'email' },
+    created_at: now,
+  },
+  token = [
+    { alg: 'HS256', typ: 'JWT' },
+    { sub: actor.id, role: 'authenticated', exp: Math.floor(Date.now() / 1000) + 3600 },
+    'c2lnbmF0dXJl',
+  ]
+    .map((x) => (typeof x === 'string' ? x : Buffer.from(JSON.stringify(x)).toString('base64url')))
+    .join('.');
+try {
+  for (let i = 0; i < 100; i++) {
+    try {
+      if ((await fetch('http://127.0.0.1:4196')).ok) break;
+    } catch {}
+    await delay(100);
+  }
+  for (const engine of [chromium, webkit]) {
+    const browser = await engine.launch();
+    try {
+      for (const mobile of [false, true]) {
+        const context = await browser.newContext({
+          viewport: mobile ? { width: 390, height: 844 } : { width: 1280, height: 900 },
+          serviceWorkers: 'block',
+        });
+        let cloud = base(),
+          writes = [],
+          cashier = false,
+          stale = false;
+        const errors = [];
+        await context.route('https://*.supabase.co/**', async (route) => {
+          const path = new URL(route.request().url()).pathname;
+          let result = {},
+            status = 200;
+          if (path === '/auth/v1/token')
+            result = {
+              access_token: token,
+              token_type: 'bearer',
+              expires_in: 3600,
+              refresh_token: 'mock',
+              user,
+            };
+          else if (path === '/auth/v1/user') result = user;
+          else if (path === '/auth/v1/logout') result = {};
+          else if (path.endsWith('/list_business_shops'))
+            result = [{ id: shop, name: 'Adjustment business' }];
+          else if (path.endsWith('/list_my_shops'))
+            result = [
+              {
+                id: shop,
+                name: 'Adjustment business',
+                userId: actor.id,
+                role: cashier ? 'cashier' : 'admin',
+                rank: cashier ? 1 : 2,
+                accessLevel: cashier ? 1 : 2,
+                username: cashier ? 'cashier' : 'admin',
+                staffName: cashier ? 'Cashier' : 'Admin',
+              },
+            ];
+          else if (path.endsWith('/business_settings')) result = [];
+          else if (path.endsWith('/get_ledger')) result = cloud;
+          else if (path.endsWith('/apply_supervised_event')) {
+            const event = route.request().postDataJSON().p_event;
+            writes.push(event);
+            if (cashier) {
+              status = 403;
+              result = { message: 'Admin approval required' };
+            } else if (stale) {
+              status = 409;
+              result = {
+                code: 'PT409',
+                message: 'The job or customer account changed. Sync and reopen the adjustment.',
+              };
+              stale = false;
+            } else {
+              try {
+                cloud = applyEvent(cloud, event);
+                result = cloud;
+              } catch (e) {
+                status = 409;
+                result = { code: 'PT409', message: e.message };
+              }
+            }
+          } else throw Error('Unexpected adjustments request ' + path);
+          await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(result) });
+        });
+        const page = await context.newPage();
+        page.on('pageerror', (e) => errors.push(e.message));
+        await page.goto('http://127.0.0.1:4196');
+        await page.getByLabel('Business email').fill(user.email);
+        await page.getByLabel('Business password').fill('mock-password');
+        await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+        await page.getByRole('heading', { name: 'Point of Service', exact: true }).waitFor();
+        await page.getByRole('button', { name: 'Printing', exact: true }).waitFor();
+        const nav = async (name) => {
+          if (mobile) {
+            await page.evaluate(() => scrollTo(0, 0));
+            await page.getByRole('button', { name: 'Menu', exact: true }).click();
+          }
+          await page
+            .getByRole('navigation', { name: 'Main' })
+            .getByRole('button', { name, exact: true })
+            .click();
+        };
+        const dismiss = async () => {
+          const popup = page.locator('.feedback-viewport button');
+          if (await popup.count()) await popup.first().click();
+        };
+        await nav('Sale Adjustments');
+        await page.getByLabel('Job to adjust').fill(uuid(6));
+        await page.getByRole('option').first().click();
+        await page.getByRole('button', { name: 'Adjust selected sale' }).click();
+        let d = page.getByRole('dialog', { name: 'Adjust sale' });
+        await d.getByLabel('Corrected charge (₦)').fill('150');
+        await d.getByLabel('Corrected description').fill('Corrected sale');
+        await d.getByLabel('Reason', { exact: true }).fill('Agreed discount');
+        await d.getByRole('checkbox').check();
+        await d.getByRole('button', { name: 'Approve and save adjustment' }).click();
+        await d.waitFor({ state: 'detached' });
+        assert.equal(cloud.jobs[0].amount, 15000);
+        assert.equal(walletBalance(cloud, customer), 5000);
+        await page.getByRole('group', { name: 'Success notification' }).waitFor();
+        await dismiss();
+        await page.getByRole('button', { name: 'Adjust selected sale' }).click();
+        d = page.getByRole('dialog');
+        await d.getByLabel('Adjustment type').selectOption('sale.refunded');
+        await d.getByLabel('Money returned (₦)').fill('60');
+        await d.getByLabel('Reason', { exact: true }).fill('Invalid excess refund');
+        await d.getByRole('checkbox').check();
+        await d.getByRole('button', { name: 'Approve and save adjustment' }).click();
+        assert.equal(await d.getByLabel('Money returned (₦)').evaluate((el) => el.checkValidity()), false);
+        assert.equal(writes.length, 1, 'Invalid refund did not reach API');
+        await d.getByLabel('Money returned (₦)').fill('40');
+        await d.getByRole('button', { name: 'Approve and save adjustment' }).click();
+        await d.waitFor({ state: 'detached' });
+        assert.equal(walletBalance(cloud, customer), 1000);
+        assert.equal(drawerSnapshot(cloud, actor.id).expectedCash, 16000);
+        await dismiss();
+        await page.getByRole('button', { name: 'Adjust selected sale' }).click();
+        d = page.getByRole('dialog');
+        await d.getByLabel('Adjustment type').selectOption('sale.cancelled');
+        await d.getByLabel('Usable material returned (sheet)').fill('1');
+        await d.getByLabel('Reason', { exact: true }).fill('Customer cancelled; one sheet reusable');
+        await d.getByRole('checkbox').check();
+        await d.getByRole('button', { name: 'Approve and save adjustment' }).click();
+        await d.waitFor({ state: 'detached' });
+        assert.equal(cloud.jobs[0].productionStatus, 'Cancelled');
+        assert.equal(cloud.materials[0].available, 9);
+        assert.equal(cloud.checkouts[0].jobs[0].amount, 20000);
+        assert.equal(walletBalance(cloud, customer), 16000);
+        await dismiss();
+        await nav('Jobs');
+        await page.getByRole('button', { name: 'Printing', exact: true }).click();
+        d = page.getByRole('dialog');
+        assert.equal(
+          await d.getByRole('button', { name: 'Mark as Complete', exact: true }).isDisabled(),
+          true,
+        );
+        assert.match(await d.innerText(), /Sale cancelled/);
+        await d.getByRole('button', { name: 'Close', exact: true }).click();
+        await nav('Point of Service');
+        await page.getByRole('button', { name: 'Receipts', exact: true }).click();
+        await page.getByRole('button', { name: 'Receipt', exact: true }).click();
+        d = page.getByRole('dialog');
+        assert.match(await d.locator('.receipt-sheet').innerText(), /Original receipt/);
+        assert.match(await d.locator('.receipt-sheet').innerText(), /Later adjustments/);
+        const downloadPromise = page.waitForEvent('download');
+        await d.getByRole('button', { name: 'Download PDF (A4)', exact: true }).click();
+        const download = await downloadPromise;
+        assert.match(download.suggestedFilename(), /^Receipt-.*\.pdf$/);
+        await dismiss();
+        await d.getByRole('button', { name: 'Close', exact: true }).click();
+        await nav('My Sales');
+        await page.getByRole('button', { name: 'Close drawer', exact: true }).click();
+        d = page.getByRole('dialog');
+        assert.match(await d.innerText(), /Cash refunded/);
+        assert.match(await d.innerText(), /₦160\.00/);
+        await d.getByRole('button', { name: 'Close', exact: true }).click();
+        await nav('Material Waste');
+        await page.getByRole('button', { name: 'Record material waste' }).click();
+        d = page.getByRole('dialog');
+        assert.equal(await d.getByLabel('Related job (optional)').locator('option').count(), 3);
+        await d.getByLabel('Related job (optional)').selectOption(uuid(9));
+        assert.equal(await d.getByLabel('Material', { exact: true }).inputValue(), uuid(8));
+        await d.getByLabel('Material', { exact: true }).selectOption(material);
+        assert.equal(await d.getByLabel('Related job (optional)').inputValue(), '');
+        assert.equal(await d.getByLabel('Related job (optional)').locator('option').count(), 2);
+        await d.getByLabel('Type', { exact: true }).selectOption('Reprint');
+        await d.getByLabel('Additional quantity used (sheet)').fill('10');
+        await d.getByLabel('Related job (optional)').selectOption(uuid(6));
+        await d.getByLabel('Reason', { exact: true }).fill('Extra spoiled reprint');
+        assert.equal(await d.getByRole('checkbox').count(), 0);
+        assert.match(await d.innerText(), /Enter extra material used/);
+        assert.match(await d.innerText(), /below zero/);
+        await d.getByRole('button', { name: 'Approve and save waste' }).click();
+        await d.waitFor({ state: 'detached' });
+        assert.equal(cloud.materials[0].available, -1);
+        assert.equal(cloud.materialWaste.length, 1);
+        await page.getByRole('group', { name: 'Warning notification' }).waitFor();
+        await dismiss();
+        await nav('Stock History');
+        assert.match(await page.locator('main').innerText(), /Waste \/ damage \/ reprint/);
+        assert.match(await page.locator('main').innerText(), /Cancelled sale: stock returned/);
+        await context.setOffline(true);
+        await nav('Material Waste');
+        assert.equal(await page.getByRole('button', { name: 'Record material waste' }).isDisabled(), true);
+        await context.setOffline(false);
+        await nav('Sale Adjustments');
+        await page.getByLabel('Job to adjust').fill(uuid(6));
+        await page.getByRole('option').first().click();
+        await page.getByRole('button', { name: 'Adjust selected sale' }).click();
+        d = page.getByRole('dialog');
+        await d.getByLabel('Money returned (₦)').fill('10');
+        await d.getByLabel('Reason', { exact: true }).fill('Stale request');
+        await d.getByRole('checkbox').check();
+        stale = true;
+        await d.getByRole('button', { name: 'Approve and save adjustment' }).click();
+        await d.getByRole('alert').waitFor();
+        assert.match(await d.innerText(), /changed/);
+        assert.equal(
+          await d.getByLabel('Money returned (₦)').isDisabled(),
+          true,
+          'Failed submitted request is fixed for safe retry',
+        );
+        await dismiss();
+        await d.getByRole('button', { name: 'Close', exact: true }).click();
+        cloud = base();
+        cloud.jobs = cloud.jobs.filter((j) => j.id === uuid(6));
+        await page.reload();
+        await page.getByRole('heading', { name: 'Point of Service', exact: true }).waitFor();
+        await nav('Sale Adjustments');
+        await page.getByLabel('Job to adjust').fill(uuid(6));
+        await page.getByRole('option').first().click();
+        await page.getByRole('button', { name: 'Adjust selected sale' }).click();
+        d = page.getByRole('dialog');
+        await d.getByLabel('Adjustment type').selectOption('sale.details_corrected');
+        await d.getByLabel('Corrected quantity', { exact: true }).fill('4');
+        await d.getByLabel('Material usage treatment').selectOption('reconcile');
+        await d.getByLabel('Reason', { exact: true }).fill('Quantity entered incorrectly');
+        await d.getByRole('checkbox').check();
+        assert.match(
+          await d.getByRole('region', { name: 'Correction comparison' }).innerText(),
+          /Stock · Paper/,
+        );
+        assert.match(await d.getByRole('row', { name: /Stock · Paper/ }).innerText(), /8 sheet.*6 sheet/s);
+        assert.match(await d.getByRole('row', { name: /Quantity/ }).innerText(), /2.*4/s);
+        await d.getByRole('button', { name: 'Approve and save adjustment' }).click();
+        await d.waitFor({ state: 'detached' });
+        assert.equal(cloud.jobs[0].quantity, 4);
+        assert.equal(cloud.jobs[0].amount, 40000);
+        assert.equal(cloud.materials[0].available, 6);
+        await dismiss();
+        await page.getByRole('button', { name: 'Adjust selected sale' }).click();
+        d = page.getByRole('dialog');
+        await d.getByLabel('Adjustment type').selectOption('payment.corrected');
+        await d.getByLabel('Corrected amount paid (₦)').fill('100');
+        await d.getByLabel('Corrected payment method').selectOption('POS');
+        await d.getByLabel('Reason', { exact: true }).fill('Wrong recorded method and amount');
+        await d.getByRole('checkbox').check();
+        await d.getByRole('button', { name: 'Approve and save adjustment' }).click();
+        await d.waitFor({ state: 'detached' });
+        assert.equal(cloud.payments[0].amount, 10000);
+        assert.equal(cloud.payments[0].method, 'POS');
+        assert.equal(drawerSnapshot(cloud, actor.id).expectedCash, 0);
+        assert.equal(drawerSnapshot(cloud, actor.id).pos, 10000);
+        assert.equal(cloud.checkouts[0].cashReceived, 20000);
+        await dismiss();
+        await nav('Point of Service');
+        await page.getByRole('button', { name: 'Receipts', exact: true }).click();
+        await page.getByRole('button', { name: 'Receipt', exact: true }).click();
+        d = page.getByRole('dialog');
+        await d.getByRole('button', { name: 'Corrected receipt', exact: true }).click();
+        assert.match(await d.locator('.receipt-sheet').innerText(), /Corrected receipt/);
+        assert.match(await d.locator('.receipt-sheet').innerText(), /Qty 4/);
+        const correctedDownload = page.waitForEvent('download');
+        await d.getByRole('button', { name: 'Download PDF (A4)', exact: true }).click();
+        assert.match((await correctedDownload).suggestedFilename(), /-corrected\.pdf$/);
+        await d.getByRole('button', { name: 'Original receipt', exact: true }).click();
+        assert.match(await d.locator('.receipt-sheet').innerText(), /Qty 2/);
+        await d.getByRole('button', { name: 'Close', exact: true }).click();
+        await nav('Sale Adjustments');
+        await page.getByLabel('Job to adjust').fill(uuid(6));
+        await page.getByRole('option').first().click();
+        await page.getByRole('button', { name: 'Adjust selected sale' }).click();
+        d = page.getByRole('dialog');
+        await d.getByLabel('Adjustment type').selectOption('sale.details_corrected');
+        await d.getByLabel('Corrected quantity', { exact: true }).fill('1');
+        await d.getByLabel('Material usage treatment').selectOption('keep');
+        await d.getByLabel('Reason', { exact: true }).fill('Material already consumed');
+        await d.getByRole('checkbox').check();
+        await d.getByRole('button', { name: 'Approve and save adjustment' }).click();
+        await d.waitFor({ state: 'detached' });
+        assert.equal(cloud.materials[0].available, 6);
+        assert.equal(cloud.jobs[0].amount, 10000);
+        await dismiss();
+        cloud = base();
+        cloud.jobs = cloud.jobs.filter((j) => j.id === uuid(6));
+        cloud.jobs.push({
+          ...cloud.jobs[0],
+          id: uuid(99),
+          description: 'Older job',
+          createdAt: new Date(Date.now() - 9 * 86400000).toISOString(),
+        });
+        await page.reload();
+        await page.getByRole('heading', { name: 'Point of Service', exact: true }).waitFor();
+        await nav('Sale Adjustments');
+        await page.getByLabel('Job to adjust').fill('Older job');
+        assert.equal(await page.getByRole('option').count(), 0);
+        assert.equal(await page.getByRole('button', { name: 'Adjust selected sale' }).isDisabled(), true);
+        await page.getByLabel('Job to adjust').fill('Printing');
+        assert.equal(await page.getByRole('option').count(), 1);
+        await page.getByLabel('Job to adjust').fill('Original sale');
+        await page.getByRole('option').first().click();
+        await page.getByRole('button', { name: 'Adjust selected sale' }).click();
+        d = page.getByRole('dialog');
+        await d.getByLabel('Adjustment type').selectOption('sale.combined_corrected');
+        await d.getByLabel('Corrected quantity', { exact: true }).fill('4');
+        await d.getByLabel('Material usage treatment').selectOption('reconcile');
+        await d.getByLabel('Corrected amount paid (₦)').fill('300');
+        await d.getByLabel('Corrected payment method').selectOption('POS');
+        await d.getByLabel('Corrected payment reference').fill('Combined reference');
+        await d.getByLabel('Reason', { exact: true }).fill('Wrong quantity and payment');
+        await d.getByRole('checkbox').check();
+        assert.match(
+          await d.getByRole('region', { name: 'Correction comparison' }).innerText(),
+          /Combined reference/,
+        );
+        assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+        await d.getByRole('button', { name: 'Approve and save adjustment' }).click();
+        await d.waitFor({ state: 'detached' });
+        assert.equal(cloud.jobs[0].quantity, 4);
+        assert.equal(cloud.materials[0].available, 6);
+        assert.equal(cloud.payments[0].method, 'POS');
+        assert.equal(cloud.payments[0].amount, 30000);
+        assert.equal(cloud.checkouts[0].cashReceived, 20000);
+        assert.equal(cloud.saleAdjustments.at(-1).childIds.length, 2);
+        assert.equal(
+          await page.locator('.history-detail').count(),
+          1,
+          'Combined change is shown once in history',
+        );
+        await dismiss();
+        cashier = true;
+        await page.reload();
+        await page.getByRole('heading', { name: 'Point of Service', exact: true }).waitFor();
+        if (mobile) await page.getByRole('button', { name: 'Menu', exact: true }).click();
+        assert.equal(
+          await page
+            .getByRole('navigation', { name: 'Main' })
+            .getByRole('button', { name: 'Sale Adjustments', exact: true })
+            .count(),
+          0,
+        );
+        assert.equal(
+          await page
+            .getByRole('navigation', { name: 'Main' })
+            .getByRole('button', { name: 'Material Waste', exact: true })
+            .count(),
+          0,
+        );
+        assert.ok(
+          await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+          'Responsive page fits',
+        );
+        assert.deepEqual(errors, []);
+        await context.close();
+      }
+    } finally {
+      await browser.close();
+    }
+  }
+  console.log(
+    'Sale adjustments and waste passed Chromium/WebKit desktop/mobile: correction, refund, stock return, immutable receipt/PDF, drawer outflow, waste warning, stale request, offline gating and cashier access.',
+  );
+} finally {
+  server.kill();
+}

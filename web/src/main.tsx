@@ -4,6 +4,12 @@ import App from './App';
 import './styles.css';
 import './branding.css';
 import './feedback.css';
-import {FeedbackProvider} from './Feedback';
+import { FeedbackProvider } from './Feedback';
 
-ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><FeedbackProvider><App /></FeedbackProvider></React.StrictMode>);
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <FeedbackProvider>
+      <App />
+    </FeedbackProvider>
+  </React.StrictMode>,
+);

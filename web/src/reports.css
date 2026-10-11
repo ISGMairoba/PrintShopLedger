@@ -1,15 +1,83 @@
-.reports .report-header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px;flex-wrap:wrap}
-.reports .report-header h2{margin:0}.reports .report-header p{margin:4px 0}
-.reports section.panel>h2{padding:18px 20px 0}
-.reports .report-none{padding:0 20px 18px}
-.reports .report-filters label.wide{flex:2 1 260px}
-.reports .report-shown{margin:-6px 0 16px;font-size:13px}
-.reports .report-shown .text-button{display:inline;font-size:13px}
-.reports .table-wrap{max-height:none}
-.reports td.report-details{white-space:normal;min-width:220px;max-width:420px}
-.reports .money-in{color:#1f7a55;font-weight:600}.reports .money-out{color:#a33a2a;font-weight:600}
-.reports .report-more{display:flex;justify-content:center;padding:16px}
-@media(max-width:740px){.reports .report-header{padding:16px}.reports .report-header .material-actions{width:100%}.reports .report-header button{flex:1}.reports .report-filters label.wide{flex-basis:100%}}
-.reports th.numeric,.reports td.numeric{text-align:right}
-.reports tr.report-total td{font-weight:700;border-top:2px solid var(--line,#dfe6df)}
-.reports .report-filters .checkbox{flex-direction:row;align-items:center;gap:8px;flex:0 0 auto}.reports .report-filters .checkbox input{width:auto}
+.reports .report-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px;
+  flex-wrap: wrap;
+}
+.reports .report-header h2 {
+  margin: 0;
+}
+.reports .report-header p {
+  margin: 4px 0;
+}
+.reports section.panel > h2 {
+  padding: 18px 20px 0;
+}
+.reports .report-none {
+  padding: 0 20px 18px;
+}
+.reports .report-filters label.wide {
+  flex: 2 1 260px;
+}
+.reports .report-shown {
+  margin: -6px 0 16px;
+  font-size: 13px;
+}
+.reports .report-shown .text-button {
+  display: inline;
+  font-size: 13px;
+}
+.reports .table-wrap {
+  max-height: none;
+}
+.reports td.report-details {
+  white-space: normal;
+  min-width: 220px;
+  max-width: 420px;
+}
+.reports .money-in {
+  color: #1f7a55;
+  font-weight: 600;
+}
+.reports .money-out {
+  color: #a33a2a;
+  font-weight: 600;
+}
+.reports .report-more {
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+}
+@media (max-width: 740px) {
+  .reports .report-header {
+    padding: 16px;
+  }
+  .reports .report-header .material-actions {
+    width: 100%;
+  }
+  .reports .report-header button {
+    flex: 1;
+  }
+  .reports .report-filters label.wide {
+    flex-basis: 100%;
+  }
+}
+.reports th.numeric,
+.reports td.numeric {
+  text-align: right;
+}
+.reports tr.report-total td {
+  font-weight: 700;
+  border-top: 2px solid var(--line, #dfe6df);
+}
+.reports .report-filters .checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+.reports .report-filters .checkbox input {
+  width: auto;
+}
