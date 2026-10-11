@@ -1,4 +1,5 @@
 import type { FormEvent } from 'react';
+import Modal from '../Modal';
 import { FeedbackBanner, type FeedbackTone } from '../Feedback';
 import type { Shop } from './shared';
 
@@ -197,5 +198,53 @@ export function StaffSignIn({
         <FeedbackBanner message={feedback.message} tone={feedback.tone} login />
       </section>
     </main>
+  );
+}
+
+/** An Admin or higher signs in on the cashier's device to review held sync conflicts. */
+export function SupervisorLogin({
+  feedback,
+  busy,
+  online,
+  onClose,
+  onSubmit,
+}: {
+  feedback: Feedback;
+  busy: boolean;
+  online: boolean;
+  onClose: () => void;
+  onSubmit: (username: string, password: string) => void;
+}) {
+  return (
+    <Modal title="Supervisor conflict review" busy={busy} onClose={onClose}>
+      <p>
+        An Admin or higher rank must enter their credentials and personally review the pending work. This does
+        not switch the cashier or move their saved sales.
+      </p>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          const form = new FormData(event.currentTarget);
+          onSubmit(String(form.get('username')), String(form.get('password')));
+        }}
+      >
+        <label>
+          Supervisor username
+          <input name="username" autoComplete="username" aria-invalid={invalid(feedback)} required />
+        </label>
+        <label>
+          Supervisor password
+          <input
+            name="password"
+            type="password"
+            autoComplete="current-password"
+            aria-invalid={invalid(feedback)}
+            required
+          />
+        </label>
+        <button disabled={busy || !online}>Verify supervisor</button>
+      </form>
+      <FeedbackBanner message={feedback.message} tone={feedback.tone} login />
+    </Modal>
   );
 }

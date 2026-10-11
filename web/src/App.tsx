@@ -39,11 +39,13 @@ import { useAuthSessions, useOnline, useWorkspaces } from './app/useSessions';
 import {
   BusinessLogin,
   StaffLoginForm,
+  SupervisorLogin,
   StaffSignIn,
   StartupScreen,
   WorkspaceLoading,
 } from './app/AuthScreens';
 import { currency, dateLabel, errorMessage, shortId, type Page, type Shop } from './app/shared';
+import { pageDescriptions, pageIcons } from './app/pageInfo';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { customerBalance, emptyLedger } from './domain.mjs';
 import {
@@ -964,32 +966,7 @@ export default function App() {
                     setQuery('');
                   }}
                 >
-                  <Icon
-                    name={
-                      (
-                        {
-                          Dashboard: 'table',
-                          Reports: 'audit',
-                          'Point of Service': 'services',
-                          'My Sales': 'drawer',
-                          Jobs: 'jobs',
-                          Customers: 'customers',
-                          Payments: 'payments',
-                          Expenses: 'expenses',
-                          Materials: 'materials',
-                          Services: 'services',
-                          'Stock History': 'history',
-                          'Print Settings': 'quantity',
-                          Users: 'customers',
-                          'My Account': 'customers',
-                          'Business Settings': 'quantity',
-                          'Conflict Inbox': 'history',
-                          'Sale Adjustments': 'history',
-                          'Material Waste': 'materials',
-                        } as const
-                      )[item]
-                    }
-                  />
+                  <Icon name={pageIcons[item]} />
                   {item}
                 </button>
               ))}
@@ -1000,39 +977,7 @@ export default function App() {
             <div>
               <span className="eyebrow">{demo ? 'LOCAL TRIAL' : businessName}</span>
               <h1>{page}</h1>
-              <p>
-                {page === 'Dashboard'
-                  ? 'Sales, collections, expenses and current business position.'
-                  : page === 'Reports'
-                    ? 'Customer statements, transaction records and summaries, with spreadsheet and PDF export.'
-                    : page === 'Sale Adjustments'
-                      ? 'Approve and review changes to sales and customer credit.'
-                      : page === 'Material Waste'
-                        ? 'Track extra material use, damage and reprints.'
-                        : page === 'Business Settings'
-                          ? ''
-                          : page === 'Conflict Inbox'
-                            ? 'Review pending work from connected staff devices.'
-                            : page === 'My Account'
-                              ? 'Manage your username and password.'
-                              : page === 'Expenses'
-                                ? 'Record expenses, payments and material purchases.'
-                                : page === 'My Sales'
-                                  ? 'Review your transactions and record a verified drawer handover.'
-                                  : page === 'Users'
-                                    ? 'Manage staff accounts, ranks and business access.'
-                                    : page === 'Print Settings'
-                                      ? 'Set default printer, paper, font and margins for this device.'
-                                      : page === 'Customers'
-                                        ? 'Manage customer details and credit limits.'
-                                        : page === 'Materials'
-                                          ? 'Manage materials, quantities and pricing requirements.'
-                                          : page === 'Stock History'
-                                            ? 'Review every material change and stock adjustment.'
-                                            : page === 'Services'
-                                              ? 'Define services, their base materials and prices.'
-                                              : 'Track work and keep every payment attached to its job.'}
-              </p>
+              <p>{pageDescriptions[page]}</p>
             </div>
             {!demo && scope && (
               <span className="sync-status" role="status" aria-live="polite">
@@ -1044,12 +989,7 @@ export default function App() {
           {switchUser && (
             <Modal title="Switch user" busy={busy} onClose={() => setSwitchUser(false)}>
               <p>Business: {shop?.name}. Sign in with your staff username and password.</p>
-              <StaffLoginForm
-                feedback={{ message, tone: messageTone }}
-                busy={busy}
-                online={online}
-                onSubmit={staffLogin}
-              />
+              <StaffLoginForm feedback={feedback} busy={busy} online={online} onSubmit={staffLogin} />
               <FeedbackBanner message={message} tone={messageTone} login />
             </Modal>
           )}
@@ -1103,62 +1043,30 @@ export default function App() {
             </div>
           )}
           {supervisorLogin && (
-            <Modal title="Supervisor conflict review" busy={busy} onClose={() => setSupervisorLogin(false)}>
-              <p>
-                An Admin or higher rank must enter their credentials and personally review the pending work.
-                This does not switch the cashier or move their saved sales.
-              </p>
-              <form
-                onSubmit={async (event) => {
-                  event.preventDefault();
-                  if (busy || !online || !businessAuth || !shop) return;
-                  const form = new FormData(event.currentTarget);
-                  setBusy(true);
-                  try {
-                    const name = await approveConflictReview(
-                      businessAuth,
-                      scope,
-                      shop.id,
-                      String(form.get('username')),
-                      String(form.get('password')),
-                    );
-                    if (activeScope.current === scope) {
-                      setSupervisor(name);
-                      setSupervisorLogin(false);
-                      setConflictReviewHidden(false);
-                      if (Object.keys(state.syncConflicts ?? {}).length) setPage('Conflict Inbox');
-                      setMessage('Supervisor access verified for five minutes.');
-                    } else clearConflictApproval();
-                  } catch (error) {
-                    setMessage(errorMessage(error), 'error');
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
-              >
-                <label>
-                  Supervisor username
-                  <input
-                    name="username"
-                    autoComplete="username"
-                    aria-invalid={messageTone === 'error' && !!message}
-                    required
-                  />
-                </label>
-                <label>
-                  Supervisor password
-                  <input
-                    name="password"
-                    type="password"
-                    autoComplete="current-password"
-                    aria-invalid={messageTone === 'error' && !!message}
-                    required
-                  />
-                </label>
-                <button disabled={busy || !online}>Verify supervisor</button>
-              </form>
-              <FeedbackBanner message={message} tone={messageTone} login />
-            </Modal>
+            <SupervisorLogin
+              feedback={feedback}
+              busy={busy}
+              online={online}
+              onClose={() => setSupervisorLogin(false)}
+              onSubmit={async (username, password) => {
+                if (busy || !online || !businessAuth || !shop) return;
+                setBusy(true);
+                try {
+                  const name = await approveConflictReview(businessAuth, scope, shop.id, username, password);
+                  if (activeScope.current === scope) {
+                    setSupervisor(name);
+                    setSupervisorLogin(false);
+                    setConflictReviewHidden(false);
+                    if (Object.keys(state.syncConflicts ?? {}).length) setPage('Conflict Inbox');
+                    setMessage('Supervisor access verified for five minutes.');
+                  } else clearConflictApproval();
+                } catch (error) {
+                  setMessage(errorMessage(error), 'error');
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            />
           )}
           {hasConflict && canReviewConflicts && conflictReviewHidden && (
             <div className="notice notice-warning">
@@ -1234,7 +1142,7 @@ export default function App() {
             <CustomerConflictReview
               conflict={customerConflict}
               busy={busy}
-              feedback={{ message, tone: messageTone }}
+              feedback={feedback}
               onClose={() => setConflictReviewHidden(true)}
               onResolve={(choice) => void resolveCustomerConflict(choice)}
             />
@@ -1257,7 +1165,7 @@ export default function App() {
             <MaterialConflictReview
               conflict={conflict}
               busy={busy}
-              feedback={{ message, tone: messageTone }}
+              feedback={feedback}
               onClose={() => setConflictReviewHidden(true)}
               onResolve={(choice) => void resolveConflict(choice)}
             />
