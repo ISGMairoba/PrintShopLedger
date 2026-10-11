@@ -180,3 +180,45 @@ test('Watermark setting defaults off, validates, and older saved settings still 
  assert.equal(receiptBusiness({businessName:'x'}).documents.watermark,false);
  assert.equal(validateBranding({...old,documents:{watermark:true}}).documents.watermark,true);
 });
+
+import {summaryReport,summarySections} from '../src/reports.mjs';
+import {dashboardSummary} from '../src/dashboard.mjs';
+
+test('Summary figures match the Dashboard for the same period',()=>{
+ const l=activity();
+ const s=summaryReport(l,'2026-10-01','2026-10-31',undefined,{today:'2026-11-15'});
+ const d=dashboardSummary(l,'2026-10-01','2026-10-31');
+ const fig=k=>s.figures.find(f=>f.key===k).value;
+ for(const k of ['sales','collected','refunded','netCollected','expenseIncurred','expensePaid','netIncome','netCashFlow'])assert.equal(fig(k),d[k],k);
+ assert.equal(s.previous,null);
+});
+
+test('Amounts owed are aged by job date and add up to the total owed',()=>{
+ const l=activity();
+ const s=summaryReport(l,'2026-10-01','2026-10-31',undefined,{today:'2026-11-15'});
+ const owed=l.customers.reduce((n,c)=>n+customerBalance(l,c.id),0);
+ assert.equal(s.owedTotal,owed);
+ // old-owing (Sep 20) is 56 days old; oct-1 (Oct 2) 44 days; nov-1 (Nov 1 Lagos) 14 days.
+ assert.deepEqual(s.aging.map(b=>b.amount),[3000,5000+3000,0,0]);
+ assert.equal(s.debtors[0].name,'Ada Okafor');assert.equal(s.debtors[0].oldest,56);
+});
+
+test('Summary compares with the previous period and respects access',()=>{
+ const l=activity();
+ const s=summaryReport(l,'2026-10-01','2026-10-31',undefined,{compare:true,today:'2026-11-15'});
+ assert.deepEqual(s.previous,{from:'2026-08-31',to:'2026-09-30'});
+ assert.equal(s.figures.find(f=>f.key==='sales').previous,5000+2000);
+ const limited=summaryReport(l,'2026-10-01','2026-10-31',{jobs:true,payments:false,expenses:false,stock:false,customers:false});
+ assert.deepEqual(limited.figures.map(f=>f.key),['sales']);
+ assert.equal(limited.aging,undefined);assert.equal(limited.customers,undefined);assert.equal(limited.materials,undefined);assert.equal(limited.expenseCategories,undefined);
+});
+
+test('Materials used, wasted and added come from stock history in the period',()=>{
+ const l=activity();l.materials=[{id:'m',name:'Flex',measurementUnit:'sqm',available:22.5,minimumStock:20,archived:false}];
+ l.materialHistory.push({id:'h4',materialId:'m',materialName:'Flex',measurementUnit:'sqm',action:'material.wasted',beforeAvailable:22.5,afterAvailable:22,changedAt:'2026-10-05T10:00:00Z'});
+ const m=summaryReport(l,'2026-10-01','2026-10-31').materials[0];
+ assert.deepEqual([m.used,m.wasted,m.added,m.level],[2.5,0.5,15,'Near minimum']);
+ const csv=sectionsToCsv(['x'],summarySections(summaryReport(l,'2026-10-01','2026-10-31',undefined,{compare:true})));
+ assert.match(csv,/Financial summary\r\nFigure,This period \(NGN\),Previous period \(NGN\),Change,Notes/);
+ assert.match(csv,/Materials used and stock/);
+});

@@ -1,7 +1,7 @@
 import {useMemo,useState,type ReactNode} from 'react';
 import ResponsiveTable from './ResponsiveTable';
 import {dashboardRange,validRange} from './dashboard.mjs';
-import {customerStatement,filterStatement,statementSections,transactionRegister,filterTransactions,transactionSections,reportFileName} from './reports.mjs';
+import {customerStatement,filterStatement,statementSections,transactionRegister,filterTransactions,transactionSections,summaryReport,summarySections,reportFileName} from './reports.mjs';
 import {currency} from './receipts.mjs';
 import {downloadCsv,type ReportSection} from './export-csv';
 import type {Branding} from './useBusinessBranding';
@@ -75,7 +75,7 @@ export default function ReportsPage({ledger,ready,online,pending,lastSynced,bran
   <div className="settings-tabs" role="tablist" aria-label="Reports">{tabs.map(item=><button key={item} role="tab" aria-selected={tab===item} tabIndex={tab===item?0:-1} className={tab===item?'active':'secondary'} onClick={()=>setTab(item)}>{item}</button>)}</div>
   {tab==='Customer statement'?<StatementTab {...shared} customerId={customerId} onCustomerChange={onCustomerChange}/>
   :tab==='Transactions'?<TransactionsTab {...shared} access={access}/>
-  :<section className="panel empty" role="status">The Summary report is coming in the next release.</section>}
+  :<SummaryTab {...shared} access={access}/>}
  </div>;
 }
 
@@ -165,6 +165,28 @@ function TransactionsTab({ledger,freshness,busy,error,pdf,csv,access}:TabProps&{
    <section className="panel">{rows.length?<div className="table-wrap"><ResponsiveTable columns={[{index:0,label:'Transaction'},{index:3,label:'Details',details:[4,5]},{index:6,label:'Amount'}]}><table aria-label="Transactions"><thead><tr><th>Date / type</th><th>Reference</th><th>Customer / payee / material</th><th>Details</th><th>Method</th><th>Staff</th><th>Amount / stock</th></tr></thead>
     <tbody>{rows.slice(0,limit).map(r=><tr key={r.id}><td>{when(r.at)}<small>{r.type}</small></td><td>{r.ref}{r.drawer&&<small>Drawer: {r.drawer}</small>}</td><td>{r.party}</td><td className="report-details">{r.details}</td><td>{r.method}</td><td>{r.staff}</td><td>{r.moneyIn?<span className="money-in">+{currency(r.moneyIn)}</span>:r.moneyOut?<span className="money-out">−{currency(r.moneyOut)}</span>:r.charge?<>{blank(r.charge)}<small>Charge</small></>:r.stock}</td></tr>)}</tbody></table></ResponsiveTable></div>:<p className="muted report-none">No matching records.</p>}
     {rows.length>limit&&<div className="report-more"><button className="secondary" onClick={()=>setLimit(n=>n+PAGE)}>Show {Math.min(PAGE,rows.length-limit)} more ({rows.length-limit} hidden)</button></div>}</section>
+  </>}
+ </>;
+}
+
+function SummaryTab({ledger,freshness,busy,error,pdf,csv,access}:TabProps&{access:ReportAccess}){
+ const {range,valid,controls}=useRange();
+ const [compare,setCompare]=useState(false);
+ const summary=useMemo(()=>valid?summaryReport(ledger,range.from,range.to,access,{compare}):null,[ledger,range.from,range.to,valid,compare,access.jobs,access.payments,access.expenses,access.stock,access.customers]);
+ const title='Business summary';
+ const subtitle=summary?[`Period: ${summary.from} to ${summary.to}`,...(summary.previous?[`Compared with ${summary.previous.from} to ${summary.previous.to}`]:[]),'Sales use job dates; money received uses payment dates.']:[];
+ const file=summary?reportFileName('Summary',`${summary.from} to ${summary.to}`):'';
+ const sections=summary?summarySections(summary,{money:currency,unit:''}):[];
+ return <>
+  <section className="panel dashboard-filters report-filters">{controls}<label className="checkbox"><input type="checkbox" checked={compare} onChange={e=>setCompare(e.target.checked)}/>Compare with previous period</label><small>Dates use Africa/Lagos.</small></section>
+  {freshness}
+  {!valid||!summary?<div className="dashboard-warning" role="alert">Choose valid From and To dates, in order, spanning no more than ten years.</div>:<>
+   <section className="panel report-header"><div><h2>{summary.from} to {summary.to}</h2><small>Same figures as the Dashboard, laid out for printing and sharing. Amounts owed and stock are as of today.</small></div>
+    <Exports busy={busy} onCsv={()=>csv(file,title,subtitle,summarySections(summary))} onPdf={()=>void pdf(file,title,subtitle,sections)}/></section>
+   {error&&<p role="alert" className="dashboard-warning">{error}</p>}
+   {!sections.length&&<section className="panel empty">No summary sections are available under your current page permissions.</section>}
+   {sections.map(section=><section className="panel" key={section.title}><h2>{section.title}</h2>{section.rows.length?<div className="table-wrap"><ResponsiveTable columns={[{index:0,label:section.columns[0]},{index:1,label:section.columns[1],details:section.columns.slice(2).map((_,i)=>i+2).slice(0,-1)},...(section.columns.length>2?[{index:section.columns.length-1,label:section.columns[section.columns.length-1]}]:[])]}><table aria-label={section.title}><thead><tr>{section.columns.map(c=><th key={c} className={section.numeric?.includes(section.columns.indexOf(c))?'numeric':''}>{c}</th>)}</tr></thead>
+    <tbody>{section.rows.map((row,r)=><tr key={r} className={row[0]==='Total'?'report-total':''}>{row.map((cell,i)=><td key={i} className={section.numeric?.includes(i)?'numeric':''}>{cell}</td>)}</tr>)}</tbody></table></ResponsiveTable></div>:<p className="muted report-none">Nothing recorded in this period.</p>}</section>)}
   </>}
  </>;
 }

@@ -10,3 +10,6 @@
 .reports .money-in{color:#1f7a55;font-weight:600}.reports .money-out{color:#a33a2a;font-weight:600}
 .reports .report-more{display:flex;justify-content:center;padding:16px}
 @media(max-width:740px){.reports .report-header{padding:16px}.reports .report-header .material-actions{width:100%}.reports .report-header button{flex:1}.reports .report-filters label.wide{flex-basis:100%}}
+.reports th.numeric,.reports td.numeric{text-align:right}
+.reports tr.report-total td{font-weight:700;border-top:2px solid var(--line,#dfe6df)}
+.reports .report-filters .checkbox{flex-direction:row;align-items:center;gap:8px;flex:0 0 auto}.reports .report-filters .checkbox input{width:auto}
