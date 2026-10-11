@@ -176,7 +176,7 @@ function SummaryTab({ledger,freshness,busy,error,pdf,csv,access}:TabProps&{acces
  const title='Business summary';
  const subtitle=summary?[`Period: ${summary.from} to ${summary.to}`,...(summary.previous?[`Compared with ${summary.previous.from} to ${summary.previous.to}`]:[]),'Sales use job dates; money received uses payment dates.']:[];
  const file=summary?reportFileName('Summary',`${summary.from} to ${summary.to}`):'';
- const sections=summary?summarySections(summary,{money:currency,unit:''}):[];
+ const sections:ReportSection[]=summary?summarySections(summary,{money:currency,unit:''}) as ReportSection[]:[];
  return <>
   <section className="panel dashboard-filters report-filters">{controls}<label className="checkbox"><input type="checkbox" checked={compare} onChange={e=>setCompare(e.target.checked)}/>Compare with previous period</label><small>Dates use Africa/Lagos.</small></section>
   {freshness}
