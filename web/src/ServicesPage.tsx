@@ -4,6 +4,7 @@ import ResponsiveTable from './ResponsiveTable';
 import Icon from './Icon';
 import { useState, type FormEvent } from 'react';
 import Modal from './Modal';
+import { shortLabel } from './material-display.mjs';
 import { SortHeader, useTableSort } from './TableSort';
 import { money } from './domain.mjs';
 import { materialCode } from './material-display.mjs';
@@ -74,7 +75,7 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
       {editing ? <p className="material-id">Service ID: {serviceCode(editing.id, services)}</p> : <p className="muted">A permanent service ID is generated when you save.</p>}
       <form key={editing ? editing.id + ':' + editing.version : 'new'} onSubmit={submit}><fieldset disabled={busy}><div className="form-grid">
         <label>Service description<input name="description" maxLength={500} defaultValue={editing?.description ?? ''} placeholder="e.g. A4 colour printing" required /></label>
-        <label>Base material<select name="material" defaultValue={editing?.materialId ?? ''}><option value="">No material — service only</option>{options.map(item => <option key={item.id} value={item.id}>{item.name} ({materialCode(item.id, materials)}){item.archived ? ' · Archived' : ''}</option>)}</select></label>
+        <label>Base material<select name="material" defaultValue={editing?.materialId ?? ''}><option value="">No material — service only</option>{options.map(item => <option key={item.id} value={item.id} title={item.name}>{shortLabel(item.name)} ({materialCode(item.id, materials)}){item.archived ? ' · Archived' : ''}</option>)}</select></label>
         <label>Price (₦)<CurrencyInput name="price" defaultValue={editing ? (editing.price / 100).toFixed(2) : ''} required /></label></div>
         <p className="muted">Choose No material for services such as cap pressing, shirt pressing or binding with customer-supplied materials. These use quantity × price and do not deduct stock. Linked materials retain their Require Size setting.</p>
         <button type="submit"><Icon name="save"/> {busy ? 'Saving...' : 'Save service'}</button></fieldset></form></Modal>}

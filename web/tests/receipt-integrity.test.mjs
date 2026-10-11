@@ -56,7 +56,7 @@ test('Each business chooses what its receipt shows and which line leads each job
  const service=receiptModel(r,brand({headline:'service',showSubline:false}));
  assert.equal(service.items[0].title,'Large format printing');assert.equal(service.items[0].subtitle,'');
  // A minimal receipt: service and price only.
- const minimal=brand({headline:'service',showSubline:false,showJobId:false,showQuantity:false,showSize:false,showPaidBefore:false,showPaidNow:false,showItemBalance:false,showCustomerPhone:false,showCashier:false,showPaymentDate:false,showPaymentMethod:false,showWalletMovements:false,showAccountBalances:false,showNote:false});
+ const minimal=brand({headline:'service',showSubline:false,showJobId:false,showQuantity:false,showSize:false,showSource:false,showPaidBefore:false,showPaidNow:false,showItemBalance:false,showCustomerPhone:false,showCashier:false,showPaymentDate:false,showPaymentMethod:false,showWalletMovements:false,showAccountBalances:false,showNote:false});
  const m=receiptModel(r,minimal);
  assert.deepEqual(m.items[0].meta,[]);assert.equal(m.items[0].paidNow,'');assert.equal(m.items[0].balance,'');assert.deepEqual(m.account,[]);assert.equal(m.note,'');
  assert.deepEqual(m.meta.map(x=>x[0]),['Receipt no.','Date','Customer']);

@@ -2,7 +2,7 @@ import {validatePageAccess,defaultPageAccess} from './page-access.mjs';
 import {defaultOptions,validateOptions} from './business-options.mjs';
 // What each business shows on its receipts. headline: the bold line for each job ('description' or 'service');
 // showSubline: print the other one beneath it. Older saved settings fill in these defaults.
-export const receiptContentDefaults=()=>({headline:'description',showSubline:true,showJobId:true,showQuantity:true,showSize:true,showSource:false,
+export const receiptContentDefaults=()=>({headline:'description',showSubline:true,showJobId:true,showQuantity:true,showSize:true,showSource:true,
  showPaidBefore:true,showPaidNow:true,showItemBalance:true,showCustomerPhone:true,showCashier:true,showPaymentDate:true,showPaymentMethod:true,
  showWalletMovements:true,showAccountBalances:true,showNote:true});
 export const defaultBackgrounds=()=>({light:{canvas:'',surface:'',surfaceAlt:''},dark:{canvas:'',surface:'',surfaceAlt:''}});
