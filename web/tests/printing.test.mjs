@@ -70,7 +70,7 @@ test('print document applies font settings and escapes the title', () => {
   assert.ok(doc.includes('font-style:italic'));
 });
 
-import { receiptMedia, qzPdfOptions } from '../src/print-settings.mjs';
+import { receiptMedia, qzPdfOptions, directPrintLayout } from '../src/print-settings.mjs';
 test('receipt media follows paper, orientation, margins, colour and font size', () => {
   const roll = receiptMedia({
     ...defaultPrintSettings(),
@@ -94,6 +94,37 @@ test('receipt media follows paper, orientation, margins, colour and font size', 
   assert.equal(receiptMedia({ ...defaultPrintSettings(), fontSize: 72 }).fontScale, 1.6);
   const q = qzPdfOptions({ ...defaultPrintSettings(), width: 80, height: 200 }, 'R', 143.5);
   assert.deepEqual(q.size, { width: 80, height: 143.5 });
-  assert.equal(q.margins, 0);
-  assert.equal(q.scaleContent, false);
+  assert.deepEqual(q.margins, { top: 0, bottom: 0, left: 5, right: 5 });
+  assert.equal(q.scaleContent, true);
+});
+
+test('direct printing draws only the printable width and places it inside the edges', () => {
+  // 80 mm roll with zero margins: the printer reaches 72 mm, 4 mm in from each edge.
+  const roll = directPrintLayout({
+    ...defaultPrintSettings(),
+    width: 80,
+    height: 200,
+    margins: { top: 2, right: 0, bottom: 2, left: 0 },
+  });
+  assert.equal(roll.paperWidth, 80);
+  assert.deepEqual(roll.sides, { left: 4, right: 4 });
+  assert.equal(roll.media.width, 72);
+  assert.equal(roll.media.layout, 'roll');
+  assert.deepEqual(roll.media.margins, { top: 2, right: 1, bottom: 2, left: 1 });
+  // 58 mm roll prints 48 mm.
+  const small = directPrintLayout({
+    ...defaultPrintSettings(),
+    width: 58,
+    height: 200,
+    margins: { top: 0, right: 0, bottom: 0, left: 0 },
+  });
+  assert.equal(small.media.width, 48);
+  // Wider margins chosen in Print Settings are kept.
+  const a4 = directPrintLayout({
+    ...defaultPrintSettings(),
+    margins: { top: 5, right: 12, bottom: 5, left: 10 },
+  });
+  assert.deepEqual(a4.sides, { left: 10, right: 12 });
+  assert.equal(a4.media.width, 188);
+  assert.equal(a4.media.layout, 'page');
 });

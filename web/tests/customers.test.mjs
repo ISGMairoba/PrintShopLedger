@@ -1,7 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { applyEvent, emptyLedger, customerBalance } from '../src/domain.mjs';
-import { createCustomerEvent, customerMatches, normalizeCustomer } from '../src/customers.mjs';
+import {
+  createCustomerEvent,
+  customerMatches,
+  normalizeCustomer,
+  phoneKey,
+  phoneOwner,
+} from '../src/customers.mjs';
 import { resolveCustomerState } from '../src/customer-conflicts.mjs';
 import { sortRows } from '../src/table-sort.mjs';
 const actor = { id: 'test-user', label: 'Test User' },
@@ -135,4 +141,60 @@ test('sorting compares numeric quantities and prices, is stable and leaves input
     sortRows(['Item 10', 'item 2'], (v) => v),
     ['item 2', 'Item 10'],
   );
+});
+
+test('phone numbers compare in local Nigerian form', () => {
+  for (const value of ['+234 803 123 4567', '2348031234567', '0803-123-4567', '803 123 4567'])
+    assert.equal(phoneKey(value), '08031234567');
+  assert.equal(phoneKey(''), '');
+  assert.equal(phoneOwner([{ id: 'a', phone: '08031234567' }], '+2348031234567', 'a'), null);
+});
+
+test('each phone number belongs to one customer', () => {
+  const actor = { id: 'u', label: 'Joy' };
+  const at = '2026-10-11T10:00:00.000Z';
+  let n = 0;
+  const make = (fields) => createCustomerEvent(fields, actor, () => `id-${++n}`, at);
+  let ledger = applyEvent(emptyLedger(), make({ name: 'Ada', phone: '0803 123 4567' }));
+  assert.throws(
+    () => applyEvent(ledger, make({ name: 'Bola', phone: '+234 803 123 4567' })),
+    /already belongs to Ada/,
+  );
+  ledger = applyEvent(ledger, make({ name: 'Bola', phone: '0805 000 0000' }));
+  const bola = ledger.customers.find((c) => c.name === 'Bola');
+  const update = (phone) => ({
+    id: `upd-${++n}`,
+    kind: 'customer.updated',
+    data: { id: bola.id, baseVersion: 1, name: 'Bola', phone, modifiedBy: 'u', modifiedAt: at },
+  });
+  assert.throws(() => applyEvent(ledger, update('08031234567')), /already belongs to Ada/);
+  assert.equal(
+    applyEvent(ledger, update('08050000000')).customers.find((c) => c.id === bola.id).phone,
+    '08050000000',
+  );
+});
+
+test('older customers that already share a number stay editable without changing it', () => {
+  const at = '2026-10-11T10:00:00.000Z';
+  const ledger = {
+    ...emptyLedger(),
+    customers: [
+      { id: 'j1', name: 'JAURO', phone: '09034342491', createdAt: at, version: 1 },
+      { id: 'j2', name: 'JAURO', phone: '09034342491', createdAt: at, version: 1 },
+    ],
+  };
+  const next = applyEvent(ledger, {
+    id: 'e1',
+    kind: 'customer.updated',
+    data: {
+      id: 'j2',
+      baseVersion: 1,
+      name: 'JAURO',
+      phone: '09034342491',
+      address: 'Kano',
+      modifiedBy: 'u',
+      modifiedAt: at,
+    },
+  });
+  assert.equal(next.customers.find((c) => c.id === 'j2').address, 'Kano');
 });

@@ -107,15 +107,44 @@ export function receiptMedia(settings) {
     copies: s.copies,
   };
 }
-/** QZ options for printing a PDF already laid out for the paper: no extra margins or scaling. */
+/**
+ * Narrowest edges a printer can print to. Printers cannot print to the paper's edge: 80 mm
+ * thermal rolls print 72 mm, 58 mm rolls 48 mm, office printers leave about 4 mm.
+ */
+export const unprintableEdge = (paperWidth) => (paperWidth <= 60 ? 5 : 4);
+
+/**
+ * Layout for printing straight to the printer. The PDF is drawn only as wide as the area the
+ * printer can reach and placed at that area's edges, so nothing is shifted or cut off.
+ * (A downloaded PDF keeps the full paper width; PDF viewers fit it to the printable area.)
+ */
+export function directPrintLayout(settings) {
+  const media = receiptMedia(settings);
+  const edge = unprintableEdge(media.width);
+  const left = Math.max(media.margins.left, edge),
+    right = Math.max(media.margins.right, edge);
+  const inset = 1; // keep text off the very edge of the print head
+  return {
+    paperWidth: media.width,
+    sides: { left, right },
+    media: {
+      ...media,
+      width: media.width - left - right,
+      margins: { ...media.margins, left: inset, right: inset },
+    },
+  };
+}
+
+/** QZ options for a PDF from directPrintLayout: placed inside the side edges, fitted to that area. */
 export function qzPdfOptions(settings, name = 'PrintShopLedger', pageHeight = null) {
   const base = qzOptions(settings, name),
-    media = receiptMedia(settings);
+    layout = directPrintLayout(settings);
   return {
     ...base,
-    size: { width: media.width, height: pageHeight ?? media.height },
+    size: { width: layout.paperWidth, height: pageHeight ?? layout.media.height },
     orientation: 'portrait',
-    margins: 0,
+    margins: { top: 0, bottom: 0, left: layout.sides.left, right: layout.sides.right },
+    scaleContent: true,
   };
 }
 

@@ -1,5 +1,32 @@
 import { materialCode } from './material-display.mjs';
 export const customerCode = (id, customers = []) => materialCode(id, customers).replace('MAT-', 'CUS-');
+/**
+ * The comparable form of a phone number: digits only, Nigerian numbers in local 0… form
+ * (+234 803 123 4567, 2348031234567, 08031234567 and 803 123 4567 are the same number).
+ */
+export function phoneKey(phone) {
+  const digits = String(phone ?? '').replace(/\D/g, '');
+  if (/^234\d{10}$/.test(digits)) return '0' + digits.slice(3);
+  if (/^[1-9]\d{9}$/.test(digits)) return '0' + digits;
+  return digits;
+}
+/**
+ * The other customer already using this phone number, if any (archived customers included).
+ * @template {{ id: string, phone: string }} C
+ * @param {C[]} customers
+ * @param {string} phone
+ * @param {string | null | undefined} [exceptId]
+ * @returns {C | null}
+ */
+export function phoneOwner(customers, phone, exceptId = null) {
+  const key = phoneKey(phone);
+  if (!key) return null;
+  return customers.find((customer) => customer.id !== exceptId && phoneKey(customer.phone) === key) ?? null;
+}
+const phoneTaken = (owner) =>
+  new Error(
+    `This phone number already belongs to ${owner.name}${owner.archived ? ' (archived)' : ''}. Use that customer or enter a different number.`,
+  );
 export function normalizeCustomer(customer) {
   return {
     ...customer,
@@ -105,6 +132,8 @@ export function applyCustomerEvent(ledger, event) {
       throw new Error('This customer ID is already in use.');
     }
     validateCustomer(data, legacy);
+    const owner = legacy ? null : phoneOwner(customers, data.phone, data.id);
+    if (owner) throw phoneTaken(owner);
     const next = normalizeCustomer({
       id: data.id,
       name: data.name.trim(),
@@ -127,6 +156,12 @@ export function applyCustomerEvent(ledger, event) {
   if (event.kind === 'customer.updated') {
     if (existing.archived) throw new Error('Restore this customer before editing.');
     validateCustomer(data);
+    // Older records that already share a number can still be edited if the number is unchanged.
+    const owner =
+      phoneKey(data.phone) === phoneKey(existing.phone)
+        ? null
+        : phoneOwner(customers, data.phone, existing.id);
+    if (owner) throw phoneTaken(owner);
     next = {
       ...existing,
       name: data.name.trim(),

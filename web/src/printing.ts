@@ -3,7 +3,7 @@ import {
   validatePrintSettings,
   qzOptions,
   qzPdfOptions,
-  receiptMedia,
+  directPrintLayout,
   printDocument,
   printerMedia,
 } from './print-settings.mjs';
@@ -181,7 +181,8 @@ export async function printReceipt(
   const s = validatePrintSettings(settings);
   await readyPrinter(s);
   const { createReceiptPdf } = await import('./receipt-pdf');
-  const media = receiptMedia(s) as import('./receipt-pdf').ReceiptMedia;
+  // Drawn for the area the printer can reach, so roll printers do not shift or cut the right side.
+  const media = (directPrintLayout(s) as { media: import('./receipt-pdf').ReceiptMedia }).media;
   const doc = createReceiptPdf(record, business, pending, adjustments, media);
   const base64 = (doc.output('datauristring') as string).split(',')[1];
   const pageHeight = media.layout === 'roll' ? doc.internal.pageSize.getHeight() : null;
