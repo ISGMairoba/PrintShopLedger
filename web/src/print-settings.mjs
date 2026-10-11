@@ -45,5 +45,22 @@ export const escapeHtml = value => String(value).replace(/[&<>"']/g, c => ({'&':
 export function printDocument(settings, title, body) {
   const s = validatePrintSettings(settings);
   // body is trusted app-rendered markup; all user values must be escaped by the caller.
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>body{margin:0;font-family:"${escapeHtml(s.font).replace(/\\/g, '')}";font-size:${s.fontSize}pt;font-weight:${s.bold?'bold':'normal'};font-style:${s.italic?'italic':'normal'}table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:4px;border-bottom:1px solid #ddd}h1{font-size:1.4em}</style></head><body>${body}</body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>body{margin:0;font-family:"${escapeHtml(s.font).replace(/\\/g, '')}";font-size:${s.fontSize}pt;font-weight:${s.bold?'bold':'normal'};font-style:${s.italic?'italic':'normal'};-webkit-print-color-adjust:exact;print-color-adjust:exact}table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:4px}h1{font-size:1.4em}</style></head><body>${body}</body></html>`;
+}
+
+/**
+ * The paper a receipt is drawn for, from Print Settings: printable size after orientation,
+ * margins, colour, and a font scale (10 pt is the design size). Roll paper up to 90 mm wide
+ * gets the till-roll layout, cut to the content's length; anything wider gets the page layout.
+ */
+export function receiptMedia(settings) {
+  const s = validatePrintSettings(settings);
+  const [width, height] = s.orientation === 'landscape' ? [s.height, s.width] : [s.width, s.height];
+  return { width, height, margins: { ...s.margins }, layout: width <= 90 ? 'roll' : 'page', color: s.color,
+    fontScale: Math.min(1.6, Math.max(0.7, s.fontSize / 10)), copies: s.copies };
+}
+/** QZ options for printing a PDF already laid out for the paper: no extra margins or scaling. */
+export function qzPdfOptions(settings, name = 'PrintShopLedger', pageHeight = null) {
+  const base = qzOptions(settings, name), media = receiptMedia(settings);
+  return { ...base, size: { width: media.width, height: pageHeight ?? media.height }, orientation: 'portrait', margins: 0 };
 }

@@ -1,38 +1,153 @@
-import {paymentName} from './business-options.mjs';
-import { jsPDF } from 'jspdf';
-import {receiptBusiness,validLogo} from './business-branding.mjs';
-import { receiptIntegrityError } from './receipts.mjs';
-import type { CheckoutRecord, SaleAdjustment } from './types';
-const money=(amount:number)=>`NGN ${(amount/100).toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
-export function createReceiptPdf(record:CheckoutRecord,business:string|import('./useBusinessBranding').Branding,pending=false,adjustments:SaleAdjustment[]=[]){
- adjustments=adjustments.filter(item=>!item.groupId||!adjustments.some(parent=>parent.id===item.groupId));
- const warning=receiptIntegrityError(record);if(warning)throw Error(warning);
- const doc=new jsPDF({unit:'mm',format:'a4'});let y=18;
- const line=(text:string,bold=false)=>{
-  doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(bold?12:10);
-  // Built-in PDF fonts use Latin-1. Keep unsupported characters legible without corrupting money.
-  const rows=doc.splitTextToSize(text.replace(/[^\x20-\x7e\xa0-\xff\n]/g,'?'),174) as string[];
-  for(const row of rows){if(y>275){doc.addPage();y=18;}doc.text(row,18,y);y+=6;}y+=2;
+import {jsPDF,GState} from 'jspdf';
+import {receiptBusiness} from './business-branding.mjs';
+import {receiptIntegrityError,receiptModel} from './receipts.mjs';
+import {registerPdfFonts,pdfText,PDF_FONT,rgb} from './pdf-common';
+import type {CheckoutRecord,SaleAdjustment} from './types';
+import type {Branding} from './useBusinessBranding';
+
+/** The paper a receipt is drawn for (see receiptMedia in print-settings.mjs). */
+export type ReceiptMedia={width:number;height:number;margins:{top:number;right:number;bottom:number;left:number};layout:'roll'|'page';color:boolean;fontScale:number};
+export type ReceiptPdfSize='a4'|'roll'|ReceiptMedia;
+type Model=ReturnType<typeof receiptModel>;
+type Colour=[number,number,number];
+type Style='normal'|'bold'|'italic';
+const BLACK:Colour=[0,0,0];
+
+export const A4_RECEIPT:ReceiptMedia={width:210,height:297,margins:{top:14,right:16,bottom:12,left:16},layout:'page',color:true,fontScale:1};
+export const ROLL_80_RECEIPT:ReceiptMedia={width:80,height:200,margins:{top:5,right:4,bottom:5,left:4},layout:'roll',color:true,fontScale:1};
+const clamp=(n:number,lo:number,hi:number)=>Math.min(hi,Math.max(lo,n));
+function imageInfo(doc:jsPDF,data:string){try{const p=doc.getImageProperties(data);return {type:p.fileType,w:p.width,h:p.height};}catch{return null;}}
+
+/**
+ * Page receipt (A4, A5, Letter…). Everything is proportional to the printable width, as a
+ * fraction of the A4 design, so smaller pages shrink evenly; long receipts continue on new pages.
+ */
+function drawPage(doc:jsPDF,m:Model,media:ReceiptMedia,watermark:boolean){
+ const W=media.width,H=media.height,L=media.margins.left,R=W-media.margins.right,U=R-L,TOP=media.margins.top+4,bottom=H-media.margins.bottom-8;
+ const k=clamp(U/178,0.6,1.25)*media.fontScale;
+ const INK:Colour=media.color?[29,43,39]:BLACK,MUTED:Colour=media.color?[95,108,103]:[70,70,70],RULE:Colour=media.color?[220,226,222]:[190,190,190];
+ const brand=media.color?rgb(m.business.primary):BLACK,accent=media.color?rgb(m.business.accent):BLACK;
+ const logo=m.business.logo?imageInfo(doc,m.business.logo):null;
+ const mark=()=>{if(!logo||!watermark)return;const s=Math.min(U*0.73/logo.w,H*0.34/logo.h);doc.setGState(new GState({opacity:0.06}));doc.addImage(m.business.logo,logo.type,(W-logo.w*s)/2,(H-logo.h*s)/2,logo.w*s,logo.h*s,'wm','FAST');doc.setGState(new GState({opacity:1}));};
+ mark();
+ let y=TOP;
+ const page=(need:number)=>{if(y+need>bottom){doc.addPage([W,H],H>=W?'portrait':'landscape');mark();y=TOP;return true;}return false;};
+ const text=(t:string,x:number,size:number,style:Style='normal',colour:Colour=INK,align:'left'|'right'|'center'='left',width?:number)=>{
+  const s=size*k;doc.setFont(PDF_FONT,style);doc.setFontSize(s);doc.setTextColor(...colour);
+  const lines=width?doc.splitTextToSize(pdfText(t),width) as string[]:[pdfText(t)];
+  lines.forEach((line,i)=>doc.text(line,x,y+i*s*0.42,{align}));return lines.length*s*0.42;
  };
- const b=receiptBusiness(business);
- if(b.receipt.showLogo&&b.logo&&validLogo(b.logo)){const image=doc.getImageProperties(b.logo);const scale=Math.min(60/image.width,25/image.height);doc.addImage(b.logo,image.fileType,18,y,image.width*scale,image.height*scale);y+=image.height*scale+6;}
- line(b.businessName,true);if(b.receipt.showAddress&&b.address)line(b.address);if(b.receipt.showContacts){const contacts=[b.phones,b.email,b.website,b.socials].filter(Boolean);if(contacts.length)line(contacts.join('\n'));}
- line(`Receipt ${record.id.slice(0,8).toUpperCase()}`,true);
- if(record.corrected)line('Corrected receipt - current job and payment balances',true);else if(adjustments.length)line('Original receipt - later adjustments listed below',true);
- if(pending)line('Pending confirmation - saved on this device',true);
- line(new Date(record.createdAt).toLocaleString('en-NG',{timeZone:'Africa/Lagos'}));
- line(`Customer: ${record.customerSnapshot?.name??record.customerId}\nPhone: ${record.customerSnapshot?.phone??''}\nCashier: ${record.createdByLabel}`);
- for(const balance of record.jobBalances??[]){
-  const job=record.jobs.find(job=>job.id===balance.id);
-  line(`${balance.service} - ${balance.id.slice(0,8).toUpperCase()}`,true);line(balance.description);
-  if(job)line(`Quantity: ${job.quantity}${job.requireSize?` | Size: ${job.width} x ${job.height}`:''}\nReceived: ${job.source}${job.sourceNote?` - ${job.sourceNote}`:''}`);
-  line(`Amount: ${money(balance.amount)}\nPaid before: ${money(balance.paidBefore)}\nPaid now: ${money(balance.paidThisCheckout)}\nOutstanding: ${money(balance.outstandingAfter)}`);
+ // Header: identity left, logo right.
+ let logoH=0,textW=U;
+ if(logo){const s=Math.min(U*0.34/logo.w,28*k/logo.h);doc.addImage(m.business.logo,logo.type,R-logo.w*s,TOP-4,logo.w*s,logo.h*s,'logo','FAST');logoH=logo.h*s;textW=U-logo.w*s-8*k;}
+ y=TOP+2*k;y+=text(m.business.name,L,17,'bold',brand,'left',textW)+1*k;
+ for(const line of [m.business.address,m.business.contacts.join('  |  ')].filter(Boolean))y+=text(line,L,8.8,'normal',MUTED,'left',textW);
+ y=Math.max(y,TOP-4+logoH)+5*k;
+ // Title band
+ const band=11*k;
+ doc.setFillColor(...brand);doc.rect(L,y,U,band,'F');
+ doc.setFont(PDF_FONT,'bold');doc.setFontSize(13*k);doc.setTextColor(255,255,255);doc.text(pdfText(m.title.toUpperCase()),L+4*k,y+band*0.67);
+ doc.setFont(PDF_FONT,'normal');doc.setFontSize(10*k);doc.text(pdfText(`No. ${m.number}`),R-4*k,y+band*0.65,{align:'right'});
+ y+=band+6*k;
+ for(const n of m.notices){doc.setFillColor(...(media.color?[253,247,232] as Colour:[238,238,238] as Colour));doc.rect(L,y-4*k,U,7.5*k,'F');doc.setDrawColor(...accent);doc.setLineWidth(1.2*k);doc.line(L,y-4*k,L,y+3.5*k);doc.setLineWidth(0.2);text(n,L+4*k,9.5,'bold');y+=10*k;}
+ // Details, two columns
+ const half=U/2,key=24*k;
+ const order=['Customer','Date','Phone','Payment date','Cashier'];
+ const meta=(m.meta as [string,string][]).filter(([label])=>label!=='Receipt no.').sort((a,b)=>order.indexOf(a[0])-order.indexOf(b[0]));
+ for(let i=0;i<meta.length;i+=2){let h=0;for(const [j,[label,value]] of meta.slice(i,i+2).entries()){const x=L+j*half;text(label,x,8.5,'normal',MUTED);h=Math.max(h,text(value,x+key,9.5,'normal',INK,'left',half-key-4*k));}y+=Math.max(h,6*k);}
+ y+=5*k;
+ // Items
+ if(m.items.length){
+  // Amount columns from the business's settings, right-aligned from the right edge.
+  const step=U*0.157,cols:{head:string;value:(i:Model['items'][number])=>string;bold?:boolean}[]=[{head:'AMOUNT',value:i=>i.amount},...(m.show.paidNow?[{head:'PAID NOW',value:(i:Model['items'][number])=>i.paidNow}]:[]),...(m.show.balance?[{head:'BALANCE',value:(i:Model['items'][number])=>i.balance,bold:true}]:[])];
+  const xs=cols.map((_,n)=>R-step*(cols.length-1-n)),descW=xs[0]-U*0.126-L-4*k;
+  const head=()=>{doc.setDrawColor(...brand);doc.setLineWidth(0.6*k);doc.line(L,y+2*k,R,y+2*k);doc.setLineWidth(0.2);text('JOB',L,8,'bold',MUTED);cols.forEach((c,n)=>text(c.head,xs[n],8,'bold',MUTED,'right'));y+=7*k;};
+  head();
+  for(const i of m.items){
+   const subline=[i.subtitle,...i.meta].filter(Boolean).join(' · ');
+   doc.setFont(PDF_FONT,'bold');doc.setFontSize(10*k);const name=doc.splitTextToSize(pdfText(i.title),descW) as string[];
+   doc.setFont(PDF_FONT,'normal');doc.setFontSize(8.2*k);const sub=subline?doc.splitTextToSize(pdfText(subline),descW) as string[]:[];
+   const h=name.length*4.2*k+sub.length*3.5*k+(i.paidBefore?3.6*k:0)+4.5*k;
+   if(page(h+4*k))head();
+   const top=y;
+   y+=text(i.title,L,10,'bold',INK,'left',descW);
+   if(sub.length)text(sub.join('\n'),L,8.2,'normal',MUTED);
+   y=top;cols.forEach((c,n)=>text(c.value(i),xs[n],10,c.bold?'bold':'normal',n===0&&!i.ok?(media.color?[170,40,30]:BLACK):INK,'right'));
+   if(i.paidBefore){y+=4.4*k;text(`Paid before ${i.paidBefore}`,xs[0],7.8,'normal',MUTED,'right');}
+   y=top+h;doc.setDrawColor(...RULE);doc.line(L,y-1.5*k,R,y-1.5*k);y+=3*k;
+  }
  }
- line(`New jobs: ${money(record.total)}`,true);
- line(`Money received (${paymentName(record)}): ${money(record.cashReceived)}\nWallet used: ${money(record.walletUsed)}\nAdded to wallet: ${money(record.walletAdded)}\nWallet balance: ${money(record.walletAfter)}\nCustomer outstanding: ${money(record.outstandingAfter)}\nPayment date: ${record.paidOn}`);
- if(record.reference)line(`Note: ${record.reference}`);
- if(adjustments.length){line('Later adjustments',true);for(const a of adjustments){line(`${a.action.replace('sale.','')} - ${a.id.slice(0,8).toUpperCase()}`,true);line(`Job: ${a.jobId.slice(0,8).toUpperCase()}\nCharge: ${money(a.before.amount)} -> ${money(a.after.amount)}\nQuantity: ${a.before.quantity??'-'} -> ${a.after.quantity??'-'}\nSize: ${a.before.width??'-'} x ${a.before.height??'-'} -> ${a.after.width??'-'} x ${a.after.height??'-'}\nService: ${a.before.service} -> ${a.after.service}\n${a.paymentChanges.map(p=>`Payment: ${p.before.methodLabel??p.before.method} ${money(p.before.amount)} -> ${p.after.methodLabel??p.after.method} ${money(p.after.amount)}`).join('\n')}\nCredit released: ${money(a.creditReleased)}\nMoney refunded: ${money(a.refundAmount)}${a.refundAmount?` (${a.methodLabel??a.method})`:''}\nMaterial returned: ${a.returnQuantity}\nReason: ${a.reason}\nApproved by: ${a.changedByLabel} - ${new Date(a.changedAt).toLocaleString('en-NG',{timeZone:'Africa/Lagos'})}`);}}
- if(b.receipt.footer)line(b.receipt.footer);
+ // Totals and account panel
+ page((m.totals.length*6+30)*k);y+=2*k;
+ const sx=L+U*0.48;
+ m.totals.forEach((t,n)=>{const last=n===m.totals.length-1&&t.strong;
+  if(last){y+=1.5*k;doc.setDrawColor(...brand);doc.setLineWidth(0.6*k);doc.line(sx,y-5*k,R,y-5*k);doc.setLineWidth(0.2);}
+  const lh=text(t.label,sx,last?11:9.8,t.strong?'bold':'normal',last?brand:INK,'left',R-sx-32*k);text(t.value,R,last?11:9.8,t.strong?'bold':'normal',last?brand:INK,'right');y+=Math.max(lh+1.6*k,(last?7:5.8)*k);});
+ y+=3*k;
+ if(m.account.length){doc.setFillColor(...(media.color?[243,246,244] as Colour:[240,240,240] as Colour));doc.rect(L,y-4.5*k,U,m.account.length*5.6*k+2.5*k,'F');
+ m.account.forEach(a=>{text(a.label,L+4*k,9.5,'normal',MUTED);text(a.value,R-4*k,9.5,'bold',INK,'right');y+=5.6*k;});}
+ y+=4*k;
+ if(m.note){page(8*k);y+=text(`Note: ${m.note}`,L,9,'italic',MUTED,'left',U)+2*k;}
+ if(m.adjustments.length){page(14*k);y+=3*k;text('Later adjustments',L,11,'bold',brand);y+=6*k;
+  for(const a of m.adjustments){page((a.lines.length+1)*3.8*k+3*k);text(`${a.label} · ${a.ref} · Job ${a.job}`,L,9,'bold');y+=4.2*k;for(const line of a.lines){y+=text(line,L+3*k,8.2,'normal',MUTED,'left',U-3*k);}y+=2*k;}}
+ if(m.footer){page(14*k);y+=6*k;doc.setDrawColor(...RULE);doc.line(L,y-4*k,R,y-4*k);text(m.footer,W/2,10,'normal',MUTED,'center',U);}
+ const pages=doc.getNumberOfPages();
+ for(let p=1;p<=pages;p++){doc.setPage(p);doc.setFont(PDF_FONT,'normal');doc.setFontSize(7.5*k);doc.setTextColor(...MUTED);doc.text(pdfText(`${m.title} ${m.number}`),L,H-media.margins.bottom-2);if(pages>1)doc.text(`Page ${p} of ${pages}`,R,H-media.margins.bottom-2,{align:'right'});}
+}
+
+/** Till-roll receipt for paper up to 90 mm wide, black only, scaled to the paper width. Returns the content height. */
+function drawRoll(doc:jsPDF,m:Model,media:ReceiptMedia){
+ const W=media.width,L=media.margins.left,R=W-media.margins.right,U=R-L,C=L+U/2;
+ const k=clamp(U/72,0.85,1.3)*media.fontScale; // narrow rolls keep text legible and wrap instead
+ let y=media.margins.top;
+ const text=(t:string,x:number,size:number,style:Style='normal',align:'left'|'right'|'center'='left',width=U)=>{
+  const s=size*k;doc.setFont(PDF_FONT,style);doc.setFontSize(s);doc.setTextColor(0,0,0);
+  const lines=doc.splitTextToSize(pdfText(t),width) as string[];lines.forEach((line,i)=>doc.text(line,x,y+s*0.35+i*s*0.4,{align}));return lines.length*s*0.4;
+ };
+ // Label left, value right; a value too long for one line moves under its label and wraps, right-aligned.
+ const pair=(label:string,value:string,size=8,style:'normal'|'bold'='normal')=>{doc.setFont(PDF_FONT,style);doc.setFontSize(size*k);const vw=doc.getTextWidth(pdfText(value));
+  if(vw>U*0.62){y+=text(label,L,size,style)+0.2*k;y+=text(value,R,size,style,'right',U*0.9)+0.8*k;return;}
+  const h=text(label,L,size,style,'left',Math.max(U*0.3,U-vw-3*k));text(value,R,size,style,'right',vw+1);y+=Math.max(h,size*k*0.4)+0.8*k;};
+ const rule=(dash=true)=>{doc.setDrawColor(0,0,0);doc.setLineWidth(dash?0.2:0.5);if(dash)doc.setLineDashPattern([0.8,0.8],0);doc.line(L,y,R,y);doc.setLineDashPattern([],0);doc.setLineWidth(0.2);y+=2.5*k;};
+ const logo=m.business.logo?imageInfo(doc,m.business.logo):null;
+ if(logo){const s=Math.min(U*0.64/logo.w,20*k/logo.h);doc.addImage(m.business.logo,logo.type,C-logo.w*s/2,y,logo.w*s,logo.h*s,'logo','FAST');y+=logo.h*s+2*k;}
+ y+=text(m.business.name.toUpperCase(),C,12,'bold','center')+0.5*k;
+ for(const line of [m.business.address,...m.business.contacts].filter(Boolean))y+=text(line,C,7.2,'normal','center');
+ y+=1.5*k;rule(false);y+=text(m.title.toUpperCase(),C,10.5,'bold','center')+0.5*k;rule(false);
+ for(const n of m.notices){y+=text(n,C,7.5,'bold','center')+1*k;}
+ for(const [label,value] of m.meta as [string,string][])pair(label,value);
+ y+=0.5*k;rule();
+ for(const i of m.items){
+  y+=text(i.title,L,8.6,'bold')+0.3*k;
+  const subline=[i.subtitle,...i.meta].filter(Boolean).join(' · ');if(subline)y+=text(subline,L,6.8)+0.6*k;
+  pair('Amount',i.amount,7.8);if(i.paidBefore)pair('Paid before',i.paidBefore,7.8);if(i.paidNow)pair('Paid now',i.paidNow,7.8);if(i.balance)pair('Balance',i.balance,7.8,'bold');y+=1*k;
+ }
+ if(m.items.length)rule();
+ m.totals.forEach((t,n)=>{const last=n===m.totals.length-1&&t.strong;if(last){y+=0.5*k;rule(false);}pair(t.label,t.value,last?9.6:8,t.strong?'bold':'normal');});
+ if(m.account.length){rule();for(const a of m.account)pair(a.label,a.value,7.8);}
+ if(m.note){y+=1*k;y+=text(`Note: ${m.note}`,L,7,'italic');}
+ if(m.adjustments.length){y+=1.5*k;y+=text('LATER ADJUSTMENTS',L,7.8,'bold')+0.5*k;for(const a of m.adjustments){y+=text(`${a.label} · ${a.ref} · Job ${a.job}`,L,7,'bold');for(const line of a.lines)y+=text(line,L+1.5*k,6.5,'normal','left',U-1.5*k);y+=1*k;}}
+ if(m.footer){y+=2.5*k;y+=text(m.footer,C,8,'normal','center');}
+ y+=1.5*k;y+=text(`${m.title} ${m.number}`,C,6.5,'normal','center');
+ return y+media.margins.bottom;
+}
+
+const mediaFor=(size:ReceiptPdfSize):ReceiptMedia=>size==='a4'?A4_RECEIPT:size==='roll'?ROLL_80_RECEIPT:size;
+
+/** Build the receipt for a paper size. Roll pages are cut to the content's length. */
+export function createReceiptPdf(record:CheckoutRecord,business:string|Branding,pending=false,adjustments:SaleAdjustment[]=[],size:ReceiptPdfSize='a4'){
+ const warning=receiptIntegrityError(record);if(warning)throw Error(warning);
+ const m=receiptModel(record,business,pending,adjustments),media=mediaFor(size);
+ if(media.layout==='roll'){
+  // Measure on a long strip, then draw again on a page exactly as tall as the content.
+  const probe=new jsPDF({unit:'mm',format:[media.width,3000]});registerPdfFonts(probe);
+  const height=Math.max(media.width,Math.ceil(drawRoll(probe,m,media)));
+  const doc=new jsPDF({unit:'mm',format:[media.width,height],orientation:height>=media.width?'portrait':'landscape'});registerPdfFonts(doc);drawRoll(doc,m,media);return doc;
+ }
+ const doc=new jsPDF({unit:'mm',format:[media.width,media.height],orientation:media.height>=media.width?'portrait':'landscape'});registerPdfFonts(doc);
+ drawPage(doc,m,media,!!receiptBusiness(business).documents?.watermark);
  return doc;
 }
-export function downloadReceiptPdf(record:CheckoutRecord,business:string|import('./useBusinessBranding').Branding,pending=false,adjustments:SaleAdjustment[]=[]){createReceiptPdf(record,business,pending,adjustments).save(`Receipt-${record.id.slice(0,8).toUpperCase()}${record.corrected?'-corrected':''}.pdf`);}
+export function downloadReceiptPdf(record:CheckoutRecord,business:string|Branding,pending=false,adjustments:SaleAdjustment[]=[],size:'a4'|'roll'='a4'){
+ createReceiptPdf(record,business,pending,adjustments,size).save(`Receipt-${record.id.slice(0,8).toUpperCase()}${record.corrected?'-corrected':''}${size==='roll'?'-80mm':''}.pdf`);
+}
