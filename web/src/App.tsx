@@ -29,6 +29,12 @@ import PrintSettingsPage from './PrintSettingsPage';
 import { lazy, Suspense, useEffect, useRef, useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import JobsPaymentsPage from './JobsPaymentsPage';
+import {
+  CustomerConflictReview,
+  ExpenseConflictReview,
+  JobConflictReview,
+  MaterialConflictReview,
+} from './ConflictReviews';
 import { useAuthSessions, useOnline, useWorkspaces } from './app/useSessions';
 import {
   BusinessLogin,
@@ -557,6 +563,55 @@ export default function App() {
         if (error instanceof ServiceSyncConflict) setServiceConflict(error);
         if (error instanceof CustomerSyncConflict) setCustomerConflict(error);
       }
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function resolveExpenseConflict(choice: 'local' | 'cloud') {
+    if (!expenseConflict || !shop || busy) return;
+    setBusy(true);
+    const target = scope;
+    try {
+      const next = await resolveCloudExpense(
+        target,
+        shop.id,
+        expenseConflict.local.id,
+        choice,
+        expenseConflict.local.lastEventId,
+        expenseConflict.remote?.lastEventId ?? null,
+      );
+      if (activeScope.current === target) {
+        setState(next);
+        setExpenseConflict(null);
+        channel.current?.postMessage('changed');
+        setMessage('Expense review saved. Sync will resume automatically.');
+      }
+    } catch (error) {
+      setMessage(errorMessage(error), 'error');
+      if (error instanceof ExpenseSyncConflict) setExpenseConflict(error);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function resolveJobConflict() {
+    if (!jobConflict || !shop || busy) return;
+    setBusy(true);
+    const target = scope;
+    try {
+      const next = await resolvePendingWork(
+        target,
+        shop.id,
+        jobConflict.event.id,
+        null,
+        jobConflict.event.data.id,
+      );
+      if (activeScope.current === target) {
+        setState(next);
+        setJobConflict(null);
+        channel.current?.postMessage('changed');
+      }
+    } catch (error) {
+      setMessage(errorMessage(error), 'error');
     } finally {
       setBusy(false);
     }
@@ -1116,125 +1171,12 @@ export default function App() {
             </div>
           )}
           {expenseConflict && !conflictReviewHidden && canReviewConflicts && (
-            <Modal
-              title="Review expense changes"
-              wide
+            <ExpenseConflictReview
+              conflict={expenseConflict}
               busy={busy}
               onClose={() => setConflictReviewHidden(true)}
-            >
-              <p>{expenseConflict.message}</p>
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Field</th>
-                      <th>This device</th>
-                      <th>Business version</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>Description</td>
-                      <td>{expenseConflict.local.description}</td>
-                      <td>{expenseConflict.remote?.description ?? 'Not available'}</td>
-                    </tr>
-                    <tr>
-                      <td>Total cost</td>
-                      <td>{currency(expenseConflict.local.amount)}</td>
-                      <td>{expenseConflict.remote ? currency(expenseConflict.remote.amount) : '—'}</td>
-                    </tr>
-                    {(['incurredOn', 'category', 'payee', 'note', 'receiptReference'] as const).map(
-                      (field) => (
-                        <tr key={field}>
-                          <td>
-                            {
-                              {
-                                incurredOn: 'Date incurred',
-                                category: 'Category',
-                                payee: 'Supplier',
-                                note: 'Notes',
-                                receiptReference: 'Receipt reference',
-                              }[field]
-                            }
-                          </td>
-                          <td>{expenseConflict.local[field] || '—'}</td>
-                          <td>{expenseConflict.remote?.[field] || '—'}</td>
-                        </tr>
-                      ),
-                    )}
-                    <tr>
-                      <td>Recorded payments</td>
-                      <td>
-                        {currency(expenseConflict.local.payments.reduce((sum, p) => sum + p.amount, 0))}
-                      </td>
-                      <td>
-                        {currency(
-                          expenseConflict.remote?.payments.reduce((sum, p) => sum + p.amount, 0) ?? 0,
-                        )}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>Status</td>
-                      <td>{expenseConflict.local.voided ? 'Voided' : 'Active'}</td>
-                      <td>{expenseConflict.remote?.voided ? 'Voided' : 'Active'}</td>
-                    </tr>
-                    <tr>
-                      <td>Materials</td>
-                      <td>
-                        {expenseConflict.local.materials
-                          .map((m) => `${m.name}: ${m.quantity} ${m.measurementUnit}`)
-                          .join(' · ') || 'None'}
-                      </td>
-                      <td>
-                        {expenseConflict.remote?.materials
-                          .map((m) => `${m.name}: ${m.quantity} ${m.measurementUnit}`)
-                          .join(' · ') || 'None'}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <p>
-                Reapplying keeps business payments and applies your pending expense changes against the latest
-                stock. Keeping the business version discards this device’s pending changes to this expense.
-              </p>
-              <div className="material-actions">
-                {(['local', 'cloud'] as const).map((choice) => (
-                  <button
-                    key={choice}
-                    disabled={busy}
-                    className={choice === 'cloud' ? 'secondary' : ''}
-                    onClick={async () => {
-                      setBusy(true);
-                      const target = scope;
-                      try {
-                        const next = await resolveCloudExpense(
-                          target,
-                          shop!.id,
-                          expenseConflict.local.id,
-                          choice,
-                          expenseConflict.local.lastEventId,
-                          expenseConflict.remote?.lastEventId ?? null,
-                        );
-                        if (activeScope.current === target) {
-                          setState(next);
-                          setExpenseConflict(null);
-                          channel.current?.postMessage('changed');
-                          setMessage('Expense review saved. Sync will resume automatically.');
-                        }
-                      } catch (error) {
-                        setMessage(errorMessage(error), 'error');
-                        if (error instanceof ExpenseSyncConflict) setExpenseConflict(error);
-                      } finally {
-                        setBusy(false);
-                      }
-                    }}
-                  >
-                    {choice === 'local' ? 'Reapply pending changes' : 'Keep business version'}
-                  </button>
-                ))}
-              </div>
-            </Modal>
+              onResolve={(choice) => void resolveExpenseConflict(choice)}
+            />
           )}
           {checkoutConflict && !conflictReviewHidden && canReviewConflicts && (
             <CheckoutEditor
@@ -1283,110 +1225,21 @@ export default function App() {
             />
           )}
           {jobConflict && !conflictReviewHidden && canReviewConflicts && (
-            <Modal title="Review job progress" busy={busy} onClose={() => setConflictReviewHidden(true)}>
-              <p>{jobConflict.message}</p>
-              <p>
-                Business status:{' '}
-                {jobConflict.cloud.jobs.find((j) => j.id === jobConflict.event.data.id)?.productionStatus ??
-                  'Added'}
-              </p>
-              <button
-                disabled={busy}
-                onClick={async () => {
-                  setBusy(true);
-                  const target = scope;
-                  try {
-                    const next = await resolvePendingWork(
-                      target,
-                      shop!.id,
-                      jobConflict.event.id,
-                      null,
-                      jobConflict.event.data.id,
-                    );
-                    if (activeScope.current === target) {
-                      setState(next);
-                      setJobConflict(null);
-                      channel.current?.postMessage('changed');
-                    }
-                  } catch (error) {
-                    setMessage(errorMessage(error), 'error');
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
-              >
-                Use business status
-              </button>
-            </Modal>
-          )}
-          {customerConflict && !conflictReviewHidden && canReviewConflicts && (
-            <Modal
-              title="Review conflicting customer edits"
-              wide
+            <JobConflictReview
+              conflict={jobConflict}
               busy={busy}
               onClose={() => setConflictReviewHidden(true)}
-            >
-              <FeedbackBanner message={message} tone={messageTone} />
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Field</th>
-                      <th>This device</th>
-                      <th>Business workspace</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(
-                      ['name', 'phone', 'address', 'creditLimit', 'archived', 'modifiedByLabel'] as const
-                    ).map((field) => (
-                      <tr key={field}>
-                        <td>
-                          {
-                            {
-                              name: 'Full name',
-                              phone: 'Phone',
-                              address: 'Address',
-                              creditLimit: 'Credit limit',
-                              archived: 'Archived',
-                              modifiedByLabel: 'Modified by',
-                            }[field]
-                          }
-                        </td>
-                        <td>
-                          {field === 'creditLimit'
-                            ? currency(customerConflict.local.creditLimit)
-                            : String(customerConflict.local[field])}
-                        </td>
-                        <td>
-                          {customerConflict.remote
-                            ? field === 'creditLimit'
-                              ? currency(customerConflict.remote.creditLimit)
-                              : String(customerConflict.remote[field])
-                            : 'Not available'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <p>
-                Keeping the business version discards pending edits to this customer. Other pending records
-                are kept.
-              </p>
-              <div className="material-actions">
-                <button disabled={busy} onClick={() => void resolveCustomerConflict('local')}>
-                  Keep this device's version
-                </button>
-                <button
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() => void resolveCustomerConflict('cloud')}
-                >
-                  Keep business version
-                </button>
-              </div>
-            </Modal>
+              onResolve={() => void resolveJobConflict()}
+            />
+          )}
+          {customerConflict && !conflictReviewHidden && canReviewConflicts && (
+            <CustomerConflictReview
+              conflict={customerConflict}
+              busy={busy}
+              feedback={{ message, tone: messageTone }}
+              onClose={() => setConflictReviewHidden(true)}
+              onResolve={(choice) => void resolveCustomerConflict(choice)}
+            />
           )}
           {serviceConflict && !conflictReviewHidden && canReviewConflicts && (
             <ServiceConflictReview
@@ -1403,76 +1256,13 @@ export default function App() {
             />
           )}
           {conflict && !conflictReviewHidden && canReviewConflicts && (
-            <Modal
-              title="Review conflicting material edits"
-              wide
+            <MaterialConflictReview
+              conflict={conflict}
               busy={busy}
+              feedback={{ message, tone: messageTone }}
               onClose={() => setConflictReviewHidden(true)}
-            >
-              <FeedbackBanner message={message} tone={messageTone} />
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Field</th>
-                      <th>This device</th>
-                      <th>Business workspace</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>Name</td>
-                      <td>{conflict.local.name}</td>
-                      <td>{conflict.remote.name}</td>
-                    </tr>
-                    <tr>
-                      <td>Available</td>
-                      <td>{conflict.local.available}</td>
-                      <td>{conflict.remote.available}</td>
-                    </tr>
-                    <tr>
-                      <td>Measurement unit</td>
-                      <td>{conflict.local.measurementUnit}</td>
-                      <td>{conflict.remote.measurementUnit}</td>
-                    </tr>
-                    <tr>
-                      <td>Minimum stock</td>
-                      <td>{conflict.local.minimumStock ?? 0}</td>
-                      <td>{conflict.remote.minimumStock ?? 0}</td>
-                    </tr>
-                    <tr>
-                      <td>Require size</td>
-                      <td>{conflict.local.requireSize ? 'Yes' : 'No'}</td>
-                      <td>{conflict.remote.requireSize ? 'Yes' : 'No'}</td>
-                    </tr>
-                    <tr>
-                      <td>Status</td>
-                      <td>{conflict.local.archived ? 'Archived' : 'Active'}</td>
-                      <td>{conflict.remote.archived ? 'Archived' : 'Active'}</td>
-                    </tr>
-                    <tr>
-                      <td>Modified by</td>
-                      <td>{conflict.local.modifiedByLabel}</td>
-                      <td>{conflict.remote.modifiedByLabel}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <p>
-                Reapplying your edits preserves business stock movements. Stock additions add your pending
-                quantities to the current business stock; stock-count corrections use your chosen count.
-                Keeping the business version discards pending edits to this material. Other pending records
-                are kept.
-              </p>
-              <div className="material-actions">
-                <button disabled={busy} onClick={() => void resolveConflict('local')}>
-                  Reapply pending edits
-                </button>
-                <button className="secondary" disabled={busy} onClick={() => void resolveConflict('cloud')}>
-                  Keep business version
-                </button>
-              </div>
-            </Modal>
+              onResolve={(choice) => void resolveConflict(choice)}
+            />
           )}
           {!demo && !shop ? (
             <section className="auth-card">
