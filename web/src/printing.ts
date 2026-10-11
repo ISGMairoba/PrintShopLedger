@@ -5,6 +5,7 @@ import {
   qzPdfOptions,
   receiptMedia,
   printDocument,
+  printerMedia,
 } from './print-settings.mjs';
 import type { CheckoutRecord, SaleAdjustment } from './types';
 import type { Branding } from './useBusinessBranding';
@@ -24,12 +25,73 @@ export type PrintSettings = {
   paperSource: string;
   autoPrint: boolean;
 };
+// Trusted printing: QZ Tray requests are signed with the business key on the server (see
+// src/print-signing.mjs). Without a signer, offline, or on failure, requests go unsigned and
+// QZ Tray asks for approval as before.
+type Signer = { shopId: string; invoke: (body: object) => Promise<{ data: any; error: unknown }> };
+let signer: Signer | null = null;
+const certificateKey = (shopId: string) => `printshopledger:qz-certificate:v1:${shopId}`;
+/** The business whose certificate QZ Tray is shown; call when the workspace changes. */
+export function setPrintSigner(next: Signer | null) {
+  if (next?.shopId === signer?.shopId) {
+    signer = next;
+    return;
+  }
+  signer = next;
+  // QZ Tray reads the certificate when connecting, so reconnect for a different business.
+  void import('qz-tray').then(({ default: qz }) => {
+    if (qz.websocket.isActive()) void qz.websocket.disconnect().catch(() => {});
+  });
+}
+/** The business printing certificate (PEM), cached on this device so it also works offline. */
+export async function printCertificate(): Promise<string> {
+  const current = signer;
+  if (!current) throw new Error('Sign in to a business workspace first.');
+  let cached = '';
+  try {
+    cached = localStorage.getItem(certificateKey(current.shopId)) ?? '';
+  } catch {
+    /* Storage unavailable. */
+  }
+  if (cached && !navigator.onLine) return cached;
+  const { data, error } = await current.invoke({ shopId: current.shopId, action: 'certificate' });
+  if (error || typeof data?.certificate !== 'string') {
+    if (cached) return cached;
+    throw new Error('Could not load the printing certificate. Check your connection and try again.');
+  }
+  try {
+    localStorage.setItem(certificateKey(current.shopId), data.certificate);
+  } catch {
+    /* Storage unavailable. */
+  }
+  return data.certificate;
+}
+let securityReady = false;
+function configureSecurity(qz: any) {
+  if (securityReady) return;
+  securityReady = true;
+  qz.security.setCertificatePromise((resolve: (value?: string) => void) => {
+    if (!signer) return resolve();
+    printCertificate().then(resolve, () => resolve());
+  });
+  qz.security.setSignatureAlgorithm('SHA512');
+  qz.security.setSignaturePromise((toSign: string) => (resolve: (value?: string) => void) => {
+    const current = signer;
+    if (!current || !navigator.onLine) return resolve();
+    current.invoke({ shopId: current.shopId, action: 'sign', toSign }).then(
+      ({ data, error }) =>
+        resolve(!error && typeof data?.signature === 'string' ? data.signature : undefined),
+      () => resolve(),
+    );
+  });
+}
 // QZ's package is bundled locally so connecting also works when the app is offline.
 let connection: Promise<any> | null = null;
 export async function connectPrinter() {
   if (connection) return connection;
   connection = (async () => {
     const { default: qz } = await import('qz-tray');
+    configureSecurity(qz);
     if (!qz.websocket.isActive()) await qz.websocket.connect({ retries: 0 });
     return qz;
   })();
@@ -39,7 +101,12 @@ export async function connectPrinter() {
     connection = null;
   }
 }
-export async function discoverPrinters(): Promise<{ printers: string[]; defaultPrinter: string }> {
+export type PrinterMedia = { sizes: { name: string; width: number; height: number }[]; trays: string[] };
+export async function discoverPrinters(): Promise<{
+  printers: string[];
+  defaultPrinter: string;
+  media: Record<string, PrinterMedia>;
+}> {
   const qz = await connectPrinter();
   const printers = await qz.printers.find();
   let defaultPrinter = '';
@@ -48,7 +115,17 @@ export async function discoverPrinters(): Promise<{ printers: string[]; defaultP
   } catch {
     /* Manual selection remains available. */
   }
-  return { printers, defaultPrinter };
+  // Paper sizes and trays come from the printer driver (QZ Tray 2.2.3+). Older versions or a
+  // failed lookup leave the list empty and Print Settings falls back to common sizes.
+  const media: Record<string, PrinterMedia> = {};
+  try {
+    const details: { name: string }[] = await qz.printers.details();
+    for (const item of Array.isArray(details) ? details : [])
+      if (item?.name) media[item.name] = printerMedia(item) as PrinterMedia;
+  } catch {
+    /* Sizes stay unavailable. */
+  }
+  return { printers, defaultPrinter, media };
 }
 export async function printHtml(settings: PrintSettings, title: string, body: string) {
   const s = validatePrintSettings(settings);
