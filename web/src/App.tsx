@@ -30,6 +30,13 @@ import { lazy, Suspense, useEffect, useRef, useState, type FormEvent } from 'rea
 import Modal from './Modal';
 import JobsPaymentsPage from './JobsPaymentsPage';
 import { useAuthSessions, useOnline, useWorkspaces } from './app/useSessions';
+import {
+  BusinessLogin,
+  StaffLoginForm,
+  StaffSignIn,
+  StartupScreen,
+  WorkspaceLoading,
+} from './app/AuthScreens';
 import { currency, dateLabel, errorMessage, shortId, type Page, type Shop } from './app/shared';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { customerBalance, emptyLedger, jobBalance } from './domain.mjs';
@@ -724,53 +731,15 @@ export default function App() {
       setBusy(false);
     }
   }
-  function staffLoginForm() {
-    return (
-      <form onSubmit={staffLogin}>
-        <label>
-          Username
-          <input
-            name="username"
-            autoComplete="username"
-            aria-invalid={messageTone === 'error' && !!message}
-            maxLength={40}
-            required
-          />
-        </label>
-        <label>
-          Password
-          <input
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            aria-invalid={messageTone === 'error' && !!message}
-            required
-          />
-        </label>
-        <button disabled={busy || !online}>{busy ? 'Signing in…' : 'Sign in user'}</button>
-      </form>
-    );
-  }
   const customerName = (id: string) =>
     ledger.customers.find((customer) => customer.id === id)?.name ?? 'Unknown customer';
   const currentJob = ledger.jobs.find((job) => job.id === selectedJob);
 
   if (validActivationToken(activationToken))
     return <DeveloperActivation key={activationToken} token={activationToken} online={online} />;
+  const feedback = { message, tone: messageTone };
   if (!authReady)
-    return (
-      <main className="auth">
-        <section className="auth-card">
-          <h1>{authStartupError ? 'Could not restore your sign-in' : 'Opening PrintShopLedger…'}</h1>
-          {authStartupError && (
-            <>
-              <p role="alert">{authStartupError}</p>
-              <button onClick={() => setAuthEpoch((value) => value + 1)}>Retry sign-in loading</button>
-            </>
-          )}
-        </section>
-      </main>
-    );
+    return <StartupScreen error={authStartupError} onRetry={() => setAuthEpoch((value) => value + 1)} />;
   if (!demo && !businessSession && registering)
     return (
       <BusinessSignup
@@ -783,94 +752,36 @@ export default function App() {
     );
   if (!demo && !businessSession)
     return (
-      <main className="auth">
-        <div className="auth-card">
-          <div className="brand-mark">S</div>
-          <h1>PrintShopLedger</h1>
-          <p>Every job. Every payment. Clearly tracked.</p>
-          <form onSubmit={login}>
-            <label>
-              Business email
-              <input
-                name="email"
-                type="email"
-                autoComplete="username"
-                aria-invalid={messageTone === 'error' && !!message}
-                required
-              />
-            </label>
-            <label>
-              Business password
-              <input
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                aria-invalid={messageTone === 'error' && !!message}
-                required
-              />
-            </label>
-            <button disabled={busy || !online}>Sign in</button>
-          </form>
-          <button
-            className="secondary"
-            disabled={busy || !online}
-            onClick={() => {
-              setRegistering(true);
-              setMessage('');
-            }}
-          >
-            Register your business
-          </button>
-          <button
-            className="secondary"
-            onClick={() => {
-              setDemo(true);
-              setMessage('');
-            }}
-          >
-            Try locally on this device
-          </button>
-          <p className="muted">Local trial data stays separate from business workspaces.</p>
-          <FeedbackBanner message={message} tone={messageTone} login />
-        </div>
-      </main>
+      <BusinessLogin
+        feedback={feedback}
+        busy={busy}
+        online={online}
+        onSubmit={login}
+        onRegister={() => {
+          setRegistering(true);
+          setMessage('');
+        }}
+        onTrial={() => {
+          setDemo(true);
+          setMessage('');
+        }}
+      />
     );
-
   if (
     !demo &&
     businessSession &&
     (workspaceLookup.key !== workspaceIdentity || workspaceLookup.status !== 'ready')
   )
     return (
-      <main className="auth">
-        <section className="auth-card">
-          <h1>
-            {workspaceLookup.key === workspaceIdentity && workspaceLookup.status === 'error'
-              ? 'Could not load your business'
-              : 'Loading business workspace…'}
-          </h1>
-          {workspaceLookup.key === workspaceIdentity && workspaceLookup.status === 'error' && (
-            <>
-              <p>
-                Your sign-in succeeded, but the workspace lookup failed. This does not mean you need to create
-                another workspace.
-              </p>
-              <p role="alert">{workspaceLookup.error || 'The server did not respond. Please retry.'}</p>
-              <button disabled={!online} onClick={() => setStaffEpoch((value) => value + 1)}>
-                Retry workspace lookup
-              </button>
-            </>
-          )}
-          <button
-            className="secondary"
-            onClick={async () => {
-              await Promise.all([supabase!.auth.signOut(), businessAuth!.auth.signOut()]);
-            }}
-          >
-            Sign out
-          </button>
-        </section>
-      </main>
+      <WorkspaceLoading
+        failed={workspaceLookup.key === workspaceIdentity && workspaceLookup.status === 'error'}
+        error={workspaceLookup.error}
+        online={online}
+        onRetry={() => setStaffEpoch((value) => value + 1)}
+        onSignOut={async () => {
+          await Promise.all([supabase!.auth.signOut(), businessAuth!.auth.signOut()]);
+        }}
+      />
     );
   if (
     !demo &&
@@ -879,27 +790,15 @@ export default function App() {
     (!session || !shop || shop.userId !== session.user.id || shop.accessLevel === 0)
   )
     return (
-      <main className="auth">
-        <section className="auth-card">
-          <h1>Staff sign in</h1>
-          <p>The business is signed in. Enter your username and password.</p>
-          <label>
-            Business
-            <select
-              value={shop?.id ?? ''}
-              onChange={(e) => setShop(shops.find((item) => item.id === e.target.value) ?? null)}
-            >
-              {shops.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          {staffLoginForm()}
-          <FeedbackBanner message={message} tone={messageTone} login />
-        </section>
-      </main>
+      <StaffSignIn
+        shops={shops}
+        shop={shop}
+        onShop={setShop}
+        feedback={feedback}
+        busy={busy}
+        online={online}
+        onSubmit={staffLogin}
+      />
     );
 
   return (
@@ -1092,7 +991,12 @@ export default function App() {
           {switchUser && (
             <Modal title="Switch user" busy={busy} onClose={() => setSwitchUser(false)}>
               <p>Business: {shop?.name}. Sign in with your staff username and password.</p>
-              {staffLoginForm()}
+              <StaffLoginForm
+                feedback={{ message, tone: messageTone }}
+                busy={busy}
+                online={online}
+                onSubmit={staffLogin}
+              />
               <FeedbackBanner message={message} tone={messageTone} login />
             </Modal>
           )}
