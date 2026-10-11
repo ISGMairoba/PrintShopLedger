@@ -1,0 +1,112 @@
+import Modal from './Modal';
+import JobActions, { type ProgressMode } from './JobActions';
+import { AdjustmentHistory } from './SaleAdjustmentsPage';
+import { paymentName } from './business-options.mjs';
+import { jobBalance } from './domain.mjs';
+import { currency, dateLabel, shortId } from './app/shared';
+import type { Job, Ledger } from './types';
+
+type Props = {
+  job: Job;
+  ledger: Ledger;
+  busy: boolean;
+  /** Any held sync conflict (blocks adjustments). */
+  hasConflict: boolean;
+  /** A legacy sync conflict (blocks job actions and payments). */
+  legacyConflict: boolean;
+  /** Pending work for this customer is held for review. */
+  customerHeld: boolean;
+  /** The user may open Sale Adjustments. */
+  canAdjust: boolean;
+  /** Adjustments can be saved now (online, or the local trial). */
+  canSave: boolean;
+  onClose: () => void;
+  onAdjust: (job: Job) => void;
+  onAction: (job: Job, mode: ProgressMode) => void;
+  onPayment: (customerId: string) => void;
+};
+
+/** One job: amounts, payment history, adjustments and the next actions. */
+export default function JobDetails({
+  job,
+  ledger,
+  busy,
+  hasConflict,
+  legacyConflict,
+  customerHeld,
+  canAdjust,
+  canSave,
+  onClose,
+  onAdjust,
+  onAction,
+  onPayment,
+}: Props) {
+  const customerName = (id: string) =>
+    ledger.customers.find((customer) => customer.id === id)?.name ?? 'Unknown customer';
+  return (
+    <Modal title={job.description} wide busy={busy} onClose={onClose}>
+      <span className="eyebrow">JOB #{shortId(job.id)}</span>
+      <p>
+        {customerName(job.customerId)} · {job.service}
+      </p>
+      <div className="detail-summary">
+        <span>
+          Job amount <strong>{currency(job.amount)}</strong>
+        </span>
+        <span>
+          Paid <strong>{currency(jobBalance(ledger, job).paid)}</strong>
+        </span>
+        <span>
+          Outstanding <strong>{currency(jobBalance(ledger, job).outstanding)}</strong>
+        </span>
+      </div>
+      {job.productionStatus === 'Cancelled' && (
+        <p className="notice notice-warning">
+          This sale was cancelled. Original receipts and adjustments remain in history.
+        </p>
+      )}
+      <h3>Payment history</h3>
+      {ledger.payments
+        .filter((payment) => payment.allocations.some((allocation) => allocation.jobId === job.id))
+        .map((payment) => (
+          <div className="history" key={payment.id}>
+            <span>
+              {dateLabel(payment.paidOn)} · {paymentName(payment)}
+              <small>{payment.reference || `Payment #${shortId(payment.id)}`}</small>
+            </span>
+            <strong>
+              {currency(payment.allocations.find((allocation) => allocation.jobId === job.id)!.amount)}
+            </strong>
+          </div>
+        ))}
+      {!ledger.payments.some((payment) =>
+        payment.allocations.some((allocation) => allocation.jobId === job.id),
+      ) && <p className="muted">No payments recorded yet.</p>}
+      {canAdjust && (
+        <button
+          className="secondary"
+          disabled={busy || hasConflict || !canSave}
+          onClick={() => onAdjust(job)}
+        >
+          Adjust sale / refund
+        </button>
+      )}
+      <AdjustmentHistory
+        records={ledger.saleAdjustments.filter(
+          (r) =>
+            r.jobId === job.id ||
+            r.paymentChanges.some((p) =>
+              [...p.before.allocations, ...p.after.allocations].some((a) => a.jobId === job.id),
+            ),
+        )}
+      />
+      <JobActions job={job} busy={busy || legacyConflict} onAction={onAction} />
+      <button
+        disabled={busy || legacyConflict || customerHeld || jobBalance(ledger, job).outstanding <= 0}
+        onClick={() => onPayment(job.customerId)}
+      >
+        Receive customer payment
+      </button>
+    </Modal>
+  );
+}

@@ -1,19 +1,18 @@
 import { BusinessSignup, DeveloperActivation, registrationError } from './BusinessRegistration';
 import { validateBusinessRegistration, validActivationToken } from './registration.mjs';
-import SaleAdjustmentsPage, { SaleAdjustmentEditor, AdjustmentHistory } from './SaleAdjustmentsPage';
+import SaleAdjustmentsPage, { SaleAdjustmentEditor } from './SaleAdjustmentsPage';
 import MaterialWastePage from './MaterialWastePage';
 import { useFeedbackMessage, FeedbackBanner } from './Feedback';
 import ConflictInbox from './ConflictInbox';
 import { blockedWork } from './sync-dependencies.mjs';
 import { approveConflictReview, clearConflictApproval } from './conflict-review';
-import { paymentName } from './business-options.mjs';
 import { BusinessOptionsContext } from './BusinessOptionsContext';
 import useBusinessBranding from './useBusinessBranding';
 import BusinessSettingsPage from './BusinessSettingsPage';
 import AccountPage from './AccountPage';
 import { canAccessPage, pages, navigationPages } from './page-access.mjs';
 import ExpensesPage from './ExpensesPage';
-import JobActions, { type ProgressMode } from './JobActions';
+import type { ProgressMode } from './JobActions';
 import JobProgressDialog from './JobProgressDialog';
 import { progressEvents } from './job-progress.mjs';
 import MySalesPage from './MySalesPage';
@@ -29,6 +28,7 @@ import PrintSettingsPage from './PrintSettingsPage';
 import { lazy, Suspense, useEffect, useRef, useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import JobsPaymentsPage from './JobsPaymentsPage';
+import JobDetails from './JobDetails';
 import {
   CustomerConflictReview,
   ExpenseConflictReview,
@@ -45,7 +45,7 @@ import {
 } from './app/AuthScreens';
 import { currency, dateLabel, errorMessage, shortId, type Page, type Shop } from './app/shared';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import { customerBalance, emptyLedger, jobBalance } from './domain.mjs';
+import { customerBalance, emptyLedger } from './domain.mjs';
 import {
   ExpenseSyncConflict,
   resolveCloudExpense,
@@ -786,8 +786,6 @@ export default function App() {
       setBusy(false);
     }
   }
-  const customerName = (id: string) =>
-    ledger.customers.find((customer) => customer.id === id)?.name ?? 'Unknown customer';
   const currentJob = ledger.jobs.find((job) => job.id === selectedJob);
 
   if (validActivationToken(activationToken))
@@ -1601,89 +1599,26 @@ export default function App() {
             </>
           )}
           {currentJob && (
-            <Modal title={currentJob.description} wide busy={busy} onClose={() => setSelectedJob(null)}>
-              <span className="eyebrow">JOB #{shortId(currentJob.id)}</span>
-              <p>
-                {customerName(currentJob.customerId)} · {currentJob.service}
-              </p>
-              <div className="detail-summary">
-                <span>
-                  Job amount <strong>{currency(currentJob.amount)}</strong>
-                </span>
-                <span>
-                  Paid <strong>{currency(jobBalance(ledger, currentJob).paid)}</strong>
-                </span>
-                <span>
-                  Outstanding <strong>{currency(jobBalance(ledger, currentJob).outstanding)}</strong>
-                </span>
-              </div>
-              {currentJob.productionStatus === 'Cancelled' && (
-                <p className="notice notice-warning">
-                  This sale was cancelled. Original receipts and adjustments remain in history.
-                </p>
-              )}
-              <h3>Payment history</h3>
-              {ledger.payments
-                .filter((payment) =>
-                  payment.allocations.some((allocation) => allocation.jobId === currentJob.id),
-                )
-                .map((payment) => (
-                  <div className="history" key={payment.id}>
-                    <span>
-                      {dateLabel(payment.paidOn)} · {paymentName(payment)}
-                      <small>{payment.reference || `Payment #${shortId(payment.id)}`}</small>
-                    </span>
-                    <strong>
-                      {currency(
-                        payment.allocations.find((allocation) => allocation.jobId === currentJob.id)!.amount,
-                      )}
-                    </strong>
-                  </div>
-                ))}
-              {!ledger.payments.some((payment) =>
-                payment.allocations.some((allocation) => allocation.jobId === currentJob.id),
-              ) && <p className="muted">No payments recorded yet.</p>}
-              {(demo ||
-                canAccessPage('Sale Adjustments', shop?.accessLevel ?? 0, branding.settings.pageAccess)) && (
-                <button
-                  className="secondary"
-                  disabled={busy || hasConflict || (!demo && !online)}
-                  onClick={() => {
-                    setSelectedJob(null);
-                    setAdjustingJob(currentJob);
-                  }}
-                >
-                  Adjust sale / refund
-                </button>
-              )}
-              <AdjustmentHistory
-                records={ledger.saleAdjustments.filter(
-                  (r) =>
-                    r.jobId === currentJob.id ||
-                    r.paymentChanges.some((p) =>
-                      [...p.before.allocations, ...p.after.allocations].some(
-                        (a) => a.jobId === currentJob.id,
-                      ),
-                    ),
-                )}
-              />
-              <JobActions
-                job={currentJob}
-                busy={busy || legacyConflict}
-                onAction={(job, mode) => setJobToAdvance({ job, mode })}
-              />
-              <button
-                disabled={
-                  busy ||
-                  legacyConflict ||
-                  heldWork.resources.has('customer:' + currentJob.customerId) ||
-                  jobBalance(ledger, currentJob).outstanding <= 0
-                }
-                onClick={() => openPayment(currentJob.customerId)}
-              >
-                Receive customer payment
-              </button>
-            </Modal>
+            <JobDetails
+              job={currentJob}
+              ledger={ledger}
+              busy={busy}
+              hasConflict={hasConflict}
+              legacyConflict={legacyConflict}
+              customerHeld={heldWork.resources.has('customer:' + currentJob.customerId)}
+              canAdjust={
+                demo ||
+                canAccessPage('Sale Adjustments', shop?.accessLevel ?? 0, branding.settings.pageAccess)
+              }
+              canSave={demo || online}
+              onClose={() => setSelectedJob(null)}
+              onAdjust={(job) => {
+                setSelectedJob(null);
+                setAdjustingJob(job);
+              }}
+              onAction={(job, mode) => setJobToAdvance({ job, mode })}
+              onPayment={openPayment}
+            />
           )}
           {form === 'customer' && (
             <CustomerEditor
