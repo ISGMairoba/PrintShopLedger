@@ -158,17 +158,26 @@ try {
   await dialog.waitFor({ state: 'detached' });
   await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
   await fits('Payments');
+  // Date filters open on their own row; From and To must sit side by side without overlapping.
+  async function datesFit(label) {
+    await page.getByRole('button', { name: /^Dates:/ }).click();
+    await page.getByLabel('Period', { exact: true }).selectOption('custom');
+    await fits(label);
+    const from = await page.getByLabel('From', { exact: true }).boundingBox(),
+      to = await page.getByLabel('To', { exact: true }).boundingBox();
+    assert.ok(
+      from.x + from.width <= to.x + 1 || from.y + from.height <= to.y + 1,
+      label + ': From and To do not overlap',
+    );
+  }
+  await navigate('Payments');
+  await datesFit('Payments date filter');
   await navigate('Stock History');
   await fits('Stock History filters');
-  const reset = page.getByRole('button', { name: 'Reset filters', exact: true });
-  for (const name of ['From', 'To']) {
-    const date = await page.getByLabel(name, { exact: true }).boundingBox(),
-      button = await reset.boundingBox();
-    assert.ok(button.y >= date.y + date.height, 'Reset is below ' + name + ' date picker');
-  }
+  await datesFit('Stock History date filter');
   await page.getByLabel('From', { exact: true }).fill('2020-01-01');
-  await reset.click();
-  assert.equal(await page.getByLabel('From', { exact: true }).inputValue(), '');
+  await page.getByRole('button', { name: 'Reset filters', exact: true }).click();
+  assert.equal(await page.getByLabel('Period', { exact: true }).inputValue(), 'all');
   const bar = page.locator('.mobile-app-bar');
   assert.equal(await bar.evaluate((node) => getComputedStyle(node).position), 'fixed', 'Menu bar is fixed');
   await page.evaluate(() =>

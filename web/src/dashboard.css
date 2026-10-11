@@ -120,7 +120,7 @@
   }
   .dashboard-filters label {
     min-width: 0;
-    flex-basis: 40%;
+    flex: 1 1 calc(50% - 6px);
   }
   .dashboard-panel {
     padding: 16px;

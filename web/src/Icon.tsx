@@ -1,4 +1,5 @@
 import {
+  faCalendarDays,
   faReceipt,
   faArrowRight,
   faCircleCheck,
@@ -49,6 +50,7 @@ const icons = {
   save: faFloppyDisk,
   details: faEye,
   quantity: faSliders,
+  calendar: faCalendarDays,
 };
 export type IconName = keyof typeof icons;
 export default function Icon({ name }: { name: IconName }) {

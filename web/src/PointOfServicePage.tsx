@@ -7,7 +7,7 @@ import { lastJobPayment } from './job-progress.mjs';
 import type { ProgressMode } from './JobActions';
 import { jobBalance } from './domain.mjs';
 import { currency } from './receipts.mjs';
-import PeriodFilter, { periodOf } from './PeriodFilter';
+import { useDateFilter } from './PeriodFilter';
 import { inPeriod } from './dashboard.mjs';
 import type { Ledger, Job, CheckoutRecord } from './types';
 type Props = {
@@ -31,10 +31,11 @@ export default function PointOfServicePage({
   onReceipt,
 }: Props) {
   const [query, setQuery] = useState(''),
-    [period, setPeriod] = useState(() => periodOf('30days')),
     [showClosed, setShowClosed] = useState(false),
     [audit, setAudit] = useState(false),
     [receipts, setReceipts] = useState(false);
+  const dates = useDateFilter('pointOfService'),
+    period = dates.period;
   const sorting = useTableSort<Job>('createdAt', 'desc'),
     receiptSorting = useTableSort<CheckoutRecord>('createdAt', 'desc');
   const name = (id: string) => ledger.customers.find((c) => c.id === id)?.name ?? 'Unknown customer';
@@ -110,7 +111,7 @@ export default function PointOfServicePage({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <PeriodFilter value={period} onChange={setPeriod} allowAll />
+        {dates.button}
         <label className="check-label">
           <input type="checkbox" checked={showClosed} onChange={(e) => setShowClosed(e.target.checked)} />{' '}
           Show collected and cancelled jobs
@@ -128,6 +129,7 @@ export default function PointOfServicePage({
           <Icon name="payments" /> Receive payment
         </button>
       </div>
+      {dates.panel}
       {!ready ? (
         <p>Loading workspace…</p>
       ) : receipts ? (

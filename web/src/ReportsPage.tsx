@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import ResponsiveTable from './ResponsiveTable';
-import { dashboardRange, validRange } from './dashboard.mjs';
+import { validRange } from './dashboard.mjs';
+import PeriodFilter, { usePeriod } from './PeriodFilter';
 import {
   customerStatement,
   filterStatement,
@@ -105,51 +106,9 @@ const when = (at: string) =>
 const blank = (kobo: number) => (kobo ? currency(kobo) : '');
 
 function useRange() {
-  const [preset, setPreset] = useState('month'),
-    [range, setRange] = useState(() => dashboardRange('month'));
-  const controls = (
-    <>
-      <label>
-        Period
-        <select
-          value={preset}
-          onChange={(e) => {
-            const value = e.target.value;
-            setPreset(value);
-            if (value !== 'custom') setRange(dashboardRange(value));
-          }}
-        >
-          <option value="today">Today</option>
-          <option value="week">Last 7 days</option>
-          <option value="month">This month</option>
-          <option value="30days">Last 30 days</option>
-          <option value="custom">Custom dates</option>
-        </select>
-      </label>
-      <label>
-        From
-        <input
-          type="date"
-          value={range.from}
-          onChange={(e) => {
-            setPreset('custom');
-            setRange({ ...range, from: e.target.value });
-          }}
-        />
-      </label>
-      <label>
-        To
-        <input
-          type="date"
-          value={range.to}
-          onChange={(e) => {
-            setPreset('custom');
-            setRange({ ...range, to: e.target.value });
-          }}
-        />
-      </label>
-    </>
-  );
+  const [period, setPeriod] = usePeriod('reports');
+  const range = { from: period.from, to: period.to };
+  const controls = <PeriodFilter value={period} onChange={setPeriod} />;
   return { range, valid: validRange(range.from, range.to), controls };
 }
 

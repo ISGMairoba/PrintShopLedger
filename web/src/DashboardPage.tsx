@@ -1,9 +1,9 @@
-import PeriodFilter from './PeriodFilter';
+import PeriodFilter, { usePeriod } from './PeriodFilter';
 import { stockLevel } from './material-display.mjs';
 import { useMemo, useState } from 'react';
 import DashboardBreakdowns from './DashboardBreakdowns';
 import { InteractiveTrend } from './InteractiveCharts';
-import { dashboardRange, dashboardSummary, validRange } from './dashboard.mjs';
+import { dashboardSummary, validRange } from './dashboard.mjs';
 import type { Ledger, Material } from './types';
 import './dashboard.css';
 const money = (value: number) =>
@@ -36,8 +36,8 @@ export default function DashboardPage({
   lastSynced?: string;
   access: Access;
 }) {
-  const [preset, setPreset] = useState('month'),
-    [range, setRange] = useState(() => dashboardRange('month'));
+  const [period, setPeriod] = usePeriod('dashboard');
+  const range = { from: period.from, to: period.to };
   const valid = validRange(range.from, range.to);
   const summary = useMemo(
     () => (valid ? dashboardSummary(ledger, range.from, range.to) : null),
@@ -60,13 +60,7 @@ export default function DashboardPage({
   return (
     <div className="dashboard">
       <section className="panel dashboard-filters">
-        <PeriodFilter
-          value={{ preset, ...range }}
-          onChange={(next) => {
-            setPreset(next.preset);
-            setRange({ from: next.from, to: next.to });
-          }}
-        />
+        <PeriodFilter value={period} onChange={setPeriod} />
         <small>Dates use Africa/Lagos.</small>
       </section>
       {!online || pending > 0 ? (
