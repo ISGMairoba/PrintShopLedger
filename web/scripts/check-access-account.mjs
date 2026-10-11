@@ -3,7 +3,7 @@ import {spawn} from 'node:child_process';
 import {setTimeout as delay} from 'node:timers/promises';
 import {chromium} from 'playwright';
 import {defaultBranding} from '../src/business-branding.mjs';
-import {pages,canAccessPage} from '../src/page-access.mjs';
+import {navigationPages,canAccessPage} from '../src/page-access.mjs';
 const server=spawn(process.execPath,['node_modules/vite/bin/vite.js','preview','--host','127.0.0.1','--port','4178','--strictPort'],{stdio:'inherit'});
 let browser;
 try{
@@ -36,7 +36,7 @@ try{
   await page.getByRole('heading',{name:'Point of Service',exact:true}).waitFor();
   const open=async()=>{if(mobile)await page.getByRole('button',{name:'Menu',exact:true}).click();};
   await open();const nav=page.getByRole('navigation',{name:'Main'});await nav.getByRole('button',{name:'Point of Service',exact:true}).waitFor();
-  assert.deepEqual(await nav.getByRole('button').allTextContents(),pages.filter(p=>canAccessPage(p,rank)));
+  assert.deepEqual(await nav.getByRole('button').allTextContents(),navigationPages.filter(p=>canAccessPage(p,rank)));
   await nav.getByRole('button',{name:'My Account',exact:true}).click();
   await page.getByLabel('Username',{exact:true}).fill('bad name');assert.equal(await page.getByRole('button',{name:'Save username',exact:true}).isDisabled(),true);
   await page.getByLabel('Username',{exact:true}).fill('valid.user');await page.getByLabel('Current password',{exact:true}).first().fill('current-password');await page.getByRole('button',{name:'Save username',exact:true}).click();if(mobile)await open();await page.locator('.sidebar-user').getByText('Test User (valid.user)',{exact:true}).waitFor({state:'attached'});assert.equal(calls,1);if(mobile)await nav.getByRole('button',{name:'My Account',exact:true}).click();
@@ -44,7 +44,7 @@ try{
   await page.getByLabel('Confirm new password',{exact:true}).fill('new-test-password');await page.getByRole('button',{name:'Save password',exact:true}).click();await page.getByText('Password saved.',{exact:true}).waitFor();assert.equal(calls,2);
   await context.setOffline(true);await page.getByRole('button',{name:'Save password',exact:true}).waitFor({state:'visible'});await delay(50);assert.equal(await page.getByRole('button',{name:'Save password',exact:true}).isDisabled(),true);await context.setOffline(false);
   if(rank===4){await open();await nav.getByRole('button',{name:'Business Settings',exact:true}).click();await page.getByLabel('Business name',{exact:true}).waitFor();assert.equal(await page.getByLabel('Business name',{exact:true}).inputValue(),'Test business');}
-  customSettings={...defaultBranding(),businessName:'Test business',pageAccess:{'1':['Point of Service','Jobs','My Account'],'2':['Point of Service','My Account','Sale Adjustments'],'3':['Point of Service','My Account','My Sales']}};await page.reload();await page.getByRole('heading',{name:'Point of Service',exact:true}).waitFor();await page.getByRole('heading',{name:'Point of Service',exact:true}).waitFor();await delay(150);await open();assert.deepEqual(await nav.getByRole('button').allTextContents(),pages.filter(p=>canAccessPage(p,rank,customSettings.pageAccess)));
+  customSettings={...defaultBranding(),businessName:'Test business',pageAccess:{'1':['Point of Service','Jobs','My Account'],'2':['Point of Service','My Account','Sale Adjustments'],'3':['Point of Service','My Account','My Sales']}};await page.reload();await page.getByRole('heading',{name:'Point of Service',exact:true}).waitFor();await page.getByRole('heading',{name:'Point of Service',exact:true}).waitFor();await delay(150);await open();assert.deepEqual(await nav.getByRole('button').allTextContents(),navigationPages.filter(p=>canAccessPage(p,rank,customSettings.pageAccess)));
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),'Layout fits screen');await context.close();
  }
  console.log('Page access and account checks passed on desktop and mobile for all ranks.');

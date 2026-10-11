@@ -35,3 +35,6 @@ export function stockLevel(material) {
  if (minimum > 0 && material.available <= Math.round(minimum * 1.2 * 1000) / 1000) return 'Near minimum';
  return null;
 }
+
+/** Dropdown text for a long name: very long option text makes selects overflow narrow screens (notably Safari). */
+export const shortLabel = (text, max = 60) => { const value = String(text ?? ''); return value.length > max ? value.slice(0, max - 1).trimEnd() + '…' : value; };
