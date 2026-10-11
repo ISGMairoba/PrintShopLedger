@@ -17,7 +17,7 @@ try {
         const rect=node.getBoundingClientRect();return rect.width>0&&(rect.left<-.5||rect.right>viewport+.5||node.scrollWidth>node.clientWidth+1);
       }).map(node=>({tag:node.tagName,class:node.className,width:node.clientWidth,scroll:node.scrollWidth}))};
     });
-    if(overflow.wide.length) console.log('Overflow descendants',await page.evaluate(()=>[...document.querySelectorAll('dialog[open] *')].filter(node=>node.getBoundingClientRect().width>0&&node.getBoundingClientRect().right>document.documentElement.clientWidth+1).map(node=>({tag:node.tagName,class:node.className,width:node.getBoundingClientRect().width,scroll:node.scrollWidth,text:node.textContent?.slice(0,50)}))));
+    if(overflow.wide.length) console.log('Overflow descendants',await page.evaluate(()=>[...document.querySelectorAll('dialog[open] *')].filter(node=>node.getBoundingClientRect().width>0&&(node.getBoundingClientRect().right>document.documentElement.clientWidth+1||node.scrollWidth>node.clientWidth+1)).map(node=>({tag:node.tagName,class:node.className,width:node.getBoundingClientRect().width,client:node.clientWidth,scroll:node.scrollWidth,text:node.textContent?.slice(0,50)}))));
     assert.ok(overflow.scroll<=overflow.width+1&&overflow.wide.length===0,label+': '+JSON.stringify(overflow));
   }
   async function navigate(name){await page.evaluate(()=>window.scrollTo(0,0));await delay(250);await page.getByRole('button',{name:'Menu',exact:true}).click();await fits('Sidebar');await page.getByRole('button',{name,exact:true}).click();}
