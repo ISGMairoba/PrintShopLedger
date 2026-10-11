@@ -44,3 +44,25 @@ test('Print document styles are valid CSS (closed body rule)',()=>{
  const doc=printDocument(defaultPrintSettings(),'t','<p>x</p>');
  assert.match(doc,/font-style:normal;[^}]*}table\{/);
 });
+
+import {sampleReceipt} from '../src/receipt-sample.mjs';
+import {defaultBranding} from '../src/business-branding.mjs';
+test('Each business chooses what its receipt shows and which line leads each job',()=>{
+ const r=sampleReceipt('2026-10-11T10:00:00Z');assert.equal(receiptIntegrityError(r),'','preview sample is balanced');
+ const brand=o=>({...defaultBranding(),businessName:'Shop',receipt:{...defaultBranding().receipt,...o}});
+ const full=receiptModel(r,brand({}));
+ assert.equal(full.items[0].title,'Shop banner, flex with eyelets');assert.equal(full.items[0].subtitle,'Large format printing');
+ assert.ok(full.items[0].meta.includes('Qty 2'));assert.ok(full.items[0].meta.some(x=>x.startsWith('Size')));
+ const service=receiptModel(r,brand({headline:'service',showSubline:false}));
+ assert.equal(service.items[0].title,'Large format printing');assert.equal(service.items[0].subtitle,'');
+ // A minimal receipt: service and price only.
+ const minimal=brand({headline:'service',showSubline:false,showJobId:false,showQuantity:false,showSize:false,showPaidBefore:false,showPaidNow:false,showItemBalance:false,showCustomerPhone:false,showCashier:false,showPaymentDate:false,showPaymentMethod:false,showWalletMovements:false,showAccountBalances:false,showNote:false});
+ const m=receiptModel(r,minimal);
+ assert.deepEqual(m.items[0].meta,[]);assert.equal(m.items[0].paidNow,'');assert.equal(m.items[0].balance,'');assert.deepEqual(m.account,[]);assert.equal(m.note,'');
+ assert.deepEqual(m.meta.map(x=>x[0]),['Receipt no.','Date','Customer']);
+ assert.equal(m.totals.find(t=>t.label.startsWith('Paid now')).label,'Paid now');
+ for(const layout of ['narrow','wide']){const html=receiptHtml(r,minimal,false,[],{layout});
+  assert.ok(html.includes('₦18,000.00'));assert.ok(!html.includes('Wallet balance'));assert.ok(!html.includes('Joy (Cashier)'));assert.ok(!html.includes('B41E9D07'));assert.ok(!html.includes('Balance on these jobs'));}
+ assert.ok(receiptHtml(r,brand({}),false,[],{layout:'wide'}).includes('<th class="r">Balance</th>'));
+ assert.ok(!receiptHtml(r,minimal,false,[],{layout:'wide'}).includes('<th class="r">Paid now</th>'));
+});

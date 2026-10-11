@@ -1,7 +1,12 @@
 import {validatePageAccess,defaultPageAccess} from './page-access.mjs';
 import {defaultOptions,validateOptions} from './business-options.mjs';
+// What each business shows on its receipts. headline: the bold line for each job ('description' or 'service');
+// showSubline: print the other one beneath it. Older saved settings fill in these defaults.
+export const receiptContentDefaults=()=>({headline:'description',showSubline:true,showJobId:true,showQuantity:true,showSize:true,showSource:false,
+ showPaidBefore:true,showPaidNow:true,showItemBalance:true,showCustomerPhone:true,showCashier:true,showPaymentDate:true,showPaymentMethod:true,
+ showWalletMovements:true,showAccountBalances:true,showNote:true});
 export const defaultBackgrounds=()=>({light:{canvas:'',surface:'',surfaceAlt:''},dark:{canvas:'',surface:'',surfaceAlt:''}});
-export const defaultBranding=()=>({businessName:'',address:'',phones:'',email:'',website:'',socials:'',logo:'',primary:'#124b40',accent:'#d9a126',theme:'system',backgrounds:defaultBackgrounds(),options:defaultOptions(),corrections:{recentDays:7},pageAccess:defaultPageAccess(),receipt:{showLogo:true,showAddress:true,showContacts:true,footer:'Thank you for your business.'},documents:{watermark:false}});
+export const defaultBranding=()=>({businessName:'',address:'',phones:'',email:'',website:'',socials:'',logo:'',primary:'#124b40',accent:'#d9a126',theme:'system',backgrounds:defaultBackgrounds(),options:defaultOptions(),corrections:{recentDays:7},pageAccess:defaultPageAccess(),receipt:{showLogo:true,showAddress:true,showContacts:true,footer:'Thank you for your business.',...receiptContentDefaults()},documents:{watermark:false}});
 export function validLogo(value){return value===''||typeof value==='string'&&value.length<=350000&&/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/]+={0,2}$/.test(value);}
 export function validateBranding(input){
  const value=structuredClone(input);
@@ -17,7 +22,7 @@ export function validateBranding(input){
  value.backgrounds=validateBackgrounds(value.backgrounds);
  for(const key of ['showLogo','showAddress','showContacts'])if(typeof value.receipt?.[key]!=='boolean')throw Error('Invalid receipt options.');
  if(typeof value.receipt.footer!=='string'||value.receipt.footer.length>500)throw Error('Receipt footer must be up to 500 characters.');
- value.receipt.footer=value.receipt.footer.trim();value.documents??={watermark:false};if(typeof value.documents!=='object'||typeof value.documents.watermark!=='boolean')throw Error('Invalid document options.');value.documents={watermark:value.documents.watermark};value.options=validateOptions(value.options);value.pageAccess=validatePageAccess(value.pageAccess);value.corrections??={recentDays:7};if(!Number.isInteger(value.corrections.recentDays)||value.corrections.recentDays<1||value.corrections.recentDays>365)throw Error('Choose a correction history window from 1 to 365 days.');return value;
+ value.receipt.footer=value.receipt.footer.trim();for(const [key,fallback] of Object.entries(receiptContentDefaults())){value.receipt[key]??=fallback;if(key==='headline'?!['description','service'].includes(value.receipt[key]):typeof value.receipt[key]!=='boolean')throw Error('Invalid receipt content options.');}value.documents??={watermark:false};if(typeof value.documents!=='object'||typeof value.documents.watermark!=='boolean')throw Error('Invalid document options.');value.documents={watermark:value.documents.watermark};value.options=validateOptions(value.options);value.pageAccess=validatePageAccess(value.pageAccess);value.corrections??={recentDays:7};if(!Number.isInteger(value.corrections.recentDays)||value.corrections.recentDays<1||value.corrections.recentDays>365)throw Error('Choose a correction history window from 1 to 365 days.');return value;
 }
 export function contrastText(hex){
  const channels=hex.slice(1).match(/../g).map(x=>parseInt(x,16)/255).map(x=>x<=.04045?x/12.92:((x+.055)/1.055)**2.4);

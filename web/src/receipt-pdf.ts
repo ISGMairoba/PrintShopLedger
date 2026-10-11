@@ -52,24 +52,28 @@ function drawPage(doc:jsPDF,m:Model,media:ReceiptMedia,watermark:boolean){
  for(const n of m.notices){doc.setFillColor(...(media.color?[253,247,232] as Colour:[238,238,238] as Colour));doc.rect(L,y-4*k,U,7.5*k,'F');doc.setDrawColor(...accent);doc.setLineWidth(1.2*k);doc.line(L,y-4*k,L,y+3.5*k);doc.setLineWidth(0.2);text(n,L+4*k,9.5,'bold');y+=10*k;}
  // Details, two columns
  const half=U/2,key=24*k;
- const meta:[string,string][]=[['Customer',m.customer.name+(m.customer.phone?`  ·  ${m.customer.phone}`:'')],['Date',m.date],['Cashier',m.cashier],['Payment date',m.paidOn]];
+ const order=['Customer','Date','Phone','Payment date','Cashier'];
+ const meta=(m.meta as [string,string][]).filter(([label])=>label!=='Receipt no.').sort((a,b)=>order.indexOf(a[0])-order.indexOf(b[0]));
  for(let i=0;i<meta.length;i+=2){let h=0;for(const [j,[label,value]] of meta.slice(i,i+2).entries()){const x=L+j*half;text(label,x,8.5,'normal',MUTED);h=Math.max(h,text(value,x+key,9.5,'normal',INK,'left',half-key-4*k));}y+=Math.max(h,6*k);}
  y+=5*k;
  // Items
  if(m.items.length){
-  const cAmount=R-U*0.316,cPaid=R-U*0.157,descW=R-U*0.44-L-4*k;
-  const head=()=>{doc.setDrawColor(...brand);doc.setLineWidth(0.6*k);doc.line(L,y+2*k,R,y+2*k);doc.setLineWidth(0.2);text('JOB',L,8,'bold',MUTED);text('AMOUNT',cAmount,8,'bold',MUTED,'right');text('PAID NOW',cPaid,8,'bold',MUTED,'right');text('BALANCE',R,8,'bold',MUTED,'right');y+=7*k;};
+  // Amount columns from the business's settings, right-aligned from the right edge.
+  const step=U*0.157,cols:{head:string;value:(i:Model['items'][number])=>string;bold?:boolean}[]=[{head:'AMOUNT',value:i=>i.amount},...(m.show.paidNow?[{head:'PAID NOW',value:(i:Model['items'][number])=>i.paidNow}]:[]),...(m.show.balance?[{head:'BALANCE',value:(i:Model['items'][number])=>i.balance,bold:true}]:[])];
+  const xs=cols.map((_,n)=>R-step*(cols.length-1-n)),descW=xs[0]-U*0.126-L-4*k;
+  const head=()=>{doc.setDrawColor(...brand);doc.setLineWidth(0.6*k);doc.line(L,y+2*k,R,y+2*k);doc.setLineWidth(0.2);text('JOB',L,8,'bold',MUTED);cols.forEach((c,n)=>text(c.head,xs[n],8,'bold',MUTED,'right'));y+=7*k;};
   head();
   for(const i of m.items){
-   doc.setFont(PDF_FONT,'bold');doc.setFontSize(10*k);const name=doc.splitTextToSize(pdfText(i.description),descW) as string[];
-   doc.setFont(PDF_FONT,'normal');doc.setFontSize(8.2*k);const sub=doc.splitTextToSize(pdfText(`${i.service} · ${i.ref}${i.details.length?' · '+i.details.join(' · '):''}`),descW) as string[];
-   const h=name.length*4.4*k+sub.length*3.6*k+(i.paidBefore?3.6*k:0)+4*k;
+   const subline=[i.subtitle,...i.meta].filter(Boolean).join(' · ');
+   doc.setFont(PDF_FONT,'bold');doc.setFontSize(10*k);const name=doc.splitTextToSize(pdfText(i.title),descW) as string[];
+   doc.setFont(PDF_FONT,'normal');doc.setFontSize(8.2*k);const sub=subline?doc.splitTextToSize(pdfText(subline),descW) as string[]:[];
+   const h=name.length*4.2*k+sub.length*3.5*k+(i.paidBefore?3.6*k:0)+4.5*k;
    if(page(h+4*k))head();
    const top=y;
-   y+=text(i.description,L,10,'bold',INK,'left',descW);
-   text(sub.join('\n'),L,8.2,'normal',MUTED);
-   y=top;text(i.amount,cAmount,10,'normal',i.ok?INK:(media.color?[170,40,30]:BLACK),'right');text(i.paidNow,cPaid,10,'normal',INK,'right');text(i.balance,R,10,'bold',INK,'right');
-   if(i.paidBefore){y+=4.4*k;text(`Paid before ${i.paidBefore}`,cAmount,7.8,'normal',MUTED,'right');}
+   y+=text(i.title,L,10,'bold',INK,'left',descW);
+   if(sub.length)text(sub.join('\n'),L,8.2,'normal',MUTED);
+   y=top;cols.forEach((c,n)=>text(c.value(i),xs[n],10,c.bold?'bold':'normal',n===0&&!i.ok?(media.color?[170,40,30]:BLACK):INK,'right'));
+   if(i.paidBefore){y+=4.4*k;text(`Paid before ${i.paidBefore}`,xs[0],7.8,'normal',MUTED,'right');}
    y=top+h;doc.setDrawColor(...RULE);doc.line(L,y-1.5*k,R,y-1.5*k);y+=3*k;
   }
  }
@@ -78,10 +82,10 @@ function drawPage(doc:jsPDF,m:Model,media:ReceiptMedia,watermark:boolean){
  const sx=L+U*0.48;
  m.totals.forEach((t,n)=>{const last=n===m.totals.length-1&&t.strong;
   if(last){y+=1.5*k;doc.setDrawColor(...brand);doc.setLineWidth(0.6*k);doc.line(sx,y-5*k,R,y-5*k);doc.setLineWidth(0.2);}
-  text(t.label,sx,last?11:9.8,t.strong?'bold':'normal',last?brand:INK,'left',R-sx-30*k);text(t.value,R,last?11:9.8,t.strong?'bold':'normal',last?brand:INK,'right');y+=(last?7:5.8)*k;});
+  const lh=text(t.label,sx,last?11:9.8,t.strong?'bold':'normal',last?brand:INK,'left',R-sx-32*k);text(t.value,R,last?11:9.8,t.strong?'bold':'normal',last?brand:INK,'right');y+=Math.max(lh+1.6*k,(last?7:5.8)*k);});
  y+=3*k;
- doc.setFillColor(...(media.color?[243,246,244] as Colour:[240,240,240] as Colour));doc.rect(L,y-4.5*k,U,m.account.length*5.6*k+2.5*k,'F');
- m.account.forEach(a=>{text(a.label,L+4*k,9.5,'normal',MUTED);text(a.value,R-4*k,9.5,'bold',INK,'right');y+=5.6*k;});
+ if(m.account.length){doc.setFillColor(...(media.color?[243,246,244] as Colour:[240,240,240] as Colour));doc.rect(L,y-4.5*k,U,m.account.length*5.6*k+2.5*k,'F');
+ m.account.forEach(a=>{text(a.label,L+4*k,9.5,'normal',MUTED);text(a.value,R-4*k,9.5,'bold',INK,'right');y+=5.6*k;});}
  y+=4*k;
  if(m.note){page(8*k);y+=text(`Note: ${m.note}`,L,9,'italic',MUTED,'left',U)+2*k;}
  if(m.adjustments.length){page(14*k);y+=3*k;text('Later adjustments',L,11,'bold',brand);y+=6*k;
@@ -100,7 +104,10 @@ function drawRoll(doc:jsPDF,m:Model,media:ReceiptMedia){
   const s=size*k;doc.setFont(PDF_FONT,style);doc.setFontSize(s);doc.setTextColor(0,0,0);
   const lines=doc.splitTextToSize(pdfText(t),width) as string[];lines.forEach((line,i)=>doc.text(line,x,y+s*0.35+i*s*0.4,{align}));return lines.length*s*0.4;
  };
- const pair=(label:string,value:string,size=8,style:'normal'|'bold'='normal')=>{doc.setFont(PDF_FONT,style);doc.setFontSize(size*k);const vw=doc.getTextWidth(pdfText(value));const h=text(label,L,size,style,'left',Math.max(U*0.3,U-vw-3*k));text(value,R,size,style,'right',vw+1);y+=Math.max(h,size*k*0.4)+0.8*k;};
+ // Label left, value right; a value too long for one line moves under its label and wraps, right-aligned.
+ const pair=(label:string,value:string,size=8,style:'normal'|'bold'='normal')=>{doc.setFont(PDF_FONT,style);doc.setFontSize(size*k);const vw=doc.getTextWidth(pdfText(value));
+  if(vw>U*0.62){y+=text(label,L,size,style)+0.2*k;y+=text(value,R,size,style,'right',U*0.9)+0.8*k;return;}
+  const h=text(label,L,size,style,'left',Math.max(U*0.3,U-vw-3*k));text(value,R,size,style,'right',vw+1);y+=Math.max(h,size*k*0.4)+0.8*k;};
  const rule=(dash=true)=>{doc.setDrawColor(0,0,0);doc.setLineWidth(dash?0.2:0.5);if(dash)doc.setLineDashPattern([0.8,0.8],0);doc.line(L,y,R,y);doc.setLineDashPattern([],0);doc.setLineWidth(0.2);y+=2.5*k;};
  const logo=m.business.logo?imageInfo(doc,m.business.logo):null;
  if(logo){const s=Math.min(U*0.64/logo.w,20*k/logo.h);doc.addImage(m.business.logo,logo.type,C-logo.w*s/2,y,logo.w*s,logo.h*s,'logo','FAST');y+=logo.h*s+2*k;}
@@ -108,17 +115,16 @@ function drawRoll(doc:jsPDF,m:Model,media:ReceiptMedia){
  for(const line of [m.business.address,...m.business.contacts].filter(Boolean))y+=text(line,C,7.2,'normal','center');
  y+=1.5*k;rule(false);y+=text(m.title.toUpperCase(),C,10.5,'bold','center')+0.5*k;rule(false);
  for(const n of m.notices){y+=text(n,C,7.5,'bold','center')+1*k;}
- pair('Receipt no.',m.number);pair('Date',m.date);pair('Customer',m.customer.name);if(m.customer.phone)pair('Phone',m.customer.phone);pair('Cashier',m.cashier);pair('Payment date',m.paidOn);
+ for(const [label,value] of m.meta as [string,string][])pair(label,value);
  y+=0.5*k;rule();
  for(const i of m.items){
-  y+=text(i.description,L,8.6,'bold')+0.3*k;
-  y+=text(`${i.service} · ${i.ref}${i.details.length?' · '+i.details.join(' · '):''}`,L,6.8)+0.6*k;
-  pair('Amount',i.amount,7.8);if(i.paidBefore)pair('Paid before',i.paidBefore,7.8);pair('Paid now',i.paidNow,7.8);pair('Balance',i.balance,7.8,'bold');y+=1*k;
+  y+=text(i.title,L,8.6,'bold')+0.3*k;
+  const subline=[i.subtitle,...i.meta].filter(Boolean).join(' · ');if(subline)y+=text(subline,L,6.8)+0.6*k;
+  pair('Amount',i.amount,7.8);if(i.paidBefore)pair('Paid before',i.paidBefore,7.8);if(i.paidNow)pair('Paid now',i.paidNow,7.8);if(i.balance)pair('Balance',i.balance,7.8,'bold');y+=1*k;
  }
  if(m.items.length)rule();
  m.totals.forEach((t,n)=>{const last=n===m.totals.length-1&&t.strong;if(last){y+=0.5*k;rule(false);}pair(t.label,t.value,last?9.6:8,t.strong?'bold':'normal');});
- rule();
- for(const a of m.account)pair(a.label,a.value,7.8);
+ if(m.account.length){rule();for(const a of m.account)pair(a.label,a.value,7.8);}
  if(m.note){y+=1*k;y+=text(`Note: ${m.note}`,L,7,'italic');}
  if(m.adjustments.length){y+=1.5*k;y+=text('LATER ADJUSTMENTS',L,7.8,'bold')+0.5*k;for(const a of m.adjustments){y+=text(`${a.label} · ${a.ref} · Job ${a.job}`,L,7,'bold');for(const line of a.lines)y+=text(line,L+1.5*k,6.5,'normal','left',U-1.5*k);y+=1*k;}}
  if(m.footer){y+=2.5*k;y+=text(m.footer,C,8,'normal','center');}
