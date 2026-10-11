@@ -13,10 +13,9 @@ import BusinessSettingsPage from './BusinessSettingsPage';
 import AccountPage from './AccountPage';
 import { canAccessPage, pages, navigationPages } from './page-access.mjs';
 import ExpensesPage from './ExpensesPage';
-import JobTable from './JobTable';
 import JobActions, { type ProgressMode } from './JobActions';
 import JobProgressDialog from './JobProgressDialog';
-import { progressEvents, lastJobPayment } from './job-progress.mjs';
+import { progressEvents } from './job-progress.mjs';
 import MySalesPage from './MySalesPage';
 import PointOfServicePage from './PointOfServicePage';
 import CheckoutEditor from './CheckoutEditor';
@@ -25,13 +24,14 @@ import { receiptIntegrityError } from './receipts.mjs';
 import { printAfterTransaction, printReceipt } from './printing';
 import useAutoSync from './useAutoSync';
 import Sidebar from './Sidebar';
-import ResponsiveTable from './ResponsiveTable';
 import Icon from './Icon';
 import PrintSettingsPage from './PrintSettingsPage';
 import { lazy, Suspense, useEffect, useRef, useState, type FormEvent } from 'react';
 import Modal from './Modal';
+import JobsPaymentsPage from './JobsPaymentsPage';
+import { useAuthSessions, useOnline, useWorkspaces } from './app/useSessions';
+import { currency, dateLabel, errorMessage, shortId, type Page, type Shop } from './app/shared';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import type { Session } from '@supabase/supabase-js';
 import { customerBalance, emptyLedger, jobBalance } from './domain.mjs';
 import {
   ExpenseSyncConflict,
@@ -56,7 +56,6 @@ import MaterialsPage from './MaterialsPage';
 import CustomersPage from './CustomersPage';
 import UsersPage from './UsersPage';
 import CustomerEditor from './CustomerEditor';
-import { SortHeader, useTableSort } from './TableSort';
 import ServicesPage from './ServicesPage';
 import ServiceConflictReview from './ServiceConflictReview';
 import StockHistoryPage from './StockHistoryPage';
@@ -75,51 +74,8 @@ import type {
   SupervisedEvent,
 } from './types';
 
-type Shop = {
-  id: string;
-  name: string;
-  userId: string;
-  role: string;
-  rank: number;
-  accessLevel: number;
-  username: string;
-  staffName: string;
-};
-type Page =
-  | 'Dashboard'
-  | 'Reports'
-  | 'Sale Adjustments'
-  | 'Material Waste'
-  | 'My Sales'
-  | 'Point of Service'
-  | 'Jobs'
-  | 'Customers'
-  | 'Payments'
-  | 'Materials'
-  | 'Stock History'
-  | 'Services'
-  | 'Print Settings'
-  | 'Users'
-  | 'Expenses'
-  | 'My Account'
-  | 'Business Settings'
-  | 'Conflict Inbox';
 const DashboardPage = lazy(() => import('./DashboardPage'));
 const ReportsPage = lazy(() => import('./ReportsPage'));
-const currency = (amount: number) =>
-  new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount / 100);
-const shortId = (id: string) => id.slice(0, 8).toUpperCase();
-const dateLabel = (value: string) =>
-  new Date(value).toLocaleDateString('en-NG', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'Africa/Lagos',
-  });
-const errorMessage = (error: unknown) =>
-  error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
-    ? error.message
-    : 'Something went wrong.';
 
 export default function App() {
   const [registering, setRegistering] = useState(false);
@@ -133,18 +89,21 @@ export default function App() {
     return () => window.removeEventListener('hashchange', readActivation);
   }, []);
   const automaticRegistration = useRef('');
-  const [session, setSession] = useState<Session | null>(null);
-  const [businessSession, setBusinessSession] = useState<Session | null>(null);
+  const [message, setMessage, messageTone] = useFeedbackMessage('success');
+  const online = useOnline();
   const [switchUser, setSwitchUser] = useState(false);
   const [staffEpoch, setStaffEpoch] = useState(0);
-  const [authReady, setAuthReady] = useState(!supabase);
-  const [authStartupError, setAuthStartupError] = useState('');
   const [authEpoch, setAuthEpoch] = useState(0);
   const [demo, setDemo] = useState(!supabase);
-  const [shops, setShops] = useState<Shop[]>([]);
-  const [shop, setShop] = useState<Shop | null>(null);
-  const [workspaceLookup, setWorkspaceLookup] = useState({ key: '', status: 'loading', error: '' });
-  const workspaceIdentity = `${businessSession?.user.id ?? ''}:${session?.user.id ?? 'locked'}`;
+  const { session, setSession, businessSession, setBusinessSession, authReady, authStartupError } =
+    useAuthSessions(authEpoch, setMessage);
+  const { shops, shop, setShop, workspaceLookup, setWorkspaceLookup, workspaceIdentity } = useWorkspaces({
+    businessSession,
+    session,
+    demo,
+    online,
+    staffEpoch,
+  });
   const [state, setState] = useState<LocalState>({ ledger: emptyLedger(), pending: [] });
   const [ready, setReady] = useState(false);
   const [page, setPage] = useState<Page>('Point of Service');
@@ -157,7 +116,6 @@ export default function App() {
   const [adjustingJob, setAdjustingJob] = useState<Job | null>(null);
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
   const [paymentCustomer, setPaymentCustomer] = useState('');
-  const [message, setMessage, messageTone] = useFeedbackMessage('success');
   const [busy, setBusy] = useState(false);
   const [expenseConflict, setExpenseConflict] = useState<ExpenseSyncConflict | null>(null);
   const [checkoutConflict, setCheckoutConflict] = useState<CheckoutSyncConflict | null>(null);
@@ -168,7 +126,6 @@ export default function App() {
 
   const [supervisorLogin, setSupervisorLogin] = useState(false);
   const [conflictReviewHidden, setConflictReviewHidden] = useState(false);
-  const [online, setOnline] = useState(navigator.onLine);
   const scope = demo
     ? 'local-trial'
     : businessSession && session && shop && shop.userId === session.user.id && shop.accessLevel > 0
@@ -215,132 +172,6 @@ export default function App() {
     )
       setReceipt(null);
   }, [ready, receipt, ledger.checkouts, state.pending]);
-  const total = ledger.jobs.reduce((sum, job) => sum + job.amount, 0);
-  const paid = ledger.payments.reduce(
-    (sum, payment) => sum + payment.allocations.reduce((allocated, item) => allocated + item.amount, 0),
-    0,
-  );
-
-  useEffect(() => {
-    const update = () => setOnline(navigator.onLine);
-    window.addEventListener('online', update);
-    window.addEventListener('offline', update);
-    return () => {
-      window.removeEventListener('online', update);
-      window.removeEventListener('offline', update);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!supabase) return;
-    let active = true;
-    setAuthStartupError('');
-    const deadline = setTimeout(() => {
-      if (active)
-        setAuthStartupError(
-          'Your saved sign-in is taking too long to load. Check your connection and retry.',
-        );
-    }, 25000);
-    Promise.all([supabase.auth.getSession(), businessAuth!.auth.getSession()])
-      .then(([staff, business]) => {
-        if (!active) return;
-        clearTimeout(deadline);
-        if (staff.error || business.error)
-          setMessage(staff.error?.message || business.error?.message || '', 'error');
-        setSession(staff.data.session);
-        setBusinessSession(business.data.session);
-        setAuthReady(true);
-      })
-      .catch((error) => {
-        clearTimeout(deadline);
-        if (active) {
-          setMessage(errorMessage(error), 'error');
-          setAuthReady(true);
-        }
-      });
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, current) => {
-      if (active) setSession(current);
-    });
-    const { data: businessListener } = businessAuth!.auth.onAuthStateChange((_event, current) => {
-      if (active) setBusinessSession(current);
-    });
-    return () => {
-      active = false;
-      clearTimeout(deadline);
-      listener.subscription.unsubscribe();
-      businessListener.subscription.unsubscribe();
-    };
-  }, [authEpoch]);
-
-  useEffect(() => {
-    if (!businessSession || demo || !supabase) {
-      setShops([]);
-      setShop(null);
-      return;
-    }
-    let active = true;
-    setWorkspaceLookup({ key: workspaceIdentity, status: 'loading', error: '' });
-    // The SDK can wait for an auth lock before fetch starts, so fetch's abort
-    // signal alone does not bound the time spent on this screen.
-    const deadline = setTimeout(() => {
-      if (active)
-        setWorkspaceLookup({
-          key: workspaceIdentity,
-          status: 'error',
-          error: 'The business server is taking too long to respond. Please retry.',
-        });
-    }, 25000);
-    const cacheKey = `printshopledger-business-workspaces:${businessSession.user.id}:${session?.user.id ?? 'locked'}`;
-    async function loadShops() {
-      try {
-        let available: Shop[];
-        if (navigator.onLine) {
-          const [businessResult, staff] = await Promise.all([
-            businessAuth!.rpc('list_business_shops').abortSignal(AbortSignal.timeout(20000)),
-            session
-              ? supabase!.rpc('list_my_shops').abortSignal(AbortSignal.timeout(20000))
-              : Promise.resolve({ data: [], error: null }),
-          ]);
-          const { data: businesses, error: businessError } = businessResult;
-          if (businessError) throw businessError;
-          if (staff.error) throw staff.error;
-          available = (businesses ?? []).map((business: { id: string; name: string }) => ({
-            ...business,
-            userId: '',
-            role: '',
-            rank: 0,
-            accessLevel: 0,
-            username: '',
-            staffName: '',
-            ...(staff.data ?? []).find((membership: Shop) => membership.id === business.id),
-          }));
-          try {
-            localStorage.setItem(cacheKey, JSON.stringify(available));
-          } catch {
-            /* A full device cache must not block a successful online sign-in. */
-          }
-        } else {
-          available = JSON.parse(localStorage.getItem(cacheKey) ?? '[]');
-          if (!available.length) throw Error('Connect to load your business workspace.');
-        }
-        if (active) {
-          clearTimeout(deadline);
-          setShops(available);
-          setShop((current) => available.find((item) => item.id === current?.id) ?? available[0] ?? null);
-          setWorkspaceLookup({ key: workspaceIdentity, status: 'ready', error: '' });
-        }
-      } catch (error) {
-        clearTimeout(deadline);
-        if (active)
-          setWorkspaceLookup({ key: workspaceIdentity, status: 'error', error: errorMessage(error) });
-      }
-    }
-    void loadShops();
-    return () => {
-      active = false;
-      clearTimeout(deadline);
-    };
-  }, [businessSession?.user.id, session?.user.id, demo, online, staffEpoch]);
 
   useEffect(() => {
     setReady(false);
@@ -923,48 +754,6 @@ export default function App() {
   const customerName = (id: string) =>
     ledger.customers.find((customer) => customer.id === id)?.name ?? 'Unknown customer';
   const currentJob = ledger.jobs.find((job) => job.id === selectedJob);
-  const search = query.toLowerCase();
-  const jobSorting = useTableSort<Job>('createdAt', 'desc');
-  const paymentSorting = useTableSort<Payment>('createdAt', 'desc');
-  const matchingJobs = jobSorting.sortRows(
-    ledger.jobs.filter((job) =>
-      `${job.description} ${job.service} ${customerName(job.customerId)} ${ledger.customers.find((c) => c.id === job.customerId)?.phone ?? ''} ${job.productionStatus ?? 'Added'} ${job.id}`
-        .toLowerCase()
-        .includes(search),
-    ),
-    {
-      createdAt: (job) => Date.parse(job.createdAt),
-      service: (job) => job.service,
-      description: (job) => job.description,
-      id: (job) => job.id,
-      customer: (job) => customerName(job.customerId),
-      amount: (job) => job.amount,
-      paid: (job) => jobBalance(ledger, job).paid,
-      outstanding: (job) => jobBalance(ledger, job).outstanding,
-      status: (job) => job.productionStatus ?? 'Added',
-      lastPayment: (job) => Date.parse(lastJobPayment(ledger, job) ?? '') || 0,
-      source: (job) => job.source ?? '',
-    },
-  );
-  const matchingPayments = paymentSorting.sortRows(
-    ledger.payments.filter((payment) =>
-      `${payment.id} ${customerName(payment.customerId)} ${payment.reference} ${paymentName(payment)}`
-        .toLowerCase()
-        .includes(search),
-    ),
-    {
-      createdAt: (payment) => Date.parse(payment.createdAt),
-      id: (payment) => payment.id,
-      date: (payment) => Date.parse(payment.paidOn),
-      customer: (payment) => customerName(payment.customerId),
-      amount: (payment) => payment.amount,
-      method: paymentName,
-      allocations: (payment) =>
-        payment.allocations
-          .map((allocation) => ledger.jobs.find((job) => job.id === allocation.jobId)?.description ?? '')
-          .join(', '),
-    },
-  );
 
   if (validActivationToken(activationToken))
     return <DeveloperActivation key={activationToken} token={activationToken} online={online} />;
@@ -2090,216 +1879,24 @@ export default function App() {
                   demo={demo}
                 />
               ) : (
-                <>
-                  <section className="stats">
-                    <article>
-                      <span>Total job value</span>
-                      <strong>{currency(total)}</strong>
-                      <small>{ledger.jobs.length} jobs</small>
-                    </article>
-                    <article>
-                      <span>Paid against jobs</span>
-                      <strong>{currency(paid)}</strong>
-                      <small>Allocated to individual jobs</small>
-                    </article>
-                    <article>
-                      <span>Outstanding</span>
-                      <strong>{currency(total - paid)}</strong>
-                      <small>
-                        {ledger.jobs.filter((job) => jobBalance(ledger, job).outstanding > 0).length} jobs
-                        awaiting payment
-                      </small>
-                    </article>
-                  </section>
-                  <section className="panel">
-                    <div className="toolbar">
-                      <label className="list-sort-select">
-                        Sort by
-                        <select
-                          aria-label={page === 'Jobs' ? 'Sort jobs by' : 'Sort payments by'}
-                          value={page === 'Jobs' ? jobSorting.key : paymentSorting.key}
-                          onChange={(e) =>
-                            (page === 'Jobs' ? jobSorting : paymentSorting).toggle(e.target.value)
-                          }
-                        >
-                          {page === 'Jobs' ? (
-                            <>
-                              <option value="createdAt">Created at</option>
-                              <option value="id">Job ID</option>
-                              <option value="description">Description</option>
-                              <option value="service">Service</option>
-                              <option value="customer">Customer</option>
-                              <option value="amount">Job amount</option>
-                              <option value="paid">Paid</option>
-                              <option value="outstanding">Outstanding</option>
-                              <option value="status">Job stage</option>
-                              <option value="lastPayment">Last payment date</option>
-                            </>
-                          ) : (
-                            <>
-                              <option value="createdAt">Created at</option>
-                              <option value="id">Payment ID</option>
-                              <option value="date">Payment date</option>
-                              <option value="customer">Customer</option>
-                              <option value="amount">Amount</option>
-                              <option value="method">Method</option>
-                              <option value="allocations">Job allocations</option>
-                            </>
-                          )}
-                        </select>
-                      </label>
-                      <button
-                        className="secondary"
-                        onClick={() => {
-                          const sorting = page === 'Jobs' ? jobSorting : paymentSorting;
-                          sorting.toggle(sorting.key);
-                        }}
-                      >
-                        {(page === 'Jobs' ? jobSorting : paymentSorting).direction === 'asc'
-                          ? 'Ascending ↑'
-                          : 'Descending ↓'}
-                      </button>
-                      <input
-                        aria-label={`Search ${page.toLowerCase()}`}
-                        placeholder={`Search ${page.toLowerCase()}.`}
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                      />
-                      <button
-                        disabled={
-                          !ready ||
-                          busy ||
-                          legacyConflict ||
-                          (page === 'Payments' && !ledger.customers.length)
-                        }
-                        onClick={() => {
-                          setMessage('');
-                          if (page === 'Payments') openPayment();
-                          else setForm('job');
-                        }}
-                      >
-                        <Icon name="add" /> {page === 'Jobs' ? 'New job' : 'Record payment'}
-                      </button>
-                    </div>
-                    {!ready ? (
-                      <div className="empty">Loading saved records.</div>
-                    ) : page === 'Jobs' ? (
-                      <>
-                        {!ledger.jobs.length ? (
-                          <div className="empty">
-                            <div className="empty-icon">?</div>
-                            <h2>Your jobs start here</h2>
-                            <p>Add a customer, create their job, then record payments against it.</p>
-                            {!ledger.customers.length && (
-                              <button onClick={() => setForm('customer')}>Add your first customer</button>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="table-wrap">
-                            <JobTable
-                              ledger={ledger}
-                              jobs={matchingJobs}
-                              sorting={jobSorting}
-                              busy={busy || legacyConflict}
-                              onJob={setSelectedJob}
-                              onAction={(job, mode) => setJobToAdvance({ job, mode })}
-                            />
-                            {!matchingJobs.length && <p className="empty">No matching jobs.</p>}
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        {!ledger.payments.length ? (
-                          <div className="empty">
-                            <h2>A clear payment trail</h2>
-                            <p>Payments appear here with the jobs they cover.</p>
-                          </div>
-                        ) : (
-                          <div className="table-wrap">
-                            <ResponsiveTable
-                              extraSortOptions={[
-                                { key: 'createdAt', label: 'Created at' },
-                                { key: 'date', label: 'Payment date' },
-                              ]}
-                              columns={[
-                                { index: 0, label: 'Payment', details: [1] },
-                                { index: 2, label: 'Amount', details: [3] },
-                                { index: 4, label: 'Jobs' },
-                              ]}
-                            >
-                              <table>
-                                <thead>
-                                  <tr>
-                                    <SortHeader label="Payment" column="id" sort={paymentSorting} />
-                                    <SortHeader label="Customer" column="customer" sort={paymentSorting} />
-                                    <SortHeader label="Amount" column="amount" sort={paymentSorting} />
-                                    <SortHeader label="Method" column="method" sort={paymentSorting} />
-                                    <SortHeader
-                                      label="Job allocations"
-                                      column="allocations"
-                                      sort={paymentSorting}
-                                    />
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {matchingPayments.map((payment) => (
-                                    <tr key={payment.id}>
-                                      <td>
-                                        #{shortId(payment.id)}
-                                        <small>
-                                          {dateLabel(payment.paidOn)}
-                                          {payment.reference && ` · ${payment.reference}`}
-                                        </small>
-                                      </td>
-                                      <td>{customerName(payment.customerId)}</td>
-                                      <td>
-                                        {currency(payment.amount)}
-                                        <small>Wallet used: {currency(payment.walletUsed ?? 0)}</small>
-                                        <small>Wallet added: {currency(payment.walletAdded ?? 0)}</small>
-                                      </td>
-                                      <td>{paymentName(payment)}</td>
-                                      <td>
-                                        {payment.refundId && (
-                                          <strong>
-                                            Refund: {currency(payment.walletUsed ?? 0)}
-                                            <small>Money returned to customer</small>
-                                          </strong>
-                                        )}
-                                        {payment.checkoutId &&
-                                          ledger.checkouts.find((r) => r.id === payment.checkoutId) && (
-                                            <button
-                                              className="text-button"
-                                              onClick={() =>
-                                                setReceipt(
-                                                  ledger.checkouts.find((r) => r.id === payment.checkoutId)!,
-                                                )
-                                              }
-                                            >
-                                              Receipt
-                                            </button>
-                                          )}
-                                        {payment.allocations.map((allocation) => (
-                                          <small key={allocation.jobId}>
-                                            {
-                                              ledger.jobs.find((job) => job.id === allocation.jobId)
-                                                ?.description
-                                            }{' '}
-                                            - {currency(allocation.amount)}
-                                          </small>
-                                        ))}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </ResponsiveTable>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </section>
-                </>
+                <JobsPaymentsPage
+                  page={page === 'Payments' ? 'Payments' : 'Jobs'}
+                  ledger={ledger}
+                  ready={ready}
+                  busy={busy}
+                  legacyConflict={legacyConflict}
+                  query={query}
+                  onQuery={setQuery}
+                  onCreate={() => {
+                    setMessage('');
+                    if (page === 'Payments') openPayment();
+                    else setForm('job');
+                  }}
+                  onAddCustomer={() => setForm('customer')}
+                  onJob={setSelectedJob}
+                  onAction={(job, mode) => setJobToAdvance({ job, mode })}
+                  onReceipt={setReceipt}
+                />
               )}
               <p className="footnote">
                 {demo
