@@ -157,4 +157,4 @@ nav button { display: flex; align-items: center; gap: .8rem; }
 .receipt-settings-grid{display:grid;grid-template-columns:minmax(260px,1fr) minmax(300px,1.1fr);gap:28px;align-items:start}.receipt-settings h3{margin:18px 0 6px;font-size:14px}.receipt-settings .check-label{margin:6px 0}.receipt-preview{position:sticky;top:12px}.receipt-preview-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.receipt-preview-head h3{margin:0}.receipt-preview .receipt-sheet{max-height:75vh;overflow:auto}
 @media(max-width:900px){.receipt-settings-grid{grid-template-columns:1fr}.receipt-preview{position:static}}
 /* Fieldsets, grid and flex children may shrink below their content (e.g. a select with a very long option). */
-fieldset{min-width:0}.form-grid>*,label{min-width:0}select{max-width:100%;text-overflow:ellipsis}
+fieldset{min-width:0}.form-grid>*,label{min-width:0}select{max-width:100%;text-overflow:ellipsis;contain:paint}
