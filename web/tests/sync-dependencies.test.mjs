@@ -179,14 +179,27 @@ test('keeping the business job status also drops later stale stage changes for t
   const step = (id, job, status, baseVersion) => ({
     id,
     kind: 'job.status_changed',
-    data: { id: job, status, baseVersion, modifiedBy: 'u', modifiedByLabel: 'U', modifiedAt: '2026-10-11T13:38:00Z' },
+    data: {
+      id: job,
+      status,
+      baseVersion,
+      modifiedBy: 'u',
+      modifiedByLabel: 'U',
+      modifiedAt: '2026-10-11T13:38:00Z',
+    },
   });
   const printing = step('p', 'job1', 'Printing', 2),
     completed = step('c', 'job1', 'Completed', 3),
     collected = step('x', 'job1', 'Collected', 4),
     fresh = step('f', 'job1', 'Collected', 5),
     otherJob = step('o', 'job2', 'Printing', 2);
-  const cloud = { ...emptyLedger(), jobs: [{ id: 'job1', version: 5 }, { id: 'job2', version: 2 }] };
+  const cloud = {
+    ...emptyLedger(),
+    jobs: [
+      { id: 'job1', version: 5 },
+      { id: 'job2', version: 2 },
+    ],
+  };
   const state = acknowledgeReviews(
     {
       ledger: emptyLedger(),
