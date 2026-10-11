@@ -1,21 +1,17 @@
 import {jsPDF,GState} from 'jspdf';
 import {receiptBusiness,validLogo} from './business-branding.mjs';
-import {regular,bold,italic} from './fonts/pdf-fonts';
+import {registerPdfFonts,pdfText,PDF_FONT} from './pdf-common';
 import type {Branding} from './useBusinessBranding';
 import type {ReportSection} from './export-csv';
 
-const FONT='LedgerSans';
-// The embedded font covers Latin-1, common punctuation and the naira sign.
-// Anything else becomes "?" rather than an empty box.
-const latin=(value:unknown)=>String(value??'').replace(/[^\x20-\x7e\xa0-\xff\n₦→–—‘’“”…•€]/g,'?');
+const FONT=PDF_FONT;
+const latin=pdfText;
 
 export type ReportPdfOptions={title:string;subtitle?:string[];sections:ReportSection[];generatedAt:string};
 
 export function createReportPdf(business:string|Branding,options:ReportPdfOptions){
  const doc=new jsPDF({unit:'mm',format:'a4',orientation:'landscape'});
- doc.addFileToVFS('LedgerSans-Regular.ttf',regular);doc.addFont('LedgerSans-Regular.ttf',FONT,'normal');
- doc.addFileToVFS('LedgerSans-Bold.ttf',bold);doc.addFont('LedgerSans-Bold.ttf',FONT,'bold');
- doc.addFileToVFS('LedgerSans-Italic.ttf',italic);doc.addFont('LedgerSans-Italic.ttf',FONT,'italic');
+registerPdfFonts(doc);
  const pageW=doc.internal.pageSize.getWidth(),pageH=doc.internal.pageSize.getHeight(),margin=14,usable=pageW-margin*2,bottom=pageH-14;
  const b=receiptBusiness(business);
  let logo:{data:string;type:string;w:number;h:number}|null=null;

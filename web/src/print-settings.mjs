@@ -45,5 +45,5 @@ export const escapeHtml = value => String(value).replace(/[&<>"']/g, c => ({'&':
 export function printDocument(settings, title, body) {
   const s = validatePrintSettings(settings);
   // body is trusted app-rendered markup; all user values must be escaped by the caller.
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>body{margin:0;font-family:"${escapeHtml(s.font).replace(/\\/g, '')}";font-size:${s.fontSize}pt;font-weight:${s.bold?'bold':'normal'};font-style:${s.italic?'italic':'normal'}table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:4px;border-bottom:1px solid #ddd}h1{font-size:1.4em}</style></head><body>${body}</body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>body{margin:0;font-family:"${escapeHtml(s.font).replace(/\\/g, '')}";font-size:${s.fontSize}pt;font-weight:${s.bold?'bold':'normal'};font-style:${s.italic?'italic':'normal'};-webkit-print-color-adjust:exact;print-color-adjust:exact}table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:4px}h1{font-size:1.4em}</style></head><body>${body}</body></html>`;
 }

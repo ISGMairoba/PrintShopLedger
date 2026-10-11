@@ -21,7 +21,8 @@ import MySalesPage from './MySalesPage';
 import PointOfServicePage from './PointOfServicePage';
 import CheckoutEditor from './CheckoutEditor';
 import ReceiptView from './ReceiptView';
-import { receiptHtml, receiptIntegrityError } from './receipts.mjs';
+import { receiptHtml, receiptIntegrityError, receiptLayout } from './receipts.mjs';
+import { loadPrintSettings } from './print-settings.mjs';
 import { printAfterTransaction } from './printing';
 import useAutoSync from './useAutoSync';
 import Sidebar from './Sidebar';
@@ -215,7 +216,7 @@ export default function App() {
       const pending=next.pending.some(e=>e.id===operation.id);
       setMessage(syncProblem|| (demo?'Checkout saved on this device.':pending?'Checkout saved on this device. It will sync automatically.':'Checkout confirmed and saved.'),syncProblem?'warning':'success');
       const receiptWarning=receiptIntegrityError(record);
-      const printed=receiptWarning?{status:'failed',message:receiptWarning}:await printAfterTransaction(target,`Receipt ${record.id.slice(0,8)}`,receiptHtml(record,branding.settings,pending),true);
+      const printed=receiptWarning?{status:'failed',message:receiptWarning}:await printAfterTransaction(target,`Receipt ${record.id.slice(0,8)}`,receiptHtml(record,branding.settings,pending,[],{layout:receiptLayout(loadPrintSettings(target).width)}),true);
       if(activeScope.current===target&&printed.status==='failed')setMessage(`Checkout saved. Receipt printing failed: ${printed.message}. Open the receipt to retry.`,'warning');
       return record;
     }finally{setBusy(false);}
