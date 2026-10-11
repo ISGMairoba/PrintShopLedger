@@ -48,6 +48,10 @@ export interface Job {
   height?: number | null;
   source?: string;
   sourceNote?: string;
+  /** Deadline (ISO time); absent when the job has none. */
+  dueAt?: string;
+  createdBy?: string | null;
+  createdByLabel?: string | null;
   unitPrice?: number;
   materialNeeded?: number;
   measurementUnit?: string;

@@ -1109,6 +1109,7 @@ export default function App() {
                 id: session!.user.id,
                 label: shop?.staffName || session!.user.email || session!.user.id,
               }}
+              jobSettings={branding.settings.jobs}
               busy={busy}
               paymentOnly={!checkoutConflict.event.data.jobs.length}
               onClose={() => setConflictReviewHidden(true)}
@@ -1570,6 +1571,7 @@ export default function App() {
               onSave={completeCheckout}
               onClose={() => setForm(null)}
               onReceipt={setReceipt}
+              jobSettings={branding.settings.jobs}
             />
           )}
           {adjustingJob && (

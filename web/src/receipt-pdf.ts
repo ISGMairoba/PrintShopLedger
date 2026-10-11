@@ -109,17 +109,22 @@ function drawPage(doc: jsPDF, m: Model, media: ReceiptMedia, watermark: boolean)
     lines.forEach((line, i) => doc.text(line, x, y + i * s * 0.42, { align }));
     return lines.length * s * 0.42;
   };
-  // Header: identity left, logo right.
+  // Header: identity left, logo right. Without the name (a wordmark logo), the logo leads on the left.
   let logoH = 0,
     textW = U;
-  if (logo) {
+  if (logo && m.business.name) {
     const s = Math.min((U * 0.34) / logo.w, (28 * k) / logo.h);
     doc.addImage(m.business.logo, logo.type, R - logo.w * s, TOP - 4, logo.w * s, logo.h * s, 'logo', 'FAST');
     logoH = logo.h * s;
     textW = U - logo.w * s - 8 * k;
   }
   y = TOP + 2 * k;
-  y += text(m.business.name, L, 17, 'bold', brand, 'left', textW) + 1 * k;
+  if (logo && !m.business.name) {
+    const s = Math.min((U * 0.5) / logo.w, (28 * k) / logo.h);
+    doc.addImage(m.business.logo, logo.type, L, TOP - 4, logo.w * s, logo.h * s, 'logo', 'FAST');
+    y = TOP - 4 + logo.h * s + 4 * k;
+  }
+  if (m.business.name) y += text(m.business.name, L, 17, 'bold', brand, 'left', textW) + 1 * k;
   for (const line of [m.business.address, m.business.contacts.join('  |  ')].filter(Boolean))
     y += text(line, L, 8.8, 'normal', MUTED, 'left', textW);
   y = Math.max(y, TOP - 4 + logoH) + 5 * k;
@@ -346,7 +351,7 @@ function drawRoll(doc: jsPDF, m: Model, media: ReceiptMedia) {
     doc.addImage(m.business.logo, logo.type, C - (logo.w * s) / 2, y, logo.w * s, logo.h * s, 'logo', 'FAST');
     y += logo.h * s + 2 * k;
   }
-  y += text(m.business.name.toUpperCase(), C, 12, 'bold', 'center') + 0.5 * k;
+  if (m.business.name) y += text(m.business.name.toUpperCase(), C, 12, 'bold', 'center') + 0.5 * k;
   for (const line of [m.business.address, ...m.business.contacts].filter(Boolean))
     y += text(line, C, 7.2, 'normal', 'center');
   y += 1.5 * k;

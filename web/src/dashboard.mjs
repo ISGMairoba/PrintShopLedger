@@ -174,3 +174,9 @@ export function dashboardSummary(ledger, from, to) {
     },
   };
 }
+/** Whether a time falls in a period from PeriodFilter (an empty or invalid period matches everything). */
+export function inPeriod(value, period) {
+  if (!period || period.preset === 'all' || !validRange(period.from, period.to)) return true;
+  const day = businessDay(value);
+  return day >= period.from && day <= period.to;
+}

@@ -19,6 +19,9 @@ import { applyCustomerEvent } from './customers.mjs';
 import { money, jobBalance, customerBalance } from './domain.mjs';
 import { currency } from './receipts.mjs';
 import type { Ledger, CustomerEvent, CheckoutEvent, CheckoutRecord } from './types';
+import { defaultDueAt, durationLabel, fromLocalInput, toLocalInput } from './job-deadlines.mjs';
+import { jobSettingsDefaults } from './business-branding.mjs';
+type JobSettings = ReturnType<typeof jobSettingsDefaults>;
 type Props = {
   ledger: Ledger;
   actor: { id: string; label: string };
@@ -29,6 +32,8 @@ type Props = {
   onSave: (event: CheckoutEvent) => Promise<CheckoutRecord>;
   onClose: () => void;
   onReceipt: (record: CheckoutRecord) => void;
+  /** Business defaults: new-job deadline and how the payment amount starts. */
+  jobSettings?: JobSettings;
 };
 type ManualAllocationState = { amounts: Record<string, string>; editedOrder: string[] };
 function balanceDraft(
@@ -59,6 +64,8 @@ type CartLine = {
   height: string;
   source: string;
   sourceNote: string;
+  /** Deadline as an ISO time, or '' for none. */
+  dueAt?: string;
   workflow?: string[];
 };
 const line = (): CartLine => ({
@@ -82,10 +89,16 @@ export default function CheckoutEditor({
   onSave,
   onClose,
   onReceipt,
+  jobSettings = jobSettingsDefaults(),
 }: Props) {
   const options = useBusinessOptions(),
     jobSources = options.jobSources;
-  const newLine = () => ({ ...line(), source: jobSources[0], workflow: [...options.jobStages] });
+  const newLine = () => ({
+    ...line(),
+    source: jobSources[0],
+    workflow: [...options.jobStages],
+    dueAt: defaultDueAt(jobSettings.defaultDuration),
+  });
   const [lines, setLines] = useState<CartLine[]>(() =>
     initialCheckout
       ? initialCheckout.jobs.map((j) => ({
@@ -96,6 +109,7 @@ export default function CheckoutEditor({
           height: j.height == null ? '' : String(j.height),
           source: j.source ?? 'In shop / USB',
           sourceNote: j.sourceNote ?? '',
+          dueAt: j.dueAt ?? '',
         }))
       : paymentOnly
         ? []
@@ -209,7 +223,9 @@ export default function CheckoutEditor({
   const previousBalance = customer ? customerBalance(working, customer.id) : 0;
   const availableWallet = customer && useWallet ? walletBalance(working, customer.id) : 0;
   const recommended = cartTotal === null ? null : Math.max(0, cartTotal + previousBalance - availableWallet);
-  const cash = cashOverride ?? ((recommended ?? 0) / 100).toFixed(2);
+  // The business chooses whether the amount starts at the recommended payment or at zero.
+  const prefill = jobSettings.paymentPrefill === 'zero' ? 0 : (recommended ?? 0);
+  const cash = cashOverride ?? (prefill / 100).toFixed(2);
   let preview: CheckoutEvent | null = null,
     previewError = '';
   try {
@@ -505,6 +521,19 @@ export default function CheckoutEditor({
                             onChange={(e) => editLine(item.id, 'sourceNote', e.target.value)}
                           />
                         </label>
+                        <label>
+                          Deadline
+                          <input
+                            type="datetime-local"
+                            aria-label="Deadline"
+                            value={toLocalInput(item.dueAt ?? '')}
+                            onChange={(e) => editLine(item.id, 'dueAt', fromLocalInput(e.target.value))}
+                          />
+                          <small>
+                            {item.dueAt ? 'Clear it for no deadline. ' : 'No deadline. '}
+                            Business default: {durationLabel(jobSettings.defaultDuration).toLowerCase()}.
+                          </small>
+                        </label>
                       </div>
                       {quote && (
                         <p>
@@ -672,8 +701,17 @@ export default function CheckoutEditor({
                     {currency(Math.min(Math.max(0, availableWallet), (cartTotal ?? 0) + previousBalance))}
                   </small>
                 </p>
-                {cashOverride !== null && (
-                  <button type="button" className="secondary" onClick={() => setCashOverride(null)}>
+                {(cashOverride !== null || jobSettings.paymentPrefill === 'zero') && (
+                  <button
+                    type="button"
+                    className="secondary"
+                    // Following the recommendation keeps it in step with cart changes.
+                    onClick={() =>
+                      setCashOverride(
+                        jobSettings.paymentPrefill === 'zero' ? (recommended / 100).toFixed(2) : null,
+                      )
+                    }
+                  >
                     Use recommended amount
                   </button>
                 )}

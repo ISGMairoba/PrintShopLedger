@@ -7,6 +7,8 @@ import { lastJobPayment } from './job-progress.mjs';
 import type { ProgressMode } from './JobActions';
 import { jobBalance } from './domain.mjs';
 import { currency } from './receipts.mjs';
+import PeriodFilter, { periodOf } from './PeriodFilter';
+import { inPeriod } from './dashboard.mjs';
 import type { Ledger, Job, CheckoutRecord } from './types';
 type Props = {
   ledger: Ledger;
@@ -29,7 +31,9 @@ export default function PointOfServicePage({
   onReceipt,
 }: Props) {
   const [query, setQuery] = useState(''),
-    [allDates, setAllDates] = useState(false),
+    [period, setPeriod] = useState(() => periodOf('30days')),
+    [showClosed, setShowClosed] = useState(false),
+    [audit, setAudit] = useState(false),
     [receipts, setReceipts] = useState(false);
   const sorting = useTableSort<Job>('createdAt', 'desc'),
     receiptSorting = useTableSort<CheckoutRecord>('createdAt', 'desc');
@@ -37,9 +41,8 @@ export default function PointOfServicePage({
   const visible = sorting.sortRows(
     ledger.jobs.filter(
       (j) =>
-        (allDates ||
-          (Date.parse(j.createdAt) >= Date.now() - 30 * 86400000 &&
-            !['Collected', 'Cancelled'].includes(j.productionStatus ?? 'Added'))) &&
+        inPeriod(j.createdAt, period) &&
+        (showClosed || !['Collected', 'Cancelled'].includes(j.productionStatus ?? 'Added')) &&
         [
           j.id,
           j.description,
@@ -49,6 +52,8 @@ export default function PointOfServicePage({
           j.productionStatus ?? 'Added',
           j.createdAt,
           j.modifiedAt,
+          j.createdByLabel,
+          j.modifiedByLabel,
         ]
           .join(' ')
           .toLowerCase()
@@ -66,22 +71,27 @@ export default function PointOfServicePage({
       status: (j) => j.productionStatus ?? 'Added',
       createdAt: (j) => Date.parse(j.createdAt),
       source: (j) => j.source ?? '',
+      dueAt: (j) => Date.parse(j.dueAt ?? '') || Number.MAX_SAFE_INTEGER,
+      createdBy: (j) => j.createdByLabel ?? '',
+      modifiedAt: (j) => Date.parse(j.modifiedAt ?? j.createdAt),
     },
   );
   const records = receiptSorting.sortRows(
-    ledger.checkouts.filter((r) =>
-      [
-        r.id,
-        name(r.customerId),
-        r.reference,
-        r.createdByLabel,
-        r.createdAt,
-        r.cashReceived / 100,
-        r.total / 100,
-      ]
-        .join(' ')
-        .toLowerCase()
-        .includes(query.toLowerCase()),
+    ledger.checkouts.filter(
+      (r) =>
+        inPeriod(r.createdAt, period) &&
+        [
+          r.id,
+          name(r.customerId),
+          r.reference,
+          r.createdByLabel,
+          r.createdAt,
+          r.cashReceived / 100,
+          r.total / 100,
+        ]
+          .join(' ')
+          .toLowerCase()
+          .includes(query.toLowerCase()),
     ),
     {
       id: (r) => r.id,
@@ -100,10 +110,14 @@ export default function PointOfServicePage({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
+        <PeriodFilter value={period} onChange={setPeriod} allowAll />
         <label className="check-label">
-          <input type="checkbox" checked={allDates} onChange={(e) => setAllDates(e.target.checked)} /> Include
-          older, collected and cancelled jobs
+          <input type="checkbox" checked={showClosed} onChange={(e) => setShowClosed(e.target.checked)} />{' '}
+          Show collected and cancelled jobs
         </label>
+        <button className="secondary" aria-pressed={audit} onClick={() => setAudit(!audit)}>
+          <Icon name={audit ? 'table' : 'audit'} /> {audit ? 'Normal view' : 'Audit view'}
+        </button>
         <button className="secondary" onClick={() => setReceipts((v) => !v)}>
           {receipts ? 'Show jobs' : 'Receipts'}
         </button>
@@ -160,14 +174,19 @@ export default function PointOfServicePage({
         <div className="table-wrap">
           <JobTable
             ledger={ledger}
-            jobs={visible.slice(0, allDates ? undefined : 100)}
+            jobs={visible.slice(0, period.preset === 'all' ? undefined : 500)}
             sorting={sorting}
             busy={busy}
+            audit={audit}
             pointOfService
             onJob={onJob}
             onAction={onNext}
           />
-          {!visible.length && <p className="empty">No matching jobs. Add a job or include older records.</p>}
+          {!visible.length && (
+            <p className="empty">
+              No matching jobs. Add a job, choose a longer period or show collected and cancelled jobs.
+            </p>
+          )}
         </div>
       )}
     </section>

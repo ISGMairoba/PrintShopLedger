@@ -1997,3 +1997,13 @@ select {
   text-overflow: ellipsis;
   contain: paint;
 }
+.deadline .badge {
+  margin-left: 6px;
+}
+.deadline-overdue {
+  color: #b3261e;
+  font-weight: 600;
+}
+[data-theme="dark"] .deadline-overdue {
+  color: #ff8a80;
+}

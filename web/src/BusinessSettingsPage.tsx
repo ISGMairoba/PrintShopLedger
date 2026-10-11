@@ -37,6 +37,7 @@ export default function BusinessSettingsPage({
     'Appearance',
     'Receipts',
     'Dropdowns & workflow',
+    'Jobs & payments',
     'Corrections',
     'Page access',
   ];
@@ -362,6 +363,7 @@ export default function BusinessSettingsPage({
                 {(
                   [
                     ['showLogo', 'Show logo'],
+                    ['showBusinessName', 'Show business name'],
                     ['showAddress', 'Show address'],
                     ['showContacts', 'Show phone, email and website'],
                   ] as const
@@ -375,6 +377,9 @@ export default function BusinessSettingsPage({
                     {label}
                   </label>
                 ))}
+                {!draft.receipt.showBusinessName && !(draft.receipt.showLogo && draft.logo) && (
+                  <small>The name still shows while there is no logo on the receipt.</small>
+                )}
                 <h3>Each job</h3>
                 <label>
                   Highlighted line
@@ -398,6 +403,7 @@ export default function BusinessSettingsPage({
                     ['showQuantity', 'Quantity'],
                     ['showSize', 'Size'],
                     ['showSource', 'How the job was received'],
+                    ['showDueDate', 'Deadline'],
                   ] as const
                 ).map(([key, label]) => (
                   <label className="check-label" key={key}>
@@ -521,6 +527,60 @@ export default function BusinessSettingsPage({
               saveControl={sectionSave('Dropdown settings', ['options'])}
             />
           </div>
+          <fieldset hidden={tab !== 'Jobs & payments'} disabled={busy || !ready}>
+            <legend>Jobs & payments</legend>
+            <h3>Default job deadline</h3>
+            <p>
+              New jobs are due this long after they are added. Staff can change or clear the deadline when
+              adding a job. Use 0 for no default deadline.
+            </p>
+            <div className="form-grid">
+              <label>
+                Duration
+                <input
+                  type="number"
+                  min="0"
+                  max={draft.jobs.defaultDuration.unit === 'hours' ? 720 : 365}
+                  step="1"
+                  value={draft.jobs.defaultDuration.value}
+                  onChange={(event) =>
+                    field('jobs', {
+                      ...draft.jobs,
+                      defaultDuration: { ...draft.jobs.defaultDuration, value: Number(event.target.value) },
+                    })
+                  }
+                />
+              </label>
+              <label>
+                Unit
+                <select
+                  value={draft.jobs.defaultDuration.unit}
+                  onChange={(event) =>
+                    field('jobs', {
+                      ...draft.jobs,
+                      defaultDuration: { ...draft.jobs.defaultDuration, unit: event.target.value },
+                    })
+                  }
+                >
+                  <option value="hours">Hours</option>
+                  <option value="days">Days</option>
+                </select>
+              </label>
+            </div>
+            <h3>Payment amount at checkout</h3>
+            <label>
+              Money received starts at
+              <select
+                value={draft.jobs.paymentPrefill}
+                onChange={(event) => field('jobs', { ...draft.jobs, paymentPrefill: event.target.value })}
+              >
+                <option value="suggested">The recommended payment</option>
+                <option value="zero">Zero (staff type the amount)</option>
+              </select>
+            </label>
+            <p>The recommended amount is always shown beside the box, with a button to use it.</p>
+            {sectionSave('Job and payment settings', ['jobs'])}
+          </fieldset>
           <fieldset hidden={tab !== 'Corrections'} disabled={busy || !ready}>
             <legend>Correction history</legend>
             <label>
