@@ -46,7 +46,7 @@ async function readyPrinter(s: PrintSettings) {
 export async function printPdf(settings: PrintSettings, title: string, base64: string, pageHeight: number | null = null) {
   const s = validatePrintSettings(settings);
   const qz = await readyPrinter(s);
-  await qz.print(qz.configs.create(s.printer, qzPdfOptions(s, title, pageHeight)), [{ type: 'pixel', format: 'pdf', flavor: 'base64', data: base64 }]);
+  await qz.print(qz.configs.create(s.printer, (qzPdfOptions as (s: PrintSettings, name: string, height: number | null) => object)(s, title, pageHeight)), [{ type: 'pixel', format: 'pdf', flavor: 'base64', data: base64 }]);
 }
 /**
  * Print a receipt drawn for the paper in Print Settings: till-roll layout on paper up to 90 mm
@@ -56,7 +56,7 @@ export async function printReceipt(settings: PrintSettings, record: CheckoutReco
   const s = validatePrintSettings(settings);
   await readyPrinter(s);
   const { createReceiptPdf } = await import('./receipt-pdf');
-  const media = receiptMedia(s);
+  const media = receiptMedia(s) as import('./receipt-pdf').ReceiptMedia;
   const doc = createReceiptPdf(record, business, pending, adjustments, media);
   const base64 = (doc.output('datauristring') as string).split(',')[1];
   const pageHeight = media.layout === 'roll' ? doc.internal.pageSize.getHeight() : null;
