@@ -230,3 +230,22 @@ test('Zero-price services still create a job, deduct stock and print a balanced 
   assert.equal(jobBalance(saved, saved.jobs[0]).status, 'Fully paid');
   assert.equal(saved.checkouts.length, 1);
 });
+
+test('offline customer whose phone was taken elsewhere is reported, not applied', async () => {
+  const { applyEvent: apply, emptyLedger: empty } = await import('../src/domain.mjs');
+  const { createCustomerEvent } = await import('../src/customers.mjs');
+  const { offlineCustomerClash } = await import('../src/checkout.mjs');
+  const who = { id: 'cashier', label: 'Cashier' },
+    at = '2026-10-11T13:00:00.000Z';
+  const synced = createCustomerEvent({ name: 'Mairoba Studious', phone: '08088850271' }, who, () => 'a', at);
+  const offline = createCustomerEvent({ name: 'MAIROBA', phone: '+234 808 885 0271' }, who, () => 'b', at);
+  const other = createCustomerEvent({ name: 'Someone else', phone: '08011111111' }, who, () => 'c', at);
+  const cloud = apply(empty(), synced);
+  const clash = offlineCustomerClash(cloud, offline);
+  assert.equal(clash.owner.name, 'Mairoba Studious');
+  assert.match(clash.message, /already belongs to Mairoba Studious/);
+  assert.equal(offlineCustomerClash(cloud, other), null);
+  assert.equal(offlineCustomerClash(cloud, null), null);
+  // Already synchronised: nothing to create.
+  assert.equal(offlineCustomerClash(apply(cloud, other), other), null);
+});

@@ -1,5 +1,5 @@
 import { validateWorkflow, jobWorkflow } from './business-options.mjs';
-import { applyCustomerEvent } from './customers.mjs';
+import { applyCustomerEvent, phoneOwner } from './customers.mjs';
 import { jobBalance, customerBalance } from './domain.mjs';
 import { materialSnapshot } from './material-display.mjs';
 export const jobStatuses = ['Added', 'In Queue', 'Printing', 'Completed', 'Collected'];
@@ -406,4 +406,22 @@ export function applyJobStatus(ledger, event) {
     lastEventId: event.id,
   };
   return { ...ledger, jobs: ledger.jobs.map((j) => (j.id === job.id ? next : j)) };
+}
+
+/**
+ * Why a customer added offline with a checkout can no longer be created against the current
+ * ledger (for example, its phone number now belongs to another customer), or null if it can.
+ * The owner is the existing customer with the same phone number, when there is one.
+ */
+export function offlineCustomerClash(ledger, event) {
+  if (!event || ledger.customers.some((c) => c.id === event.data.id)) return null;
+  try {
+    applyCustomerEvent(ledger, event);
+    return null;
+  } catch (cause) {
+    return {
+      message: cause instanceof Error ? cause.message : String(cause),
+      owner: phoneOwner(ledger.customers, event.data.phone ?? '', event.data.id),
+    };
+  }
 }

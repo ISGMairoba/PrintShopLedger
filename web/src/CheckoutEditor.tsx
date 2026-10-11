@@ -13,6 +13,7 @@ import {
   walletBalance,
   unpaidJobs,
   stockCountEvent,
+  offlineCustomerClash,
 } from './checkout.mjs';
 import { applyCustomerEvent } from './customers.mjs';
 import { money, jobBalance, customerBalance } from './domain.mjs';
@@ -100,14 +101,30 @@ export default function CheckoutEditor({
         ? []
         : [newLine()],
   );
-  const [customerId, setCustomerId] = useState(initialCheckout?.customerId ?? initialCustomer);
+  // A customer added offline can clash with one created elsewhere in the meantime (for
+  // example the same phone number). Detect it once so the reviewer picks a customer instead
+  // of the editor failing while it tries to apply the offline customer.
+  const [offlineCustomer] = useState(() => {
+    const event = initialCheckout?.newCustomer ?? null;
+    return { event, clash: offlineCustomerClash(ledger, event) };
+  });
+  const clash = offlineCustomer.clash;
+  const [customerId, setCustomerId] = useState(
+    clash ? '' : (initialCheckout?.customerId ?? initialCustomer),
+  );
   const [query, setQuery] = useState(
-    ledger.customers.find((c) => c.id === (initialCheckout?.customerId ?? initialCustomer))?.name ?? '',
+    clash
+      ? ''
+      : (ledger.customers.find((c) => c.id === (initialCheckout?.customerId ?? initialCustomer))?.name ??
+          offlineCustomer.event?.data.name ??
+          ''),
   );
   const [suggest, setSuggest] = useState(false),
     [active, setActive] = useState(0),
     [addingCustomer, setAddingCustomer] = useState(false);
-  const [newCustomer, setNewCustomer] = useState<CustomerEvent | null>(initialCheckout?.newCustomer ?? null);
+  const [newCustomer, setNewCustomer] = useState<CustomerEvent | null>(
+    clash ? null : offlineCustomer.event,
+  );
   const [cashOverride, setCashOverride] = useState<string | null>(
     initialCheckout ? (initialCheckout.cashReceived / 100).toFixed(2) : null,
   );
@@ -519,6 +536,28 @@ export default function CheckoutEditor({
               </>
             )}
             <h3>Payment</h3>
+            {clash && !customer && offlineCustomer.event && (
+              <div className="notice notice-warning" role="alert">
+                <strong>
+                  The customer added offline ({offlineCustomer.event.data.name}
+                  {offlineCustomer.event.data.phone ? `, ${offlineCustomer.event.data.phone}` : ''}) cannot be
+                  created.
+                </strong>
+                <p>{clash.message}</p>
+                <p>
+                  Choose the existing customer if it is the same person, or add the customer again with a
+                  different phone number.
+                </p>
+                {clash.owner && !clash.owner.archived && (
+                  <button
+                    type="button"
+                    onClick={() => choose(clash.owner!.id, clash.owner!.name)}
+                  >
+                    Use {clash.owner.name}
+                  </button>
+                )}
+              </div>
+            )}
             <section className="checkout-customer" data-selected={!!customer} aria-label="Customer">
               <div id="checkout-customer-fields">
                 {' '}
