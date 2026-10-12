@@ -68,6 +68,14 @@ export const defaultBranding = () => ({
     footer: 'Thank you for your business.',
     ...receiptContentDefaults(),
   },
+  receiptPage: {
+    showLogo: true,
+    showBusinessName: true,
+    showAddress: true,
+    showContacts: true,
+    footer: 'Thank you for your business.',
+    ...receiptContentDefaults(),
+  },
   documents: { watermark: false },
 });
 export function validLogo(value) {
@@ -106,21 +114,10 @@ export function validateBranding(input) {
     if (!/^#[0-9a-f]{6}$/i.test(value[key])) throw Error('Choose valid brand colors.');
   if (!['light', 'dark', 'system'].includes(value.theme)) throw Error('Choose Light, Dark or System.');
   value.backgrounds = validateBackgrounds(value.backgrounds);
-  if (value.receipt && value.receipt.showBusinessName === undefined) value.receipt.showBusinessName = true;
-  for (const key of ['showLogo', 'showBusinessName', 'showAddress', 'showContacts'])
-    if (typeof value.receipt?.[key] !== 'boolean') throw Error('Invalid receipt options.');
-  if (typeof value.receipt.footer !== 'string' || value.receipt.footer.length > 500)
-    throw Error('Receipt footer must be up to 500 characters.');
-  value.receipt.footer = value.receipt.footer.trim();
-  for (const [key, fallback] of Object.entries(receiptContentDefaults())) {
-    value.receipt[key] ??= fallback;
-    if (
-      key === 'headline'
-        ? !['description', 'service'].includes(value.receipt[key])
-        : typeof value.receipt[key] !== 'boolean'
-    )
-      throw Error('Invalid receipt content options.');
-  }
+  // Till-roll receipts (receipt) and full-page receipts (receiptPage) are set separately.
+  // Settings saved before the split start the page copy from the roll settings.
+  value.receipt = validateReceiptOptions(value.receipt);
+  value.receiptPage = validateReceiptOptions(value.receiptPage ?? value.receipt);
   value.documents ??= { watermark: false };
   if (typeof value.documents !== 'object' || typeof value.documents.watermark !== 'boolean')
     throw Error('Invalid document options.');
@@ -294,12 +291,31 @@ export function validateJobSettings(input) {
     paymentPrefill: value.paymentPrefill,
   };
 }
+export function validateReceiptOptions(input) {
+  if (!input || typeof input !== 'object') throw Error('Invalid receipt options.');
+  const value = { ...input };
+  value.showBusinessName ??= true;
+  for (const key of ['showLogo', 'showBusinessName', 'showAddress', 'showContacts'])
+    if (typeof value[key] !== 'boolean') throw Error('Invalid receipt options.');
+  if (typeof value.footer !== 'string' || value.footer.length > 500)
+    throw Error('Receipt footer must be up to 500 characters.');
+  value.footer = value.footer.trim();
+  for (const [key, fallback] of Object.entries(receiptContentDefaults())) {
+    value[key] ??= fallback;
+    if (
+      key === 'headline' ? !['description', 'service'].includes(value[key]) : typeof value[key] !== 'boolean'
+    )
+      throw Error('Invalid receipt content options.');
+  }
+  return value;
+}
 export function receiptBusiness(input) {
   if (typeof input === 'string') return { ...defaultBranding(), businessName: input };
   return {
     ...defaultBranding(),
     ...input,
     receipt: { ...defaultBranding().receipt, ...input?.receipt },
+    receiptPage: { ...defaultBranding().receiptPage, ...(input?.receiptPage ?? input?.receipt) },
     documents: { ...defaultBranding().documents, ...input?.documents },
   };
 }

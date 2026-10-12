@@ -422,8 +422,8 @@ export function createReceiptPdf(
 ) {
   const warning = receiptIntegrityError(record);
   if (warning) throw Error(warning);
-  const m = receiptModel(record, business, pending, adjustments),
-    media = mediaFor(size);
+  const media = mediaFor(size),
+    m = receiptModel(record, business, pending, adjustments, media.layout);
   if (media.layout === 'roll') {
     // Measure on a long strip, then draw again on a page exactly as tall as the content.
     const probe = new jsPDF({ unit: 'mm', format: [media.width, 3000] });
