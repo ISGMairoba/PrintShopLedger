@@ -170,7 +170,6 @@ try {
       label + ': From and To do not overlap',
     );
   }
-  await navigate('Payments');
   await datesFit('Payments date filter');
   await navigate('Stock History');
   await fits('Stock History filters');

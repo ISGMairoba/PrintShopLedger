@@ -139,7 +139,10 @@ try {
       await nav.getByRole('button', { name: 'Point of Service', exact: true }).waitFor();
       assert.deepEqual(
         await nav.getByRole('button').allTextContents(),
-        navigationPages.filter((p) => canAccessPage(p, rank)),
+        // Material Waste is a tab inside Materials when both are allowed.
+        navigationPages.filter(
+          (p) => canAccessPage(p, rank) && !(p === 'Material Waste' && canAccessPage('Materials', rank)),
+        ),
       );
       await nav.getByRole('button', { name: 'My Account', exact: true }).click();
       await page.getByLabel('Username', { exact: true }).fill('bad name');
