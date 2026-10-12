@@ -94,7 +94,8 @@ export default function DashboardPage({
               card(
                 'Sales value',
                 summary.sales,
-                `${summary.jobs} jobs · ${summary.cancelled} cancelled`,
+                `${summary.jobs} jobs · ${summary.cancelled} cancelled` +
+                  (summary.discounts > 0 ? ` · after ${money(summary.discounts)} discounts` : ''),
                 change(summary.sales, summary.previous.sales),
               )}
             {access.payments &&
