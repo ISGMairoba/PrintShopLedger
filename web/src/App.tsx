@@ -22,6 +22,7 @@ import ReceiptView from './ReceiptView';
 import { receiptIntegrityError } from './receipts.mjs';
 import { printAfterTransaction, printReceipt, setPrintSigner } from './printing';
 import useAutoSync from './useAutoSync';
+import { isTransientSyncError } from './auto-sync.mjs';
 import Sidebar from './Sidebar';
 import Icon from './Icon';
 import PrintSettingsPage from './PrintSettingsPage';
@@ -504,6 +505,7 @@ export default function App() {
     }, 5 * 60000);
     return () => clearTimeout(timer);
   }, [supervisor]);
+  const slowSyncs = useRef(0);
   const syncStatus = useAutoSync({
     scope,
     enabled: !demo && !!scope && ready && !switchUser,
@@ -513,6 +515,7 @@ export default function App() {
     run: async () => {
       const target = scope;
       const next = await syncLedger(target, shop!.id);
+      slowSyncs.current = 0;
       if (activeScope.current === target) {
         setState(next);
         channel.current?.postMessage('changed');
@@ -523,6 +526,17 @@ export default function App() {
       void readState(target).then((next) => {
         if (activeScope.current === target) setState(next);
       });
+      // A slow or dropped connection: sync retries by itself and work stays saved, so say
+      // nothing at first and only a calm note if it keeps happening.
+      if (isTransientSyncError(error)) {
+        slowSyncs.current += 1;
+        if (slowSyncs.current === 3)
+          setMessage(
+            'The connection is slow, so syncing is taking a while. It keeps trying by itself; your work is saved on this device.',
+            'warning',
+          );
+        return;
+      }
       setMessage(errorMessage(error), 'error');
       if (
         error instanceof ExpenseSyncConflict ||

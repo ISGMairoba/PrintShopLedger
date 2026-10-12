@@ -79,3 +79,14 @@ export function createAutoSync({
     },
   };
 }
+
+/**
+ * A failure that says nothing about the data — a slow or dropped connection. Automatic sync
+ * simply tries again; nobody needs to act.
+ */
+export function isTransientSyncError(error) {
+  const text = `${error?.name ?? ''} ${error instanceof Error ? error.message : String(error)}`;
+  return /timed? ?out|TimeoutError|AbortError|Failed to fetch|NetworkError|Load failed|network (connection|request)|ERR_NETWORK|fetch failed/i.test(
+    text,
+  );
+}

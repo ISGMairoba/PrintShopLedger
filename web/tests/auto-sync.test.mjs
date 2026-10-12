@@ -162,3 +162,21 @@ test('conflicts pause until reviewed, cleanup ignores an old workspace result', 
   assert.deepEqual(completed, ['syncing']);
   assert.equal(second.tasks.size, 0);
 });
+
+import { isTransientSyncError } from '../src/auto-sync.mjs';
+test('slow or dropped connections are retried quietly; data problems are not', () => {
+  assert.ok(isTransientSyncError(new Error('TimeoutError: signal timed out')));
+  assert.ok(
+    isTransientSyncError(
+      new Error('Sync paused: TypeError: Failed to fetch. Your pending work is still saved locally.'),
+    ),
+  );
+  assert.ok(isTransientSyncError(new TypeError('Load failed')));
+  assert.ok(
+    isTransientSyncError(Object.assign(new Error('The operation was aborted.'), { name: 'AbortError' })),
+  );
+  assert.ok(!isTransientSyncError(new Error('Business access denied')));
+  assert.ok(
+    !isTransientSyncError(new Error('Your sign-in changed. Sign in again before syncing this workspace.')),
+  );
+});
