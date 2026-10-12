@@ -44,6 +44,24 @@ const adjustmentNames = {
   'sale.refunded': 'Customer refunded',
 };
 
+const percent = (value) => `${Number(value).toLocaleString('en-NG', { maximumFractionDigits: 2 })}%`;
+/**
+ * A discounted job's price and discount, in plain words for the receipt. Printed text uses a plain
+ * hyphen for minus: receipt fonts and printers may not have the − sign.
+ */
+export function discountLines(item) {
+  if (!(item?.discountAmount > 0)) return [];
+  const share = item.orderDiscountShare ?? 0;
+  const own = item.lineDiscount ?? item.discountAmount - share;
+  return [
+    `Price ${currency(item.grossAmount ?? item.amount + item.discountAmount)}`,
+    own > 0
+      ? `Discount ${item.discount?.kind === 'percent' ? `${percent(item.discount.value)} ` : ''}-${currency(own)}`
+      : '',
+    share > 0 ? `Order discount -${currency(share)}` : '',
+  ].filter(Boolean);
+}
+
 /**
  * Everything a receipt shows, in display order, independent of where it is printed.
  * What appears and which line leads each job follow the business's receipt settings.
@@ -73,9 +91,7 @@ export function receiptModel(record, business, pending = false, adjustments = []
         ? `Received: ${item.source}${item.sourceNote ? ' — ' + item.sourceNote : ''}`
         : '',
       o.showDueDate && item?.dueAt && !Number.isNaN(Date.parse(item.dueAt)) ? `Due ${lagos(item.dueAt)}` : '',
-      item?.discountAmount > 0
-        ? `Price ${currency(item.grossAmount)} less discount ${currency(item.discountAmount)}`
-        : '',
+      ...discountLines(item),
     ].filter(Boolean);
     return {
       id: j.id,
@@ -94,11 +110,18 @@ export function receiptModel(record, business, pending = false, adjustments = []
     };
   });
   const totals = [];
-  if (record.discountTotal > 0)
-    totals.push({ label: 'Discounts given', value: `−${currency(record.discountTotal)}` });
+  // With discounts: price before discounts, the discount, then what the new jobs cost.
+  if (record.discountTotal > 0 && balancedTotal) {
+    totals.push({ label: 'Subtotal', value: currency(record.total + record.discountTotal) });
+    const reason = record.orderDiscount?.reason;
+    totals.push({
+      label: reason ? `Discount (${reason})` : 'Discount',
+      value: `-${currency(record.discountTotal)}`,
+    });
+  }
   if ((record.jobs ?? []).length)
     totals.push({
-      label: renameTerms('New jobs', b.terms),
+      label: renameTerms(record.discountTotal > 0 ? 'Total for new jobs' : 'New jobs', b.terms),
       value: balancedTotal ? currency(record.total) : 'Needs verification',
     });
   totals.push({

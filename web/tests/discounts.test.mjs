@@ -120,6 +120,26 @@ test('receipts show each discount and the total given', () => {
   const event = checkout(ledger, [{ ...job(2), discount: { kind: 'percent', value: 10 } }], 18000);
   const record = { ...event.data, jobs: event.data.jobs };
   const m = receiptModel(record, { ...defaultBranding(), businessName: 'Shop' });
-  assert.ok(m.items[0].meta.some((x) => /Price ₦200\.00 less discount ₦20\.00/.test(x)));
-  assert.ok(m.totals.some((t) => t.label === 'Discounts given' && t.value === '−₦20.00'));
+  assert.ok(m.items[0].meta.includes('Price ₦200.00'));
+  assert.ok(m.items[0].meta.includes('Discount 10% -₦20.00'));
+  assert.ok(m.totals.some((t) => t.label.startsWith('Discount') && t.value === '-₦20.00'));
+  assert.ok(m.totals.some((t) => t.label === 'Subtotal'));
+  assert.ok(!JSON.stringify(m).includes('−'), 'printed text avoids the minus sign glyph');
+});
+
+test('receipt wording for a whole-order discount shared across jobs', () => {
+  const ledger = fixture();
+  const event = checkout(ledger, [job(3), job(1)], 0, {
+    orderDiscount: { kind: 'amount', value: 2000, reason: 'Bulk order' },
+  });
+  const m = receiptModel({ ...event.data }, { ...defaultBranding(), businessName: 'Shop' });
+  assert.deepEqual(m.items[0].meta.slice(-2), ['Price ₦300.00', 'Order discount -₦15.00']);
+  assert.deepEqual(
+    m.totals.slice(0, 3).map((t) => [t.label, t.value]),
+    [
+      ['Subtotal', '₦400.00'],
+      ['Discount (Bulk order)', '-₦20.00'],
+      ['Total for new jobs', '₦380.00'],
+    ],
+  );
 });
