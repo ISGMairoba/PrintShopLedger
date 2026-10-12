@@ -37,7 +37,9 @@ export default function ReceiptView({
     setBusy(true);
     try {
       const { downloadReceiptPdf } = await import('./receipt-pdf');
-      downloadReceiptPdf(record, business, pending, adjustments, size);
+      // The 80 mm PDF is printed on thermal printers, which need a solid black logo.
+      const brand = size === 'roll' ? await (await import('./logo-ink')).withInkLogo(business) : business;
+      downloadReceiptPdf(record, brand, pending, adjustments, size);
       setMessage('PDF downloaded.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error), 'error');
