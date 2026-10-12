@@ -142,3 +142,16 @@ test('reviewing an earlier checkout preserves later payment labels and workflow 
   assert.deepEqual(resolved.ledger.jobs[0].workflow, workflow);
   assert.equal(resolved.ledger.payments[1].methodLabel, 'Bank app');
 });
+
+import { paymentName } from '../src/business-options.mjs';
+test('zero payments show None, or Wallet when credit paid', () => {
+  assert.equal(paymentName({ cashReceived: 500, method: 'Cash' }), 'Cash');
+  assert.equal(paymentName({ cashReceived: 500, method: 'Transfer', methodLabel: 'Opay' }), 'Opay');
+  assert.equal(paymentName({ cashReceived: 0, method: 'Cash' }), 'None');
+  assert.equal(paymentName({ cashReceived: 0, walletUsed: 2000, method: 'Cash' }), 'Wallet');
+  assert.equal(paymentName({ amount: 0, walletUsed: 2000, method: 'POS' }), 'Wallet');
+  assert.equal(paymentName({ amount: 1000, method: 'POS' }), 'POS');
+});
+test('refunds keep the method the money went out by', () => {
+  assert.equal(paymentName({ amount: 0, walletUsed: 400, refundId: 'r', method: 'Cash' }), 'Cash');
+});
