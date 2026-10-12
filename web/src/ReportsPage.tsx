@@ -19,6 +19,7 @@ import type { Branding } from './useBusinessBranding';
 import type { Ledger } from './types';
 import './dashboard.css';
 import './reports.css';
+import { useWords } from './Words';
 
 export type ReportAccess = {
   customers: boolean;
@@ -243,6 +244,10 @@ export default function ReportsPage({
     [error, setError] = useState('');
   const brand = branding.businessName ? branding : businessName;
   const company = branding.businessName || businessName;
+  const { w } = useWords();
+  // Section titles and column headings use the business's words; the rows are records as saved.
+  const named = (sections: ReportSection[]) =>
+    sections.map((section) => ({ ...section, title: w(section.title), columns: section.columns.map(w) }));
 
   async function pdf(file: string, title: string, subtitle: string[], sections: ReportSection[]) {
     if (busy) return;
@@ -250,7 +255,12 @@ export default function ReportsPage({
     setError('');
     try {
       const { downloadReportPdf } = await import('./report-pdf');
-      downloadReportPdf(file, brand, { title, subtitle, sections, generatedAt: new Date().toISOString() });
+      downloadReportPdf(file, brand, {
+        title,
+        subtitle: subtitle.map(w),
+        sections: named(sections),
+        generatedAt: new Date().toISOString(),
+      });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not create the PDF.');
     } finally {
@@ -260,7 +270,7 @@ export default function ReportsPage({
   function csv(file: string, title: string, subtitle: string[], sections: ReportSection[]) {
     setError('');
     try {
-      downloadCsv(file, [company, title, ...subtitle], sections);
+      downloadCsv(file, [company, title, ...subtitle.map(w)], named(sections));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not create the spreadsheet.');
     }
@@ -889,8 +899,13 @@ function SummaryTab({
       ]
     : [];
   const file = summary ? reportFileName('Summary', `${summary.from} to ${summary.to}`) : '';
+  const { w } = useWords();
   const sections: ReportSection[] = summary
-    ? (summarySections(summary, { money: currency, unit: '' }) as ReportSection[])
+    ? (summarySections(summary, { money: currency, unit: '' }) as ReportSection[]).map((section) => ({
+        ...section,
+        title: w(section.title),
+        columns: section.columns.map(w),
+      }))
     : [];
   return (
     <>

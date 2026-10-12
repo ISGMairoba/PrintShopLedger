@@ -14,6 +14,7 @@ export function serviceMatches(service, materials, services, query) {
     material ? materialCode(material.id, materials) : '',
     (service.price / 100).toFixed(2),
     servicePrice(service.price),
+    service.shelfItem ? 'shelf' : '',
   ]
     .join(' ')
     .toLowerCase()
@@ -28,6 +29,8 @@ export function validateService(data, ledger, existing) {
     throw new Error('Enter a service description (up to 500 characters).');
   if (!Number.isSafeInteger(data.price) || data.price < 0 || data.price > 100000000000)
     throw new Error('Price must be zero or greater, with at most two decimal places.');
+  if (data.shelfItem !== undefined && typeof data.shelfItem !== 'boolean')
+    throw new Error('Choose whether this is sold off the shelf.');
   if (data.materialId === null) return;
   const material = ledger.materials.find((item) => item.id === data.materialId);
   if (!material) throw new Error('Choose a base material from this workspace.');
@@ -61,6 +64,7 @@ export function applyServiceEvent(input, event) {
       description: data.description.trim(),
       materialId: data.materialId,
       price: data.price,
+      shelfItem: data.shelfItem ?? false,
       archived: false,
       version: 1,
       createdBy: data.modifiedBy,
@@ -82,6 +86,7 @@ export function applyServiceEvent(input, event) {
       description: data.description.trim(),
       materialId: data.materialId,
       price: data.price,
+      shelfItem: data.shelfItem ?? existing.shelfItem ?? false,
       ...audit,
       version: existing.version + 1,
     };

@@ -9,7 +9,9 @@ import { SortHeader, useTableSort } from './TableSort';
 import { money } from './domain.mjs';
 import { materialCode } from './material-display.mjs';
 import { serviceCode, serviceMatches, servicePrice } from './services.mjs';
-import type { Material, Service, ServiceEvent } from './types';
+import type { Material, MaterialEvent, Service, ServiceEvent } from './types';
+import { useWords } from './Words';
+import { useBusinessOptions } from './BusinessOptionsContext';
 type Props = {
   services: Service[];
   materials: Material[];
@@ -17,9 +19,14 @@ type Props = {
   busy: boolean;
   actor: { id: string; label: string };
   onSave: (event: ServiceEvent) => Promise<void>;
+  /** Saves several events together (a new product: its stock item, then its service). */
+  onSaveMany: (events: (MaterialEvent | ServiceEvent)[]) => Promise<void>;
 };
 const timestamp = (value: string) => new Date(value).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' });
-export default function ServicesPage({ services, materials, ready, busy, actor, onSave }: Props) {
+export default function ServicesPage({ services, materials, ready, busy, actor, onSave, onSaveMany }: Props) {
+  const { w } = useWords();
+  const units = useBusinessOptions().materialUnits;
+  const [product, setProduct] = useState(false);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('active');
   const [audit, setAudit] = useState(false);
@@ -85,21 +92,63 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
         description: String(data.get('description')).trim(),
         materialId: String(data.get('material')) || null,
         price,
+        shelfItem: data.get('shelfItem') === 'on',
       });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Enter a valid price.');
+    }
+  }
+  async function submitProduct(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (busy) return;
+    const data = new FormData(e.currentTarget);
+    setError('');
+    try {
+      const name = String(data.get('name')).trim();
+      const price = money(String(data.get('price')));
+      const stock = Number(data.get('stock') || 0),
+        minimum = Number(data.get('minimumStock') || 0);
+      if (!name) throw Error(w('Enter a product name.'));
+      if (!Number.isFinite(stock) || stock < 0) throw Error('Opening stock must be zero or more.');
+      const at = new Date().toISOString();
+      const audit = { modifiedBy: actor.id, modifiedByLabel: actor.label, modifiedAt: at };
+      const materialId = crypto.randomUUID();
+      await onSaveMany([
+        {
+          id: crypto.randomUUID(),
+          kind: 'material.created',
+          data: {
+            id: materialId,
+            name,
+            available: Math.round(stock * 1000) / 1000,
+            measurementUnit: String(data.get('unit')).trim(),
+            requireSize: false,
+            minimumStock: Math.round(minimum * 1000) / 1000,
+            reason: 'Opening stock',
+            ...audit,
+          },
+        },
+        {
+          id: crypto.randomUUID(),
+          kind: 'service.created',
+          data: { id: crypto.randomUUID(), description: name, materialId, price, shelfItem: true, ...audit },
+        },
+      ]);
+      setProduct(false);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not save the product.');
     }
   }
   return (
     <>
       <section className="stats">
         <article>
-          <span>Active services</span>
+          <span>{w('Active services')}</span>
           <strong>{services.filter((item) => !item.archived).length}</strong>
-          <small>Services in your catalogue</small>
+          <small>{w('Services in your catalogue')}</small>
         </article>
         <article>
-          <span>Base materials</span>
+          <span>{w('Base materials')}</span>
           <strong>
             {
               new Set(
@@ -107,10 +156,10 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
               ).size
             }
           </strong>
-          <small>One material can support several services</small>
+          <small>{w('One material can support several services')}</small>
         </article>
         <article>
-          <span>Archived services</span>
+          <span>{w('Archived services')}</span>
           <strong>{services.filter((item) => item.archived).length}</strong>
           <small>Records retained</small>
         </article>
@@ -128,15 +177,15 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
       <section className="panel">
         <div className="toolbar service-toolbar">
           <input
-            aria-label="Search services"
-            placeholder="Search description, ID, material or price"
+            aria-label={w('Search services')}
+            placeholder={w('Search description, ID, material or price')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
           <select aria-label="Service status" value={filter} onChange={(e) => setFilter(e.target.value)}>
             <option value="active">Active</option>
             <option value="archived">Archived</option>
-            <option value="all">All services</option>
+            <option value="all">{w('All services')}</option>
           </select>
           <button className="secondary" aria-pressed={audit} onClick={() => setAudit(!audit)}>
             <Icon name={audit ? 'table' : 'audit'} /> {audit ? 'Normal view' : 'Audit view'}
@@ -149,11 +198,24 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
               setError('');
             }}
           >
-            <Icon name="add" /> Add service
+            <Icon name="add" /> {w('Add service')}
+          </button>
+          <button
+            className="secondary"
+            disabled={!ready || busy}
+            title="Creates the stock item and its shelf item together"
+            onClick={() => {
+              setProduct(true);
+              setEditor(null);
+              setConfirmation(null);
+              setError('');
+            }}
+          >
+            <Icon name="add" /> Add product
           </button>
         </div>
         {!ready ? (
-          <div className="empty">Loading services.</div>
+          <div className="empty">{w('Loading services.')}</div>
         ) : !visible.length ? (
           <div className="empty">
             <h2>
@@ -173,18 +235,18 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
           <div className="table-wrap">
             <ResponsiveTable
               columns={[
-                { index: 1, label: 'Service', details: [0, 2, 4] },
+                { index: 1, label: w('Service'), details: [0, 2, 4] },
                 { index: 3, label: 'Price' },
                 { index: -1, label: 'Actions', actions: true },
               ]}
-              labels={{ 0: 'ID', 2: 'Material' }}
+              labels={{ 0: 'ID', 2: w('Material') }}
             >
               <table>
                 <thead>
                   <tr>
-                    <SortHeader label="Service ID" column="id" sort={sorting} />
+                    <SortHeader label={w('Service ID')} column="id" sort={sorting} />
                     <SortHeader label="Description" column="description" sort={sorting} />
-                    <SortHeader label="Base material" column="material" sort={sorting} />
+                    <SortHeader label={w('Base material')} column="material" sort={sorting} />
                     <SortHeader label="Price" column="price" sort={sorting} />
                     <SortHeader label="Status" column="status" sort={sorting} />
                     {audit && (
@@ -206,11 +268,16 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
                         <td className="material-id">{serviceCode(service.id, services)}</td>
                         <td>
                           <strong>{service.description}</strong>
+                          {service.shelfItem && (
+                            <small>
+                              <span className="badge paid">Shelf</span> Collected when sold
+                            </small>
+                          )}
                         </td>
                         <td>
                           {service.materialId === null
-                            ? 'No material'
-                            : (material?.name ?? 'Material unavailable')}
+                            ? w('No material')
+                            : (material?.name ?? w('Material unavailable'))}
                           <small>
                             {material ? materialCode(material.id, materials) : ''}
                             {material?.archived ? ' · Archived material' : ''}
@@ -304,7 +371,11 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
         </Modal>
       )}
       {editor && (
-        <Modal title={editing ? 'Edit service' : 'Add service'} busy={busy} onClose={() => setEditor(null)}>
+        <Modal
+          title={w(editing ? 'Edit service' : 'Add service')}
+          busy={busy}
+          onClose={() => setEditor(null)}
+        >
           {error && (
             <div className="notice" role="alert">
               {error}
@@ -319,7 +390,7 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
             <fieldset disabled={busy}>
               <div className="form-grid">
                 <label>
-                  Service description
+                  {w('Service description')}
                   <input
                     name="description"
                     maxLength={500}
@@ -329,9 +400,9 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
                   />
                 </label>
                 <label>
-                  Base material
+                  {w('Base material')}
                   <select name="material" defaultValue={editing?.materialId ?? ''}>
-                    <option value="">No material — service only</option>
+                    <option value="">{w('No material — service only')}</option>
                     {options.map((item) => (
                       <option key={item.id} value={item.id} title={item.name}>
                         {shortLabel(item.name)} ({materialCode(item.id, materials)})
@@ -349,13 +420,70 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
                   />
                 </label>
               </div>
+              <label className="checkbox">
+                <input type="checkbox" name="shelfItem" defaultChecked={editing?.shelfItem ?? false} />
+                Sold off the shelf
+              </label>
+              <p className="muted">
+                {w(
+                  'Shelf items skip the job stages: they are marked Collected as soon as they are sold, with no deadline.',
+                )}
+              </p>
               <p className="muted">
                 Choose No material for services such as cap pressing, shirt pressing or binding with
                 customer-supplied materials. These use quantity × price and do not deduct stock. Linked
                 materials retain their Require Size setting.
               </p>
               <button type="submit">
-                <Icon name="save" /> {busy ? 'Saving...' : 'Save service'}
+                <Icon name="save" /> {busy ? 'Saving...' : w('Save service')}
+              </button>
+            </fieldset>
+          </form>
+        </Modal>
+      )}
+      {product && (
+        <Modal title="Add product" busy={busy} onClose={() => setProduct(false)}>
+          {error && (
+            <div className="notice" role="alert">
+              {error}
+            </div>
+          )}
+          <p className="muted">
+            {w(
+              'Creates the stock item and a matching shelf item in one step. Selling it takes it out of stock and marks it Collected.',
+            )}
+          </p>
+          <form onSubmit={submitProduct}>
+            <fieldset disabled={busy}>
+              <div className="form-grid">
+                <label>
+                  Product name
+                  <input name="name" maxLength={160} placeholder="e.g. Blue biro pen" required />
+                </label>
+                <label>
+                  Unit
+                  <select name="unit" defaultValue={units.includes('piece') ? 'piece' : units[0]}>
+                    {units.map((unit) => (
+                      <option key={unit}>{unit}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Price (₦)
+                  <CurrencyInput name="price" required />
+                </label>
+                <label>
+                  Opening stock
+                  <input name="stock" type="number" min="0" step="0.001" defaultValue="0" />
+                </label>
+                <label>
+                  Minimum stock
+                  <input name="minimumStock" type="number" min="0" step="0.001" defaultValue="0" />
+                  <small>Shows a low-stock warning at or below this.</small>
+                </label>
+              </div>
+              <button type="submit">
+                <Icon name="save" /> {busy ? 'Saving...' : 'Save product'}
               </button>
             </fieldset>
           </form>

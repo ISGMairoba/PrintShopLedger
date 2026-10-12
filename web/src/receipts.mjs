@@ -1,6 +1,7 @@
 import { paymentName } from './business-options.mjs';
 import { escapeHtml } from './print-settings.mjs';
 import { receiptBusiness, validLogo } from './business-branding.mjs';
+import { renameTerms } from './terms.mjs';
 export const currency = (n) =>
   new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(n / 100);
 const validMoney = (n) => Number.isSafeInteger(n) && n >= 0;
@@ -96,7 +97,10 @@ export function receiptModel(record, business, pending = false, adjustments = []
   if (record.discountTotal > 0)
     totals.push({ label: 'Discounts given', value: `−${currency(record.discountTotal)}` });
   if ((record.jobs ?? []).length)
-    totals.push({ label: 'New jobs', value: balancedTotal ? currency(record.total) : 'Needs verification' });
+    totals.push({
+      label: renameTerms('New jobs', b.terms),
+      value: balancedTotal ? currency(record.total) : 'Needs verification',
+    });
   totals.push({
     label: o.showPaymentMethod ? `Paid now (${paymentName(record)})` : 'Paid now',
     value: currency(record.cashReceived),
@@ -108,7 +112,7 @@ export function receiptModel(record, business, pending = false, adjustments = []
     totals.push({ label: 'Added to wallet', value: currency(record.walletAdded) });
   if (show.balance && balances.length && allBalanced)
     totals.push({
-      label: 'Balance on these jobs',
+      label: renameTerms('Balance on these jobs', b.terms),
       value: currency(balances.reduce((n, j) => n + j.outstandingAfter, 0)),
       strong: true,
     });
@@ -119,7 +123,8 @@ export function receiptModel(record, business, pending = false, adjustments = []
       ]
     : [];
   const notices = [];
-  if (record.corrected) notices.push('Corrected receipt — current job and payment balances');
+  if (record.corrected)
+    notices.push(renameTerms('Corrected receipt — current job and payment balances', b.terms));
   else if (adjustments.length) notices.push('Original receipt — later adjustments listed below');
   if (pending) notices.push('Pending confirmation — saved on this device');
   const contacts = o.showContacts ? [b.phones, b.email, b.website, b.socials].filter(Boolean) : [];
@@ -142,6 +147,8 @@ export function receiptModel(record, business, pending = false, adjustments = []
       accent: b.accent || '#d9a126',
     },
     title: record.corrected ? 'Corrected receipt' : 'Receipt',
+    /** Heading for the item lines: "Job", or the business's word for it. */
+    itemHeading: renameTerms('Job', b.terms),
     number: shortRef(record.id),
     date: lagos(record.createdAt),
     paidOn: record.paidOn,
@@ -194,7 +201,7 @@ export function receiptHtml(record, business, pending = false, adjustments = [],
   const contact = [m.business.address, ...m.business.contacts].filter(Boolean).map(e).join('<br>');
   const notices = m.notices.map((n) => `<p class="notice"><strong>${e(n)}</strong></p>`).join('');
   const adjustmentsHtml = m.adjustments.length
-    ? `<h3>Later adjustments</h3>${m.adjustments.map((a) => `<p class="adj"><strong>${e(a.label)} · ${e(a.ref)}</strong><br>Job: ${e(a.job)}<br>${a.lines.map(e).join('<br>')}</p>`).join('')}`
+    ? `<h3>Later adjustments</h3>${m.adjustments.map((a) => `<p class="adj"><strong>${e(a.label)} · ${e(a.ref)}</strong><br>${e(m.itemHeading ?? 'Job')}: ${e(a.job)}<br>${a.lines.map(e).join('<br>')}</p>`).join('')}`
     : '';
   const sub = (i) => [i.subtitle, ...i.meta].filter(Boolean).map(e).join(' · ');
   const totals = m.totals
@@ -236,7 +243,7 @@ export function receiptHtml(record, business, pending = false, adjustments = [],
         .map(([k, v]) => `<td class="k">${e(k)}</td><td>${e(v)}</td>`)
         .join('')}</tr>`,
     );
-  return `<style>${css}</style><div class="psl-w"><table class="head"><tr>${m.business.name ? `<td><h1>${e(m.business.name)}</h1>${contact ? `<p class="contact">${contact}</p>` : ''}</td><td class="r">${logo}</td>` : `<td>${logo}${contact ? `<p class="contact">${contact}</p>` : ''}</td>`}</tr></table><table class="band"><tr><td class="t">${e(m.title)}</td><td class="r">No. ${e(m.number)}</td></tr></table>${notices}<table class="meta">${metaRows.join('')}</table>${m.items.length ? `<table class="items"><thead><tr><th>Job</th>${cols.map(([h]) => `<th class="r">${h}</th>`).join('')}</tr></thead><tbody>${items}</tbody></table>` : ''}<table class="sum">${totals}</table>${m.account.length ? `<table class="acct">${m.account.map((a) => row(a.label, a.value)).join('')}</table>` : ''}${m.note ? `<p class="adj">Note: ${e(m.note)}</p>` : ''}${adjustmentsHtml}${m.footer ? `<p class="foot">${e(m.footer)}</p>` : ''}</div>`;
+  return `<style>${css}</style><div class="psl-w"><table class="head"><tr>${m.business.name ? `<td><h1>${e(m.business.name)}</h1>${contact ? `<p class="contact">${contact}</p>` : ''}</td><td class="r">${logo}</td>` : `<td>${logo}${contact ? `<p class="contact">${contact}</p>` : ''}</td>`}</tr></table><table class="band"><tr><td class="t">${e(m.title)}</td><td class="r">No. ${e(m.number)}</td></tr></table>${notices}<table class="meta">${metaRows.join('')}</table>${m.items.length ? `<table class="items"><thead><tr><th>${e(m.itemHeading ?? 'Job')}</th>${cols.map(([h]) => `<th class="r">${h}</th>`).join('')}</tr></thead><tbody>${items}</tbody></table>` : ''}<table class="sum">${totals}</table>${m.account.length ? `<table class="acct">${m.account.map((a) => row(a.label, a.value)).join('')}</table>` : ''}${m.note ? `<p class="adj">Note: ${e(m.note)}</p>` : ''}${adjustmentsHtml}${m.footer ? `<p class="foot">${e(m.footer)}</p>` : ''}</div>`;
 }
 
 /** Narrow receipt layout for roll paper up to 90mm wide. */

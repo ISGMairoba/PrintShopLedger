@@ -33,6 +33,8 @@ export type CustomerEvent = {
 };
 export interface Job {
   workflow?: string[];
+  /** Sold off the shelf (from the service at checkout). */
+  shelfItem?: boolean;
   id: string;
   customerId: string;
   service: string;
@@ -169,6 +171,8 @@ export interface Service {
   description: string;
   materialId: string | null;
   price: number;
+  /** Sold off the shelf: no production stages, Collected as soon as it is sold. */
+  shelfItem?: boolean;
   archived: boolean;
   version: number;
   createdBy: string;
@@ -180,6 +184,7 @@ export interface Service {
   lastEventId: string;
 }
 export interface ServiceCommand {
+  shelfItem?: boolean;
   id: string;
   description?: string;
   materialId?: string | null;

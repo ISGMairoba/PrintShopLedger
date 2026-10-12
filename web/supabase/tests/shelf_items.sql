@@ -1,0 +1,34 @@
+-- Rollback-only fixtures. Never changes business data.
+begin;
+do $test$
+declare shop uuid;u uuid:='10000000-0000-4000-8000-000000000001';dev uuid:=gen_random_uuid();pen jsonb;flyer jsonb;svc jsonb;
+begin
+insert into auth.users(id,email,email_confirmed_at,raw_user_meta_data,created_at) values(u,'shelf-test@example.invalid',now(),'{}',now()),(dev,'staff-developer-shelf@staff.printshopledger.invalid',now(),'{}',now());
+shop=(public.complete_business_registration(u,dev,'Shelf items test','Tester',repeat('a',64),'https://print-shop-ledger.vercel.app/#developer_activation='||repeat('a',64))->>'shopId')::uuid;
+perform set_config('request.jwt.claim.sub',u::text,true);
+perform public.apply_customer_event(shop,jsonb_build_object('id',gen_random_uuid(),'kind','customer.created','data',jsonb_build_object('id','20000000-0000-4000-8000-000000000001','name','Test customer','phone','080111','address','Road','creditLimit',0,'modifiedBy',u)));
+perform public.apply_material_event(shop,jsonb_build_object('id',gen_random_uuid(),'kind','material.created','data',jsonb_build_object('id','30000000-0000-4000-8000-000000000001','name','Pen','available',10,'measurementUnit','piece','requireSize',false,'modifiedBy',u)));
+perform public.apply_service_event(shop,jsonb_build_object('id',gen_random_uuid(),'kind','service.created','data',jsonb_build_object('id','40000000-0000-4000-8000-000000000001','description','Pen','materialId','30000000-0000-4000-8000-000000000001','price',50000,'shelfItem',true,'modifiedBy',u)));
+perform public.apply_service_event(shop,jsonb_build_object('id',gen_random_uuid(),'kind','service.created','data',jsonb_build_object('id','40000000-0000-4000-8000-000000000002','description','Printing','materialId',null,'price',10000,'modifiedBy',u)));
+if (select shelf_item from public.services where id='40000000-0000-4000-8000-000000000001') is not true then raise exception 'Shelf flag not saved';end if;
+if (select shelf_item from public.services where id='40000000-0000-4000-8000-000000000002') then raise exception 'Ordinary service marked shelf';end if;
+select s into svc from jsonb_array_elements(public.get_ledger(shop)->'services') s where s->>'id'='40000000-0000-4000-8000-000000000001';
+if (svc->>'shelfItem')::boolean is not true then raise exception 'Ledger does not carry shelfItem';end if;
+begin
+  perform public.apply_service_event(shop,jsonb_build_object('id',gen_random_uuid(),'kind','service.updated','data',jsonb_build_object('id','40000000-0000-4000-8000-000000000002','baseVersion',1,'description','Printing','materialId',null,'price',10000,'shelfItem','yes','modifiedBy',u)));
+  raise exception 'Bad shelf flag accepted';
+exception when others then if sqlerrm not like '%sold off the shelf%' then raise; end if;
+end;
+perform public.apply_checkout_event(shop,$event${"id":"60000000-0000-4000-8000-000000000001","kind":"checkout.completed","data":{"id":"60000000-0000-4000-8000-000000000001","customerId":"20000000-0000-4000-8000-000000000001","newCustomer":null,"customerSnapshot":{"id":"20000000-0000-4000-8000-000000000001","name":"Test customer","phone":"080111","address":"Road"},"jobBalances":[{"id":"50000000-0000-4000-8000-000000000001","description":"Pen","service":"Pen","amount":100000,"paidBefore":0,"paidThisCheckout":100000,"outstandingAfter":0},{"id":"50000000-0000-4000-8000-000000000002","description":"Flyer","service":"Printing","amount":10000,"paidBefore":0,"paidThisCheckout":10000,"outstandingAfter":0}],"jobs":[{"id":"50000000-0000-4000-8000-000000000001","serviceId":"40000000-0000-4000-8000-000000000001","description":"Pen","quantity":2,"source":"In shop / USB","sourceNote":"","stockCountEventId":null,"shelfItem":true,"width":null,"height":null,"amount":100000,"unitPrice":50000,"service":"Pen","materialId":"30000000-0000-4000-8000-000000000001","materialNeeded":2,"measurementUnit":"piece","requireSize":false,"serviceVersion":1,"customerId":"20000000-0000-4000-8000-000000000001","createdAt":"2026-10-12T12:00:00.000Z","checkoutId":"60000000-0000-4000-8000-000000000001","checkoutPosition":0,"productionStatus":"Collected","version":1,"createdBy":"10000000-0000-4000-8000-000000000001","createdByLabel":"Tester","modifiedBy":"10000000-0000-4000-8000-000000000001","modifiedByLabel":"Tester","modifiedAt":"2026-10-12T12:00:00.000Z"},{"id":"50000000-0000-4000-8000-000000000002","serviceId":"40000000-0000-4000-8000-000000000002","description":"Flyer","quantity":1,"source":"In shop / USB","sourceNote":"","dueAt":"2026-10-20T12:00:00.000Z","stockCountEventId":null,"width":null,"height":null,"amount":10000,"unitPrice":10000,"service":"Printing","materialId":null,"materialNeeded":0,"measurementUnit":"item","requireSize":false,"serviceVersion":1,"customerId":"20000000-0000-4000-8000-000000000001","createdAt":"2026-10-12T12:00:00.000Z","checkoutId":"60000000-0000-4000-8000-000000000001","checkoutPosition":1,"productionStatus":"Added","version":1,"createdBy":"10000000-0000-4000-8000-000000000001","createdByLabel":"Tester","modifiedBy":"10000000-0000-4000-8000-000000000001","modifiedByLabel":"Tester","modifiedAt":"2026-10-12T12:00:00.000Z"}],"expectedAccount":"wallet=0;","cashReceived":110000,"useWallet":true,"override":null,"method":"Cash","paidOn":"2026-10-12","reference":"","createdBy":"10000000-0000-4000-8000-000000000001","createdByLabel":"Tester","createdAt":"2026-10-12T12:00:00.000Z","total":110000,"allocations":[{"jobId":"50000000-0000-4000-8000-000000000001","amount":100000},{"jobId":"50000000-0000-4000-8000-000000000002","amount":10000}],"allocated":110000,"walletUsed":0,"walletAdded":0,"walletAfter":0,"outstandingBefore":110000,"outstandingAfter":0}}$event$::jsonb);
+select metadata into pen from public.jobs where id='50000000-0000-4000-8000-000000000001';
+select metadata into flyer from public.jobs where id='50000000-0000-4000-8000-000000000002';
+if pen->>'productionStatus'<>'Collected' or (pen->>'shelfItem')::boolean is not true or pen ? 'dueAt' then raise exception 'Shelf job not collected: %',pen;end if;
+if flyer->>'productionStatus'<>'Added' or flyer ? 'shelfItem' or not flyer ? 'dueAt' then raise exception 'Ordinary job changed: %',flyer;end if;
+if (select available from public.materials where id='30000000-0000-4000-8000-000000000001')<>8 then raise exception 'Stock not deducted';end if;
+-- Updating without shelfItem keeps the flag (older app versions).
+perform public.apply_service_event(shop,jsonb_build_object('id',gen_random_uuid(),'kind','service.updated','data',jsonb_build_object('id','40000000-0000-4000-8000-000000000001','baseVersion',1,'description','Blue pen','materialId','30000000-0000-4000-8000-000000000001','price',50000,'modifiedBy',u)));
+if (select shelf_item from public.services where id='40000000-0000-4000-8000-000000000001') is not true then raise exception 'Flag lost on update';end if;
+-- reached only when every check above passed
+end
+$test$;
+rollback;

@@ -1,6 +1,7 @@
 import { validatePageAccess, defaultPageAccess } from './page-access.mjs';
 import { defaultOptions, validateOptions } from './business-options.mjs';
 import { discountDefaults, validateDiscountSettings } from './discounts.mjs';
+import { termDefaults, validateTerms } from './terms.mjs';
 // What each business shows on its receipts. headline: the bold line for each job ('description' or 'service');
 // showSubline: print the other one beneath it. Older saved settings fill in these defaults.
 export const receiptContentDefaults = () => ({
@@ -61,6 +62,7 @@ export const defaultBranding = () => ({
   jobs: jobSettingsDefaults(),
   periods: defaultPeriods(),
   discounts: discountDefaults(),
+  terms: termDefaults(),
   pageAccess: defaultPageAccess(),
   receipt: {
     showLogo: true,
@@ -128,6 +130,7 @@ export function validateBranding(input) {
   value.pageAccess = validatePageAccess(value.pageAccess);
   value.jobs = validateJobSettings(value.jobs);
   value.discounts = validateDiscountSettings(value.discounts);
+  value.terms = validateTerms(value.terms);
   value.periods = { ...defaultPeriods(), ...value.periods };
   for (const [key, preset] of Object.entries(value.periods))
     if (

@@ -10,6 +10,7 @@ import { currency } from './receipts.mjs';
 import { useDateFilter } from './PeriodFilter';
 import { inPeriod } from './dashboard.mjs';
 import type { Ledger, Job, CheckoutRecord } from './types';
+import { useWords } from './Words';
 type Props = {
   ledger: Ledger;
   busy: boolean;
@@ -30,6 +31,7 @@ export default function PointOfServicePage({
   onNext,
   onReceipt,
 }: Props) {
+  const { w } = useWords();
   const [query, setQuery] = useState(''),
     [showClosed, setShowClosed] = useState(false),
     [audit, setAudit] = useState(false),
@@ -107,23 +109,23 @@ export default function PointOfServicePage({
       <div className="toolbar">
         <input
           aria-label="Search point of service"
-          placeholder="Search job, customer, source or receipt"
+          placeholder={w('Search job, customer, source or receipt')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
         {dates.button}
         <label className="check-label">
           <input type="checkbox" checked={showClosed} onChange={(e) => setShowClosed(e.target.checked)} />{' '}
-          Show collected and cancelled jobs
+          {w('Show collected and cancelled jobs')}
         </label>
         <button className="secondary" aria-pressed={audit} onClick={() => setAudit(!audit)}>
           <Icon name={audit ? 'table' : 'audit'} /> {audit ? 'Normal view' : 'Audit view'}
         </button>
         <button className="secondary" onClick={() => setReceipts((v) => !v)}>
-          {receipts ? 'Show jobs' : 'Receipts'}
+          {receipts ? w('Show jobs') : 'Receipts'}
         </button>
         <button disabled={busy || !ready} onClick={onCheckout}>
-          <Icon name="add" /> Add job
+          <Icon name="add" /> {w('Add job')}
         </button>
         <button disabled={busy || !ready || !ledger.customers.length} onClick={onPayment}>
           <Icon name="payments" /> Receive payment
@@ -146,7 +148,7 @@ export default function PointOfServicePage({
                 <tr>
                   <SortHeader column="id" label="Receipt ID" sort={receiptSorting} />
                   <SortHeader column="customer" label="Customer" sort={receiptSorting} />
-                  <SortHeader column="total" label="New jobs" sort={receiptSorting} />
+                  <SortHeader column="total" label={w('New jobs')} sort={receiptSorting} />
                   <SortHeader column="cash" label="Money received" sort={receiptSorting} />
                   <SortHeader column="createdAt" label="Date" sort={receiptSorting} />
                   <th>Actions</th>

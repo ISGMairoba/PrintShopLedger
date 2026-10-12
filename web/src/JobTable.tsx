@@ -7,6 +7,7 @@ import { currency } from './receipts.mjs';
 import { lastJobPayment } from './job-progress.mjs';
 import { deadlineState } from './job-deadlines.mjs';
 import type { Ledger, Job } from './types';
+import { useWords } from './Words';
 const date = (value: string) =>
   new Date(value).toLocaleDateString('en-NG', {
     timeZone: 'Africa/Lagos',
@@ -40,17 +41,18 @@ export default function JobTable({
   onJob: (id: string) => void;
   onAction: (job: Job, mode: ProgressMode) => void;
 }) {
+  const { w, stage: stageLabel } = useWords();
   return (
     <ResponsiveTable
       columns={[
-        { index: 0, label: 'Job', details: [1, 3, 4] },
+        { index: 0, label: w('Job'), details: [1, 3, 4] },
         { index: 2, label: 'Amount' },
         { index: -1, label: 'Actions', actions: true },
       ]}
       labels={{ 1: 'Customer', 3: 'Progress', 4: 'Date', 5: 'Added by', 6: 'Last changed' }}
       extraSortOptions={[
         { key: 'description', label: 'Description' },
-        { key: 'id', label: 'Job ID' },
+        { key: 'id', label: w('Job ID') },
         { key: 'paid', label: 'Paid' },
         { key: 'outstanding', label: 'Outstanding' },
         { key: 'lastPayment', label: 'Last payment' },
@@ -61,7 +63,7 @@ export default function JobTable({
       <table className="jobs-table">
         <thead>
           <tr>
-            <SortHeader label="Job" column="service" sort={sorting} />
+            <SortHeader label={w('Job')} column="service" sort={sorting} />
             <SortHeader label="Customer" column="customer" sort={sorting} />
             <SortHeader label="Amount" column="amount" sort={sorting} />
             <SortHeader label="Status / progress" column="status" sort={sorting} />
@@ -120,7 +122,10 @@ export default function JobTable({
                   >
                     {balance.status}
                   </span>
-                  <small>Stage: {stage}</small>
+                  <small>
+                    Stage: {stageLabel(stage)}
+                    {job.shelfItem ? ' · Shelf' : ''}
+                  </small>
                   <progress
                     className="job-progress"
                     aria-label={`Progress for ${job.description}`}

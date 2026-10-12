@@ -26,6 +26,7 @@ export const stockCountEvent = (ledger, materialId) =>
     .filter((item) => item.materialId === materialId && item.action === 'material.stock_set')
     .sort((a, b) => Date.parse(b.changedAt) - Date.parse(a.changedAt) || b.id.localeCompare(a.id))[0]?.id ??
   null;
+const quoteShelf = (ledger, serviceId) => !!ledger.services.find((s) => s.id === serviceId)?.shelfItem;
 export function quoteLine(ledger, line) {
   const service = ledger.services.find((s) => s.id === line.serviceId && !s.archived);
   const material = ledger.materials.find((m) => m.id === service?.materialId && !m.archived);
@@ -58,6 +59,7 @@ export function quoteLine(ledger, line) {
   // An empty deadline is left off the job rather than stored as ''.
   const {
     dueAt: rawDue,
+    shelfItem: _shelf,
     discount: rawDiscount,
     grossAmount: _gross,
     lineDiscount: _line,
@@ -65,7 +67,9 @@ export function quoteLine(ledger, line) {
     discountAmount: _discount,
     ...rest
   } = line;
-  const dueAt = validDueAt(rawDue);
+  // Shelf items are handed over at the till: no deadline, no production stages.
+  const shelfItem = !!service.shelfItem;
+  const dueAt = shelfItem ? '' : validDueAt(rawDue);
   // The job's own discount; a whole-order discount is added by applyOrderDiscount.
   const discount = validDiscount(rawDiscount);
   const lineDiscount = discountKobo(discount, total);
@@ -75,6 +79,7 @@ export function quoteLine(ledger, line) {
     ...(discount ? { discount } : {}),
     stockCountEventId: material ? stockCountEvent(ledger, material.id) : null,
     ...(line.workflow ? { workflow: validateWorkflow(line.workflow) } : {}),
+    ...(shelfItem ? { shelfItem: true } : {}),
     description: line.description.trim(),
     quantity,
     width,
@@ -188,7 +193,7 @@ export function prepareCheckout(
     createdAt: now,
     checkoutId: id,
     checkoutPosition: index,
-    productionStatus: 'Added',
+    productionStatus: line.serviceId && quoteShelf(working, line.serviceId) ? 'Collected' : 'Added',
     version: 1,
     createdBy: actor.id,
     createdByLabel: actor.label,
