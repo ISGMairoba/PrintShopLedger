@@ -11,6 +11,7 @@ import { useState } from 'react';
 import { useDateFilter } from './PeriodFilter';
 import { inPeriod } from './dashboard.mjs';
 import type { CheckoutRecord, Job, Ledger, Payment } from './types';
+import { useWords } from './Words';
 
 type Props = {
   page: 'Jobs' | 'Payments';
@@ -44,6 +45,7 @@ export default function JobsPaymentsPage({
   onAction,
   onReceipt,
 }: Props) {
+  const { w } = useWords();
   const customerName = (id: string) =>
     ledger.customers.find((customer) => customer.id === id)?.name ?? 'Unknown customer';
   const search = query.toLowerCase();
@@ -113,14 +115,14 @@ export default function JobsPaymentsPage({
       {page === 'Jobs' ? (
         <section className="stats">
           <article>
-            <span>Total job value</span>
+            <span>{w('Total job value')}</span>
             <strong>{currency(total)}</strong>
             <small>{matchingJobs.length} jobs in this list</small>
           </article>
           <article>
-            <span>Paid against jobs</span>
+            <span>{w('Paid against jobs')}</span>
             <strong>{currency(paid)}</strong>
-            <small>Allocated to these jobs</small>
+            <small>{w('Allocated to these jobs')}</small>
           </article>
           <article>
             <span>Outstanding</span>
@@ -138,9 +140,9 @@ export default function JobsPaymentsPage({
             <small>{matchingPayments.length} payments in this list</small>
           </article>
           <article>
-            <span>Allocated to jobs</span>
+            <span>{w('Allocated to jobs')}</span>
             <strong>{currency(allocated)}</strong>
-            <small>Paid against individual jobs</small>
+            <small>{w('Paid against individual jobs')}</small>
           </article>
           <article>
             <span>Customers</span>
@@ -161,14 +163,14 @@ export default function JobsPaymentsPage({
               {page === 'Jobs' ? (
                 <>
                   <option value="createdAt">Created at</option>
-                  <option value="id">Job ID</option>
+                  <option value="id">{w('Job ID')}</option>
                   <option value="description">Description</option>
-                  <option value="service">Service</option>
+                  <option value="service">{w('Service')}</option>
                   <option value="customer">Customer</option>
-                  <option value="amount">Job amount</option>
+                  <option value="amount">{w('Job amount')}</option>
                   <option value="paid">Paid</option>
                   <option value="outstanding">Outstanding</option>
-                  <option value="status">Job stage</option>
+                  <option value="status">{w('Job stage')}</option>
                   <option value="lastPayment">Last payment date</option>
                   <option value="dueAt">Deadline</option>
                   <option value="createdBy">Added by</option>
@@ -182,7 +184,7 @@ export default function JobsPaymentsPage({
                   <option value="customer">Customer</option>
                   <option value="amount">Amount</option>
                   <option value="method">Method</option>
-                  <option value="allocations">Job allocations</option>
+                  <option value="allocations">{w('Job allocations')}</option>
                 </>
               )}
             </select>
@@ -214,7 +216,7 @@ export default function JobsPaymentsPage({
             disabled={!ready || busy || legacyConflict || (page === 'Payments' && !ledger.customers.length)}
             onClick={onCreate}
           >
-            <Icon name="add" /> {page === 'Jobs' ? 'New job' : 'Record payment'}
+            <Icon name="add" /> {page === 'Jobs' ? w('New job') : 'Record payment'}
           </button>
         </div>
         {dates.panel}
@@ -225,8 +227,8 @@ export default function JobsPaymentsPage({
             {!ledger.jobs.length ? (
               <div className="empty">
                 <div className="empty-icon">?</div>
-                <h2>Your jobs start here</h2>
-                <p>Add a customer, create their job, then record payments against it.</p>
+                <h2>{w('Your jobs start here')}</h2>
+                <p>{w('Add a customer, create their job, then record payments against it.')}</p>
                 {!ledger.customers.length && <button onClick={onAddCustomer}>Add your first customer</button>}
               </div>
             ) : (
@@ -249,7 +251,7 @@ export default function JobsPaymentsPage({
             {!ledger.payments.length ? (
               <div className="empty">
                 <h2>A clear payment trail</h2>
-                <p>Payments appear here with the jobs they cover.</p>
+                <p>{w('Payments appear here with the jobs they cover.')}</p>
               </div>
             ) : (
               <div className="table-wrap">
@@ -261,7 +263,7 @@ export default function JobsPaymentsPage({
                   columns={[
                     { index: 0, label: 'Payment', details: [1] },
                     { index: 2, label: 'Amount', details: [3] },
-                    { index: 4, label: 'Jobs' },
+                    { index: 4, label: w('Jobs') },
                   ]}
                 >
                   <table>
@@ -271,7 +273,7 @@ export default function JobsPaymentsPage({
                         <SortHeader label="Customer" column="customer" sort={paymentSorting} />
                         <SortHeader label="Amount" column="amount" sort={paymentSorting} />
                         <SortHeader label="Method" column="method" sort={paymentSorting} />
-                        <SortHeader label="Job allocations" column="allocations" sort={paymentSorting} />
+                        <SortHeader label={w('Job allocations')} column="allocations" sort={paymentSorting} />
                       </tr>
                     </thead>
                     <tbody>

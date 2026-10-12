@@ -7,6 +7,7 @@ import Modal from './Modal';
 import { SortHeader, useTableSort } from './TableSort';
 import { materialCode, stockLevel } from './material-display.mjs';
 import type { Material, MaterialEvent, MaterialHistoryEntry } from './types';
+import { useWords } from './Words';
 
 type Props = {
   history: MaterialHistoryEntry[];
@@ -18,6 +19,7 @@ type Props = {
 };
 const timestamp = (value: string) => new Date(value).toLocaleString();
 export default function MaterialsPage({ materials, history, ready, busy, actor, onSave }: Props) {
+  const { w } = useWords();
   const { stockReasons: stockReasonDefaults, materialUnits } = useBusinessOptions();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('active');
@@ -100,9 +102,9 @@ export default function MaterialsPage({ materials, history, ready, busy, actor, 
     <>
       <section className="stats">
         <article>
-          <span>Active materials</span>
+          <span>{w('Active materials')}</span>
           <strong>{materials.filter((item) => !item.archived).length}</strong>
-          <small>Available for future jobs</small>
+          <small>{w('Available for future jobs')}</small>
         </article>
         <article>
           <span>Require size</span>
@@ -110,7 +112,7 @@ export default function MaterialsPage({ materials, history, ready, busy, actor, 
           <small>Size-based pricing</small>
         </article>
         <article>
-          <span>Archived materials</span>
+          <span>{w('Archived materials')}</span>
           <strong>{materials.filter((item) => item.archived).length}</strong>
           <small>Records and quantities retained</small>
         </article>
@@ -123,7 +125,7 @@ export default function MaterialsPage({ materials, history, ready, busy, actor, 
       <section className="panel">
         <div className="toolbar material-toolbar">
           <input
-            aria-label="Search materials"
+            aria-label={w('Search materials')}
             placeholder="Search name, ID or unit"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -131,7 +133,7 @@ export default function MaterialsPage({ materials, history, ready, busy, actor, 
           <select aria-label="Material status" value={filter} onChange={(e) => setFilter(e.target.value)}>
             <option value="active">Active</option>
             <option value="archived">Archived</option>
-            <option value="all">All materials</option>
+            <option value="all">{w('All materials')}</option>
           </select>
           <button className="secondary" aria-pressed={audit} onClick={() => setAudit(!audit)}>
             <Icon name={audit ? 'table' : 'audit'} /> {audit ? 'Normal view' : 'Audit view'}
@@ -145,31 +147,31 @@ export default function MaterialsPage({ materials, history, ready, busy, actor, 
               setError('');
             }}
           >
-            <Icon name="add" /> Add material
+            <Icon name="add" /> {w('Add material')}
           </button>
         </div>
         {!ready ? (
-          <div className="empty">Loading materials.</div>
+          <div className="empty">{w('Loading materials.')}</div>
         ) : !visible.length ? (
           <div className="empty">
             <h2>
               {query
-                ? 'No matching materials'
+                ? w('No matching materials')
                 : filter === 'archived'
-                  ? 'No archived materials'
-                  : 'No materials yet'}
+                  ? w('No archived materials')
+                  : w('No materials yet')}
             </h2>
             <p>
               {query
                 ? 'Try another name, ID or unit.'
-                : 'Add materials to manage stock and define how each one is priced.'}
+                : w('Add materials to manage stock and define how each one is priced.')}
             </p>
           </div>
         ) : (
           <div className="table-wrap">
             <ResponsiveTable
               columns={[
-                { index: 0, label: 'Material', details: [1, 4, 5] },
+                { index: 0, label: w('Material'), details: [1, 4, 5] },
                 { index: 2, label: 'Available', details: [3] },
                 { index: -1, label: 'Actions', actions: true },
               ]}
@@ -178,8 +180,8 @@ export default function MaterialsPage({ materials, history, ready, busy, actor, 
               <table className="materials-table">
                 <thead>
                   <tr>
-                    <SortHeader label="Material" column="name" sort={sorting} />
-                    <SortHeader label="Material ID" column="id" sort={sorting} />
+                    <SortHeader label={w('Material')} column="name" sort={sorting} />
+                    <SortHeader label={w('Material ID')} column="id" sort={sorting} />
                     <SortHeader label="Available" column="available" sort={sorting} />
                     <SortHeader label="Measurement unit" column="unit" sort={sorting} />
                     <SortHeader label="Require size" column="requireSize" sort={sorting} />
@@ -426,7 +428,7 @@ export default function MaterialsPage({ materials, history, ready, busy, actor, 
                 })
               }
             >
-              {busy ? 'Saving...' : confirmation.archived ? 'Restore material' : 'Archive material'}
+              {busy ? 'Saving...' : w(confirmation.archived ? 'Restore material' : 'Archive material')}
             </button>
             <button className="secondary" disabled={busy} onClick={() => setConfirmation(null)}>
               Cancel
@@ -435,7 +437,11 @@ export default function MaterialsPage({ materials, history, ready, busy, actor, 
         </Modal>
       )}
       {editor && (
-        <Modal title={editing ? 'Edit material' : 'Add material'} busy={busy} onClose={() => setEditor(null)}>
+        <Modal
+          title={w(editing ? 'Edit material' : 'Add material')}
+          busy={busy}
+          onClose={() => setEditor(null)}
+        >
           {error && (
             <div className="notice" role="alert">
               {error}

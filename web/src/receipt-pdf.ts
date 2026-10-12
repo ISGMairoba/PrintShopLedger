@@ -185,7 +185,7 @@ function drawPage(doc: jsPDF, m: Model, media: ReceiptMedia, watermark: boolean)
       doc.setLineWidth(0.6 * k);
       doc.line(L, y + 2 * k, R, y + 2 * k);
       doc.setLineWidth(0.2);
-      text('JOB', L, 8, 'bold', MUTED);
+      text((m.itemHeading ?? 'Job').toUpperCase(), L, 8, 'bold', MUTED);
       cols.forEach((c, n) => text(c.head, xs[n], 8, 'bold', MUTED, 'right'));
       y += 7 * k;
     };
@@ -271,7 +271,7 @@ function drawPage(doc: jsPDF, m: Model, media: ReceiptMedia, watermark: boolean)
     y += 6 * k;
     for (const a of m.adjustments) {
       page((a.lines.length + 1) * 3.8 * k + 3 * k);
-      text(`${a.label} · ${a.ref} · Job ${a.job}`, L, 9, 'bold');
+      text(`${a.label} · ${a.ref} · ${m.itemHeading ?? 'Job'} ${a.job}`, L, 9, 'bold');
       y += 4.2 * k;
       for (const line of a.lines) {
         y += text(line, L + 3 * k, 8.2, 'normal', MUTED, 'left', U - 3 * k);
@@ -395,7 +395,7 @@ function drawRoll(doc: jsPDF, m: Model, media: ReceiptMedia) {
     y += 1.5 * k;
     y += text('LATER ADJUSTMENTS', L, 7.8, 'bold') + 0.5 * k;
     for (const a of m.adjustments) {
-      y += text(`${a.label} · ${a.ref} · Job ${a.job}`, L, 7, 'bold');
+      y += text(`${a.label} · ${a.ref} · ${m.itemHeading ?? 'Job'} ${a.job}`, L, 7, 'bold');
       for (const line of a.lines) y += text(line, L + 1.5 * k, 6.5, 'normal', 'left', U - 1.5 * k);
       y += 1 * k;
     }

@@ -22,6 +22,7 @@ import type { Ledger, CustomerEvent, CheckoutEvent, CheckoutRecord } from './typ
 import { defaultDueAt, durationLabel, fromLocalInput, toLocalInput } from './job-deadlines.mjs';
 import { jobSettingsDefaults } from './business-branding.mjs';
 import { applyOrderDiscount } from './discounts.mjs';
+import { useWords } from './Words';
 type JobSettings = ReturnType<typeof jobSettingsDefaults>;
 type Props = {
   ledger: Ledger;
@@ -187,6 +188,7 @@ export default function CheckoutEditor({
 }: Props) {
   const options = useBusinessOptions(),
     jobSources = options.jobSources;
+  const { w } = useWords();
   const newLine = () => ({
     ...line(),
     source: jobSources[0],
@@ -526,7 +528,7 @@ export default function CheckoutEditor({
           <fieldset disabled={busy}>
             {!paymentOnly && (
               <>
-                <h3>Jobs in this checkout</h3>
+                <h3>{w('Jobs in this checkout')}</h3>
                 {lines.map((item, index) => {
                   const service = working.services.find((s) => s.id === item.serviceId),
                     material = working.materials.find((m) => m.id === service?.materialId);
@@ -534,27 +536,46 @@ export default function CheckoutEditor({
                   return (
                     <section className="cart-line" key={item.id}>
                       <div className="cart-line-title">
-                        <strong>Job {index + 1}</strong>
+                        <strong>
+                          {w('Job')} {index + 1}
+                          {service?.shelfItem && <span className="badge paid">Shelf</span>}
+                        </strong>
                         {lines.length > 1 && (
                           <button
                             type="button"
                             className="text-button danger-text"
                             onClick={() => setLines((v) => v.filter((j) => j.id !== item.id))}
                           >
-                            Remove job
+                            {w('Remove job')}
                           </button>
                         )}
                       </div>
                       <div className="form-grid">
                         <label>
-                          Service
+                          {w('Service')}
                           <select
                             aria-label="Service"
                             required
                             value={item.serviceId}
-                            onChange={(e) => editLine(item.id, 'serviceId', e.target.value)}
+                            onChange={(e) => {
+                              const picked = working.services.find((s) => s.id === e.target.value);
+                              // Shelf items: the product name is a fine description; staff can change it.
+                              setLines((items) =>
+                                items.map((line) =>
+                                  line.id === item.id
+                                    ? {
+                                        ...line,
+                                        serviceId: e.target.value,
+                                        ...(picked?.shelfItem && !line.description.trim()
+                                          ? { description: picked.description.slice(0, 500) }
+                                          : {}),
+                                      }
+                                    : line,
+                                ),
+                              );
+                            }}
                           >
-                            <option value="">Select service</option>
+                            <option value="">{w('Select service')}</option>
                             {working.services
                               .filter(
                                 (s) =>
@@ -570,7 +591,7 @@ export default function CheckoutEditor({
                           </select>
                         </label>
                         <label>
-                          Job description
+                          {w('Job description')}
                           <input
                             required
                             maxLength={500}
@@ -619,7 +640,7 @@ export default function CheckoutEditor({
                           </>
                         )}
                         <label>
-                          Job received through
+                          {w('Job received through')}
                           <select
                             aria-label="Job received through"
                             value={item.source}
@@ -639,23 +660,25 @@ export default function CheckoutEditor({
                             onChange={(e) => editLine(item.id, 'sourceNote', e.target.value)}
                           />
                         </label>
-                        <label>
-                          Deadline
-                          <input
-                            type="datetime-local"
-                            aria-label="Deadline"
-                            value={toLocalInput(item.dueAt ?? '')}
-                            onChange={(e) => editLine(item.id, 'dueAt', fromLocalInput(e.target.value))}
-                          />
-                          <small>
-                            {item.dueAt ? 'Clear it for no deadline. ' : 'No deadline. '}
-                            Business default: {durationLabel(jobSettings.defaultDuration).toLowerCase()}.
-                          </small>
-                        </label>
+                        {!service?.shelfItem && (
+                          <label>
+                            Deadline
+                            <input
+                              type="datetime-local"
+                              aria-label="Deadline"
+                              value={toLocalInput(item.dueAt ?? '')}
+                              onChange={(e) => editLine(item.id, 'dueAt', fromLocalInput(e.target.value))}
+                            />
+                            <small>
+                              {item.dueAt ? 'Clear it for no deadline. ' : 'No deadline. '}
+                              Business default: {durationLabel(jobSettings.defaultDuration).toLowerCase()}.
+                            </small>
+                          </label>
+                        )}
                       </div>
                       {(discountPolicy.maxPercent > 0 || item.discountDraft?.kind) && (
                         <DiscountFields
-                          label="Job discount"
+                          label={w('Job discount')}
                           value={item.discountDraft ?? noDiscount()}
                           allowFlat={discountPolicy.canFlat}
                           maxPercent={discountPolicy.maxPercent}
@@ -671,9 +694,10 @@ export default function CheckoutEditor({
                       {quote && (
                         <p>
                           {quote.materialId === null
-                            ? 'No material · No stock deduction'
-                            : `Material: ${material?.name} · Usage: ${quote.materialNeeded} ${quote.measurementUnit}`}{' '}
-                          · <strong>{currency(quote.amount)}</strong>
+                            ? w('No material · No stock deduction')
+                            : `${w('Material')}: ${material?.name} · Usage: ${quote.materialNeeded} ${quote.measurementUnit}`}
+                          {service?.shelfItem ? ' · Collected when sold' : ''} ·{' '}
+                          <strong>{currency(quote.amount)}</strong>
                           {quote.lineDiscount > 0 && (
                             <small>
                               {' '}
@@ -691,7 +715,7 @@ export default function CheckoutEditor({
                   disabled={lines.length >= 50}
                   onClick={() => setLines((v) => [...v, newLine()])}
                 >
-                  <Icon name="add" /> Add another service
+                  <Icon name="add" /> {w('Add another service')}
                 </button>
                 {(discountPolicy.canFlat || orderDiscount.kind) && lines.length > 0 && (
                   <DiscountFields
@@ -889,7 +913,7 @@ export default function CheckoutEditor({
               Use available wallet credit when needed
             </label>
             <div className="allocation-heading">
-              <h3>Job allocations</h3>
+              <h3>{w('Job allocations')}</h3>
               <button
                 type="button"
                 className="secondary"

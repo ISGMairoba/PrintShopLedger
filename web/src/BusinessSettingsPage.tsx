@@ -7,6 +7,7 @@ import { pages, roleNames, minimumPageAccess } from './page-access.mjs';
 import { useEffect, useState } from 'react';
 import { defaultBranding, validateBranding, suggestedPalette, contrastText } from './business-branding.mjs';
 import type { Branding } from './useBusinessBranding';
+import { termPresets } from './terms.mjs';
 export default function BusinessSettingsPage({
   settings,
   version,
@@ -582,6 +583,75 @@ export default function BusinessSettingsPage({
             </label>
             <p>The recommended amount is always shown beside the box, with a button to use it.</p>
             {sectionSave('Job and payment settings', ['jobs'])}
+            <h3>Words</h3>
+            <p>
+              What the app calls jobs, services and materials, and the fixed job stages. A shop that sells
+              goods can say orders and products. Only the screens, receipts and reports change; your records
+              stay the same, so you can switch back at any time.
+            </p>
+            <label>
+              Words for
+              <select
+                value={draft.terms.preset}
+                onChange={(event) => {
+                  const preset = event.target.value as keyof typeof termPresets | 'custom';
+                  if (preset === 'custom') return field('terms', { ...draft.terms, preset });
+                  const { label: _label, stages, ...words } = termPresets[preset];
+                  field('terms', { preset, ...words, stages: { ...stages } });
+                }}
+              >
+                {Object.entries(termPresets).map(([key, preset]) => (
+                  <option key={key} value={key}>
+                    {preset.label}
+                  </option>
+                ))}
+                <option value="custom">My own words</option>
+              </select>
+            </label>
+            <div className="form-grid">
+              {(
+                [
+                  ['job', 'One job'],
+                  ['jobs', 'Several jobs'],
+                  ['service', 'One service'],
+                  ['services', 'Several services'],
+                  ['material', 'One material'],
+                  ['materials', 'Several materials'],
+                ] as const
+              ).map(([key, label]) => (
+                <label key={key}>
+                  {label}
+                  <input
+                    maxLength={30}
+                    value={draft.terms[key]}
+                    onChange={(event) =>
+                      field('terms', { ...draft.terms, preset: 'custom', [key]: event.target.value })
+                    }
+                  />
+                </label>
+              ))}
+              {(['Added', 'Completed', 'Collected'] as const).map((stage) => (
+                <label key={stage}>
+                  Stage “{stage}”
+                  <input
+                    maxLength={40}
+                    value={draft.terms.stages[stage]}
+                    onChange={(event) =>
+                      field('terms', {
+                        ...draft.terms,
+                        preset: 'custom',
+                        stages: { ...draft.terms.stages, [stage]: event.target.value },
+                      })
+                    }
+                  />
+                </label>
+              ))}
+            </div>
+            <p className="muted">
+              Shelf items (Services → Sold off the shelf, or Add product) skip the stages and are marked
+              Collected when sold.
+            </p>
+            {sectionSave('Words', ['terms'])}
             <h3>Discounts</h3>
             <p>
               The most each rank may take off a job, as a percentage of its price. Flat naira discounts and

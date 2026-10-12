@@ -6,6 +6,7 @@ import { InteractiveTrend } from './InteractiveCharts';
 import { dashboardSummary, validRange } from './dashboard.mjs';
 import type { Ledger, Material } from './types';
 import './dashboard.css';
+import { useWords } from './Words';
 const money = (value: number) =>
   new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(value / 100);
 const change = (value: number, previous: number) =>
@@ -36,6 +37,7 @@ export default function DashboardPage({
   lastSynced?: string;
   access: Access;
 }) {
+  const { w, stage } = useWords();
   const [period, setPeriod] = usePeriod('dashboard');
   const range = { from: period.from, to: period.to };
   const valid = validRange(range.from, range.to);
@@ -86,15 +88,16 @@ export default function DashboardPage({
         <>
           <h2>Selected period</h2>
           <p>
-            Sales use job creation dates and current corrected values. Collections use payment dates, not job
-            dates.
+            {w(
+              'Sales use job creation dates and current corrected values. Collections use payment dates, not job dates.',
+            )}
           </p>
           <section className="stats dashboard-stats" aria-label="Period summary">
             {access.sales &&
               card(
                 'Sales value',
                 summary.sales,
-                `${summary.jobs} jobs · ${summary.cancelled} cancelled` +
+                w(`${summary.jobs} jobs · ${summary.cancelled} cancelled`) +
                   (summary.discounts > 0 ? ` · after ${money(summary.discounts)} discounts` : ''),
                 change(summary.sales, summary.previous.sales),
               )}
@@ -171,17 +174,17 @@ export default function DashboardPage({
             />
             {access.sales && (
               <section className="panel dashboard-panel">
-                <h2>Job stages</h2>
-                <small>All current jobs</small>
+                <h2>{w('Job stages')}</h2>
+                <small>{w('All current jobs')}</small>
                 {summary.stages.length ? (
                   summary.stages.map((s) => (
                     <div className="dashboard-row" key={s.name}>
-                      <span>{s.name}</span>
+                      <span>{stage(s.name)}</span>
                       <strong>{s.count}</strong>
                     </div>
                   ))
                 ) : (
-                  <p>No jobs yet.</p>
+                  <p>{w('No jobs yet.')}</p>
                 )}
               </section>
             )}

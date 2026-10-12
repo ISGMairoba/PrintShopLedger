@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { rankDashboardRows } from './dashboard.mjs';
 import { InteractivePie, InteractiveRanking } from './InteractiveCharts';
+import { useWords } from './Words';
 type Row = { id: string; name: string; sales: number; quantity: number; jobs: number };
 type Metric = 'sales' | 'quantity' | 'jobs';
 const money = (n: number) =>
@@ -18,13 +19,14 @@ function MetricSelect({
   onChange: (value: Metric) => void;
   includeJobs?: boolean;
 }) {
+  const { w } = useWords();
   return (
     <label className="dashboard-metric">
       {label}
       <select aria-label={label} value={value} onChange={(event) => onChange(event.target.value as Metric)}>
         <option value="sales">Net amount</option>
         <option value="quantity">Net quantity</option>
-        {includeJobs && <option value="jobs">Number of jobs</option>}
+        {includeJobs && <option value="jobs">{w('Number of jobs')}</option>}
       </select>
     </label>
   );
@@ -44,6 +46,7 @@ export default function DashboardBreakdowns({
   missingQuantity: number;
   access: { sales: boolean; payments: boolean; customers: boolean };
 }) {
+  const { w } = useWords();
   const [serviceMetric, setServiceMetric] = useState<Metric>('sales'),
     [sourceMetric, setSourceMetric] = useState<Metric>('jobs'),
     [customerMetric, setCustomerMetric] = useState<Metric>('sales');
@@ -53,19 +56,19 @@ export default function DashboardBreakdowns({
   const quantityNote = (metric: Metric) =>
     metric === 'quantity' ? (
       <small>
-        Corrected quantities of active jobs; cancelled jobs excluded.
+        {w('Corrected quantities of active jobs; cancelled jobs excluded.')}
         {missingQuantity > 0 &&
           ` ${missingQuantity} jobs have no recorded quantity and are excluded from quantity totals.`}
       </small>
     ) : (
-      <small>Corrected sales value; cancelled jobs excluded.</small>
+      <small>{w('Corrected sales value; cancelled jobs excluded.')}</small>
     );
   return (
     <>
       {access.sales && (
         <section className="panel dashboard-panel" aria-label="Top 5 services">
-          <h2>Top 5 services</h2>
-          <MetricSelect label="Rank services by" value={serviceMetric} onChange={setServiceMetric} />
+          <h2>{w('Top 5 services')}</h2>
+          <MetricSelect label={w('Rank services by')} value={serviceMetric} onChange={setServiceMetric} />
           {quantityNote(serviceMetric)}
           <InteractivePie
             key={serviceMetric}
@@ -73,7 +76,7 @@ export default function DashboardBreakdowns({
             rows={topServices.map((r) => ({ id: r.id, name: r.name, value: r[serviceMetric] }))}
             formatValue={format(serviceMetric)}
           />
-          <small>Pie shares are among the displayed top five services.</small>
+          <small>{w('Pie shares are among the displayed top five services.')}</small>
         </section>
       )}
       {access.payments && (
@@ -91,15 +94,15 @@ export default function DashboardBreakdowns({
       )}
       {access.sales && (
         <section className="panel dashboard-panel" aria-label="Job sources">
-          <h2>Job sources</h2>
+          <h2>{w('Job sources')}</h2>
           <MetricSelect
-            label="Compare job sources by"
+            label={w('Compare job sources by')}
             value={sourceMetric}
             onChange={setSourceMetric}
             includeJobs
           />
           {sourceMetric === 'jobs' ? (
-            <small>Active jobs created in the selected period.</small>
+            <small>{w('Active jobs created in the selected period.')}</small>
           ) : (
             quantityNote(sourceMetric)
           )}
