@@ -49,9 +49,13 @@ Deno.serve(async (req) => {
       new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))),
       (b) => b.toString(16).padStart(2, '0'),
     ).join('');
+    // With DEVELOPER_DEFAULT_PASSWORD set, the Developer account starts active with that password;
+    // without it, it starts disabled with a random password until the emailed activation link is used.
+    const developerPassword = Deno.env.get('DEVELOPER_DEFAULT_PASSWORD') ?? '';
+    const autoActivate = developerPassword.length >= 12;
     const { data: created, error: createError } = await admin.auth.admin.createUser({
       email: 'staff-developer-' + crypto.randomUUID() + '@staff.printshopledger.invalid',
-      password: crypto.randomUUID() + crypto.randomUUID(),
+      password: autoActivate ? developerPassword : crypto.randomUUID() + crypto.randomUUID(),
       email_confirm: true,
       user_metadata: { full_name: 'Developer Maintenance' },
     });
@@ -84,6 +88,11 @@ Deno.serve(async (req) => {
     if (!result.created) {
       await admin.auth.admin.deleteUser(createdId);
       createdId = null;
+    } else if (autoActivate) {
+      const { error: activateError } = await admin.rpc('activate_registered_developer', {
+        p_shop: result.shopId,
+      });
+      if (activateError) console.error('Developer auto-activation failed for a new business.');
     }
     try {
       await deliverRegistrationMail(admin, result.shopId);
