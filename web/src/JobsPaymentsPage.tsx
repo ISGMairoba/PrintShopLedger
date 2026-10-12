@@ -188,7 +188,7 @@ export default function JobsPaymentsPage({
             </select>
           </label>
           <button
-            className="secondary"
+            className="secondary sort-direction"
             onClick={() => {
               const sorting = page === 'Jobs' ? jobSorting : paymentSorting;
               sorting.toggle(sorting.key);

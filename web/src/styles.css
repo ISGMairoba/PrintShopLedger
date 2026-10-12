@@ -961,7 +961,7 @@ nav button {
   .toolbar .list-sort-select {
     display: none;
   }
-  .toolbar:has(.list-sort-select) > button.secondary {
+  .toolbar:has(.list-sort-select) > button.sort-direction {
     display: none;
   }
   .sidebar-bottom {

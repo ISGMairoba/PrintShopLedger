@@ -194,7 +194,11 @@ try {
       await open();
       assert.deepEqual(
         await nav.getByRole('button').allTextContents(),
-        navigationPages.filter((p) => canAccessPage(p, rank, customSettings.pageAccess)),
+        navigationPages.filter(
+          (p) =>
+            canAccessPage(p, rank, customSettings.pageAccess) &&
+            !(p === 'Material Waste' && canAccessPage('Materials', rank, customSettings.pageAccess)),
+        ),
       );
       assert.ok(
         await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
