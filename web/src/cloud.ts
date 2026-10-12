@@ -96,7 +96,7 @@ async function synchronize(scope: string, shopId: string) {
   if (conflictIds.length) {
     const { data, error } = await supabase
       .rpc('list_sync_conflicts', { p_shop: shopId, p_events: conflictIds })
-      .abortSignal(AbortSignal.timeout(20000));
+      .abortSignal(AbortSignal.timeout(30000));
     if (error) throw Error(error.message);
     await check();
     const known = new Set((data as RemoteConflict[]).map((item) => item.event_id));
@@ -105,7 +105,7 @@ async function synchronize(scope: string, shopId: string) {
       if (!event) continue;
       const { error: uploadError } = await supabase
         .rpc('submit_sync_conflict', { p_shop: shopId, p_event: event, p_message: state.syncConflicts![id] })
-        .abortSignal(AbortSignal.timeout(20000));
+        .abortSignal(AbortSignal.timeout(30000));
       if (uploadError)
         throw Error('Could not send the held operation for remote review: ' + uploadError.message);
       await check();
@@ -116,7 +116,7 @@ async function synchronize(scope: string, shopId: string) {
     if (resolved.size) {
       const { data: latest, error: readError } = await supabase
         .rpc('get_ledger', { p_shop: shopId })
-        .abortSignal(AbortSignal.timeout(20000));
+        .abortSignal(AbortSignal.timeout(60000));
       if (readError) throw Error(readError.message);
       await check();
       state = await mutateState(scope, (current) =>
@@ -150,7 +150,7 @@ async function synchronize(scope: string, shopId: string) {
                     : 'apply_ledger_event',
         { p_shop: shopId, p_event: event },
       )
-      .abortSignal(AbortSignal.timeout(20000));
+      .abortSignal(AbortSignal.timeout(30000));
     if (error && ['PT409', '40001', 'P0002'].includes(error.code)) {
       // Upload only after the server rejects an operation, and persist the hold before proceeding.
       await check();
@@ -160,7 +160,7 @@ async function synchronize(scope: string, shopId: string) {
       }));
       const { error: uploadError } = await supabase
         .rpc('submit_sync_conflict', { p_shop: shopId, p_event: event, p_message: error.message })
-        .abortSignal(AbortSignal.timeout(20000));
+        .abortSignal(AbortSignal.timeout(30000));
       if (uploadError)
         throw Error(
           'Could not send the conflict for remote review: ' +
@@ -180,7 +180,7 @@ async function synchronize(scope: string, shopId: string) {
   await check();
   const { data, error } = await supabase
     .rpc('get_ledger', { p_shop: shopId })
-    .abortSignal(AbortSignal.timeout(20000));
+    .abortSignal(AbortSignal.timeout(60000));
   if (error) throw Error(error.message);
   await check();
   return mutateState(scope, (current) => ({
@@ -207,7 +207,7 @@ export async function listRemoteConflicts(scope: string, shopId: string) {
   const client = await requireConflictReviewer(supabase!, scope, shopId);
   const { data, error } = await client
     .rpc('list_sync_conflicts', { p_shop: shopId })
-    .abortSignal(AbortSignal.timeout(20000));
+    .abortSignal(AbortSignal.timeout(30000));
   if (error) throw Error(error.message);
   return data as RemoteConflict[];
 }
@@ -215,7 +215,7 @@ export async function getRemoteConflict(scope: string, shopId: string, eventId: 
   const client = await requireConflictReviewer(supabase!, scope, shopId);
   const { data, error } = await client
     .rpc('get_sync_conflict', { p_shop: shopId, p_event: eventId })
-    .abortSignal(AbortSignal.timeout(20000));
+    .abortSignal(AbortSignal.timeout(30000));
   if (error) throw Error(error.message);
   return { ...data, ledger: normalizeLedger(data.ledger) } as {
     conflict: RemoteConflict;
@@ -240,7 +240,7 @@ export async function resolveRemoteConflict(
       p_replacements: replacements,
       p_reason: reason,
     })
-    .abortSignal(AbortSignal.timeout(20000));
+    .abortSignal(AbortSignal.timeout(30000));
   if (error) throw Error(error.message);
 }
 
@@ -266,7 +266,7 @@ export async function resolveCloudMaterial(
       throw new Error('Your sign-in changed. Sign in again.');
     const { data, error } = await supabase!
       .rpc('get_ledger', { p_shop: shopId })
-      .abortSignal(AbortSignal.timeout(20000));
+      .abortSignal(AbortSignal.timeout(60000));
     if (error) throw new Error(error.message);
     const { data: checked } = await supabase!.auth.getSession();
     if (checked.session?.user.id !== scope.split(':')[0])
@@ -307,7 +307,7 @@ export async function resolveCloudService(
       throw new Error('Your sign-in changed. Sign in again.');
     const { data, error } = await supabase!
       .rpc('get_ledger', { p_shop: shopId })
-      .abortSignal(AbortSignal.timeout(20000));
+      .abortSignal(AbortSignal.timeout(60000));
     if (error) throw new Error(error.message);
     const { data: checked, error: checkError } = await supabase!.auth.getSession();
     if (checkError || checked.session?.user.id !== scope.split(':')[0])
@@ -355,7 +355,7 @@ export async function resolveCloudCustomer(
       throw new Error('Your sign-in changed. Sign in again.');
     const { data, error } = await supabase!
       .rpc('get_ledger', { p_shop: shopId })
-      .abortSignal(AbortSignal.timeout(20000));
+      .abortSignal(AbortSignal.timeout(60000));
     if (error) throw new Error(error.message);
     const { data: checked, error: checkError } = await supabase!.auth.getSession();
     if (checkError || checked.session?.user.id !== scope.split(':')[0])
@@ -398,14 +398,14 @@ export async function resolvePendingWork(
     await check();
     const { data, error } = await supabase!
       .rpc('get_ledger', { p_shop: shopId })
-      .abortSignal(AbortSignal.timeout(20000));
+      .abortSignal(AbortSignal.timeout(60000));
     if (error) throw Error(error.message);
     await check();
     const cloud = normalizeLedger(data);
     if (replacement) {
       const { error: approvalError } = await reviewer
         .rpc('approve_checkout_review', { p_shop: shopId, p_event: replacement })
-        .abortSignal(AbortSignal.timeout(20000));
+        .abortSignal(AbortSignal.timeout(30000));
       if (approvalError) throw Error(approvalError.message);
       await check();
     }
@@ -444,7 +444,7 @@ export async function resolveCloudExpense(
     await check();
     const { data, error } = await supabase!
       .rpc('get_ledger', { p_shop: shopId })
-      .abortSignal(AbortSignal.timeout(20000));
+      .abortSignal(AbortSignal.timeout(60000));
     if (error) throw Error(error.message);
     await check();
     const cloud = normalizeLedger(data);
@@ -474,13 +474,13 @@ export async function saveSupervisedEvent(scope: string, shopId: string, event: 
       throw Error('Your sign-in changed. Reopen the workspace.');
     const { data, error } = await supabase!
       .rpc('apply_supervised_event', { p_shop: shopId, p_event: event })
-      .abortSignal(AbortSignal.timeout(20000));
+      .abortSignal(AbortSignal.timeout(30000));
     if (error) {
       // A network failure can happen after the transaction committed. Confirm its ID
       // before reporting failure; never create another refund automatically.
       const { data: latest, error: readError } = await supabase!
         .rpc('get_ledger', { p_shop: shopId })
-        .abortSignal(AbortSignal.timeout(20000));
+        .abortSignal(AbortSignal.timeout(60000));
       const saved =
         !readError &&
         [...(latest?.saleAdjustments ?? []), ...(latest?.materialWaste ?? [])].find(
