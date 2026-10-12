@@ -586,7 +586,13 @@ export default function CheckoutEditor({
                 <div
                   className="customer-picker"
                   onBlur={(event) => {
-                    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setSuggest(false);
+                    // iOS Safari blurs the field before the tapped suggestion's click arrives, and
+                    // reports no relatedTarget; close a moment later unless focus stayed inside.
+                    const picker = event.currentTarget;
+                    if (picker.contains(event.relatedTarget as Node | null)) return;
+                    setTimeout(() => {
+                      if (!picker.contains(document.activeElement)) setSuggest(false);
+                    }, 200);
                   }}
                 >
                   <label>
@@ -637,6 +643,7 @@ export default function CheckoutEditor({
                           type="button"
                           role="option"
                           aria-selected={index === active}
+                          onMouseDown={(e) => e.preventDefault()}
                           onClick={() => choose(c.id, c.name)}
                         >
                           <strong>{c.name}</strong> <span>{c.phone || 'No phone recorded'}</span>
@@ -670,17 +677,24 @@ export default function CheckoutEditor({
               </label>
               <label>
                 Payment method
-                <select
-                  aria-label="Payment method"
-                  value={methodLabel}
-                  onChange={(e) => setMethodLabel(e.target.value)}
-                >
-                  {paymentMethods.map((item) => (
-                    <option key={item.label} value={item.label}>
-                      {item.label}
-                    </option>
-                  ))}
-                </select>
+                {money(cash || '0') === 0 ? (
+                  // No money taken: wallet credit (if it covers anything) or nothing.
+                  <select aria-label="Payment method" disabled value="none">
+                    <option value="none">{preview?.data.walletUsed ? 'Wallet' : 'None'}</option>
+                  </select>
+                ) : (
+                  <select
+                    aria-label="Payment method"
+                    value={methodLabel}
+                    onChange={(e) => setMethodLabel(e.target.value)}
+                  >
+                    {paymentMethods.map((item) => (
+                      <option key={item.label} value={item.label}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </label>
               <label>
                 Payment date

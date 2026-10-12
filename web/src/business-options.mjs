@@ -80,4 +80,13 @@ export function validateOptions(input) {
   return value;
 }
 export const jobWorkflow = (job) => validateWorkflow(job.workflow ?? defaultOptions().jobStages);
-export const paymentName = (record) => record.methodLabel || record.method;
+/**
+ * How a payment or checkout was paid. No money taken shows as "Wallet" when customer credit
+ * covered it, otherwise "None" — never the method that happened to be selected.
+ */
+export const paymentName = (record) => {
+  const money = record.cashReceived ?? record.amount;
+  // Refunds carry the money paid out in walletUsed, so they keep their method.
+  if (money === 0 && !record.refundId) return record.walletUsed ? 'Wallet' : 'None';
+  return record.methodLabel || record.method;
+};

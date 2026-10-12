@@ -137,7 +137,7 @@ try {
   dialog = page.getByRole('dialog', { name: 'New checkout' });
   await dialog.waitFor();
   await dialog.getByRole('combobox', { name: 'Customer name or phone' }).fill('Customer');
-  await dialog.getByRole('listbox', { name: 'Customer suggestions' }).getByRole('option').first().click();
+  await dialog.getByRole('listbox', { name: 'Customer suggestions' }).getByRole('option').first().tap();
   await dialog.getByLabel('Service', { exact: true }).selectOption({ index: 1 });
   await dialog.getByLabel('Job description').fill('Large job');
   await dialog.getByLabel('Money received (₦)').fill('0');
@@ -151,7 +151,7 @@ try {
   dialog = page.getByRole('dialog', { name: 'Receive payment' });
   await dialog.waitFor();
   await dialog.getByRole('combobox', { name: 'Customer name or phone' }).fill('Customer');
-  await dialog.getByRole('listbox', { name: 'Customer suggestions' }).getByRole('option').first().click();
+  await dialog.getByRole('listbox', { name: 'Customer suggestions' }).getByRole('option').first().tap();
   await dialog.getByLabel('Money received (₦)').fill('100');
   await fits('Payment editor and date input');
   await dialog.getByRole('button', { name: 'Complete checkout', exact: true }).click();

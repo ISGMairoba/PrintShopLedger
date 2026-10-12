@@ -54,7 +54,7 @@ export default function JobCorrectionPicker({
             setAll(!!selected);
             setOpen(true);
           }}
-          onBlur={() => setOpen(false)}
+          onBlur={() => setTimeout(() => setOpen(false), 200)}
           onKeyDown={(e) => {
             if (e.key === 'ArrowDown') {
               e.preventDefault();
