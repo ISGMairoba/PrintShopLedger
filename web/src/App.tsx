@@ -1465,7 +1465,13 @@ export default function App() {
                     onChanged={() => setStaffEpoch((value) => value + 1)}
                   />
                 ) : page === 'Print Settings' ? (
-                  <PrintSettingsPage key={scope} scope={scope} ready={ready} trusted={!!signingShop} />
+                  <PrintSettingsPage
+                    key={scope}
+                    scope={scope}
+                    ready={ready}
+                    trusted={!!signingShop}
+                    business={branding.settings}
+                  />
                 ) : page === 'Customers' ? (
                   <CustomersPage
                     key={scope}
