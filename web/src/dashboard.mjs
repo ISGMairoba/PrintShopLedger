@@ -53,6 +53,8 @@ export function dashboardSummary(ledger, from, to) {
   // Voiding an expense does not refund a payment already made.
   const expensePayments = ledger.expenses.flatMap((e) => e.payments).filter((p) => inRange(p.paidOn));
   const sum = (rows, key) => rows.reduce((n, r) => n + (r[key] || 0), 0);
+  // Discounts on jobs created in the period (cancelled jobs left out). Sales are after discounts.
+  const discounted = jobs.filter((j) => j.productionStatus !== 'Cancelled' && (j.discountAmount ?? 0) > 0);
   const sales = sum(jobs, 'amount'),
     collected = sum(payments, 'amount'),
     refunded = sum(refunds, 'refundAmount'),
@@ -120,6 +122,8 @@ export function dashboardSummary(ledger, from, to) {
     collected,
     refunded,
     netCollected: collected - refunded,
+    discounts: sum(discounted, 'discountAmount'),
+    discountedJobs: discounted.length,
     expenseIncurred: sum(periodExpenses, 'amount'),
     netIncome: sales - sum(periodExpenses, 'amount'),
     expensePaid,

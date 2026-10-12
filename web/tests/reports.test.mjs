@@ -508,7 +508,7 @@ test('Summary compares with the previous period and respects access', () => {
   });
   assert.deepEqual(
     limited.figures.map((f) => f.key),
-    ['sales'],
+    ['sales', 'discounts'],
   );
   assert.equal(limited.aging, undefined);
   assert.equal(limited.customers, undefined);
@@ -539,4 +539,78 @@ test('Materials used, wasted and added come from stock history in the period', (
   );
   assert.match(csv, /Financial summary\r\nFigure,This period \(NGN\),Previous period \(NGN\),Change,Notes/);
   assert.match(csv, /Materials used and stock/);
+});
+
+import { discountBreakdown } from '../src/reports.mjs';
+
+test('Discounts are reported by staff and job, with reasons, and match the Dashboard', () => {
+  const l = activity();
+  l.checkouts = [{ id: 'co1', orderDiscount: { kind: 'percent', value: 10, reason: 'Loyal customer' } }];
+  const base = l.jobs.find((j) => !j.productionStatus || j.productionStatus !== 'Cancelled');
+  const day = base.createdAt;
+  l.jobs = [
+    ...l.jobs,
+    {
+      ...base,
+      id: 'd1',
+      createdAt: '2026-10-10T10:00:00Z',
+      amount: 9000,
+      grossAmount: 10000,
+      lineDiscount: 1000,
+      discountAmount: 1000,
+      discount: { kind: 'amount', value: 1000, reason: 'Bulk' },
+      createdByLabel: 'Ada',
+      service: 'Banner',
+    },
+    {
+      ...base,
+      id: 'd2',
+      createdAt: '2026-10-11T10:00:00Z',
+      checkoutId: 'co1',
+      amount: 4500,
+      grossAmount: 5000,
+      orderDiscountShare: 500,
+      discountAmount: 500,
+      createdByLabel: 'Bayo',
+      service: 'Flyer',
+    },
+    {
+      ...base,
+      id: 'd3',
+      createdAt: '2026-10-12T10:00:00Z',
+      productionStatus: 'Cancelled',
+      amount: 0,
+      grossAmount: 2000,
+      discountAmount: 200,
+      createdByLabel: 'Ada',
+    },
+  ];
+  assert.ok(day);
+  const d = discountBreakdown(l, '2026-10-01', '2026-10-31');
+  assert.equal(d.total, 1500);
+  assert.deepEqual(
+    d.byStaff.map((s) => [s.name, s.jobs, s.discount]),
+    [
+      ['Ada', 1, 1000],
+      ['Bayo', 1, 500],
+    ],
+  );
+  assert.deepEqual(
+    d.jobs.map((j) => [j.kind, j.reason]),
+    [
+      ['Job', 'Bulk'],
+      ['Whole order', 'Loyal customer'],
+    ],
+  );
+  const s = summaryReport(l, '2026-10-01', '2026-10-31', undefined, { today: '2026-11-15' });
+  assert.equal(
+    s.figures.find((f) => f.key === 'discounts').value,
+    dashboardSummary(l, '2026-10-01', '2026-10-31').discounts,
+  );
+  assert.equal(s.figures.find((f) => f.key === 'discounts').value, 1500);
+  const csv = sectionsToCsv(['x'], summarySections(s));
+  assert.match(csv, /Discounts by staff/);
+  assert.match(csv, /Total,2,150\.00,15\.00,10\.0%/);
+  const hidden = discountBreakdown(l, '2026-10-01', '2026-10-31', false);
+  assert.ok(hidden.jobs.every((j) => j.customer.startsWith('Customer ')));
 });

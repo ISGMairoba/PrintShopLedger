@@ -675,6 +675,13 @@ export function summaryReport(
     figures.push({ key, label, value, note, previous: prev ? previous : null });
   if (access.jobs) {
     add('sales', 'Sales value', base.sales, `${base.jobs} jobs, ${base.cancelled} cancelled`, prev?.sales);
+    add(
+      'discounts',
+      'Discounts given',
+      base.discounts,
+      `${base.discountedJobs} discounted jobs; sales value is after discounts`,
+      prev?.discounts,
+    );
   }
   if (access.payments) {
     add(
@@ -782,6 +789,7 @@ export function summaryReport(
     result.sources = rank(base.sources);
     if (access.customers) result.customers = rank(base.customers);
   }
+  if (access.jobs) result.discounts = discountBreakdown(ledger, from, to, access.customers);
   if (access.stock) {
     const usage = new Map(
       ledger.materials
@@ -834,6 +842,56 @@ export function summaryReport(
   }
   return result;
 }
+
+/**
+ * Discounts on jobs created in the period, by who gave them (the staff member who recorded the
+ * sale) and job by job. Cancelled jobs are left out. Reasons come from the job's own discount,
+ * then the whole-order discount it shared in.
+ */
+export function discountBreakdown(ledger, from, to, showCustomers = true) {
+  const orderReasons = new Map(
+    (ledger.checkouts ?? [])
+      .filter((c) => c.orderDiscount?.reason)
+      .map((c) => [c.id, c.orderDiscount.reason]),
+  );
+  const names = new Map(ledger.customers.map((c) => [c.id, c.name]));
+  const jobs = ledger.jobs
+    .filter(
+      (j) =>
+        j.productionStatus !== 'Cancelled' && (j.discountAmount ?? 0) > 0 && inRange(j.createdAt, from, to),
+    )
+    .map((j) => {
+      const order = j.orderDiscountShare ?? 0;
+      return {
+        id: j.id,
+        day: businessDay(j.createdAt),
+        customer: showCustomers
+          ? (names.get(j.customerId) ?? 'Unknown customer')
+          : 'Customer ' + shortId(j.customerId ?? ''),
+        service: j.service,
+        givenBy: j.createdByLabel || 'Not recorded',
+        price: j.grossAmount ?? j.amount + j.discountAmount,
+        discount: j.discountAmount,
+        kind: order && order === j.discountAmount ? 'Whole order' : order ? 'Job and whole order' : 'Job',
+        reason: [j.discount?.reason, order ? orderReasons.get(j.checkoutId) : ''].filter(Boolean).join('; '),
+      };
+    })
+    .sort((a, b) => a.day.localeCompare(b.day) || b.discount - a.discount);
+  const staff = new Map();
+  for (const j of jobs) {
+    const row = staff.get(j.givenBy) ?? { name: j.givenBy, jobs: 0, price: 0, discount: 0 };
+    row.jobs++;
+    row.price += j.price;
+    row.discount += j.discount;
+    staff.set(j.givenBy, row);
+  }
+  return {
+    total: jobs.reduce((n, j) => n + j.discount, 0),
+    byStaff: [...staff.values()].sort((a, b) => b.discount - a.discount || a.name.localeCompare(b.name)),
+    jobs,
+  };
+}
+const percentOf = (part, whole) => (whole ? ((part / whole) * 100).toFixed(1) + '%' : '0%');
 
 const change = (value, previous) =>
   previous === 0
@@ -918,6 +976,61 @@ export function summarySections(summary, { money = naira, unit = ' (NGN)' } = {}
   if (summary.services) sections.push(top('Top services', summary.services));
   if (summary.customers) sections.push(top('Top customers', summary.customers));
   if (summary.sources) sections.push(top('How jobs came in', summary.sources));
+  if (summary.discounts) {
+    const d = summary.discounts;
+    sections.push({
+      title: 'Discounts by staff',
+      columns: ['Given by', 'Jobs', `Price before discount${unit}`, `Discount${unit}`, 'Share of price'],
+      widths: [5, 2, 3, 3, 2],
+      numeric: [1, 2, 3, 4],
+      rows: d.byStaff.length
+        ? [
+            ...d.byStaff.map((s) => [
+              s.name,
+              String(s.jobs),
+              money(s.price),
+              money(s.discount),
+              percentOf(s.discount, s.price),
+            ]),
+            [
+              'Total',
+              String(d.jobs.length),
+              money(d.byStaff.reduce((n, s) => n + s.price, 0)),
+              money(d.total),
+              percentOf(
+                d.total,
+                d.byStaff.reduce((n, s) => n + s.price, 0),
+              ),
+            ],
+          ]
+        : [],
+    });
+    sections.push({
+      title: 'Discounted jobs',
+      columns: [
+        'Date',
+        'Customer',
+        'Service',
+        'Given by',
+        'Type',
+        `Price${unit}`,
+        `Discount${unit}`,
+        'Reason',
+      ],
+      widths: [2.2, 4, 4, 3, 2.6, 2.4, 2.4, 4.4],
+      numeric: [5, 6],
+      rows: d.jobs.map((j) => [
+        j.day,
+        j.customer,
+        j.service,
+        j.givenBy,
+        j.kind,
+        money(j.price),
+        money(j.discount),
+        j.reason || '—',
+      ]),
+    });
+  }
   if (summary.materials)
     sections.push({
       title: 'Materials used and stock',
