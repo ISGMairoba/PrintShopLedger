@@ -582,6 +582,38 @@ export default function BusinessSettingsPage({
             </label>
             <p>The recommended amount is always shown beside the box, with a button to use it.</p>
             {sectionSave('Job and payment settings', ['jobs'])}
+            <h3>Discounts</h3>
+            <p>
+              The most each rank may take off a job, as a percentage of its price. Flat naira discounts and
+              discounts on a whole order need Admin or higher. Developers have no limit. Use 0% to stop a rank
+              giving discounts.
+            </p>
+            <div className="form-grid">
+              {(
+                [
+                  ['1', 'Cashier'],
+                  ['2', 'Admin'],
+                  ['3', 'Manager'],
+                ] as const
+              ).map(([rank, label]) => (
+                <label key={rank}>
+                  {label} limit (%)
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.5"
+                    value={draft.discounts.maxPercent[rank]}
+                    onChange={(event) =>
+                      field('discounts', {
+                        maxPercent: { ...draft.discounts.maxPercent, [rank]: Number(event.target.value) },
+                      })
+                    }
+                  />
+                </label>
+              ))}
+            </div>
+            {sectionSave('Discount limits', ['discounts'])}
             <h3>Default time frame</h3>
             <p>
               The period each page opens with. Staff can still choose another period while working; it returns

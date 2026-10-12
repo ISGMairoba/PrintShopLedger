@@ -21,6 +21,7 @@ import { currency } from './receipts.mjs';
 import type { Ledger, CustomerEvent, CheckoutEvent, CheckoutRecord } from './types';
 import { defaultDueAt, durationLabel, fromLocalInput, toLocalInput } from './job-deadlines.mjs';
 import { jobSettingsDefaults } from './business-branding.mjs';
+import { applyOrderDiscount } from './discounts.mjs';
 type JobSettings = ReturnType<typeof jobSettingsDefaults>;
 type Props = {
   ledger: Ledger;
@@ -34,7 +35,84 @@ type Props = {
   onReceipt: (record: CheckoutRecord) => void;
   /** Business defaults: new-job deadline and how the payment amount starts. */
   jobSettings?: JobSettings;
+  /** What this user may discount: the cap per job (%) and whether flat/whole-order is allowed. */
+  discountPolicy?: { maxPercent: number; canFlat: boolean };
 };
+type DiscountDraft = { kind: '' | 'percent' | 'amount'; value: string; reason: string };
+const noDiscount = (): DiscountDraft => ({ kind: '', value: '', reason: '' });
+/** The discount as typed → the stored form (percent, or kobo for an amount). */
+const discountSpec = (d: DiscountDraft) =>
+  d.kind
+    ? {
+        kind: d.kind,
+        value: d.kind === 'percent' ? Number(d.value || 0) : money(d.value || '0'),
+        reason: d.reason,
+      }
+    : null;
+const discountDraft = (spec?: { kind: string; value: number; reason?: string } | null): DiscountDraft =>
+  spec
+    ? {
+        kind: spec.kind as DiscountDraft['kind'],
+        value: spec.kind === 'percent' ? String(spec.value) : (spec.value / 100).toFixed(2),
+        reason: spec.reason ?? '',
+      }
+    : noDiscount();
+/** Discount type, value and optional reason, for one job or the whole order. */
+function DiscountFields({
+  label,
+  value,
+  allowFlat,
+  maxPercent,
+  onChange,
+}: {
+  label: string;
+  value: DiscountDraft;
+  allowFlat: boolean;
+  maxPercent: number;
+  onChange: (value: DiscountDraft) => void;
+}) {
+  return (
+    <div className="discount-fields">
+      <label>
+        {label}
+        <select
+          aria-label={label}
+          value={value.kind}
+          onChange={(e) => onChange({ ...value, kind: e.target.value as DiscountDraft['kind'] })}
+        >
+          <option value="">No discount</option>
+          <option value="percent">Percentage (%)</option>
+          {(allowFlat || value.kind === 'amount') && <option value="amount">Amount (₦)</option>}
+        </select>
+      </label>
+      {value.kind && (
+        <>
+          <label>
+            {value.kind === 'percent' ? `Percentage (up to ${maxPercent}%)` : 'Amount (₦)'}
+            <input
+              aria-label={`${label} ${value.kind === 'percent' ? 'percentage' : 'amount'}`}
+              type="number"
+              min="0"
+              max={value.kind === 'percent' ? maxPercent : undefined}
+              step={value.kind === 'percent' ? '0.5' : '0.01'}
+              value={value.value}
+              onChange={(e) => onChange({ ...value, value: e.target.value })}
+            />
+          </label>
+          <label>
+            Reason (optional)
+            <input
+              aria-label={`${label} reason`}
+              maxLength={200}
+              value={value.reason}
+              onChange={(e) => onChange({ ...value, reason: e.target.value })}
+            />
+          </label>
+        </>
+      )}
+    </div>
+  );
+}
 type ManualAllocationState = { amounts: Record<string, string>; editedOrder: string[] };
 function balanceDraft(
   state: ManualAllocationState,
@@ -67,6 +145,13 @@ type CartLine = {
   /** Deadline as an ISO time, or '' for none. */
   dueAt?: string;
   workflow?: string[];
+  /** This job's own discount, as typed. */
+  discountDraft?: DiscountDraft;
+};
+/** A cart line as checkout expects it: the typed discount becomes the stored discount. */
+const toLine = ({ discountDraft: draft, ...item }: CartLine) => {
+  const discount = draft ? discountSpec(draft) : null;
+  return discount ? { ...item, discount } : item;
 };
 const line = (): CartLine => ({
   id: crypto.randomUUID(),
@@ -90,6 +175,7 @@ export default function CheckoutEditor({
   onClose,
   onReceipt,
   jobSettings = jobSettingsDefaults(),
+  discountPolicy = { maxPercent: 0, canFlat: false },
 }: Props) {
   const options = useBusinessOptions(),
     jobSources = options.jobSources;
@@ -110,6 +196,7 @@ export default function CheckoutEditor({
           source: j.source ?? 'In shop / USB',
           sourceNote: j.sourceNote ?? '',
           dueAt: j.dueAt ?? '',
+          discountDraft: discountDraft(j.discount),
         }))
       : paymentOnly
         ? []
@@ -197,19 +284,38 @@ export default function CheckoutEditor({
   };
   const editLine = (id: string, key: string, value: string) =>
     setLines((items) => items.map((item) => (item.id === id ? { ...item, [key]: value } : item)));
-  const quotedLines = lines.map((item) => {
+  const [orderDiscount, setOrderDiscount] = useState<DiscountDraft>(() =>
+    discountDraft(initialCheckout?.orderDiscount),
+  );
+  const cartLines = lines.map(toLine);
+  const quotedLines = cartLines.map((item) => {
     try {
       return quoteLine(working, item);
     } catch {
       return null;
     }
   });
-  const cartReady = quotedLines.every((item) => item !== null);
-  const cartTotal = cartReady ? quotedLines.reduce((sum, item) => sum + item!.amount, 0) : null;
-  const jobs = cartReady
+  // Prices after each job's discount and the order discount shared by price.
+  const price = () =>
+    applyOrderDiscount(
+      quotedLines as NonNullable<(typeof quotedLines)[number]>[],
+      discountSpec(orderDiscount),
+    );
+  let priced: ReturnType<typeof price> | null = null;
+  try {
+    if (quotedLines.every((item) => item !== null)) priced = price();
+  } catch {
+    priced = null;
+  }
+  const cartReady = priced !== null;
+  const cartTotal = priced ? priced.jobs.reduce((sum, item) => sum + item.amount, 0) : null;
+  const cartGross = priced
+    ? priced.jobs.reduce((sum, item) => sum + (item.grossAmount ?? item.amount), 0)
+    : 0;
+  const jobs = priced
     ? [
         ...working.jobs,
-        ...quotedLines
+        ...priced.jobs
           .filter((item) => item && !working.jobs.some((job) => job.id === item.id))
           .map((item, index) => ({
             ...item!,
@@ -235,8 +341,10 @@ export default function CheckoutEditor({
         {
           customerId,
           newCustomer,
-          lines,
+          lines: cartLines,
           countedMaterialJobs,
+          orderDiscount: discountSpec(orderDiscount),
+          discountPolicy,
           cashReceived: money(cash || '0'),
           useWallet,
           override: manual
@@ -379,8 +487,10 @@ export default function CheckoutEditor({
                 {
                   customerId,
                   newCustomer,
-                  lines,
+                  lines: cartLines,
                   countedMaterialJobs,
+                  orderDiscount: discountSpec(orderDiscount),
+                  discountPolicy,
                   cashReceived: money(cash || '0'),
                   useWallet,
                   override: manual
@@ -535,12 +645,33 @@ export default function CheckoutEditor({
                           </small>
                         </label>
                       </div>
+                      {(discountPolicy.maxPercent > 0 || item.discountDraft?.kind) && (
+                        <DiscountFields
+                          label="Job discount"
+                          value={item.discountDraft ?? noDiscount()}
+                          allowFlat={discountPolicy.canFlat}
+                          maxPercent={discountPolicy.maxPercent}
+                          onChange={(value) =>
+                            setLines((items) =>
+                              items.map((line) =>
+                                line.id === item.id ? { ...line, discountDraft: value } : line,
+                              ),
+                            )
+                          }
+                        />
+                      )}
                       {quote && (
                         <p>
                           {quote.materialId === null
                             ? 'No material · No stock deduction'
                             : `Material: ${material?.name} · Usage: ${quote.materialNeeded} ${quote.measurementUnit}`}{' '}
                           · <strong>{currency(quote.amount)}</strong>
+                          {quote.lineDiscount > 0 && (
+                            <small>
+                              {' '}
+                              (price {currency(quote.grossAmount)}, discount −{currency(quote.lineDiscount)})
+                            </small>
+                          )}
                         </p>
                       )}
                     </section>
@@ -554,7 +685,21 @@ export default function CheckoutEditor({
                 >
                   <Icon name="add" /> Add another service
                 </button>
+                {(discountPolicy.canFlat || orderDiscount.kind) && lines.length > 0 && (
+                  <DiscountFields
+                    label="Order discount"
+                    value={orderDiscount}
+                    allowFlat={discountPolicy.canFlat}
+                    maxPercent={discountPolicy.maxPercent}
+                    onChange={setOrderDiscount}
+                  />
+                )}
                 <p className="cart-total" aria-live="polite">
+                  {cartTotal !== null && cartGross > cartTotal && (
+                    <small>
+                      Before discounts {currency(cartGross)} · Discounts −{currency(cartGross - cartTotal)}
+                    </small>
+                  )}
                   <strong>Total: {cartTotal === null ? '—' : currency(cartTotal)}</strong>
                   {cartTotal === null && <small>Complete all job details to calculate the total.</small>}
                 </p>
