@@ -48,12 +48,13 @@ const adjustmentNames = {
  * What appears and which line leads each job follow the business's receipt settings.
  * Amounts that fail the integrity checks are replaced by "Needs verification" and never shown as confirmed.
  */
-export function receiptModel(record, business, pending = false, adjustments = []) {
+export function receiptModel(record, business, pending = false, adjustments = [], layout = 'page') {
   adjustments = adjustments.filter(
     (item) => !item.groupId || !adjustments.some((parent) => parent.id === item.groupId),
   );
   const b = receiptBusiness(business),
-    o = b.receipt,
+    // Receipt printers (roll) and full pages each have their own content settings.
+    o = layout === 'roll' ? b.receipt : b.receiptPage,
     c = record.customerSnapshot;
   const balancedTotal = balancedReceiptTotal(record);
   const balances = record.jobBalances ?? [];
@@ -179,7 +180,7 @@ const safeColour = (value) => (/^#[0-9a-f]{6}$/i.test(value) ? value : '#124b40'
  * Long text wraps (overflow-wrap) instead of running past the edge. All values are escaped.
  */
 export function receiptHtml(record, business, pending = false, adjustments = [], { layout = 'wide' } = {}) {
-  const m = receiptModel(record, business, pending, adjustments),
+  const m = receiptModel(record, business, pending, adjustments, layout === 'narrow' ? 'roll' : 'page'),
     e = escapeHtml;
   const brand = safeColour(m.business.primary);
   const row = (label, value, cls = '') =>

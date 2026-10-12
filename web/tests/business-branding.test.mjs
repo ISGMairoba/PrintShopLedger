@@ -89,7 +89,12 @@ test('receipt branding is escaped, optional, and does not change money', () => {
     '₦40,000.00',
   ])
     assert.ok(html.includes(value));
-  b.receipt = { showLogo: false, showAddress: false, showContacts: false, footer: '<script>footer</script>' };
+  b.receiptPage = {
+    showLogo: false,
+    showAddress: false,
+    showContacts: false,
+    footer: '<script>footer</script>',
+  };
   html = receiptHtml(record, b);
   assert.ok(!html.includes('Business logo'));
   assert.ok(!html.includes('Kano'));

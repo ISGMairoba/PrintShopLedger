@@ -49,12 +49,12 @@ test('receipts can drop the business name when a logo shows, and print deadlines
   const brand = { ...defaultBranding(), businessName: 'SMGraphics 2', logo };
   const record = sampleReceipt(at);
   assert.equal(receiptModel(record, brand).business.name, 'SMGraphics 2');
-  const hidden = { ...brand, receipt: { ...brand.receipt, showBusinessName: false } };
+  const hidden = { ...brand, receiptPage: { ...brand.receiptPage, showBusinessName: false } };
   assert.equal(receiptModel(record, hidden).business.name, '');
   // Without a logo on the receipt the name stays, so the business is always identified.
   assert.equal(receiptModel(record, { ...hidden, logo: '' }).business.name, 'SMGraphics 2');
   assert.ok(receiptModel(record, brand).items[0].meta.some((m) => m.startsWith('Due ')));
-  const noDue = { ...brand, receipt: { ...brand.receipt, showDueDate: false } };
+  const noDue = { ...brand, receiptPage: { ...brand.receiptPage, showDueDate: false } };
   assert.ok(!receiptModel(record, noDue).items[0].meta.some((m) => m.startsWith('Due ')));
 });
 
@@ -82,4 +82,24 @@ test('each page has a default period; Dashboard and Reports always use a date ra
     () => validateBranding({ ...defaultBranding(), businessName: 'Shop', periods: { jobs: 'year' } }),
     /default period/,
   );
+});
+
+test('receipt printer and full-page receipts have separate settings', () => {
+  const record = sampleReceipt(at);
+  const brand = {
+    ...defaultBranding(),
+    businessName: 'Shop',
+    receipt: { ...defaultBranding().receipt, showJobId: false, footer: 'Roll footer' },
+    receiptPage: { ...defaultBranding().receiptPage, headline: 'service', footer: 'Page footer' },
+  };
+  const roll = receiptModel(record, brand, false, [], 'roll'),
+    page = receiptModel(record, brand, false, [], 'page');
+  assert.equal(roll.footer, 'Roll footer');
+  assert.equal(page.footer, 'Page footer');
+  assert.equal(roll.items[0].title, 'Shop banner, flex with eyelets');
+  assert.equal(page.items[0].title, 'Large format printing');
+  assert.ok(!roll.items[0].meta.includes(roll.items[0].ref));
+  // Settings saved before the split: the page copy starts from the roll settings.
+  const { receiptPage, ...older } = brand;
+  assert.equal(validateBranding(older).receiptPage.footer, 'Roll footer');
 });

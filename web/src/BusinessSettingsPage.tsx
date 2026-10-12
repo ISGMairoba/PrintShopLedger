@@ -136,9 +136,12 @@ export default function BusinessSettingsPage({
       Save {label.toLowerCase()}
     </button>
   );
-  const receipt = (key: keyof Branding['receipt'], value: unknown) =>
-    field('receipt', { ...draft.receipt, [key]: value });
+  // Receipt printers and full pages each keep their own receipt settings.
   const [previewLayout, setPreviewLayout] = useState<'narrow' | 'wide'>('narrow');
+  const receiptKey = previewLayout === 'narrow' ? 'receipt' : 'receiptPage';
+  const opts = draft[receiptKey];
+  const receipt = (key: keyof Branding['receipt'], value: unknown) =>
+    field(receiptKey, { ...opts, [key]: value });
   return (
     <section className="panel editor business-settings" aria-label="Business settings">
       <h2>Business settings</h2>
@@ -357,6 +360,23 @@ export default function BusinessSettingsPage({
               Choose what your receipts show and what stands out. These settings apply to printed receipts,
               PDFs and the screen.
             </p>
+            <div className="settings-tabs receipt-size-tabs" role="group" aria-label="Receipt size">
+              {(['narrow', 'wide'] as const).map((value) => (
+                <button
+                  type="button"
+                  key={value}
+                  className={previewLayout === value ? 'active' : 'secondary'}
+                  aria-pressed={previewLayout === value}
+                  onClick={() => setPreviewLayout(value)}
+                >
+                  {value === 'narrow' ? 'Receipt printer (80 mm / 58 mm)' : 'Full page (A4 / A5)'}
+                </button>
+              ))}
+            </div>
+            <small>
+              Each size has its own settings. You are editing the{' '}
+              {previewLayout === 'narrow' ? 'receipt printer' : 'full-page'} receipt.
+            </small>
             <div className="receipt-settings-grid">
               <div>
                 <h3>Header</h3>
@@ -371,22 +391,19 @@ export default function BusinessSettingsPage({
                   <label className="check-label" key={key}>
                     <input
                       type="checkbox"
-                      checked={draft.receipt[key]}
+                      checked={opts[key]}
                       onChange={(e) => receipt(key, e.target.checked)}
                     />
                     {label}
                   </label>
                 ))}
-                {!draft.receipt.showBusinessName && !(draft.receipt.showLogo && draft.logo) && (
+                {!opts.showBusinessName && !(opts.showLogo && draft.logo) && (
                   <small>The name still shows while there is no logo on the receipt.</small>
                 )}
                 <h3>Each job</h3>
                 <label>
                   Highlighted line
-                  <select
-                    value={draft.receipt.headline}
-                    onChange={(e) => receipt('headline', e.target.value)}
-                  >
+                  <select value={opts.headline} onChange={(e) => receipt('headline', e.target.value)}>
                     <option value="description">Job description</option>
                     <option value="service">Service name</option>
                   </select>
@@ -395,9 +412,7 @@ export default function BusinessSettingsPage({
                   [
                     [
                       'showSubline',
-                      draft.receipt.headline === 'service'
-                        ? 'Job description below it'
-                        : 'Service name below it',
+                      opts.headline === 'service' ? 'Job description below it' : 'Service name below it',
                     ],
                     ['showJobId', 'Job ID'],
                     ['showQuantity', 'Quantity'],
@@ -409,7 +424,7 @@ export default function BusinessSettingsPage({
                   <label className="check-label" key={key}>
                     <input
                       type="checkbox"
-                      checked={draft.receipt[key]}
+                      checked={opts[key]}
                       onChange={(e) => receipt(key, e.target.checked)}
                     />
                     {label}
@@ -427,7 +442,7 @@ export default function BusinessSettingsPage({
                   <label className="check-label" key={key}>
                     <input
                       type="checkbox"
-                      checked={draft.receipt[key]}
+                      checked={opts[key]}
                       onChange={(e) => receipt(key, e.target.checked)}
                     />
                     {label}
@@ -446,7 +461,7 @@ export default function BusinessSettingsPage({
                   <label className="check-label" key={key}>
                     <input
                       type="checkbox"
-                      checked={draft.receipt[key]}
+                      checked={opts[key]}
                       onChange={(e) => receipt(key, e.target.checked)}
                     />
                     {label}
@@ -463,7 +478,7 @@ export default function BusinessSettingsPage({
                   <label className="check-label" key={key}>
                     <input
                       type="checkbox"
-                      checked={draft.receipt[key]}
+                      checked={opts[key]}
                       onChange={(e) => receipt(key, e.target.checked)}
                     />
                     {label}
@@ -473,7 +488,7 @@ export default function BusinessSettingsPage({
                   Receipt footer
                   <input
                     maxLength={500}
-                    value={draft.receipt.footer}
+                    value={opts.footer}
                     onChange={(e) => receipt('footer', e.target.value)}
                   />
                 </label>
@@ -490,24 +505,11 @@ export default function BusinessSettingsPage({
                 <small>
                   Changes affect receipt and report branding, not saved job amounts or payment balances.
                 </small>
-                {sectionSave('Receipt settings', ['receipt', 'documents'])}
+                {sectionSave('Receipt settings', ['receipt', 'receiptPage', 'documents'])}
               </div>
               <div className="receipt-preview">
                 <div className="receipt-preview-head">
                   <h3>Preview</h3>
-                  <div className="settings-tabs" role="group" aria-label="Preview paper">
-                    {(['narrow', 'wide'] as const).map((value) => (
-                      <button
-                        type="button"
-                        key={value}
-                        className={previewLayout === value ? 'active' : 'secondary'}
-                        aria-pressed={previewLayout === value}
-                        onClick={() => setPreviewLayout(value)}
-                      >
-                        {value === 'narrow' ? 'Receipt printer' : 'Full page'}
-                      </button>
-                    ))}
-                  </div>
                 </div>
                 <small>Example sale. Unsaved changes are shown.</small>
                 <div

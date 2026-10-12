@@ -47,6 +47,9 @@ try {
     await page.getByLabel('Website', { exact: true }).fill('https://example.com');
     await page.getByRole('tab', { name: 'Receipts' }).click();
     await page.getByLabel('Receipt footer', { exact: true }).fill('Thank you from Mairoba.');
+    // Receipt printer and full-page receipts are set separately.
+    await page.getByRole('button', { name: 'Full page (A4 / A5)', exact: true }).click();
+    await page.getByLabel('Receipt footer', { exact: true }).fill('Thank you from Mairoba.');
     const png = await page.evaluate(() => {
       const canvas = document.createElement('canvas');
       canvas.width = 300;

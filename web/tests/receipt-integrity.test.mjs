@@ -119,6 +119,7 @@ test('Each business chooses what its receipt shows and which line leads each job
     ...defaultBranding(),
     businessName: 'Shop',
     receipt: { ...defaultBranding().receipt, ...o },
+    receiptPage: { ...defaultBranding().receiptPage, ...o },
   });
   const full = receiptModel(r, brand({}));
   assert.equal(full.items[0].title, 'Shop banner, flex with eyelets');
