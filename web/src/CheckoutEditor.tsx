@@ -89,15 +89,23 @@ function DiscountFields({
         <>
           <label>
             {value.kind === 'percent' ? `Percentage (up to ${maxPercent}%)` : 'Amount (₦)'}
-            <input
-              aria-label={`${label} ${value.kind === 'percent' ? 'percentage' : 'amount'}`}
-              type="number"
-              min="0"
-              max={value.kind === 'percent' ? maxPercent : undefined}
-              step={value.kind === 'percent' ? '0.5' : '0.01'}
-              value={value.value}
-              onChange={(e) => onChange({ ...value, value: e.target.value })}
-            />
+            {value.kind === 'percent' ? (
+              <input
+                aria-label={`${label} percentage`}
+                type="number"
+                min="0"
+                max={maxPercent}
+                step="0.5"
+                value={value.value}
+                onChange={(e) => onChange({ ...value, value: e.target.value })}
+              />
+            ) : (
+              <CurrencyInput
+                aria-label={`${label} amount`}
+                value={value.value}
+                onValueChange={(amount) => onChange({ ...value, value: amount })}
+              />
+            )}
           </label>
           <label>
             Reason (optional)
