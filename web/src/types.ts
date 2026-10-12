@@ -50,6 +50,12 @@ export interface Job {
   sourceNote?: string;
   /** Deadline (ISO time); absent when the job has none. */
   dueAt?: string;
+  /** Discounts: price before discount, the job's own discount, its share of an order discount. */
+  discount?: { kind: 'percent' | 'amount'; value: number; reason?: string };
+  grossAmount?: number;
+  lineDiscount?: number;
+  orderDiscountShare?: number;
+  discountAmount?: number;
   createdBy?: string | null;
   createdByLabel?: string | null;
   unitPrice?: number;
@@ -199,6 +205,9 @@ export interface CheckoutJob extends Job {
   serviceVersion: number;
 }
 export interface CheckoutRecord {
+  /** Whole-order discount as entered, and all discounts on this checkout in kobo. */
+  orderDiscount?: { kind: 'percent' | 'amount'; value: number; reason?: string } | null;
+  discountTotal?: number;
   corrected?: boolean;
   countedMaterialJobs?: string[];
   methodLabel?: string;

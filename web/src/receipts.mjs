@@ -72,6 +72,9 @@ export function receiptModel(record, business, pending = false, adjustments = []
         ? `Received: ${item.source}${item.sourceNote ? ' — ' + item.sourceNote : ''}`
         : '',
       o.showDueDate && item?.dueAt && !Number.isNaN(Date.parse(item.dueAt)) ? `Due ${lagos(item.dueAt)}` : '',
+      item?.discountAmount > 0
+        ? `Price ${currency(item.grossAmount)} less discount ${currency(item.discountAmount)}`
+        : '',
     ].filter(Boolean);
     return {
       id: j.id,
@@ -90,6 +93,8 @@ export function receiptModel(record, business, pending = false, adjustments = []
     };
   });
   const totals = [];
+  if (record.discountTotal > 0)
+    totals.push({ label: 'Discounts given', value: `−${currency(record.discountTotal)}` });
   if ((record.jobs ?? []).length)
     totals.push({ label: 'New jobs', value: balancedTotal ? currency(record.total) : 'Needs verification' });
   totals.push({

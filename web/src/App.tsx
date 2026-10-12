@@ -30,6 +30,7 @@ import { lazy, Suspense, useEffect, useRef, useState, type FormEvent } from 'rea
 import Modal from './Modal';
 import JobsPaymentsPage from './JobsPaymentsPage';
 import JobDetails from './JobDetails';
+import { discountPolicy } from './discounts.mjs';
 import { PeriodDefaultsContext } from './PeriodFilter';
 import {
   CustomerConflictReview,
@@ -1170,6 +1171,10 @@ export default function App() {
                   label: shop?.staffName || session!.user.email || session!.user.id,
                 }}
                 jobSettings={branding.settings.jobs}
+                discountPolicy={discountPolicy(
+                  branding.settings.discounts,
+                  demo ? 4 : (shop?.accessLevel ?? 0),
+                )}
                 busy={busy}
                 paymentOnly={!checkoutConflict.event.data.jobs.length}
                 onClose={() => setConflictReviewHidden(true)}
@@ -1647,6 +1652,10 @@ export default function App() {
                 onClose={() => setForm(null)}
                 onReceipt={setReceipt}
                 jobSettings={branding.settings.jobs}
+                discountPolicy={discountPolicy(
+                  branding.settings.discounts,
+                  demo ? 4 : (shop?.accessLevel ?? 0),
+                )}
               />
             )}
             {adjustingJob && (

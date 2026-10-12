@@ -1,4 +1,5 @@
 import { validDueAt } from './job-deadlines.mjs';
+import { applyOrderDiscount, discountKobo, validDiscount } from './discounts.mjs';
 import { validateWorkflow, jobWorkflow } from './business-options.mjs';
 import { applyCustomerEvent, phoneOwner } from './customers.mjs';
 import { jobBalance, customerBalance } from './domain.mjs';
@@ -55,18 +56,32 @@ export function quoteLine(ledger, line) {
   )
     throw Error('Choose how the job was received.');
   // An empty deadline is left off the job rather than stored as ''.
-  const { dueAt: rawDue, ...rest } = line;
+  const {
+    dueAt: rawDue,
+    discount: rawDiscount,
+    grossAmount: _gross,
+    lineDiscount: _line,
+    orderDiscountShare: _share,
+    discountAmount: _discount,
+    ...rest
+  } = line;
   const dueAt = validDueAt(rawDue);
+  // The job's own discount; a whole-order discount is added by applyOrderDiscount.
+  const discount = validDiscount(rawDiscount);
+  const lineDiscount = discountKobo(discount, total);
   return {
     ...rest,
     ...(dueAt ? { dueAt } : {}),
+    ...(discount ? { discount } : {}),
     stockCountEventId: material ? stockCountEvent(ledger, material.id) : null,
     ...(line.workflow ? { workflow: validateWorkflow(line.workflow) } : {}),
     description: line.description.trim(),
     quantity,
     width,
     height,
-    amount: total,
+    amount: total - lineDiscount,
+    grossAmount: total,
+    lineDiscount,
     unitPrice: service.price,
     service: service.description,
     materialId: material?.id ?? null,
@@ -167,7 +182,7 @@ export function prepareCheckout(
   if (!Array.isArray(input.lines) || input.lines.length > 50)
     throw Error('A checkout can contain at most 50 jobs.');
   const expectedAccount = accountToken(working, customer.id);
-  const jobs = input.lines.map((line, index) => ({
+  const quoted = input.lines.map((line, index) => ({
     ...quoteLine(working, line),
     customerId: customer.id,
     createdAt: now,
@@ -181,6 +196,9 @@ export function prepareCheckout(
     modifiedByLabel: actor.label,
     modifiedAt: now,
   }));
+  // Order discount shared by price; with a policy, the giver's limits are checked here too.
+  const discounts = applyOrderDiscount(quoted, input.orderDiscount, input.discountPolicy ?? null);
+  const jobs = discounts.jobs;
   const ids = new Set(jobs.map((j) => j.id));
   if (
     ids.size !== jobs.length ||
@@ -265,6 +283,8 @@ export function prepareCheckout(
       createdByLabel: actor.label,
       createdAt: now,
       total,
+      ...(discounts.order ? { orderDiscount: discounts.order } : {}),
+      ...(discounts.discountTotal ? { discountTotal: discounts.discountTotal } : {}),
       ...plan,
     },
   };
@@ -286,6 +306,7 @@ export function applyCheckout(ledger, event) {
       ...(data.methodLabel ? { methodLabel: data.methodLabel } : {}),
       paidOn: data.paidOn,
       reference: data.reference,
+      orderDiscount: data.orderDiscount ?? null,
     },
     { id: data.createdBy, label: data.createdByLabel },
     data.id,

@@ -66,6 +66,13 @@ export default function JobDetails({
           ? ` · Last changed by ${job.modifiedByLabel || 'Not recorded'} on ${lagosTime(job.modifiedAt)}`
           : ''}
       </p>
+      {(job.discountAmount ?? 0) > 0 && (
+        <p className="muted">
+          Price {currency(job.grossAmount ?? job.amount)} · Discount −{currency(job.discountAmount ?? 0)}
+          {job.discount?.reason ? ` · ${job.discount.reason}` : ''} · given by{' '}
+          {job.createdByLabel || 'Not recorded'}
+        </p>
+      )}
       {job.dueAt && !Number.isNaN(Date.parse(job.dueAt)) && (
         <p className={`deadline deadline-${deadlineState(job)}`}>
           Deadline: {lagosTime(job.dueAt)}
