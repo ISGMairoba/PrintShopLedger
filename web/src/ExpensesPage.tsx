@@ -5,6 +5,7 @@ import { useState } from 'react';
 import ExpenseEditor from './ExpenseEditor';
 import Modal from './Modal';
 import Icon from './Icon';
+import { useDateFilter } from './PeriodFilter';
 import ResponsiveTable from './ResponsiveTable';
 import { SortHeader, useTableSort } from './TableSort';
 import { expenseCode, expensePaid, expenseStatus, expenseSummary, makeExpenseEvent } from './expenses.mjs';
@@ -38,9 +39,10 @@ export default function ExpensesPage({
   const [query, setQuery] = useState(''),
     [status, setStatus] = useState('active'),
     [category, setCategory] = useState(''),
-    [staff, setStaff] = useState(''),
-    [from, setFrom] = useState(''),
-    [to, setTo] = useState('');
+    [staff, setStaff] = useState('');
+  const dates = useDateFilter('expenses');
+  const from = dates.period.preset === 'all' ? '' : dates.period.from,
+    to = dates.period.preset === 'all' ? '' : dates.period.to;
   const [audit, setAudit] = useState(false),
     [editor, setEditor] = useState<Expense | 'new' | null>(null),
     [payment, setPayment] = useState<Expense | null>(null),
@@ -109,8 +111,7 @@ export default function ExpensesPage({
     setStatus('active');
     setCategory('');
     setStaff('');
-    setFrom('');
-    setTo('');
+    dates.reset();
   };
   return (
     <>
@@ -180,14 +181,7 @@ export default function ExpensesPage({
               ),
             )}
           </select>
-          <label>
-            From
-            <input type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} />
-          </label>
-          <label>
-            To
-            <input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} />
-          </label>
+          {dates.button}
           <button className="secondary history-filter-reset" onClick={reset}>
             Reset filters
           </button>
@@ -200,6 +194,7 @@ export default function ExpensesPage({
             Add expense
           </button>
         </div>
+        {dates.panel}
         {!ready ? (
           <p className="empty">Loading expenses…</p>
         ) : !visible.length ? (

@@ -64,3 +64,22 @@ test('period matching uses Lagos business days; all dates match everything', () 
   assert.equal(inPeriod('2026-10-11T22:30:00Z', period), false);
   assert.equal(inPeriod('2020-01-01T00:00:00Z', { preset: 'all', from: '', to: '' }), true);
 });
+
+test('each page has a default period; Dashboard and Reports always use a date range', () => {
+  const loaded = validateBranding({
+    ...defaultBranding(),
+    businessName: 'Shop',
+    periods: { pointOfService: 'today' },
+  });
+  assert.equal(loaded.periods.pointOfService, 'today');
+  assert.equal(loaded.periods.dashboard, 'month');
+  assert.equal(loaded.periods.jobs, 'all');
+  assert.throws(
+    () => validateBranding({ ...defaultBranding(), businessName: 'Shop', periods: { dashboard: 'all' } }),
+    /default period/,
+  );
+  assert.throws(
+    () => validateBranding({ ...defaultBranding(), businessName: 'Shop', periods: { jobs: 'year' } }),
+    /default period/,
+  );
+});

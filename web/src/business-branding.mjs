@@ -27,6 +27,18 @@ export const jobSettingsDefaults = () => ({
   defaultDuration: { value: 0, unit: 'days' },
   paymentPrefill: 'suggested',
 });
+// The period each page opens with. 'all' is offered only where a page can list everything.
+export const defaultPeriods = () => ({
+  dashboard: 'month',
+  reports: 'month',
+  pointOfService: '30days',
+  jobs: 'all',
+  payments: 'all',
+  expenses: 'all',
+  stockHistory: 'all',
+});
+export const periodChoices = ['today', 'week', 'month', '30days', 'all'];
+export const pagesWithoutAll = ['dashboard', 'reports'];
 export const defaultBackgrounds = () => ({
   light: { canvas: '', surface: '', surfaceAlt: '' },
   dark: { canvas: '', surface: '', surfaceAlt: '' },
@@ -46,6 +58,7 @@ export const defaultBranding = () => ({
   options: defaultOptions(),
   corrections: { recentDays: 7 },
   jobs: jobSettingsDefaults(),
+  periods: defaultPeriods(),
   pageAccess: defaultPageAccess(),
   receipt: {
     showLogo: true,
@@ -115,6 +128,14 @@ export function validateBranding(input) {
   value.options = validateOptions(value.options);
   value.pageAccess = validatePageAccess(value.pageAccess);
   value.jobs = validateJobSettings(value.jobs);
+  value.periods = { ...defaultPeriods(), ...value.periods };
+  for (const [key, preset] of Object.entries(value.periods))
+    if (
+      !(key in defaultPeriods()) ||
+      !periodChoices.includes(preset) ||
+      (preset === 'all' && pagesWithoutAll.includes(key))
+    )
+      throw Error('Choose a valid default period for each page.');
   value.corrections ??= { recentDays: 7 };
   if (
     !Number.isInteger(value.corrections.recentDays) ||

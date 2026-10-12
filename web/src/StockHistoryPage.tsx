@@ -1,6 +1,7 @@
 import ResponsiveTable from './ResponsiveTable';
 import Icon from './Icon';
-import { useState } from 'react';
+import { useDateFilter } from './PeriodFilter';
+import { useEffect, useState } from 'react';
 import Modal from './Modal';
 import { SortHeader, useTableSort } from './TableSort';
 import { materialActionLabels, materialCode } from './material-display.mjs';
@@ -38,9 +39,11 @@ export default function StockHistoryPage({ history, materials, pending, ready, d
   const [search, setSearch] = useState('');
   const [action, setAction] = useState('');
   const [materialId, setMaterialId] = useState('');
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
+  const dates = useDateFilter('stockHistory');
+  const from = dates.period.preset === 'all' ? '' : dates.period.from,
+    to = dates.period.preset === 'all' ? '' : dates.period.to;
   const [page, setPage] = useState(0);
+  useEffect(() => setPage(0), [from, to]);
   const [selected, setSelected] = useState<MaterialHistoryEntry | null>(null);
   const pendingIds = new Set(pending.map((item) => item.id));
   const sorting = useTableSort<MaterialHistoryEntry>('date', 'desc');
@@ -117,24 +120,7 @@ export default function StockHistoryPage({ history, materials, pending, ready, d
               </option>
             ))}
           </select>
-          <label>
-            From
-            <input
-              type="date"
-              value={from}
-              max={to || undefined}
-              onChange={(e) => change(() => setFrom(e.target.value))}
-            />
-          </label>
-          <label>
-            To
-            <input
-              type="date"
-              value={to}
-              min={from || undefined}
-              onChange={(e) => change(() => setTo(e.target.value))}
-            />
-          </label>
+          {dates.button}
           <button
             className="secondary history-filter-reset"
             type="button"
@@ -142,14 +128,14 @@ export default function StockHistoryPage({ history, materials, pending, ready, d
               setSearch('');
               setAction('');
               setMaterialId('');
-              setFrom('');
-              setTo('');
+              dates.reset();
               setPage(0);
             }}
           >
             Reset filters
           </button>
         </div>
+        {dates.panel}
         {!ready ? (
           <div className="empty">Loading stock history.</div>
         ) : !matching.length ? (

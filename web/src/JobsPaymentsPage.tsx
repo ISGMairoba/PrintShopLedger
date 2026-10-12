@@ -8,7 +8,7 @@ import { jobBalance } from './domain.mjs';
 import { lastJobPayment } from './job-progress.mjs';
 import { currency, dateLabel, shortId } from './app/shared';
 import { useState } from 'react';
-import PeriodFilter, { allDates } from './PeriodFilter';
+import { useDateFilter } from './PeriodFilter';
 import { inPeriod } from './dashboard.mjs';
 import type { CheckoutRecord, Job, Ledger, Payment } from './types';
 
@@ -44,15 +44,11 @@ export default function JobsPaymentsPage({
   onAction,
   onReceipt,
 }: Props) {
-  const total = ledger.jobs.reduce((sum, job) => sum + job.amount, 0);
-  const paid = ledger.payments.reduce(
-    (sum, payment) => sum + payment.allocations.reduce((allocated, item) => allocated + item.amount, 0),
-    0,
-  );
   const customerName = (id: string) =>
     ledger.customers.find((customer) => customer.id === id)?.name ?? 'Unknown customer';
   const search = query.toLowerCase();
-  const [period, setPeriod] = useState(allDates);
+  const dates = useDateFilter(page === 'Jobs' ? 'jobs' : 'payments');
+  const period = dates.period;
   const [audit, setAudit] = useState(false);
   const jobSorting = useTableSort<Job>('createdAt', 'desc');
   const paymentSorting = useTableSort<Payment>('createdAt', 'desc');
@@ -102,28 +98,57 @@ export default function JobsPaymentsPage({
           .join(', '),
     },
   );
+  // Totals describe the list as filtered (period and search).
+  const balances = matchingJobs.map((job) => jobBalance(ledger, job));
+  const total = matchingJobs.reduce((sum, job) => sum + job.amount, 0);
+  const paid = balances.reduce((sum, balance) => sum + balance.paid, 0);
+  const outstanding = balances.reduce((sum, balance) => sum + balance.outstanding, 0);
+  const received = matchingPayments.reduce((sum, payment) => sum + payment.amount, 0);
+  const allocated = matchingPayments.reduce(
+    (sum, payment) => sum + payment.allocations.reduce((n, item) => n + item.amount, 0),
+    0,
+  );
   return (
     <>
-      <section className="stats">
-        <article>
-          <span>Total job value</span>
-          <strong>{currency(total)}</strong>
-          <small>{ledger.jobs.length} jobs</small>
-        </article>
-        <article>
-          <span>Paid against jobs</span>
-          <strong>{currency(paid)}</strong>
-          <small>Allocated to individual jobs</small>
-        </article>
-        <article>
-          <span>Outstanding</span>
-          <strong>{currency(total - paid)}</strong>
-          <small>
-            {ledger.jobs.filter((job) => jobBalance(ledger, job).outstanding > 0).length} jobs awaiting
-            payment
-          </small>
-        </article>
-      </section>
+      {page === 'Jobs' ? (
+        <section className="stats">
+          <article>
+            <span>Total job value</span>
+            <strong>{currency(total)}</strong>
+            <small>{matchingJobs.length} jobs in this list</small>
+          </article>
+          <article>
+            <span>Paid against jobs</span>
+            <strong>{currency(paid)}</strong>
+            <small>Allocated to these jobs</small>
+          </article>
+          <article>
+            <span>Outstanding</span>
+            <strong>{currency(outstanding)}</strong>
+            <small>
+              {balances.filter((balance) => balance.outstanding > 0).length} jobs awaiting payment
+            </small>
+          </article>
+        </section>
+      ) : (
+        <section className="stats">
+          <article>
+            <span>Payments received</span>
+            <strong>{currency(received)}</strong>
+            <small>{matchingPayments.length} payments in this list</small>
+          </article>
+          <article>
+            <span>Allocated to jobs</span>
+            <strong>{currency(allocated)}</strong>
+            <small>Paid against individual jobs</small>
+          </article>
+          <article>
+            <span>Customers</span>
+            <strong>{new Set(matchingPayments.map((payment) => payment.customerId)).size}</strong>
+            <small>Paid in this list</small>
+          </article>
+        </section>
+      )}
       <section className="panel">
         <div className="toolbar">
           <label className="list-sort-select">
@@ -163,7 +188,7 @@ export default function JobsPaymentsPage({
             </select>
           </label>
           <button
-            className="secondary"
+            className="secondary sort-direction"
             onClick={() => {
               const sorting = page === 'Jobs' ? jobSorting : paymentSorting;
               sorting.toggle(sorting.key);
@@ -179,7 +204,7 @@ export default function JobsPaymentsPage({
             value={query}
             onChange={(e) => onQuery(e.target.value)}
           />
-          <PeriodFilter value={period} onChange={setPeriod} allowAll />
+          {dates.button}
           {page === 'Jobs' && (
             <button className="secondary" aria-pressed={audit} onClick={() => setAudit(!audit)}>
               <Icon name={audit ? 'table' : 'audit'} /> {audit ? 'Normal view' : 'Audit view'}
@@ -192,6 +217,7 @@ export default function JobsPaymentsPage({
             <Icon name="add" /> {page === 'Jobs' ? 'New job' : 'Record payment'}
           </button>
         </div>
+        {dates.panel}
         {!ready ? (
           <div className="empty">Loading saved records.</div>
         ) : page === 'Jobs' ? (

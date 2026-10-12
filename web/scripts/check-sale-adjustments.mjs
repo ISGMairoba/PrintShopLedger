@@ -259,7 +259,8 @@ try {
         assert.match(await d.innerText(), /Cash refunded/);
         assert.match(await d.innerText(), /₦160\.00/);
         await d.getByRole('button', { name: 'Close', exact: true }).click();
-        await nav('Material Waste');
+        await nav('Materials');
+        await page.getByRole('button', { name: 'Waste & reprints', exact: true }).click();
         await page.getByRole('button', { name: 'Record material waste' }).click();
         d = page.getByRole('dialog');
         assert.equal(await d.getByLabel('Related job (optional)').locator('option').count(), 3);
@@ -285,7 +286,8 @@ try {
         assert.match(await page.locator('main').innerText(), /Waste \/ damage \/ reprint/);
         assert.match(await page.locator('main').innerText(), /Cancelled sale: stock returned/);
         await context.setOffline(true);
-        await nav('Material Waste');
+        await nav('Materials');
+        await page.getByRole('button', { name: 'Waste & reprints', exact: true }).click();
         assert.equal(await page.getByRole('button', { name: 'Record material waste' }).isDisabled(), true);
         await context.setOffline(false);
         await nav('Sale Adjustments');

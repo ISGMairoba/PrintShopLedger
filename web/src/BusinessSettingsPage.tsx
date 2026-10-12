@@ -580,6 +580,39 @@ export default function BusinessSettingsPage({
             </label>
             <p>The recommended amount is always shown beside the box, with a button to use it.</p>
             {sectionSave('Job and payment settings', ['jobs'])}
+            <h3>Default time frame</h3>
+            <p>
+              The period each page opens with. Staff can still choose another period while working; it returns
+              to this default next time.
+            </p>
+            <div className="form-grid">
+              {(
+                [
+                  ['dashboard', 'Dashboard'],
+                  ['reports', 'Reports'],
+                  ['pointOfService', 'Point of Service'],
+                  ['jobs', 'Jobs'],
+                  ['payments', 'Payments'],
+                  ['expenses', 'Expenses'],
+                  ['stockHistory', 'Stock History'],
+                ] as const
+              ).map(([key, label]) => (
+                <label key={key}>
+                  {label}
+                  <select
+                    value={draft.periods[key]}
+                    onChange={(event) => field('periods', { ...draft.periods, [key]: event.target.value })}
+                  >
+                    {key !== 'dashboard' && key !== 'reports' && <option value="all">All dates</option>}
+                    <option value="today">Today</option>
+                    <option value="week">Last 7 days</option>
+                    <option value="month">This month</option>
+                    <option value="30days">Last 30 days</option>
+                  </select>
+                </label>
+              ))}
+            </div>
+            {sectionSave('Default time frames', ['periods'])}
           </fieldset>
           <fieldset hidden={tab !== 'Corrections'} disabled={busy || !ready}>
             <legend>Correction history</legend>
