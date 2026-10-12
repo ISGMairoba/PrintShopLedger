@@ -2,6 +2,9 @@ import { useFeedbackMessage, FeedbackBanner } from './Feedback';
 import { useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import Icon from './Icon';
+import { sampleReceipt } from './receipt-sample.mjs';
+import type { CheckoutRecord } from './types';
+import type { Branding } from './useBusinessBranding';
 import {
   defaultPrintSettings,
   loadPrintSettings,
@@ -13,6 +16,7 @@ import {
   discoverPrinters,
   printCertificate,
   printHtml,
+  printReceipt,
   type PrinterMedia,
   type PrintSettings,
 } from './printing';
@@ -23,11 +27,14 @@ export default function PrintSettingsPage({
   scope,
   ready,
   trusted,
+  business = 'PrintShopLedger',
 }: {
   scope: string;
   ready: boolean;
   /** Signed in to a business workspace, so trusted printing is available. */
   trusted: boolean;
+  /** Business branding, so a receipt-roll test print looks like a real receipt. */
+  business?: string | Branding;
 }) {
   const [message, setMessage, messageTone] = useFeedbackMessage('success');
   const [settings, setSettings] = useState<PrintSettings>(() => {
@@ -103,7 +110,10 @@ export default function PrintSettingsPage({
     setBusy(true);
     setMessage('');
     try {
-      await printHtml(settings, 'PrintShopLedger test', sample);
+      // Receipt rolls print an example receipt the same way real receipts print.
+      if (settings.width <= 90)
+        await printReceipt(settings, sampleReceipt() as unknown as CheckoutRecord, business);
+      else await printHtml(settings, 'PrintShopLedger test', sample);
       setMessage('Test sent to the printer. Check the printed page.');
     } catch (error) {
       setMessage(`Test print failed: ${error instanceof Error ? error.message : String(error)}`, 'error');
@@ -354,6 +364,43 @@ export default function PrintSettingsPage({
                   </>
                 )}
               </label>
+              {draft.width <= 90 && (
+                <>
+                  <label>
+                    Receipt printer mode
+                    <select
+                      aria-label="Receipt printer mode"
+                      value={draft.rollMethod ?? 'escpos'}
+                      onChange={(e) =>
+                        setDraft({ ...draft, rollMethod: e.target.value as 'escpos' | 'driver' })
+                      }
+                    >
+                      <option value="escpos">Printer commands (recommended for thermal printers)</option>
+                      <option value="driver">Through the printer driver</option>
+                    </select>
+                    <small>
+                      Printer commands fit the receipt exactly to the print head. Use the driver only if the
+                      printer does not understand ESC/POS.
+                    </small>
+                  </label>
+                  {(draft.rollMethod ?? 'escpos') === 'escpos' && (
+                    <label>
+                      Print width
+                      <select
+                        aria-label="Print width"
+                        value={draft.rollDots ?? 0}
+                        onChange={(e) => setDraft({ ...draft, rollDots: Number(e.target.value) })}
+                      >
+                        <option value={0}>From the paper size</option>
+                        <option value={576}>576 dots (80 mm paper, 72 mm print)</option>
+                        <option value={512}>512 dots (80 mm paper, 64 mm print)</option>
+                        <option value={384}>384 dots (58 mm paper, 48 mm print)</option>
+                      </select>
+                      <small>If the right side is cut off, choose the next smaller width.</small>
+                    </label>
+                  )}
+                </>
+              )}
               <label>
                 Font
                 <input

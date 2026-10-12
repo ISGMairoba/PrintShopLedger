@@ -6,6 +6,9 @@ import {
   directPrintLayout,
   printDocument,
   printerMedia,
+  escposLayout,
+  escposStart,
+  escposEnd,
 } from './print-settings.mjs';
 import type { CheckoutRecord, SaleAdjustment } from './types';
 import type { Branding } from './useBusinessBranding';
@@ -24,6 +27,10 @@ export type PrintSettings = {
   copies: number;
   paperSource: string;
   autoPrint: boolean;
+  /** Receipt rolls: printer commands at an exact dot width, or through the driver. */
+  rollMethod?: 'escpos' | 'driver';
+  /** Print-head width in dots (0 = from the paper width). */
+  rollDots?: number;
 };
 // Trusted printing: QZ Tray requests are signed with the business key on the server (see
 // src/print-signing.mjs). Without a signer, offline, or on failure, requests go unsigned and
@@ -179,19 +186,37 @@ export async function printReceipt(
   adjustments: SaleAdjustment[] = [],
 ) {
   const s = validatePrintSettings(settings);
-  await readyPrinter(s);
+  const qz = await readyPrinter(s);
   const { createReceiptPdf } = await import('./receipt-pdf');
+  const title = `Receipt ${record.id.slice(0, 8).toUpperCase()}`;
+  const ink = (await import('./logo-ink')).withInkLogo;
+  if (directPrintLayout(s).media.layout === 'roll' && s.rollMethod !== 'driver') {
+    // Thermal receipt printers: QZ Tray turns the receipt into ESC/POS raster commands exactly
+    // as wide as the print head, so no driver can shift, scale or clip it.
+    const { dots, media } = escposLayout(s) as { dots: number; media: import('./receipt-pdf').ReceiptMedia };
+    const doc = createReceiptPdf(record, await ink(business), pending, adjustments, media);
+    const base64 = (doc.output('datauristring') as string).split(',')[1];
+    await qz.print(qz.configs.create(s.printer, { copies: s.copies, jobName: title }), [
+      escposStart,
+      {
+        type: 'raw',
+        format: 'pdf',
+        flavor: 'base64',
+        data: base64,
+        options: { language: 'ESCPOS', dotDensity: 'double', pageWidth: dots },
+      },
+      escposEnd,
+    ]);
+    return;
+  }
   // Drawn for the area the printer can reach, so roll printers do not shift or cut the right side.
   const media = (directPrintLayout(s) as { media: import('./receipt-pdf').ReceiptMedia }).media;
   // Thermal rolls and monochrome printers need a solid black logo to print it at all.
-  const brand =
-    media.layout === 'roll' || !media.color
-      ? await (await import('./logo-ink')).withInkLogo(business)
-      : business;
+  const brand = media.layout === 'roll' || !media.color ? await ink(business) : business;
   const doc = createReceiptPdf(record, brand, pending, adjustments, media);
   const base64 = (doc.output('datauristring') as string).split(',')[1];
   const pageHeight = media.layout === 'roll' ? doc.internal.pageSize.getHeight() : null;
-  await printPdf(s, `Receipt ${record.id.slice(0, 8).toUpperCase()}`, base64, pageHeight);
+  await printPdf(s, title, base64, pageHeight);
 }
 // Call only after a transaction is durably saved. Sync, refresh and replay must never call this.
 // Returning a separate result lets checkout report print errors without undoing the transaction.

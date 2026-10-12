@@ -128,3 +128,20 @@ test('direct printing draws only the printable width and places it inside the ed
   assert.equal(a4.media.width, 188);
   assert.equal(a4.media.layout, 'page');
 });
+
+import { rollDots, escposLayout, validatePrintSettings as checkPrint } from '../src/print-settings.mjs';
+test('ESC/POS receipts are drawn exactly as wide as the print head', () => {
+  const d = defaultPrintSettings();
+  assert.equal(rollDots({ ...d, width: 80, height: 200 }), 576);
+  assert.equal(rollDots({ ...d, width: 58, height: 200 }), 384);
+  assert.equal(rollDots({ ...d, width: 80, height: 200, rollDots: 512 }), 512);
+  const layout = escposLayout({ ...d, width: 80, height: 200, rollDots: 512, color: true });
+  assert.equal(layout.media.width, 64);
+  assert.equal(layout.media.color, false);
+  assert.equal(layout.media.layout, 'roll');
+  // Settings saved before these options existed default to printer commands.
+  const { rollMethod, rollDots: dots, ...older } = d;
+  assert.equal(checkPrint(older).rollMethod, 'escpos');
+  assert.throws(() => checkPrint({ ...d, rollMethod: 'fax' }), /how receipts/);
+  assert.throws(() => checkPrint({ ...d, rollDots: 50 }), /dots/);
+});

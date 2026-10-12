@@ -13,6 +13,11 @@ export const defaultPrintSettings = () => ({
   copies: 1,
   paperSource: '',
   autoPrint: false,
+  // Receipt rolls: 'escpos' sends the receipt as the printer's own commands at an exact dot
+  // width (no driver scaling or clipping); 'driver' prints through the Windows driver.
+  rollMethod: 'escpos',
+  // Dots the print head covers: 0 = from the paper (80 mm → 576, 58 mm → 384).
+  rollDots: 0,
 });
 export const paperSizes = {
   A4: [210, 297],
@@ -51,6 +56,12 @@ export function validatePrintSettings(value) {
   if (s.margins.left + s.margins.right >= w || s.margins.top + s.margins.bottom >= h)
     throw new Error('Margins must leave room for printing.');
   if (s.autoPrint && !s.printer) throw new Error('Select a printer before enabling automatic printing.');
+  s.rollMethod ??= 'escpos';
+  s.rollDots ??= 0;
+  if (!['escpos', 'driver'].includes(s.rollMethod))
+    throw new Error('Choose how receipts are sent to the printer.');
+  if (!Number.isInteger(s.rollDots) || (s.rollDots !== 0 && (s.rollDots < 200 || s.rollDots > 1000)))
+    throw new Error('Print width must be between 200 and 1000 dots.');
   return s;
 }
 export const settingsKey = (scope) => `printshopledger:printing:v1:${scope}`;
@@ -186,3 +197,33 @@ export function printerMedia(details) {
   ];
   return { sizes, trays };
 }
+
+/** Print-head width in dots for a roll (8 dots per mm, 203 dpi): 80 mm → 576, 58 mm → 384. */
+export function rollDots(settings) {
+  const s = validatePrintSettings(settings);
+  if (s.rollDots) return s.rollDots;
+  const paper = s.orientation === 'landscape' ? s.height : s.width;
+  return Math.round((paper - 2 * unprintableEdge(paper)) * 8);
+}
+
+/**
+ * Layout for a receipt sent as ESC/POS commands: drawn exactly as wide as the print head
+ * (dots ÷ 8 mm), black and white, with a small inset so nothing touches the edge.
+ */
+export function escposLayout(settings) {
+  const media = receiptMedia(settings);
+  const dots = rollDots(settings);
+  return {
+    dots,
+    media: {
+      ...media,
+      width: dots / 8,
+      color: false,
+      margins: { ...media.margins, left: 1.5, right: 1.5 },
+    },
+  };
+}
+
+/** ESC/POS bytes around the receipt image: reset first; feed past the cutter and cut after. */
+export const escposStart = '\x1B\x40';
+export const escposEnd = '\n\n\n\n\x1D\x56\x42\x00';
