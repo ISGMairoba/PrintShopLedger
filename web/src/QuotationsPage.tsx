@@ -1,3 +1,4 @@
+import { lineWithDescription } from './job-batches.mjs';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import Icon from './Icon';
@@ -354,6 +355,7 @@ export default function QuotationsPage({
       )}
       {editor && (
         <QuotationEditor
+          descriptionMode={branding.jobs.descriptionMode}
           ledger={ledger}
           quote={editor === 'new' ? null : editor}
           busy={busy}
@@ -433,6 +435,7 @@ function QuotationSummary({ quote }: { quote: Quotation }) {
 
 function QuotationEditor({
   ledger,
+  descriptionMode,
   quote,
   busy,
   actor,
@@ -441,6 +444,7 @@ function QuotationEditor({
   onSave,
 }: {
   ledger: Ledger;
+  descriptionMode: string;
   quote: Quotation | null;
   busy: boolean;
   actor: { id: string; label: string };
@@ -483,7 +487,11 @@ function QuotationEditor({
   const input = () => ({
     lines: lines.map(({ discountDraft: draft, ...l }) => {
       const discount = discountSpec(draft);
-      return { ...l, ...(discount ? { discount } : {}) };
+      return lineWithDescription(
+        { ...l, ...(discount ? { discount } : {}) },
+        ledger.services,
+        descriptionMode,
+      );
     }),
     orderDiscount: discountSpec(orderDiscount),
   });
@@ -495,7 +503,7 @@ function QuotationEditor({
       return { ok: null, error: cause instanceof Error ? cause.message : String(cause) };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lines, orderDiscount, ledger, discountPolicy]);
+  }, [lines, orderDiscount, ledger, discountPolicy, descriptionMode]);
   const edit = (id: string, change: Partial<Line>) =>
     setLines((items) => items.map((l) => (l.id === id ? { ...l, ...change } : l)));
   async function submit(e: FormEvent<HTMLFormElement>) {
@@ -615,16 +623,18 @@ function QuotationEditor({
                       ))}
                     </select>
                   </label>
-                  <label>
-                    Description
-                    <input
-                      aria-label="Description"
-                      required
-                      maxLength={500}
-                      value={item.description}
-                      onChange={(e) => edit(item.id, { description: e.target.value })}
-                    />
-                  </label>
+                  {descriptionMode !== 'hidden' && (
+                    <label>
+                      Description{descriptionMode === 'optional' ? ' (optional)' : ''}
+                      <input
+                        aria-label="Description"
+                        required={descriptionMode === 'required'}
+                        maxLength={500}
+                        value={item.description}
+                        onChange={(e) => edit(item.id, { description: e.target.value })}
+                      />
+                    </label>
+                  )}
                   <label>
                     Quantity
                     <input

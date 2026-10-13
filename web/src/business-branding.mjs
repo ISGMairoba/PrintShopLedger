@@ -28,6 +28,7 @@ export const receiptContentDefaults = () => ({
 export const jobSettingsDefaults = () => ({
   defaultDuration: { value: 0, unit: 'days' },
   paymentPrefill: 'suggested',
+  descriptionMode: 'required',
 });
 // The period each page opens with. 'all' is offered only where a page can list everything.
 export const defaultPeriods = () => ({
@@ -292,7 +293,10 @@ export function validateJobSettings(input) {
     throw Error('Default job duration must be 0–720 hours or 0–365 days.');
   if (!['suggested', 'zero'].includes(value.paymentPrefill))
     throw Error('Choose how the payment amount is filled in.');
+  if (!['required', 'optional', 'hidden'].includes(value.descriptionMode))
+    throw Error('Choose whether job descriptions are required, optional or hidden.');
   return {
+    descriptionMode: value.descriptionMode,
     defaultDuration: { value: duration.value, unit: duration.unit },
     paymentPrefill: value.paymentPrefill,
   };

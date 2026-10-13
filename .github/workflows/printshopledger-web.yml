@@ -66,6 +66,8 @@ jobs:
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/run-check.mjs node scripts/check-quotations.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: node scripts/run-check.mjs node scripts/check-job-batches.mjs
+      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         uses: actions/upload-artifact@v4
         with:
           name: dashboard-preview
@@ -74,3 +76,4 @@ jobs:
             /tmp/ledger-registration-*.png
             /tmp/retail-orders.png
           retention-days: 7
+

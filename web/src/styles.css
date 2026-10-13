@@ -2098,6 +2098,49 @@ input[type="checkbox"] {
   }
 }
 
+.job-batch-toolbar {
+  margin-block: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: var(--surface-subtle);
+}
+.job-batch-toolbar .toolbar {
+  margin-bottom: 0.5rem;
+}
+.job-selection {
+  font-size: 0.8rem;
+}
+.checkout-groups {
+  display: grid;
+  gap: 1rem;
+}
+.checkout-group {
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  min-width: 0;
+}
+.checkout-group details {
+  margin-top: 0.75rem;
+}
+.checkout-group summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding-block: 0.5rem;
+}
+.batch-stage-preview {
+  max-height: 45vh;
+  overflow: auto;
+  padding-left: 1.25rem;
+}
+.batch-stage-preview li {
+  margin-block: 0.75rem;
+  overflow-wrap: anywhere;
+}
+.batch-stage-preview small {
+  display: block;
+}
 /* Quick sale: product tiles and quantity steppers. */
 .quick-products {
   display: grid;

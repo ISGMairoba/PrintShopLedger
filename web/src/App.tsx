@@ -1,3 +1,5 @@
+import BatchJobProgressDialog from './BatchJobProgressDialog';
+import { batchProgressEvents } from './job-batches.mjs';
 import { BusinessSignup, DeveloperActivation, registrationError } from './BusinessRegistration';
 import { validateBusinessRegistration, validActivationToken } from './registration.mjs';
 import SaleAdjustmentsPage, { SaleAdjustmentEditor } from './SaleAdjustmentsPage';
@@ -138,6 +140,7 @@ export default function App() {
   const [receipt, setReceipt] = useState<CheckoutRecord | null>(null);
   // A quotation being turned into an order (checkout opens filled from it).
   const [quoteOrder, setQuoteOrder] = useState<Quotation | null>(null);
+  const [batchToAdvance, setBatchToAdvance] = useState<{ jobs: Job[]; mode: ProgressMode } | null>(null);
   const [quickSale, setQuickSale] = useState(false);
   const [jobToAdvance, setJobToAdvance] = useState<{ job: Job; mode: ProgressMode } | null>(null);
   const [adjustingJob, setAdjustingJob] = useState<Job | null>(null);
@@ -208,6 +211,7 @@ export default function App() {
       );
       setForm(null);
       setSelectedJob(null);
+      setBatchToAdvance(null);
       setReceipt(null);
       setAdjustingJob(null);
     }
@@ -1540,6 +1544,7 @@ export default function App() {
                       }}
                       onJob={setSelectedJob}
                       onNext={(job, mode) => setJobToAdvance({ job, mode })}
+                      onBulkAction={(jobs, mode) => setBatchToAdvance({ jobs, mode })}
                       onReceipt={setReceipt}
                     />
                   ) : page === 'Users' ? (
@@ -1657,6 +1662,7 @@ export default function App() {
                       onAddCustomer={() => setForm('customer')}
                       onJob={setSelectedJob}
                       onAction={(job, mode) => setJobToAdvance({ job, mode })}
+                      onBulkAction={(jobs, mode) => setBatchToAdvance({ jobs, mode })}
                       onReceipt={setReceipt}
                     />
                   )}
@@ -1849,6 +1855,52 @@ export default function App() {
                   )}
                   pending={state.pending.some((e) => e.id === receipt.id)}
                   onClose={() => setReceipt(null)}
+                />
+              )}
+              {batchToAdvance && (
+                <BatchJobProgressDialog
+                  jobs={batchToAdvance.jobs}
+                  mode={batchToAdvance.mode}
+                  busy={busy}
+                  onClose={() => setBatchToAdvance(null)}
+                  onSave={async (targetStage) => {
+                    if (busy || !ready || !scope || legacyConflict)
+                      throw Error('Wait until the workspace is ready.');
+                    const targetScope = scope;
+                    for (const item of batchToAdvance.jobs) {
+                      const current = state.ledger.jobs.find((job) => job.id === item.id);
+                      if (
+                        !current ||
+                        current.version !== item.version ||
+                        current.productionStatus !== item.productionStatus
+                      )
+                        throw Error('An item changed. Close this window and select the items again.');
+                    }
+                    const events = batchProgressEvents(
+                      batchToAdvance.jobs,
+                      batchToAdvance.mode,
+                      targetStage,
+                      {
+                        id: demo ? 'local-trial' : session!.user.id,
+                        label: demo
+                          ? 'Local trial user'
+                          : shop?.staffName || session!.user.email || session!.user.id,
+                      },
+                    );
+                    if (!events.length) throw Error('No selected items can take this action.');
+                    setBusy(true);
+                    try {
+                      const next = await saveEvents(targetScope, events, !demo);
+                      if (activeScope.current === targetScope) {
+                        setState(next);
+                        channel.current?.postMessage('changed');
+                        setBatchToAdvance(null);
+                        setMessage('Selected items updated. Changes sync automatically when connected.');
+                      }
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
                 />
               )}
               {jobToAdvance && (

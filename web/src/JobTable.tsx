@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react';
+import { groupJobsByCheckout } from './job-batches.mjs';
 import { jobWorkflow } from './business-options.mjs';
 import ResponsiveTable from './ResponsiveTable';
 import { SortHeader, useTableSort } from './TableSort';
@@ -30,6 +32,7 @@ export default function JobTable({
   audit = false,
   onJob,
   onAction,
+  onBulkAction,
 }: {
   ledger: Ledger;
   jobs: Job[];
@@ -40,9 +43,49 @@ export default function JobTable({
   audit?: boolean;
   onJob: (id: string) => void;
   onAction: (job: Job, mode: ProgressMode) => void;
+  onBulkAction?: (jobs: Job[], mode: ProgressMode) => void;
 }) {
   const { w, stage: stageLabel } = useWords();
-  return (
+  const [grouped, setGrouped] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const visibleKey = jobs.map((job) => job.id).join('|');
+  useEffect(() => {
+    const visible = new Set(visibleKey.split('|'));
+    setSelectedIds((ids) => ids.filter((id) => visible.has(id)));
+  }, [visibleKey]);
+  const selected = jobs.filter((job) => selectedIds.includes(job.id));
+  const toggle = (items: Job[], checked: boolean) =>
+    setSelectedIds((ids) =>
+      checked
+        ? [...new Set([...ids, ...items.map((job) => job.id)])]
+        : ids.filter((id) => !items.some((job) => job.id === id)),
+    );
+  const actions = (items: Job[]) => (
+    <div className="job-actions">
+      <button
+        className="secondary"
+        disabled={busy || !items.length}
+        onClick={() => onBulkAction?.(items, 'next')}
+      >
+        Next action
+      </button>
+      <button
+        className="secondary"
+        disabled={busy || !items.length}
+        onClick={() => onBulkAction?.(items, 'set')}
+      >
+        Set Action
+      </button>
+      <button
+        className="secondary"
+        disabled={busy || !items.length}
+        onClick={() => onBulkAction?.(items, 'complete')}
+      >
+        {stageLabel('Completed') === 'Completed' ? 'Mark as Complete' : `Mark as ${stageLabel('Completed')}`}
+      </button>
+    </div>
+  );
+  const renderTable = (rows: Job[]) => (
     <ResponsiveTable
       columns={[
         { index: 0, label: w('Job'), details: [1, 3, 4] },
@@ -78,7 +121,7 @@ export default function JobTable({
           </tr>
         </thead>
         <tbody>
-          {jobs.map((job) => {
+          {rows.map((job) => {
             const jobStatuses = jobWorkflow(job);
             const customer = ledger.customers.find((c) => c.id === job.customerId),
               balance = jobBalance(ledger, job),
@@ -88,6 +131,18 @@ export default function JobTable({
               <tr key={job.id}>
                 <td>
                   <div className="job-info">
+                    {onBulkAction && (
+                      <label className="check-label job-selection">
+                        <input
+                          type="checkbox"
+                          aria-label={`Select ${job.service} (${job.id.slice(0, 8).toUpperCase()})`}
+                          disabled={busy}
+                          checked={selectedIds.includes(job.id)}
+                          onChange={(event) => toggle([job], event.target.checked)}
+                        />{' '}
+                        Select
+                      </label>
+                    )}
                     <button className="text-button job-service" onClick={() => onJob(job.id)}>
                       {job.service}
                     </button>
@@ -128,7 +183,7 @@ export default function JobTable({
                   </small>
                   <progress
                     className="job-progress"
-                    aria-label={`Progress for ${job.description}`}
+                    aria-label={`Progress for ${job.description || job.service}`}
                     value={Math.max(0, jobStatuses.indexOf(stage))}
                     max={jobStatuses.length - 1}
                   />
@@ -173,5 +228,95 @@ export default function JobTable({
         </tbody>
       </table>
     </ResponsiveTable>
+  );
+  return (
+    <>
+      {onBulkAction && (
+        <div className="job-batch-toolbar">
+          <div className="toolbar">
+            <label className="check-label">
+              <input
+                type="checkbox"
+                checked={grouped}
+                onChange={(event) => setGrouped(event.target.checked)}
+              />{' '}
+              Group by checkout
+            </label>
+            <label className="check-label">
+              <input
+                type="checkbox"
+                aria-label={w('Select all visible jobs')}
+                disabled={busy || !jobs.length}
+                checked={jobs.length > 0 && selected.length === jobs.length}
+                onChange={(event) => toggle(jobs, event.target.checked)}
+              />{' '}
+              Select all shown
+            </label>
+            <strong aria-live="polite">{selected.length} selected</strong>
+            {selected.length > 0 && (
+              <button className="text-button" disabled={busy} onClick={() => setSelectedIds([])}>
+                Clear selection
+              </button>
+            )}
+          </div>
+          {selected.length > 0 && actions(selected)}
+        </div>
+      )}
+      {grouped && onBulkAction ? (
+        <div className="checkout-groups">
+          {groupJobsByCheckout(jobs).map((group) => {
+            const items: Job[] = group.jobs;
+            const total = items.reduce((sum, job) => sum + job.amount, 0);
+            const paid = items.reduce((sum, job) => sum + jobBalance(ledger, job).paid, 0);
+            const fullCount = group.checkoutId
+              ? ledger.jobs.filter((job) => job.checkoutId === group.checkoutId).length
+              : 1;
+            const customer = ledger.customers.find((value) => value.id === items[0].customerId);
+            return (
+              <section className="checkout-group" key={group.key}>
+                <div className="toolbar">
+                  <label className="check-label">
+                    <input
+                      type="checkbox"
+                      aria-label={`Select checkout ${group.checkoutId?.slice(0, 8).toUpperCase() ?? items[0].id.slice(0, 8).toUpperCase()}`}
+                      checked={items.every((job) => selectedIds.includes(job.id))}
+                      disabled={busy}
+                      onChange={(event) => toggle(items, event.target.checked)}
+                    />
+                    <strong>
+                      {group.checkoutId
+                        ? `Checkout ${group.checkoutId.slice(0, 8).toUpperCase()}`
+                        : w('Individual job')}
+                    </strong>
+                  </label>
+                  <span>
+                    {customer?.name ?? 'Unknown customer'} · {customer?.phone ?? ''}
+                  </span>
+                </div>
+                <p>
+                  {items.length} {w(items.length === 1 ? 'job' : 'jobs')} shown
+                  {fullCount > items.length ? ` of ${fullCount} — filters hide other items` : ''} ·{' '}
+                  {date(items[0].createdAt)}, {time(items[0].createdAt)}
+                </p>
+                <p>
+                  <strong>Total {currency(total)}</strong> · Paid {currency(paid)} · Outstanding{' '}
+                  {currency(total - paid)}
+                </p>
+                {actions(items)}
+                <details open>
+                  <summary>View items</summary>
+                  {renderTable(items)}
+                </details>
+              </section>
+            );
+          })}
+          <p className="muted">
+            Actions apply to the items shown. Change the filters to include hidden items.
+          </p>
+        </div>
+      ) : (
+        renderTable(jobs)
+      )}
+    </>
   );
 }

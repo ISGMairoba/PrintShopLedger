@@ -1,3 +1,4 @@
+import { lineWithDescription } from './job-batches.mjs';
 import { useFeedbackMessage } from './Feedback';
 import { useBusinessOptions } from './BusinessOptionsContext';
 import CurrencyInput from './CurrencyInput';
@@ -333,7 +334,9 @@ export default function CheckoutEditor({
   const [orderDiscount, setOrderDiscount] = useState<DiscountDraft>(() =>
     discountDraft(initialCheckout?.orderDiscount ?? fromQuotation?.orderDiscount),
   );
-  const cartLines = lines.map(toLine);
+  const cartLines = lines.map((line) =>
+    lineWithDescription(toLine(line), working.services, jobSettings.descriptionMode),
+  );
   const quotedLines = cartLines.map((item) => {
     try {
       return quoteLine(working, item);
@@ -645,15 +648,18 @@ export default function CheckoutEditor({
                               ))}
                           </select>
                         </label>
-                        <label>
-                          {w('Job description')}
-                          <input
-                            required
-                            maxLength={500}
-                            value={item.description}
-                            onChange={(e) => editLine(item.id, 'description', e.target.value)}
-                          />
-                        </label>
+                        {jobSettings.descriptionMode !== 'hidden' && (
+                          <label>
+                            {w('Job description')}
+                            {jobSettings.descriptionMode === 'optional' ? ' (optional)' : ''}
+                            <input
+                              required={jobSettings.descriptionMode === 'required'}
+                              maxLength={500}
+                              value={item.description}
+                              onChange={(e) => editLine(item.id, 'description', e.target.value)}
+                            />
+                          </label>
+                        )}
                         <label>
                           Quantity
                           <input

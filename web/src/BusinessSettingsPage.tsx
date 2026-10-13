@@ -575,6 +575,23 @@ export default function BusinessSettingsPage({
                 </select>
               </label>
             </div>
+            <h3>{w('Job descriptions')}</h3>
+            <label>
+              {w('Job description entry')}
+              <select
+                value={draft.jobs.descriptionMode}
+                onChange={(event) => field('jobs', { ...draft.jobs, descriptionMode: event.target.value })}
+              >
+                <option value="required">Required</option>
+                <option value="optional">Optional</option>
+                <option value="hidden">Hidden — use service name</option>
+              </select>
+            </label>
+            <p>
+              {w(
+                'Applies to new checkout and quotation entries. If no description is entered, the service name is used. Existing descriptions are kept.',
+              )}
+            </p>
             <h3>Payment amount at checkout</h3>
             <label>
               Money received starts at
