@@ -11,6 +11,11 @@ const server = spawn(
   { stdio: 'inherit' },
 );
 let browser;
+// Never hold up CI: a stuck browser step fails the check instead.
+setTimeout(() => {
+  console.error('Quotations check timed out');
+  process.exit(1);
+}, 240000).unref();
 try {
   for (let i = 0; i < 100; i++) {
     try {
@@ -68,15 +73,20 @@ try {
   assert.match((await waiting).suggestedFilename(), /^Quotation-Q-[0-9A-F]{8}\.pdf$/);
 
   // Share: without a phone share sheet, the PDF downloads and WhatsApp opens with the message.
-  await page.context().route('https://wa.me/**', (route) => route.fulfill({ body: 'WhatsApp' }));
+  // A desktop browser has no share sheet; record the WhatsApp link instead of opening a window.
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, 'canShare', { value: undefined, configurable: true });
+    window.__opened = [];
+    window.open = (url) => {
+      window.__opened.push(String(url));
+      return null;
+    };
+  });
   const shared = page.waitForEvent('download');
-  const chat = page.waitForEvent('popup');
   await d.getByRole('button', { name: 'Share', exact: true }).click();
   assert.match((await shared).suggestedFilename(), /^Quotation-Q-[0-9A-F]{8}\.pdf$/);
-  const popup = await chat;
-  await popup.waitForLoadState();
-  assert.match(popup.url(), /^https:\/\/wa\.me\/\?text=Hello%20Bello/);
-  await popup.close();
+  await page.waitForFunction(() => window.__opened.length > 0);
+  assert.match(await page.evaluate(() => window.__opened[0]), /^https:\/\/wa\.me\/\?text=Hello%20Bello/);
 
   // Create the order: checkout opens filled from the quote.
   await d.getByRole('button', { name: 'Create job', exact: true }).click();
