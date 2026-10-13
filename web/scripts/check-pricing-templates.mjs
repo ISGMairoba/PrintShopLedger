@@ -148,8 +148,10 @@ try {
     await d.getByRole('option', { name: /Book customer/ }).click();
     await d.getByLabel('Money received (₦)', { exact: true }).fill('5000');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
-    await d.locator('.modal-body').evaluate((el) => (el.scrollTop = 0));
+    await d.evaluate((el) => (el.scrollTop = 0));
     await d.screenshot({ path: `/tmp/pricing-templates-${mobile ? 'mobile' : 'desktop'}.png` });
+    await d.locator('.template-breakdown').scrollIntoViewIfNeeded();
+    await d.screenshot({ path: `/tmp/pricing-templates-${mobile ? 'mobile' : 'desktop'}-breakdown.png` });
     await d.getByRole('button', { name: 'Complete checkout', exact: true }).click();
     await d.waitFor({ state: 'detached' });
     const receipt = page.getByRole('dialog');
