@@ -120,6 +120,7 @@ try {
     await page.getByLabel('Job description entry').selectOption('hidden');
     await page.getByRole('button', { name: 'Save job and payment settings', exact: true }).click();
     await page.reload();
+    await page.getByRole('button', { name: 'Try locally on this device', exact: true }).click();
     await page.getByRole('heading', { name: 'Point of Service', exact: true }).waitFor();
     await nav('Business Settings');
     await page.getByRole('tab', { name: 'Jobs & payments' }).click();
