@@ -195,7 +195,7 @@ try {
     await d.getByRole('button', { name: 'Internal job & audit', exact: true }).click();
     assert.match(
       await d.locator('.template-audit').innerText(),
-      /Paper required[\s\S]*650 sheet[\s\S]*Stock taken at checkout[\s\S]*Paper 80gsm[\s\S]*650 sheet/,
+      /Paper required[\s\S]*650 sheet[\s\S]*Stock taken at checkout[\s\S]*Paper 80gsm[\s\S]*650 sheet/i,
     );
     await d.getByLabel('Compare options', { exact: true }).check();
     await d.getByLabel('Quantities', { exact: true }).fill('50, 100');
