@@ -20,6 +20,8 @@ type Props = {
   onPayment: () => void;
   /** Sell shelf items quickly (shown when the business has shelf items). */
   onQuickSale?: () => void;
+  /** Edit a product's name, price and stock (when this person may edit the catalogue). */
+  onEditProduct?: () => void;
   onJob: (id: string) => void;
   onNext: (job: Job, mode: ProgressMode) => void;
   onBulkAction: (jobs: Job[], mode: ProgressMode) => void;
@@ -32,6 +34,7 @@ export default function PointOfServicePage({
   onCheckout,
   onPayment,
   onQuickSale,
+  onEditProduct,
   onJob,
   onNext,
   onBulkAction,
@@ -142,6 +145,11 @@ export default function PointOfServicePage({
         {onQuickSale && ledger.services.some((s) => s.shelfItem && !s.archived) && (
           <button disabled={busy || !ready} onClick={onQuickSale}>
             <Icon name="drawer" /> Quick sale
+          </button>
+        )}
+        {onEditProduct && ledger.services.some((s) => !s.archived) && (
+          <button className="secondary" disabled={busy || !ready} onClick={onEditProduct}>
+            <Icon name="edit" /> {w('Edit product')}
           </button>
         )}
         <button disabled={busy || !ready} onClick={onCheckout}>

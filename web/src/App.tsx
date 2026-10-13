@@ -101,6 +101,7 @@ import QuotationsPage from './QuotationsPage';
 import { quotationCheckout, quotationRef } from './quotations.mjs';
 import type { Quotation, QuotationEvent, ReminderEvent } from './types';
 import QuickSale from './QuickSale';
+import ProductEditor from './ProductEditor';
 import RemindersPage from './RemindersPage';
 
 const DashboardPage = lazy(() => import('./DashboardPage'));
@@ -145,6 +146,8 @@ export default function App() {
   const [quoteOrder, setQuoteOrder] = useState<Quotation | null>(null);
   const [batchToAdvance, setBatchToAdvance] = useState<{ jobs: Job[]; mode: ProgressMode } | null>(null);
   const [quickSale, setQuickSale] = useState(false);
+  /** The product being edited ('' = choose one), or null when closed. */
+  const [productEdit, setProductEdit] = useState<string | null>(null);
   const [jobToAdvance, setJobToAdvance] = useState<{ job: Job; mode: ProgressMode } | null>(null);
   const [adjustingJob, setAdjustingJob] = useState<Job | null>(null);
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
@@ -183,6 +186,13 @@ export default function App() {
     online,
     demo,
   );
+  // Catalogue edits need an Admin or higher who can open Services (the server checks this too).
+  const canEditCatalogue =
+    demo ||
+    (!!shop &&
+      shop.role !== 'cashier' &&
+      shop.accessLevel >= 2 &&
+      canAccessPage('Services', shop.accessLevel, branding.settings.pageAccess));
   const allowed = (item: Page) =>
     (item !== 'Pricing Templates' || branding.settings.pricing.enabled) &&
     (demo || canAccessPage(item, shop?.accessLevel ?? 0, branding.settings.pageAccess));
@@ -1606,6 +1616,7 @@ export default function App() {
                           setForm(null);
                           setQuickSale(true);
                         }}
+                        onEditProduct={canEditCatalogue ? () => setProductEdit('') : undefined}
                         onJob={setSelectedJob}
                         onNext={(job, mode) => setJobToAdvance({ job, mode })}
                         onBulkAction={(jobs, mode) => setBatchToAdvance({ jobs, mode })}
@@ -1702,6 +1713,7 @@ export default function App() {
                         }}
                         onSave={saveCatalogue}
                         onSaveMany={saveCatalogueMany}
+                        onEditProduct={canEditCatalogue ? (id) => setProductEdit(id) : undefined}
                       />
                     ) : page === 'Stock History' ? (
                       <StockHistoryPage
@@ -1801,6 +1813,22 @@ export default function App() {
                       branding.settings.discounts,
                       demo ? 4 : (shop?.accessLevel ?? 0),
                     )}
+                  />
+                )}
+                {productEdit !== null && (
+                  <ProductEditor
+                    key={productEdit}
+                    ledger={ledger}
+                    initialServiceId={productEdit}
+                    actor={{
+                      id: demo ? 'local-trial' : session!.user.id,
+                      label: demo
+                        ? 'Local trial user'
+                        : shop?.staffName || session!.user.email || session!.user.id,
+                    }}
+                    busy={busy || hasConflict}
+                    onSave={saveCatalogueMany}
+                    onClose={() => setProductEdit(null)}
                   />
                 )}
                 {quickSale && (
