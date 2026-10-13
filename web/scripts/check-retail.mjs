@@ -92,6 +92,27 @@ try {
   await nav('Customers');
   assert.match(await page.locator('table').innerText(), /Walk-in customer/);
 
+  // Reorder list: a material with nothing in stock and a minimum of 50 suggests buying 100;
+  // recording the purchase adds it to stock.
+  await nav('Materials');
+  await page.getByRole('button', { name: 'Add material', exact: true }).click();
+  d = page.getByRole('dialog', { name: 'Add material' });
+  await d.getByLabel('Name', { exact: true }).fill('A4 paper');
+  await d.getByLabel('Measurement unit', { exact: true }).fill('sheet');
+  await d.getByLabel('Minimum stock level').fill('50');
+  await d.getByRole('button', { name: 'Save material', exact: true }).click();
+  await d.waitFor({ state: 'detached' });
+  await page.getByRole('button', { name: /^Reorder list/ }).click();
+  d = page.getByRole('dialog', { name: 'Reorder list' });
+  assert.equal(await d.getByLabel('Buy A4 paper').inputValue(), '100');
+  await d.getByRole('button', { name: 'Record purchase', exact: true }).click();
+  d = page.getByRole('dialog', { name: 'Add expense' });
+  assert.match(await d.getByLabel('Description', { exact: true }).inputValue(), /Restock: .*A4 paper/);
+  await d.getByLabel('Total cost (₦)').fill('15000');
+  await d.getByRole('button', { name: 'Save expense', exact: true }).click();
+  await d.waitFor({ state: 'detached' });
+  assert.match(await page.locator('table').innerText(), /A4 paper[\s\S]*\b100\b/);
+
   // Retail words.
   await nav('Business Settings');
   await page.getByRole('tab', { name: 'Jobs & payments' }).click();

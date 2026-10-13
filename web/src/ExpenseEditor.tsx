@@ -20,6 +20,8 @@ type Props = {
   actor: { id: string; label: string };
   busy: boolean;
   mode?: 'edit' | 'payment';
+  /** A new purchase started elsewhere (the reorder list): description, category and stock lines. */
+  prefill?: { description: string; category?: string; materials: ExpenseMaterial[] };
   onSave: (event: ExpenseEvent) => Promise<void>;
   onClose: () => void;
 };
@@ -30,6 +32,7 @@ export default function ExpenseEditor({
   actor,
   busy,
   mode = 'edit',
+  prefill,
   onSave,
   onClose,
 }: Props) {
@@ -39,12 +42,17 @@ export default function ExpenseEditor({
     paymentMethods = options.paymentMethods.filter((item) => item.enabled);
   const categoryOptions = [...new Set([...expenseCategories, ...(expense ? [expense.category] : [])])];
   const [category, setCategory] = useState(
-    expense?.category ?? (expenseCategories.includes('Other') ? 'Other' : expenseCategories[0]),
+    expense?.category ??
+      (prefill?.category && expenseCategories.includes(prefill.category)
+        ? prefill.category
+        : expenseCategories.includes('Other')
+          ? 'Other'
+          : expenseCategories[0]),
   );
   const paymentOnly = mode === 'payment';
   const [error, setError] = useFeedbackMessage('error');
-  const [stock, setStock] = useState(!!expense?.materials.length);
-  const [lines, setLines] = useState<ExpenseMaterial[]>(expense?.materials ?? []);
+  const [stock, setStock] = useState(!!(expense?.materials.length || prefill?.materials.length));
+  const [lines, setLines] = useState<ExpenseMaterial[]>(expense?.materials ?? prefill?.materials ?? []);
   const [recordPayment, setRecordPayment] = useState(!expense);
   const [total, setTotal] = useState(expense ? (expense.amount / 100).toFixed(2) : '');
   const [paidOverride, setPaidOverride] = useState<string | null>(null);
@@ -134,7 +142,7 @@ export default function ExpenseEditor({
                   <input
                     name="description"
                     maxLength={500}
-                    defaultValue={expense?.description ?? ''}
+                    defaultValue={expense?.description ?? prefill?.description ?? ''}
                     required
                     placeholder="e.g. Paper purchase or generator fuel"
                   />
