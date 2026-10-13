@@ -11,6 +11,7 @@ import { SortHeader, useTableSort } from './TableSort';
 import { expenseCode, expensePaid, expenseStatus, expenseSummary, makeExpenseEvent } from './expenses.mjs';
 import type { Expense, ExpenseEvent, Ledger, LedgerEvent } from './types';
 import { useWords } from './Words';
+import { renameActive as wt } from './Words';
 const currency = (value: number) =>
   new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(value / 100);
 const timestamp = (value: string) => new Date(value).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' });
@@ -150,7 +151,7 @@ export default function ExpensesPage({
         <div className="toolbar history-toolbar expense-toolbar">
           <input
             aria-label="Search expenses"
-            placeholder="Search description, ID, supplier, amount or material"
+            placeholder={wt('Search description, ID, supplier, amount or material')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -202,7 +203,7 @@ export default function ExpensesPage({
         ) : !visible.length ? (
           <div className="empty">
             <h2>{ledger.expenses.length ? 'No matching expenses' : 'No expenses yet'}</h2>
-            <p>Record shop expenses and optionally add purchased materials to stock.</p>
+            <p>{wt('Record shop expenses and optionally add purchased materials to stock.')}</p>
           </div>
         ) : (
           <div className="table-wrap">
@@ -418,7 +419,7 @@ export default function ExpensesPage({
           {selected.receiptReference && <p>Receipt / invoice: {selected.receiptReference}</p>}
           {selected.materials.length > 0 && (
             <>
-              <h3>Purchased materials</h3>
+              <h3>{wt('Purchased materials')}</h3>
               {selected.materials.map((m) => (
                 <p key={m.materialId}>
                   {m.name}:{' '}
@@ -476,12 +477,12 @@ export default function ExpensesPage({
                 {entry.after.payee} · {entry.after.note} · {entry.after.receiptReference}
               </p>
               <p>
-                Materials before:{' '}
+                {wt('Materials before')}:{' '}
                 {entry.before?.materials
                   .map((m) => `${m.name}: ${m.quantity} ${m.measurementUnit}`)
                   .join(' · ') || 'None'}
                 <br />
-                Materials after:{' '}
+                {wt('Materials after')}:{' '}
                 {entry.after.voided
                   ? 'Reversed'
                   : entry.after.materials

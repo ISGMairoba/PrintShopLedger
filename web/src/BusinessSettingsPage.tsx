@@ -653,8 +653,9 @@ export default function BusinessSettingsPage({
               ))}
             </div>
             <p className="muted">
-              Shelf items (Services → Sold off the shelf, or Add product) skip the stages and are marked
-              Collected when sold.
+              {w(
+                'Shelf items (Services → Sold off the shelf, or Add product) skip the stages and are marked Collected when sold.',
+              )}
             </p>
             {sectionSave('Words', ['terms'])}
             <h3>Discounts</h3>

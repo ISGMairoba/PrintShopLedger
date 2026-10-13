@@ -183,7 +183,11 @@ export default function App() {
   // Stock and waste share one screen with two tabs when the user may see both.
   const materialTabs =
     allowed('Materials') && allowed('Material Waste') ? (
-      <div className="settings-tabs material-tabs" role="group" aria-label="Materials sections">
+      <div
+        className="settings-tabs material-tabs"
+        role="group"
+        aria-label={pageName('Materials', branding.settings.terms) + ' sections'}
+      >
         {(['Materials', 'Material Waste'] as const).map((item) => (
           <button
             key={item}

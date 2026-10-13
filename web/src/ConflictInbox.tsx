@@ -281,14 +281,14 @@ export default function ConflictInbox({
           </div>
           {review.conflict.source.kind.startsWith('service.') && (
             <label>
-              Reviewed base material
+              {renameActive('Reviewed base material')}
               <select
                 disabled={busy}
-                aria-label="Reviewed base material"
+                aria-label={renameActive('Reviewed base material')}
                 value={materialId ?? ''}
                 onChange={(e) => setMaterialId(e.target.value || null)}
               >
-                <option value="">No material — service only</option>
+                <option value="">{renameActive('No material — service only')}</option>
                 {review.ledger.materials
                   .filter((item) => !item.archived)
                   .map((item) => (

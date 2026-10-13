@@ -892,7 +892,7 @@ function TransactionsTab({
                       <tr>
                         <th>Date / type</th>
                         <th>Reference</th>
-                        <th>Customer / payee / material</th>
+                        <th>{w('Customer / payee / material')}</th>
                         <th>Details</th>
                         <th>Method</th>
                         <th>Staff</th>

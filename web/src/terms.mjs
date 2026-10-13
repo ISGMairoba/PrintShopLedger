@@ -67,7 +67,6 @@ export function validateTerms(input) {
 }
 
 const capitalise = (word) => word.charAt(0).toUpperCase() + word.slice(1);
-const pattern = /\b(jobs|job|services|service|materials|material)\b/gi;
 
 /**
  * Put the business's words into an interface text. Only use on text written by the app, never on
@@ -75,12 +74,26 @@ const pattern = /\b(jobs|job|services|service|materials|material)\b/gi;
  */
 export function renameTerms(text, terms) {
   if (!terms || typeof text !== 'string') return text;
-  return text.replace(pattern, (found) => {
-    const word = terms[found.toLowerCase()];
-    if (!word) return found;
-    if (found === found.toUpperCase() && found.length > 1) return word.toUpperCase();
-    return found[0] === found[0].toUpperCase() ? capitalise(word) : word;
-  });
+  // "Point of Service" is a page name, and "print jobs" are the printer's, not the business's.
+  return text.replace(
+    /\b(point of service|print jobs?)\b|\b(?:(a|an)\s+)?(jobs|job|services|service|materials|material)\b/gi,
+    (found, kept, article, term) => {
+      if (kept) return found;
+      const word = terms[term.toLowerCase()];
+      if (!word) return found;
+      const named =
+        term === term.toUpperCase() && term.length > 1
+          ? word.toUpperCase()
+          : term[0] === term[0].toUpperCase()
+            ? capitalise(word)
+            : word;
+      if (!article) return named;
+      // "a job" → "an order": the article follows the new word.
+      const an = /^[aeiou]/i.test(word) ? 'an' : 'a';
+      const fixed = article[0] === 'A' ? capitalise(an) : an;
+      return `${fixed}${found.slice(article.length, found.length - term.length)}${named}`;
+    },
+  );
 }
 
 /** How a job stage is shown. Custom stages between Added and Completed keep their own names. */

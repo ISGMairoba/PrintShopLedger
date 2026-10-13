@@ -138,6 +138,15 @@ try {
     /\bjobs?\b/i,
     'Orders page says order, not job',
   );
+  for (const name of ['Products', 'Stock items']) {
+    await nav(name);
+    assert.equal(await page.getByRole('heading', { level: 1 }).innerText(), name);
+    assert.doesNotMatch(
+      (await page.locator('main').innerText()).replace(/Point of Service/g, ''),
+      /\b(services?|materials?)\b/i,
+      `${name} page uses the retail words`,
+    );
+  }
   await nav('Business Settings');
   await page.getByRole('tab', { name: 'Orders & payments' }).waitFor();
   await page.screenshot({ path: process.env.SHOT ?? '/tmp/retail-orders.png' });

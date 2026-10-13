@@ -99,11 +99,11 @@ export default function StockHistoryPage({ history, materials, pending, ready, d
             onChange={(e) => change(() => setSearch(e.target.value))}
           />
           <select
-            aria-label="Filter material"
+            aria-label={w('Filter material')}
             value={materialId}
             onChange={(e) => change(() => setMaterialId(e.target.value))}
           >
-            <option value="">All materials</option>
+            <option value="">{w('All materials')}</option>
             {materials.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.name} ({materialCode(item.id, materials)})
@@ -142,18 +142,18 @@ export default function StockHistoryPage({ history, materials, pending, ready, d
           <div className="empty">Loading stock history.</div>
         ) : !matching.length ? (
           <div className="empty">
-            <h2>{history.length ? 'No matching changes' : 'No material changes yet'}</h2>
+            <h2>{history.length ? 'No matching changes' : w('No material changes yet')}</h2>
             <p>
               {history.length
                 ? 'Adjust the filters to find a record.'
-                : 'Material creation, editing, stock changes, archive and restore will appear here.'}
+                : w('Material creation, editing, stock changes, archive and restore will appear here.')}
             </p>
           </div>
         ) : (
           <div className="table-wrap">
             <ResponsiveTable
               columns={[
-                { index: 0, label: 'Material', details: [4, 5, 6, 7] },
+                { index: 0, label: w('Material'), details: [4, 5, 6, 7] },
                 { index: 2, label: 'Available', details: [1, 3] },
                 { index: 8, label: 'Actions', actions: true },
               ]}
@@ -161,7 +161,7 @@ export default function StockHistoryPage({ history, materials, pending, ready, d
               <table>
                 <thead>
                   <tr>
-                    <SortHeader label="Material" column="material" sort={historySorting} />
+                    <SortHeader label={w('Material')} column="material" sort={historySorting} />
                     <SortHeader label="Available before" column="before" sort={historySorting} />
                     <SortHeader label="Available after" column="after" sort={historySorting} />
                     <SortHeader label="Change" column="change" sort={historySorting} />

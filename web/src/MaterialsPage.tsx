@@ -10,6 +10,7 @@ import type { Expense, ExpenseEvent, Material, MaterialEvent, MaterialHistoryEnt
 import { useWords } from './Words';
 import ReorderList from './ReorderList';
 import { reorderList } from './reorder.mjs';
+import { renameActive as wt } from './Words';
 
 type Props = {
   history: MaterialHistoryEntry[];
@@ -150,7 +151,11 @@ export default function MaterialsPage({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <select aria-label="Material status" value={filter} onChange={(e) => setFilter(e.target.value)}>
+          <select
+            aria-label={wt('Material status')}
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+          >
             <option value="active">Active</option>
             <option value="archived">Archived</option>
             <option value="all">{w('All materials')}</option>
@@ -434,7 +439,7 @@ export default function MaterialsPage({
           )}
           <p>
             {confirmation.archived
-              ? 'The material will be active again.'
+              ? wt('The material will be active again.')
               : 'Its quantity and audit information will be kept. You can restore it later.'}
           </p>
           <div className="material-actions">
@@ -472,11 +477,14 @@ export default function MaterialsPage({
           )}
           <form key={editing ? `${editing.id}:${editing.version}` : 'new'} onSubmit={submit}>
             {editing ? (
-              <p className="material-id">Material ID: {materialCode(editing.id, materials)}</p>
+              <p className="material-id">
+                {wt('Material ID')}: {materialCode(editing.id, materials)}
+              </p>
             ) : (
               <p className="muted">
-                A permanent unique ID is generated when you save. New materials start with zero stock; use Add
-                to stock afterwards.
+                {wt(
+                  'A permanent unique ID is generated when you save. New materials start with zero stock; use Add to stock afterwards.',
+                )}
               </p>
             )}
             <fieldset disabled={busy}>
@@ -509,7 +517,9 @@ export default function MaterialsPage({
                     required
                   />
                   <small>
-                    In this material’s measurement unit. Stock up to 20% above this level is near minimum.
+                    {wt(
+                      'In this material’s measurement unit. Stock up to 20% above this level is near minimum.',
+                    )}
                   </small>
                 </label>
                 <label className="material-checkbox">
@@ -522,8 +532,9 @@ export default function MaterialsPage({
                     Require size
                   </span>
                   <small>
-                    Enable when the service price depends on dimensions. Otherwise pricing uses quantity only.
-                    Checkout uses quantity × width × height when size is required.
+                    {wt(
+                      'Enable when the service price depends on dimensions. Otherwise pricing uses quantity only. Checkout uses quantity × width × height when size is required.',
+                    )}
                   </small>
                 </label>
               </div>
@@ -533,7 +544,7 @@ export default function MaterialsPage({
                 ))}
               </datalist>
               <button type="submit">
-                <Icon name="save" /> {busy ? 'Saving...' : 'Save material'}
+                <Icon name="save" /> {busy ? 'Saving...' : wt('Save material')}
               </button>
             </fieldset>
           </form>

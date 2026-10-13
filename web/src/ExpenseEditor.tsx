@@ -11,6 +11,7 @@ import { expenseSources, expenseCode, expensePaid, expenseDay, makeExpenseEvent 
 import { materialCode } from './material-display.mjs';
 import type { Expense, ExpenseEvent, ExpenseMaterial, Material } from './types';
 import { useWords } from './Words';
+import { renameActive as wt } from './Words';
 const currency = (value: number) =>
   new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(value / 100);
 type Props = {
@@ -197,20 +198,21 @@ export default function ExpenseEditor({
               <section className="expense-stock">
                 <label className="check-label">
                   <input type="checkbox" checked={stock} onChange={(e) => setStock(e.target.checked)} />
-                  Add purchased materials to stock
+                  {wt('Add purchased materials to stock')}
                 </label>
                 {stock && (
                   <>
                     <p className="muted">
-                      Enter quantities received in the displayed units. Save here once; stock and history
-                      update together. Do not add this purchase again through Materials.
+                      {wt(
+                        'Enter quantities received in the displayed units. Save here once; stock and history update together. Do not add this purchase again through Materials.',
+                      )}
                     </p>
                     {lines.map((line, index) => (
                       <div className="expense-stock-line" key={index}>
                         <label>
-                          Material
+                          {wt('Material')}
                           <select
-                            aria-label={`Material ${index + 1}`}
+                            aria-label={wt(`Material ${index + 1}`)}
                             value={line.materialId}
                             required
                             onChange={(e) => {
@@ -222,7 +224,7 @@ export default function ExpenseEditor({
                               });
                             }}
                           >
-                            <option value="">Choose material</option>
+                            <option value="">{wt('Choose material')}</option>
                             {materials
                               .filter((m) => !m.archived || m.id === line.materialId)
                               .map((m) => (
@@ -253,7 +255,7 @@ export default function ExpenseEditor({
                         <button
                           type="button"
                           className="text-button danger-text"
-                          aria-label={`Remove material ${index + 1}`}
+                          aria-label={wt(`Remove material ${index + 1}`)}
                           onClick={() => setLines((items) => items.filter((_, i) => i !== index))}
                         >
                           <Icon name="close" />
@@ -271,10 +273,10 @@ export default function ExpenseEditor({
                         ])
                       }
                     >
-                      <Icon name="add" /> Add material
+                      <Icon name="add" /> {wt('Add material')}
                     </button>
                     {!materials.some((m) => !m.archived) && (
-                      <p className="notice">Create a material on the Materials page first.</p>
+                      <p className="notice">{wt('Create a material on the Materials page first.')}</p>
                     )}
                     {expense && (
                       <p className="muted">

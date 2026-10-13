@@ -512,7 +512,7 @@ export default function CheckoutEditor({
                 checked={stockReviewConfirmed}
                 onChange={(e) => setStockReviewConfirmed(e.target.checked)}
               />
-              I have reviewed the stock count and the material deduction.
+              {w('I have reviewed the stock count and the material deduction.')}
             </label>
           </div>
         )}
@@ -609,7 +609,7 @@ export default function CheckoutEditor({
                         <label>
                           {w('Service')}
                           <select
-                            aria-label="Service"
+                            aria-label={w('Service')}
                             required
                             value={item.serviceId}
                             onChange={(e) => {

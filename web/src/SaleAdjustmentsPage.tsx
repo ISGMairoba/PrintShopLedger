@@ -45,7 +45,7 @@ export function AdjustmentHistory({ records }: { records: SaleAdjustment[] }) {
               Material: {r.before.materialId ?? 'None'} → {r.after.materialId ?? 'None'}
             </p>
             {r.stockMode === 'keep' && (
-              <p>Recorded material usage was kept; consumed stock was not restored.</p>
+              <p>{w('Recorded material usage was kept; consumed stock was not restored.')}</p>
             )}
             {r.stockChanges?.map((c) => (
               <p key={c.materialId}>
@@ -69,7 +69,7 @@ export function AdjustmentHistory({ records }: { records: SaleAdjustment[] }) {
               Money refunded: {currency(r.refundAmount)}
               {r.refundAmount > 0 && ` (${r.methodLabel ?? r.method})`}
               <br />
-              Usable material returned: {r.returnQuantity}
+              {w('Usable material returned')}: {r.returnQuantity}
             </p>
             {r.paymentChanges.map((p) => (
               <p key={p.before.id}>
@@ -299,7 +299,7 @@ export function SaleAdjustmentEditor({
   const comparison: { label: string; before: string; after: string }[] = [];
   const value = (n: unknown) => (n === null || n === undefined || n === '' ? '—' : String(n));
   const materialName = (id?: string | null) =>
-    id ? (ledger.materials.find((m) => m.id === id)?.name ?? id) : 'No material';
+    id ? (ledger.materials.find((m) => m.id === id)?.name ?? id) : w('No material');
   let proposed: Job = job,
     next: Ledger = ledger,
     previewNotice = '';
@@ -326,8 +326,8 @@ export function SaleAdjustmentEditor({
     comparison.push({ label, before: value(before), after: value(after) });
   if (action !== 'payment.corrected') {
     add('Name / description', job.description, proposed.description);
-    add('Service', job.service, proposed.service);
-    add('Material', materialName(job.materialId), materialName(proposed.materialId));
+    add(w('Service'), job.service, proposed.service);
+    add(w('Material'), materialName(job.materialId), materialName(proposed.materialId));
     add('Quantity', job.quantity, proposed.quantity);
     if (job.requireSize || proposed.requireSize) {
       add('Width', job.width, proposed.width);
@@ -519,7 +519,7 @@ export function SaleAdjustmentEditor({
               <h3>{w('Job details')}</h3>
               <div className="form-grid">
                 <label>
-                  Corrected service
+                  {w('Corrected service')}
                   <select
                     value={serviceId}
                     onChange={(e) => {
@@ -530,7 +530,7 @@ export function SaleAdjustmentEditor({
                     }}
                     required
                   >
-                    <option value="">Choose a service</option>
+                    <option value="">{w('Choose a service')}</option>
                     {ledger.services
                       .filter((s) => !s.archived)
                       .map((s) => (
@@ -541,9 +541,9 @@ export function SaleAdjustmentEditor({
                   </select>
                 </label>
                 <label>
-                  Corrected material
+                  {w('Corrected material')}
                   <select value={materialId} onChange={(e) => setMaterialId(e.target.value)}>
-                    <option value="">No material</option>
+                    <option value="">{w('No material')}</option>
                     {ledger.materials
                       .filter((m) => !m.archived)
                       .map((m) => (
@@ -614,11 +614,11 @@ export function SaleAdjustmentEditor({
                 </label>
               </div>
               <label>
-                Material usage treatment
+                {w('Material usage treatment')}
                 <select value={stockMode} onChange={(e) => setStockMode(e.target.value)} required>
                   <option value="">Choose how to handle stock</option>
                   <option value="reconcile">Correct the stock deduction — original entry was wrong</option>
-                  <option value="keep">Keep actual usage — the material was already consumed</option>
+                  <option value="keep">{w('Keep actual usage — the material was already consumed')}</option>
                 </select>
               </label>
               <p className="muted">
@@ -766,7 +766,7 @@ export function SaleAdjustmentEditor({
               </p>
               {mat && !mat.archived && availableReturn > 0 ? (
                 <label>
-                  Usable material returned ({mat.measurementUnit})
+                  {w('Usable material returned')} ({mat.measurementUnit})
                   <input
                     type="number"
                     min="0"
@@ -777,12 +777,12 @@ export function SaleAdjustmentEditor({
                     required
                   />
                   <small>
-                    Maximum {availableReturn}. Return only unused, reusable material. Leave zero for materials
-                    already used.
+                    Maximum {availableReturn}.{' '}
+                    {w('Return only unused, reusable material. Leave zero for materials already used.')}
                   </small>
                 </label>
               ) : (
-                <p>No recorded material usage is eligible for stock return.</p>
+                <p>{w('No recorded material usage is eligible for stock return.')}</p>
               )}
             </>
           )}
@@ -853,8 +853,8 @@ export function SaleAdjustmentEditor({
             )}
           </section>
           <label className="check-label">
-            <input type="checkbox" key={action} required /> I approve these changes and confirm the material
-            or money returned.
+            <input type="checkbox" key={action} required />{' '}
+            {w('I approve these changes and confirm the material or money returned.')}
           </label>
         </fieldset>
         {submitted && (

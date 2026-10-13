@@ -77,7 +77,7 @@ export function ExpenseConflictReview({
               <td>{remote?.voided ? 'Voided' : 'Active'}</td>
             </tr>
             <tr>
-              <td>Materials</td>
+              <td>{renameActive('Materials')}</td>
               <td>{materials(local.materials)}</td>
               <td>{materials(remote?.materials)}</td>
             </tr>
@@ -224,7 +224,7 @@ export function MaterialConflictReview({
     ['Modified by', local.modifiedByLabel, remote.modifiedByLabel],
   ];
   return (
-    <Modal title="Review conflicting material edits" wide busy={busy} onClose={onClose}>
+    <Modal title={renameActive('Review conflicting material edits')} wide busy={busy} onClose={onClose}>
       <FeedbackBanner message={feedback.message} tone={feedback.tone} />
       <div className="table-wrap">
         <table>
