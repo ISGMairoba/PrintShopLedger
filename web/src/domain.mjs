@@ -6,6 +6,7 @@ import { applyCustomerEvent } from './customers.mjs';
 import { applyServiceEvent } from './services.mjs';
 import { applyMaterialEvent, normalizeLedger } from './materials.mjs';
 import { applyQuotationEvent } from './quotations.mjs';
+import { applyReminderEvent } from './reminders.mjs';
 
 // Money is stored as integer kobo. Customer balances are derived from jobs.
 export const emptyLedger = () => ({
@@ -22,6 +23,7 @@ export const emptyLedger = () => ({
   services: [],
   checkouts: [],
   quotations: [],
+  reminders: [],
 });
 export function money(value) {
   const text = normalizeAmount(String(value).trim());
@@ -70,6 +72,7 @@ export function applyEvent(ledger, event) {
   if (event.kind === 'material.wasted') return applyWaste(ledger, event);
   if (event.kind.startsWith('expense.')) return applyExpenseEvent(ledger, event);
   if (event.kind.startsWith('quotation.')) return applyQuotationEvent(ledger, event);
+  if (event.kind === 'customer.reminded') return applyReminderEvent(ledger, event);
   if (event.kind.startsWith('customer.')) return applyCustomerEvent(ledger, event);
   if (event.kind.startsWith('service.')) return applyServiceEvent(ledger, event);
   if (event.kind.startsWith('material.')) return applyMaterialEvent(ledger, event);

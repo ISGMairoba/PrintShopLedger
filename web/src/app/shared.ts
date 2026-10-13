@@ -17,6 +17,7 @@ export type Page =
   | 'My Sales'
   | 'Point of Service'
   | 'Quotations'
+  | 'Payment Reminders'
   | 'Jobs'
   | 'Customers'
   | 'Payments'

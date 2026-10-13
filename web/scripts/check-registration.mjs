@@ -134,6 +134,8 @@ try {
     await page.getByLabel('Business password', { exact: true }).fill('example-password');
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
     await page.getByRole('heading', { name: 'Point of Service', exact: true }).waitFor();
+    // The workspace request can finish just after the page appears; wait for it, then check once.
+    for (let i = 0; i < 50 && created === 0; i++) await delay(100);
     assert.equal(created, 1, 'Verified signup creates exactly one workspace');
     await page.reload();
     await page.getByRole('heading', { name: 'Point of Service', exact: true }).waitFor();

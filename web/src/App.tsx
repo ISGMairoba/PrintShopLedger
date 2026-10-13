@@ -95,8 +95,9 @@ import type {
 } from './types';
 import QuotationsPage from './QuotationsPage';
 import { quotationCheckout, quotationRef } from './quotations.mjs';
-import type { Quotation, QuotationEvent } from './types';
+import type { Quotation, QuotationEvent, ReminderEvent } from './types';
 import QuickSale from './QuickSale';
+import RemindersPage from './RemindersPage';
 
 const DashboardPage = lazy(() => import('./DashboardPage'));
 const ReportsPage = lazy(() => import('./ReportsPage'));
@@ -305,7 +306,7 @@ export default function App() {
     );
   }
   async function saveCatalogue(
-    operation: MaterialEvent | ServiceEvent | CustomerEvent | ExpenseEvent | QuotationEvent,
+    operation: MaterialEvent | ServiceEvent | CustomerEvent | ExpenseEvent | QuotationEvent | ReminderEvent,
   ) {
     if (
       busy ||
@@ -1500,6 +1501,21 @@ export default function App() {
                       pending={state.pending.length}
                       onReceipt={setReceipt}
                       onHandover={closeDrawer}
+                    />
+                  ) : page === 'Payment Reminders' ? (
+                    <RemindersPage
+                      key={scope}
+                      ledger={ledger}
+                      ready={ready}
+                      busy={busy || legacyConflict}
+                      branding={branding.settings}
+                      actor={{
+                        id: demo ? 'local-trial' : session!.user.id,
+                        label: demo
+                          ? 'Local trial user'
+                          : shop?.staffName || session!.user.email || session!.user.id,
+                      }}
+                      onSave={saveCatalogue}
                     />
                   ) : page === 'Quotations' ? (
                     <QuotationsPage

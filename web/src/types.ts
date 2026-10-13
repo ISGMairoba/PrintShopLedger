@@ -353,6 +353,29 @@ export type QuotationEvent = {
     modifiedAt: string;
   };
 };
+export interface CustomerReminder {
+  id: string;
+  customerId: string;
+  amountOwed: number;
+  channel: 'whatsapp' | 'download';
+  remindedBy: string;
+  remindedByLabel: string;
+  remindedAt: string;
+  lastEventId: string;
+}
+export type ReminderEvent = {
+  id: string;
+  kind: 'customer.reminded';
+  data: {
+    id: string;
+    customerId: string;
+    amountOwed: number;
+    channel: 'whatsapp' | 'download';
+    modifiedBy: string;
+    modifiedByLabel: string;
+    modifiedAt: string;
+  };
+};
 export interface Ledger {
   saleAdjustments: SaleAdjustment[];
   materialWaste: MaterialWaste[];
@@ -361,6 +384,7 @@ export interface Ledger {
   drawerClosings: DrawerClosing[];
   checkouts: CheckoutRecord[];
   quotations: Quotation[];
+  reminders: CustomerReminder[];
   services: Service[];
   materialHistory: MaterialHistoryEntry[];
   materials: Material[];
@@ -378,7 +402,8 @@ export type LedgerEvent =
   | { id: string; kind: 'payment.recorded'; data: Payment }
   | MaterialEvent
   | ServiceEvent
-  | QuotationEvent;
+  | QuotationEvent
+  | ReminderEvent;
 export interface LocalState {
   syncConflicts?: Record<string, string>;
   ledger: Ledger;
