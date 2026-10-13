@@ -34,6 +34,8 @@ jobs:
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/run-check.mjs node scripts/check-pricing-templates.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: node scripts/run-check.mjs node scripts/check-product-edit.mjs
+      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/run-check.mjs node scripts/check-registration.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/run-check.mjs node scripts/check-dashboard.mjs

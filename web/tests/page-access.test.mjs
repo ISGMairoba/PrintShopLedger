@@ -9,7 +9,12 @@ test('cashier sees only operational pages and own credentials', () =>
 test('Pricing Templates keeps Developer maintenance access and sits beside Services', () => {
   for (const rank of [0, 1, 2, 3]) assert.equal(canAccessPage('Pricing Templates', rank), false);
   assert.equal(canAccessPage('Pricing Templates', 4), true);
-  assert.equal(navigationPages[navigationPages.indexOf('Services') + 1], 'Pricing Templates');
+  assert.equal(navigationPages[navigationPages.indexOf('Services') + 2], 'Pricing Templates');
+});
+test('Edit Products follows Services access and sits right after it', () => {
+  assert.equal(navigationPages[navigationPages.indexOf('Services') + 1], 'Edit Products');
+  for (const rank of [1, 2, 3, 4])
+    assert.equal(canAccessPage('Edit Products', rank), canAccessPage('Services', rank));
 });
 test('admin sees existing pages and account, business settings require manager', () => {
   for (const page of pages) assert.equal(canAccessPage(page, 2), page !== 'Business Settings');

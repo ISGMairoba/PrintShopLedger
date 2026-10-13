@@ -24,6 +24,7 @@ export const derivedPages = {
   Quotations: 'Point of Service',
   'Payment Reminders': 'Customers',
   'Pricing Templates': 'Business Settings',
+  'Edit Products': 'Services',
 };
 export const navigationPages = [
   'Dashboard',
@@ -36,7 +37,7 @@ export const navigationPages = [
       page === 'Customers'
         ? [page, 'Payment Reminders']
         : page === 'Services'
-          ? [page, 'Pricing Templates']
+          ? [page, 'Edit Products', 'Pricing Templates']
           : [page],
     ),
 ];

@@ -22,9 +22,20 @@ type Props = {
   onSave: (event: ServiceEvent) => Promise<void>;
   /** Saves several events together (a new product: its stock item, then its service). */
   onSaveMany: (events: (MaterialEvent | ServiceEvent)[]) => Promise<void>;
+  /** Open the product editor ('' to choose a product). */
+  onEditProduct?: (serviceId: string) => void;
 };
 const timestamp = (value: string) => new Date(value).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' });
-export default function ServicesPage({ services, materials, ready, busy, actor, onSave, onSaveMany }: Props) {
+export default function ServicesPage({
+  services,
+  materials,
+  ready,
+  busy,
+  actor,
+  onSave,
+  onSaveMany,
+  onEditProduct,
+}: Props) {
   const { w } = useWords();
   const units = useBusinessOptions().materialUnits;
   const [product, setProduct] = useState(false);
@@ -240,6 +251,11 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
           >
             <Icon name="add" /> Add product
           </button>
+          {onEditProduct && (
+            <button className="secondary" disabled={!ready || busy} onClick={() => onEditProduct('')}>
+              <Icon name="edit" /> {w('Edit product')}
+            </button>
+          )}
         </div>
         {!ready ? (
           <div className="empty">{w('Loading services.')}</div>
@@ -354,6 +370,16 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
                                 }}
                               >
                                 <Icon name="edit" /> Edit
+                              </button>
+                            )}
+                            {!service.archived && service.materialId && onEditProduct && (
+                              <button
+                                className="text-button"
+                                disabled={busy}
+                                title="Name, price and stock together"
+                                onClick={() => onEditProduct(service.id)}
+                              >
+                                <Icon name="quantity" /> Price & stock
                               </button>
                             )}
                             <button
