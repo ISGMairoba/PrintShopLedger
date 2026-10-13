@@ -162,6 +162,7 @@ export default function PricingTemplatesEditor({
               <button
                 type="button"
                 className="secondary compact"
+                disabled={t.archived}
                 onClick={() => {
                   setError('');
                   setEditing(structuredClone(t));
@@ -552,6 +553,7 @@ function TemplateEditor({
                 <label>
                   Item or service
                   <select
+                    aria-label="Item or service"
                     required
                     value={c.serviceId}
                     onChange={(e) => change({ serviceId: e.target.value })}

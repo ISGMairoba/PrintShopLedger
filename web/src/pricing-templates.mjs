@@ -303,6 +303,8 @@ export function quoteTemplate(ledger, line, quoteService) {
     line.quantity,
   );
   const components = template.components.map((c) => {
+    if (c.serviceId === template.id || ledger.pricing?.templates.some((t) => t.id === c.serviceId))
+      throw Error('Choose catalogue items or services as components; nested templates are not supported.');
     const roundUnits = (expression, min = 0.001) => {
       const n = formulaUnits(expression, resolve);
       return numeric(n, c.label, min);

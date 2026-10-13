@@ -413,6 +413,7 @@ function QuotationSummary({ quote }: { quote: Quotation }) {
                     {l.requireSize && l.width && l.height ? ` · ${l.width} × ${l.height}` : ''}
                     {l.discountAmount > 0 ? ` · Discount -${currency(l.discountAmount)}` : ''}
                   </small>
+                  {l.templateSnapshot && <TemplateBreakdown snapshot={l.templateSnapshot} />}
                 </td>
                 <td className="numeric">{l.quantity}</td>
                 <td className="numeric">{currency(l.amount)}</td>

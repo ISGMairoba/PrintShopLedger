@@ -146,6 +146,8 @@ begin
  next:=$block$  if line ? 'templateSnapshot' then
    if counted ? item_id::text then raise exception 'Template component stock must be reviewed separately';end if;
    line:=jsonb_set(line,'{templateSnapshot}',private.price_template_snapshot(p_shop,line->'templateSnapshot',(line->>'quantity')::numeric));
+   if line->'templateInputs' is distinct from line->'templateSnapshot'->'inputs' then raise exception 'Template input snapshot changed';end if;
+   line:=line-'templateStockIds';
    q:=(line->>'quantity')::numeric;needed:=0;
    select sum((value->>'amount')::numeric) into calculated from jsonb_array_elements(line->'templateSnapshot'->'components');
    svc:=null;mat:=null;svc.id:=(line->'templateSnapshot'->'template'->>'id')::uuid;svc.description:=line->'templateSnapshot'->'template'->>'name';svc.version:=(line->'templateSnapshot'->'template'->>'version')::integer;svc.price:=round(calculated/q);svc.shelf_item:=false;
@@ -173,7 +175,7 @@ $block$||old||E'  end if;\n';
  -- Existing quantity corrections assume one material: do not allow them to corrupt a bundle.
  def:=pg_get_functiondef('private.apply_supervised_event(uuid,jsonb)'::regprocedure);
  def:=regexp_replace(def,'\mbegin\M',$guard$begin
- if p_event->>'kind' in ('sale.details_corrected','sale.combined_corrected') and exists(select 1 from public.jobs where shop_id=p_shop and id::text=p_event->'data'->>'jobId' and metadata ? 'templateSnapshot') then raise exception 'Template components cannot be changed after checkout. Cancel and create a replacement job; adjust returned materials separately.';end if;
+ if public.is_shop_member(p_shop) and p_event->>'kind' in ('sale.details_corrected','sale.combined_corrected') and exists(select 1 from public.jobs where shop_id=p_shop and id::text=p_event->'data'->>'jobId' and metadata ? 'templateSnapshot') then raise exception 'Template components cannot be changed after checkout. Cancel and create a replacement job; adjust returned materials separately.';end if;
 $guard$,'i');
  execute def;
 end $migration$;

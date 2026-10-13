@@ -76,6 +76,8 @@ try {
     await page.getByRole('button', { name: 'Start with book', exact: true }).click();
     let d = page.getByRole('dialog', { name: 'New pricing template' });
     const picks = d.getByLabel('Item or service', { exact: true });
+    assert.equal(await picks.count(), 4);
+
     for (const [index, label] of [
       'Art cards — ₦200.00',
       'DI printing — ₦500.00',
@@ -136,6 +138,7 @@ try {
     await d.getByRole('option', { name: /Book customer/ }).click();
     await d.getByLabel('Money received (₦)', { exact: true }).fill('5000');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await d.locator('.modal-body').evaluate((el) => (el.scrollTop = 0));
     await d.screenshot({ path: `/tmp/pricing-templates-${mobile ? 'mobile' : 'desktop'}.png` });
     await d.getByRole('button', { name: 'Complete checkout', exact: true }).click();
     await d.waitFor({ state: 'detached' });
@@ -172,6 +175,14 @@ try {
     await context.close();
     console.log(`Pricing templates passed: ${mobile ? 'phone, dark theme' : 'desktop, light theme'}`);
   }
+} catch (error) {
+  if (browser)
+    for (const context of browser.contexts())
+      for (const page of context.pages()) {
+        console.error('Current dialogs:', await page.getByRole('dialog').allTextContents());
+        await page.screenshot({ path: '/tmp/pricing-templates-failure.png', fullPage: true }).catch(() => {});
+      }
+  throw error;
 } finally {
   await browser?.close();
   server.kill('SIGTERM');

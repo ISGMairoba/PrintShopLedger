@@ -43,7 +43,7 @@ export function quoteLine(ledger, line) {
       throw Error('Choose how the job was received.');
     const discount = validDiscount(line.discount),
       lineDiscount = discountKobo(discount, priced.amount);
-    const { shelfItem: _s, discount: _d, dueAt: rawDue, ...rest } = line;
+    const { shelfItem: _s, discount: _d, dueAt: rawDue, templateStockIds: _stockIds, ...rest } = line;
     const dueAt = validDueAt(rawDue);
     return {
       ...rest,
