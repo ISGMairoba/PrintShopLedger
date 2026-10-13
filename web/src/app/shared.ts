@@ -16,6 +16,7 @@ export type Page =
   | 'Material Waste'
   | 'My Sales'
   | 'Point of Service'
+  | 'Quotations'
   | 'Jobs'
   | 'Customers'
   | 'Payments'

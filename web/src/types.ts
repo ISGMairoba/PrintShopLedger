@@ -299,6 +299,60 @@ export interface DrawerCommand {
   openingId: string | null;
   note: string;
 }
+export interface QuotationLine {
+  id: string;
+  serviceId: string;
+  service: string;
+  description: string;
+  quantity: number;
+  width: number | null;
+  height: number | null;
+  measurementUnit: string;
+  requireSize: boolean;
+  discount?: { kind: 'percent' | 'amount'; value: number; reason?: string };
+  unitPrice: number;
+  grossAmount: number;
+  lineDiscount: number;
+  orderDiscountShare: number;
+  discountAmount: number;
+  amount: number;
+}
+export interface Quotation {
+  id: string;
+  customerId: string | null;
+  customerName: string;
+  customerPhone: string;
+  lines: QuotationLine[];
+  orderDiscount: { kind: 'percent' | 'amount'; value: number; reason?: string } | null;
+  subtotal: number;
+  discountTotal: number;
+  total: number;
+  validUntil: string;
+  note: string;
+  status: 'open' | 'converted' | 'archived';
+  checkoutId?: string;
+  convertedAt?: string;
+  convertedByLabel?: string;
+  version: number;
+  createdBy: string;
+  createdByLabel: string;
+  createdAt: string;
+  modifiedBy: string;
+  modifiedByLabel: string;
+  modifiedAt: string;
+  lastEventId: string;
+}
+export type QuotationEvent = {
+  id: string;
+  kind: 'quotation.saved' | 'quotation.archived' | 'quotation.restored' | 'quotation.converted';
+  data: Partial<Quotation> & {
+    id: string;
+    baseVersion?: number;
+    modifiedBy: string;
+    modifiedByLabel: string;
+    modifiedAt: string;
+  };
+};
 export interface Ledger {
   saleAdjustments: SaleAdjustment[];
   materialWaste: MaterialWaste[];
@@ -306,6 +360,7 @@ export interface Ledger {
   expenseHistory: ExpenseHistoryEntry[];
   drawerClosings: DrawerClosing[];
   checkouts: CheckoutRecord[];
+  quotations: Quotation[];
   services: Service[];
   materialHistory: MaterialHistoryEntry[];
   materials: Material[];
@@ -322,7 +377,8 @@ export type LedgerEvent =
   | { id: string; kind: 'job.created'; data: Job }
   | { id: string; kind: 'payment.recorded'; data: Payment }
   | MaterialEvent
-  | ServiceEvent;
+  | ServiceEvent
+  | QuotationEvent;
 export interface LocalState {
   syncConflicts?: Record<string, string>;
   ledger: Ledger;

@@ -19,8 +19,8 @@ export const pages = [
 ];
 // Pages shown in the menu. Derived pages are not configured separately: their access
 // follows another page (Reports follows Dashboard), so saved settings need no change.
-export const derivedPages = { Reports: 'Dashboard' };
-export const navigationPages = ['Dashboard', 'Reports', ...pages.slice(1)];
+export const derivedPages = { Reports: 'Dashboard', Quotations: 'Point of Service' };
+export const navigationPages = ['Dashboard', 'Reports', 'Point of Service', 'Quotations', ...pages.slice(2)];
 export const roleNames = { 1: 'Cashier', 2: 'Admin', 3: 'Manager', 4: 'Developer' };
 export const minimumPageAccess = (page) =>
   page === 'Business Settings'
