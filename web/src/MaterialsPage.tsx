@@ -6,8 +6,10 @@ import { useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import { SortHeader, useTableSort } from './TableSort';
 import { materialCode, stockLevel } from './material-display.mjs';
-import type { Material, MaterialEvent, MaterialHistoryEntry } from './types';
+import type { Expense, ExpenseEvent, Material, MaterialEvent, MaterialHistoryEntry } from './types';
 import { useWords } from './Words';
+import ReorderList from './ReorderList';
+import { reorderList } from './reorder.mjs';
 
 type Props = {
   history: MaterialHistoryEntry[];
@@ -16,9 +18,27 @@ type Props = {
   busy: boolean;
   actor: { id: string; label: string };
   onSave: (event: MaterialEvent) => Promise<void>;
+  /** For the reorder list: recording a purchase saves an expense that adds stock. */
+  expenses?: Expense[];
+  businessName?: string;
+  canRecordPurchase?: boolean;
+  onSaveExpense?: (event: ExpenseEvent) => Promise<void>;
 };
 const timestamp = (value: string) => new Date(value).toLocaleString();
-export default function MaterialsPage({ materials, history, ready, busy, actor, onSave }: Props) {
+export default function MaterialsPage({
+  materials,
+  history,
+  ready,
+  busy,
+  actor,
+  onSave,
+  expenses = [],
+  businessName = '',
+  canRecordPurchase = false,
+  onSaveExpense,
+}: Props) {
+  const [reorder, setReorder] = useState(false);
+  const toReorder = reorderList({ materials, materialHistory: history } as never).length;
   const { w } = useWords();
   const { stockReasons: stockReasonDefaults, materialUnits } = useBusinessOptions();
   const [query, setQuery] = useState('');
@@ -148,6 +168,9 @@ export default function MaterialsPage({ materials, history, ready, busy, actor, 
             }}
           >
             <Icon name="add" /> {w('Add material')}
+          </button>
+          <button className="secondary" disabled={!ready} onClick={() => setReorder(true)}>
+            <Icon name="materials" /> Reorder list{toReorder ? ` (${toReorder})` : ''}
           </button>
         </div>
         {!ready ? (
@@ -515,6 +538,19 @@ export default function MaterialsPage({ materials, history, ready, busy, actor, 
             </fieldset>
           </form>
         </Modal>
+      )}
+      {reorder && (
+        <ReorderList
+          ledger={{ materials, materialHistory: history, expenses }}
+          businessName={businessName}
+          actor={actor}
+          busy={busy}
+          canRecordPurchase={canRecordPurchase && !!onSaveExpense}
+          onSaveExpense={async (event) => {
+            await onSaveExpense!(event);
+          }}
+          onClose={() => setReorder(false)}
+        />
       )}
     </>
   );

@@ -1625,6 +1625,10 @@ export default function App() {
                               session!.user.id,
                         }}
                         onSave={saveCatalogue}
+                        expenses={ledger.expenses}
+                        businessName={businessName}
+                        canRecordPurchase={demo || allowed('Expenses')}
+                        onSaveExpense={saveCatalogue}
                       />
                     </>
                   ) : page === 'Services' ? (
