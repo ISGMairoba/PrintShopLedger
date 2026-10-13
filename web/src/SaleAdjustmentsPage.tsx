@@ -11,7 +11,9 @@ import { money, customerBalance } from './domain.mjs';
 import { currency } from './receipts.mjs';
 import { saleDay, drawerSnapshot } from './my-sales.mjs';
 import type { Ledger, Job, SupervisedEvent, SaleAdjustment } from './types';
+import { useWords } from './Words';
 export function AdjustmentHistory({ records }: { records: SaleAdjustment[] }) {
+  const { w, stage } = useWords();
   return (
     <>
       {[...records]
@@ -20,7 +22,7 @@ export function AdjustmentHistory({ records }: { records: SaleAdjustment[] }) {
         .map((r) => (
           <details className="history-detail" key={r.id}>
             <summary>
-              {adjustmentLabels[r.action as keyof typeof adjustmentLabels]} ·{' '}
+              {w(adjustmentLabels[r.action as keyof typeof adjustmentLabels])} ·{' '}
               {new Date(r.changedAt).toLocaleString()} · {r.changedByLabel}
             </summary>
             <p>{r.reason}</p>
@@ -29,7 +31,8 @@ export function AdjustmentHistory({ records }: { records: SaleAdjustment[] }) {
               <br />
               Description: {r.before.description} → {r.after.description}
               <br />
-              Stage: {r.before.productionStatus ?? 'Added'} → {r.after.productionStatus ?? 'Added'}
+              Stage: {stage(r.before.productionStatus ?? 'Added')} →{' '}
+              {stage(r.after.productionStatus ?? 'Added')}
             </p>
             <p>
               Quantity: {r.before.quantity ?? '—'} → {r.after.quantity ?? '—'}
@@ -37,7 +40,7 @@ export function AdjustmentHistory({ records }: { records: SaleAdjustment[] }) {
               Size: {r.before.width ?? '—'} × {r.before.height ?? '—'} → {r.after.width ?? '—'} ×{' '}
               {r.after.height ?? '—'}
               <br />
-              Service: {r.before.service} → {r.after.service}
+              {w('Service')}: {r.before.service} → {r.after.service}
               <br />
               Material: {r.before.materialId ?? 'None'} → {r.after.materialId ?? 'None'}
             </p>
@@ -72,7 +75,7 @@ export function AdjustmentHistory({ records }: { records: SaleAdjustment[] }) {
               <p key={p.before.id}>
                 Payment #{p.before.id.slice(0, 8).toUpperCase()}: {p.before.methodLabel ?? p.before.method}{' '}
                 {currency(p.before.amount)} → {p.after.methodLabel ?? p.after.method}{' '}
-                {currency(p.after.amount)}; job allocation{' '}
+                {currency(p.after.amount)}; {w('job allocation')}{' '}
                 {currency(p.before.allocations.find((a) => a.jobId === r.jobId)?.amount ?? 0)} →{' '}
                 {currency(p.after.allocations.find((a) => a.jobId === r.jobId)?.amount ?? 0)}; wallet added{' '}
                 {currency(p.before.walletAdded ?? 0)} → {currency(p.after.walletAdded ?? 0)}; reference{' '}
@@ -100,6 +103,7 @@ export default function SaleAdjustmentsPage({
   canSave: boolean;
   onAdjust: (job: Job) => void;
 }) {
+  const { w } = useWords();
   const [query, setQuery] = useState(''),
     [jobId, setJobId] = useState('');
   const records = ledger.saleAdjustments.filter((r) =>
@@ -123,8 +127,9 @@ export default function SaleAdjustmentsPage({
         Original receipts remain available. Changes record the reason, approver and before-and-after values.
       </p>
       <p className="muted">
-        Connect and finish syncing before approving an adjustment. To refund money allocated to a job, reduce
-        the charge or cancel the sale first; then return the resulting customer credit.
+        {w(
+          'Connect and finish syncing before approving an adjustment. To refund money allocated to a job, reduce the charge or cancel the sale first; then return the resulting customer credit.',
+        )}
       </p>
       <div className="form-grid">
         <JobCorrectionPicker ledger={ledger} days={recentDays} value={jobId} onChange={setJobId} />
@@ -138,7 +143,7 @@ export default function SaleAdjustmentsPage({
       <h3>Adjustment history</h3>
       <input
         aria-label="Search sale adjustments"
-        placeholder="Search customer, job, reason or approver"
+        placeholder={w('Search customer, job, reason or approver')}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
@@ -168,6 +173,7 @@ export function SaleAdjustmentEditor({
   onClose: () => void;
   onSave: (event: SupervisedEvent) => Promise<void>;
 }) {
+  const { w, stage } = useWords();
   const [submitted, setSubmitted] = useState<SupervisedEvent | null>(null);
   const options = useBusinessOptions(),
     methods = options.paymentMethods.filter((m) => m.enabled);
@@ -332,8 +338,8 @@ export function SaleAdjustmentEditor({
       job.unitPrice === undefined ? '—' : currency(job.unitPrice),
       proposed.unitPrice === undefined ? '—' : currency(proposed.unitPrice),
     );
-    add('Job charge', currency(job.amount), currency(proposed.amount));
-    add('Stage', job.productionStatus ?? 'Added', proposed.productionStatus ?? 'Added');
+    add(w('Job charge'), currency(job.amount), currency(proposed.amount));
+    add('Stage', stage(job.productionStatus ?? 'Added'), stage(proposed.productionStatus ?? 'Added'));
   }
   for (const original of action === 'sale.combined_corrected'
     ? customerPayments
@@ -356,7 +362,7 @@ export function SaleAdjustmentEditor({
       revisedAllocated = revised.allocations.find((a) => a.jobId === job.id)?.amount ?? 0;
     if (allocated !== revisedAllocated)
       add(
-        `Payment ${payment.id.slice(0, 8).toUpperCase()} · Job allocation`,
+        w(`Payment ${payment.id.slice(0, 8).toUpperCase()} · Job allocation`),
         currency(allocated),
         currency(revisedAllocated),
       );
@@ -413,8 +419,9 @@ export function SaleAdjustmentEditor({
         ),
       );
     }
-    previewNotice =
-      'Job and payment changes will be saved together. Original receipts and completed handovers remain available.';
+    previewNotice = w(
+      'Job and payment changes will be saved together. Original receipts and completed handovers remain available.',
+    );
   }
   if (action === 'payment.corrected' && adjustment) {
     if (adjustment.drawerActor)
@@ -443,7 +450,7 @@ export function SaleAdjustmentEditor({
   return (
     <Modal title="Adjust sale" wide busy={busy} onClose={onClose}>
       <p>
-        {ledger.customers.find((c) => c.id === job.customerId)?.name} · {job.service} · Job #
+        {ledger.customers.find((c) => c.id === job.customerId)?.name} · {job.service} · {w('Job')} #
         {job.id.slice(0, 8).toUpperCase()}
       </p>
       <p>
@@ -478,9 +485,11 @@ export function SaleAdjustmentEditor({
             <select value={action} onChange={(e) => setAction(e.target.value as SupervisedEvent['kind'])}>
               {job.productionStatus !== 'Cancelled' && (
                 <>
-                  <option value="sale.combined_corrected">Correct job and payments together</option>
+                  <option value="sale.combined_corrected">{w('Correct job and payments together')}</option>
                   <option value="sale.corrected">Correct charge / description</option>
-                  <option value="sale.details_corrected">Correct quantity / size / service / material</option>
+                  <option value="sale.details_corrected">
+                    {w('Correct quantity / size / service / material')}
+                  </option>
                   <option value="sale.cancelled">Cancel sale</option>
                 </>
               )}
@@ -507,7 +516,7 @@ export function SaleAdjustmentEditor({
           )}
           {['sale.details_corrected', 'sale.combined_corrected'].includes(action) && (
             <>
-              <h3>Job details</h3>
+              <h3>{w('Job details')}</h3>
               <div className="form-grid">
                 <label>
                   Corrected service
@@ -591,7 +600,7 @@ export function SaleAdjustmentEditor({
                     {selectedMaterial?.requireSize
                       ? 'Rate per size unit: quantity × width × height × unit price.'
                       : 'Rate per item: quantity × unit price.'}{' '}
-                    This changes this job only.
+                    {w('This changes this job only.')}
                   </small>
                 </label>
                 <label>
@@ -613,8 +622,9 @@ export function SaleAdjustmentEditor({
                 </select>
               </label>
               <p className="muted">
-                Stock corrections adjust only the difference. Keeping actual usage changes the job and charge
-                without restoring consumed material. Waste records remain separate.
+                {w(
+                  'Stock corrections adjust only the difference. Keeping actual usage changes the job and charge without restoring consumed material. Waste records remain separate.',
+                )}
               </p>
             </>
           )}
@@ -622,9 +632,9 @@ export function SaleAdjustmentEditor({
             <>
               <h3>Payments for this customer</h3>
               <p className="muted">
-                Edit the job and any of these payment records in one approval. Each payment may cover other
-                jobs for this customer; its allocation and drawer effects appear below. Additional money
-                received and refunds should be recorded through their normal actions.
+                {w(
+                  'Edit the job and any of these payment records in one approval. Each payment may cover other jobs for this customer; its allocation and drawer effects appear below. Additional money received and refunds should be recorded through their normal actions.',
+                )}
               </p>
               {paymentEdits.map((edit, index) => (
                 <section
@@ -692,7 +702,7 @@ export function SaleAdjustmentEditor({
                 </section>
               ))}
               {!paymentEdits.length && (
-                <p>No payment record for this customer. You can still correct the job details here.</p>
+                <p>{w('No payment record for this customer. You can still correct the job details here.')}</p>
               )}
             </>
           )}
@@ -742,9 +752,9 @@ export function SaleAdjustmentEditor({
                 </label>
               </div>
               <p className="muted">
-                Correct a mistaken record here. Record additional money received through checkout, and money
-                returned through a refund. Increasing the recorded amount pays outstanding jobs first;
-                reducing it removes unspent credit first, then reopens the affected job balances.
+                {w(
+                  'Correct a mistaken record here. Record additional money received through checkout, and money returned through a refund. Increasing the recorded amount pays outstanding jobs first; reducing it removes unspent credit first, then reopens the affected job balances.',
+                )}
               </p>
             </>
           )}
@@ -779,8 +789,8 @@ export function SaleAdjustmentEditor({
           {action === 'sale.refunded' && (
             <>
               <p>
-                Record this after returning the money. Available credit is {currency(credit)}; the job charge
-                will stay the same.
+                Record this after returning the money. Available credit is {currency(credit)}
+                {w('; the job charge will stay the same.')}
               </p>
               <div className="form-grid">
                 <label>

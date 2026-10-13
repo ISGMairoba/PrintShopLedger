@@ -6,6 +6,7 @@ import { customerBalance, jobBalance } from './domain.mjs';
 import { walletBalance } from './checkout.mjs';
 import { currency } from './receipts.mjs';
 import type { Customer, Ledger, Job, Payment } from './types';
+import { useWords } from './Words';
 export default function CustomerAccount({
   customer,
   ledger,
@@ -15,6 +16,7 @@ export default function CustomerAccount({
   ledger: Ledger;
   onClose: () => void;
 }) {
+  const { w } = useWords();
   const js = useTableSort<Job>('date', 'desc'),
     ps = useTableSort<Payment>('date', 'desc');
   const jobs = js.sortRows(
@@ -45,22 +47,22 @@ export default function CustomerAccount({
         Phone: {customer.phone} · Outstanding: {currency(customerBalance(ledger, customer.id))} · Wallet:{' '}
         {currency(walletBalance(ledger, customer.id))}
       </p>
-      <h3>Jobs</h3>
+      <h3>{w('Jobs')}</h3>
       <div className="table-wrap">
         <ResponsiveTable
           columns={[
-            { index: 0, label: 'Job' },
+            { index: 0, label: w('Job') },
             { index: 1, label: 'Amount', details: [2, 3] },
           ]}
           extraSortOptions={[
             { key: 'date', label: 'Created at' },
-            { key: 'id', label: 'Job ID' },
+            { key: 'id', label: w('Job ID') },
           ]}
         >
           <table>
             <thead>
               <tr>
-                <SortHeader label="Job" column="description" sort={js} />
+                <SortHeader label={w('Job')} column="description" sort={js} />
                 <SortHeader label="Amount" column="amount" sort={js} />
                 <SortHeader label="Paid" column="paid" sort={js} />
                 <SortHeader label="Outstanding" column="outstanding" sort={js} />
@@ -88,7 +90,7 @@ export default function CustomerAccount({
           columns={[
             { index: 0, label: 'Payment' },
             { index: 1, label: 'Received', details: [2, 3] },
-            { index: 4, label: 'Jobs paid' },
+            { index: 4, label: w('Jobs paid') },
           ]}
           extraSortOptions={[{ key: 'method', label: 'Method' }]}
         >
@@ -99,7 +101,7 @@ export default function CustomerAccount({
                 <SortHeader label="Money received" column="amount" sort={ps} />
                 <SortHeader label="Wallet used" column="used" sort={ps} />
                 <SortHeader label="Wallet added" column="added" sort={ps} />
-                <SortHeader label="Jobs paid" column="jobs" sort={ps} />
+                <SortHeader label={w('Jobs paid')} column="jobs" sort={ps} />
               </tr>
             </thead>
             <tbody>

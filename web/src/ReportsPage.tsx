@@ -20,6 +20,7 @@ import type { Ledger } from './types';
 import './dashboard.css';
 import './reports.css';
 import { useWords } from './Words';
+import { renameTerms, stageName } from './terms.mjs';
 
 export type ReportAccess = {
   customers: boolean;
@@ -119,12 +120,15 @@ function Select({
   onChange,
   options,
   all,
+  display = (o) => o,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   options: string[];
   all: string;
+  /** How an option is shown (the value stays as saved). */
+  display?: (option: string) => string;
 }) {
   return (
     <label>
@@ -133,7 +137,7 @@ function Select({
         <option value="">{all}</option>
         {options.map((o) => (
           <option key={o} value={o}>
-            {o}
+            {display(o)}
           </option>
         ))}
       </select>
@@ -177,12 +181,13 @@ function Shown({
 }
 
 function JobTable({ jobs, label }: { jobs: StatementJob[]; label: string }) {
-  if (!jobs.length) return <p className="muted report-none">No matching jobs.</p>;
+  const { w, stage } = useWords();
+  if (!jobs.length) return <p className="muted report-none">{w('No matching jobs.')}</p>;
   return (
     <div className="table-wrap">
       <ResponsiveTable
         columns={[
-          { index: 1, label: 'Job' },
+          { index: 1, label: w('Job') },
           { index: 4, label: 'Amount', details: [5] },
           { index: 6, label: 'Outstanding' },
         ]}
@@ -191,8 +196,8 @@ function JobTable({ jobs, label }: { jobs: StatementJob[]; label: string }) {
           <thead>
             <tr>
               <th>Date</th>
-              <th>Job</th>
-              <th>Service</th>
+              <th>{w('Job')}</th>
+              <th>{w('Service')}</th>
               <th>Stage</th>
               <th>Amount</th>
               <th>Paid</th>
@@ -208,7 +213,7 @@ function JobTable({ jobs, label }: { jobs: StatementJob[]; label: string }) {
                   <small>{j.ref}</small>
                 </td>
                 <td>{j.service}</td>
-                <td>{j.stage}</td>
+                <td>{stage(j.stage)}</td>
                 <td>{currency(j.amount)}</td>
                 <td>{currency(j.paid)}</td>
                 <td>
@@ -222,6 +227,36 @@ function JobTable({ jobs, label }: { jobs: StatementJob[]; label: string }) {
       </ResponsiveTable>
     </div>
   );
+}
+
+/**
+ * Report headings, and the cells the app writes (summary items, transaction types, stages), in the
+ * business's words. Records people typed stay exactly as saved.
+ */
+function nameSections(sections: ReportSection[], terms: Parameters<typeof renameTerms>[1]): ReportSection[] {
+  const w = (text: string) => renameTerms(text, terms);
+  return sections.map((section) => {
+    const written = section.columns.flatMap((c, i) =>
+      ['Item', 'Figure', 'Notes', 'Type'].includes(c) ? [i] : [],
+    );
+    const stage = section.columns.indexOf('Stage');
+    return {
+      ...section,
+      title: w(section.title),
+      columns: section.columns.map(w),
+      rows: section.rows.map((row) =>
+        row.map((cell, i) =>
+          typeof cell !== 'string'
+            ? cell
+            : i === stage
+              ? stageName(cell, terms)
+              : written.includes(i)
+                ? w(cell)
+                : cell,
+        ),
+      ),
+    };
+  });
 }
 
 export default function ReportsPage({
@@ -244,10 +279,8 @@ export default function ReportsPage({
     [error, setError] = useState('');
   const brand = branding.businessName ? branding : businessName;
   const company = branding.businessName || businessName;
-  const { w } = useWords();
-  // Section titles and column headings use the business's words; the rows are records as saved.
-  const named = (sections: ReportSection[]) =>
-    sections.map((section) => ({ ...section, title: w(section.title), columns: section.columns.map(w) }));
+  const { w, terms } = useWords();
+  const named = (sections: ReportSection[]) => nameSections(sections, terms);
 
   async function pdf(file: string, title: string, subtitle: string[], sections: ReportSection[]) {
     if (busy) return;
@@ -342,6 +375,7 @@ function StatementTab({
   customerId,
   onCustomerChange,
 }: TabProps & { customerId: string; onCustomerChange: (id: string) => void }) {
+  const { w, stage: stageLabel } = useWords();
   const { range, valid, controls } = useRange();
   const [query, setQuery] = useState(''),
     [paymentStatus, setPaymentStatus] = useState(''),
@@ -386,9 +420,9 @@ function StatementTab({
   const t = statement?.totals;
   const card = (label: string, value: number, note?: string) => (
     <article key={label}>
-      <span>{label}</span>
+      <span>{w(label)}</span>
       <strong>{currency(value)}</strong>
-      {note && <small>{note}</small>}
+      {note && <small>{w(note)}</small>}
     </article>
   );
   return (
@@ -469,7 +503,7 @@ function StatementTab({
               Search records
               <input
                 type="search"
-                placeholder="Job, payment, reference, amount…"
+                placeholder={w('Job, payment, reference, amount\u2026')}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />
@@ -478,7 +512,7 @@ function StatementTab({
               Show
               <select value={show} onChange={(e) => setShow(e.target.value)}>
                 <option value="all">All records</option>
-                <option value="jobs">Jobs only</option>
+                <option value="jobs">{w('Jobs only')}</option>
                 <option value="payments">Payments only</option>
                 <option value="adjustments">Corrections only</option>
               </select>
@@ -495,6 +529,7 @@ function StatementTab({
               value={stage}
               onChange={setStage}
               options={unique(allJobs.map((j) => j.stage))}
+              display={stageLabel}
               all="Any stage"
             />
             <Select
@@ -513,24 +548,27 @@ function StatementTab({
           />
           {(show === 'all' || show === 'jobs') && (
             <section className="panel">
-              <h2>Jobs in this period</h2>
-              <JobTable jobs={statement.jobs as StatementJob[]} label="Jobs in this period" />
+              <h2>{w('Jobs in this period')}</h2>
+              <JobTable jobs={statement.jobs as StatementJob[]} label={w('Jobs in this period')} />
             </section>
           )}
           {statement.earlierOwing.length > 0 && (
             <section className="panel">
-              <h2>Earlier jobs still owing</h2>
+              <h2>{w('Earlier jobs still owing')}</h2>
               <p className="muted report-none">
                 Created before {statement.from}; included so the total owed is fully explained.
               </p>
-              <JobTable jobs={statement.earlierOwing as StatementJob[]} label="Earlier jobs still owing" />
+              <JobTable
+                jobs={statement.earlierOwing as StatementJob[]}
+                label={w('Earlier jobs still owing')}
+              />
             </section>
           )}
           {statement.laterOwing.length > 0 && (
             <section className="panel">
-              <h2>Later jobs still owing</h2>
+              <h2>{w('Later jobs still owing')}</h2>
               <p className="muted report-none">Created after {statement.to}.</p>
-              <JobTable jobs={statement.laterOwing as StatementJob[]} label="Later jobs still owing" />
+              <JobTable jobs={statement.laterOwing as StatementJob[]} label={w('Later jobs still owing')} />
             </section>
           )}
           {(show === 'all' || show === 'payments') && (
@@ -542,7 +580,7 @@ function StatementTab({
                     columns={[
                       { index: 0, label: 'Payment' },
                       { index: 2, label: 'Received', details: [3, 4] },
-                      { index: 5, label: 'Jobs paid' },
+                      { index: 5, label: w('Jobs paid') },
                     ]}
                   >
                     <table aria-label="Payments in this period">
@@ -553,7 +591,7 @@ function StatementTab({
                           <th>Money received</th>
                           <th>Credit used</th>
                           <th>Credit added</th>
-                          <th>Jobs paid</th>
+                          <th>{w('Jobs paid')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -603,7 +641,7 @@ function StatementTab({
                     <thead>
                       <tr>
                         <th>Date / type</th>
-                        <th>Job</th>
+                        <th>{w('Job')}</th>
                         <th>Charge before → after</th>
                         <th>Refunded</th>
                         <th>Reason / approved by</th>
@@ -648,6 +686,7 @@ function TransactionsTab({
   csv,
   access,
 }: TabProps & { access: ReportAccess }) {
+  const { w } = useWords();
   const { range, valid, controls } = useRange();
   const [query, setQuery] = useState(''),
     [type, setType] = useState(''),
@@ -691,9 +730,9 @@ function TransactionsTab({
   const allRows = (full?.rows ?? []) as TransactionRow[];
   const card = (label: string, value: number, note: string) => (
     <article key={label}>
-      <span>{label}</span>
+      <span>{w(label)}</span>
       <strong>{currency(value)}</strong>
-      <small>{note}</small>
+      <small>{w(note)}</small>
     </article>
   );
   return (
@@ -713,7 +752,8 @@ function TransactionsTab({
             <div>
               <h2>{register.rows.length} records</h2>
               <small>
-                Jobs, payments, refunds{access.expenses ? ', expense payments' : ''}, corrections
+                {w('Jobs, payments, refunds')}
+                {access.expenses ? ', expense payments' : ''}, corrections
                 {access.stock ? ' and stock changes' : ''}. Corrections show what changed; corrected payments
                 already show their current amount.
               </small>
@@ -766,6 +806,7 @@ function TransactionsTab({
                 setLimit(PAGE);
               }}
               options={register.types}
+              display={w}
               all="All types"
             />
             <Select
@@ -817,7 +858,7 @@ function TransactionsTab({
                         <tr key={r.id}>
                           <td>
                             {when(r.at)}
-                            <small>{r.type}</small>
+                            <small>{w(r.type)}</small>
                           </td>
                           <td>
                             {r.ref}
@@ -899,13 +940,9 @@ function SummaryTab({
       ]
     : [];
   const file = summary ? reportFileName('Summary', `${summary.from} to ${summary.to}`) : '';
-  const { w } = useWords();
+  const { terms } = useWords();
   const sections: ReportSection[] = summary
-    ? (summarySections(summary, { money: currency, unit: '' }) as ReportSection[]).map((section) => ({
-        ...section,
-        title: w(section.title),
-        columns: section.columns.map(w),
-      }))
+    ? nameSections(summarySections(summary, { money: currency, unit: '' }) as ReportSection[], terms)
     : [];
   return (
     <>

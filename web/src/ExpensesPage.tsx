@@ -10,6 +10,7 @@ import ResponsiveTable from './ResponsiveTable';
 import { SortHeader, useTableSort } from './TableSort';
 import { expenseCode, expensePaid, expenseStatus, expenseSummary, makeExpenseEvent } from './expenses.mjs';
 import type { Expense, ExpenseEvent, Ledger, LedgerEvent } from './types';
+import { useWords } from './Words';
 const currency = (value: number) =>
   new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(value / 100);
 const timestamp = (value: string) => new Date(value).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' });
@@ -35,6 +36,7 @@ export default function ExpensesPage({
   pending: LedgerEvent[];
   onSave: (event: ExpenseEvent) => Promise<void>;
 }) {
+  const { w } = useWords();
   const { expenseCategories } = useBusinessOptions();
   const [query, setQuery] = useState(''),
     [status, setStatus] = useState('active'),
@@ -135,7 +137,7 @@ export default function ExpensesPage({
           <span>Sales less expenses</span>
           <strong>{currency(summary.result)}</strong>
           <small>
-            Job sales {currency(summary.sales)} − expenses {currency(summary.incurred)}
+            {w('Job sales')} {currency(summary.sales)} − expenses {currency(summary.incurred)}
           </small>
         </article>
       </section>

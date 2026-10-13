@@ -1,6 +1,7 @@
 import { useId, useState } from 'react';
 import { recentCorrectionJobs, jobChoiceLabel } from './job-search.mjs';
 import type { Ledger, Job } from './types';
+import { useWords } from './Words';
 export default function JobCorrectionPicker({
   ledger,
   days,
@@ -12,6 +13,7 @@ export default function JobCorrectionPicker({
   value: string;
   onChange: (id: string) => void;
 }) {
+  const { w } = useWords();
   const id = useId(),
     [text, setText] = useState(''),
     [open, setOpen] = useState(false),
@@ -30,17 +32,17 @@ export default function JobCorrectionPicker({
   }
   return (
     <div className="listed-combobox">
-      <label htmlFor={id}>Job to adjust</label>
+      <label htmlFor={id}>{w('Job to adjust')}</label>
       <div className="listed-combobox-input">
         <input
           id={id}
           role="combobox"
-          aria-label="Job to adjust"
+          aria-label={w('Job to adjust')}
           aria-expanded={open}
           aria-controls={`${id}-list`}
           aria-autocomplete="list"
           aria-activedescendant={open && visible[active] ? `${id}-option-${active}` : undefined}
-          placeholder="Type job ID, description or service"
+          placeholder={w('Type job ID, description or service')}
           value={text}
           autoComplete="off"
           onChange={(e) => {
@@ -76,7 +78,7 @@ export default function JobCorrectionPicker({
         <button
           type="button"
           className="secondary"
-          aria-label="Show recent jobs"
+          aria-label={w('Show recent jobs')}
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => {
             setAll(true);
@@ -88,7 +90,7 @@ export default function JobCorrectionPicker({
         </button>
       </div>
       {open && (
-        <div id={`${id}-list`} role="listbox" aria-label="Recent jobs" className="listed-combobox-list">
+        <div id={`${id}-list`} role="listbox" aria-label={w('Recent jobs')} className="listed-combobox-list">
           {visible.map((job, index) => (
             <button
               type="button"
@@ -105,7 +107,8 @@ export default function JobCorrectionPicker({
           ))}
           {!visible.length && (
             <p>
-              No matching job in the last {days} days. A Manager can change the window in Business Settings.
+              {w('No matching job in the last')} {days} days. A Manager can change the window in Business
+              Settings.
             </p>
           )}
           {choices.length > 100 && (
@@ -113,7 +116,9 @@ export default function JobCorrectionPicker({
           )}
         </div>
       )}
-      <small>Last {days} days · Newest first · ID matches first. Select a listed job to continue.</small>
+      <small>
+        Last {days} days · Newest first · ID matches first. {w('Select a listed job to continue.')}
+      </small>
     </div>
   );
 }

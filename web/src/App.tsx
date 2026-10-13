@@ -32,7 +32,7 @@ import JobsPaymentsPage from './JobsPaymentsPage';
 import JobDetails from './JobDetails';
 import { discountPolicy } from './discounts.mjs';
 import { PeriodDefaultsContext } from './PeriodFilter';
-import { TermsContext } from './Words';
+import { TermsProvider } from './Words';
 import { pageName, renameTerms } from './terms.mjs';
 import {
   CustomerConflictReview,
@@ -955,7 +955,7 @@ export default function App() {
 
   return (
     <BusinessOptionsContext.Provider value={branding.settings.options}>
-      <TermsContext.Provider value={branding.settings.terms}>
+      <TermsProvider value={branding.settings.terms}>
         <PeriodDefaultsContext.Provider value={branding.settings.periods}>
           <div className="app">
             <Sidebar
@@ -1864,7 +1864,7 @@ export default function App() {
             </main>
           </div>
         </PeriodDefaultsContext.Provider>
-      </TermsContext.Provider>
+      </TermsProvider>
     </BusinessOptionsContext.Provider>
   );
 }

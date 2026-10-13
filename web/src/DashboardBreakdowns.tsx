@@ -58,7 +58,7 @@ export default function DashboardBreakdowns({
       <small>
         {w('Corrected quantities of active jobs; cancelled jobs excluded.')}
         {missingQuantity > 0 &&
-          ` ${missingQuantity} jobs have no recorded quantity and are excluded from quantity totals.`}
+          w(` ${missingQuantity} jobs have no recorded quantity and are excluded from quantity totals.`)}
       </small>
     ) : (
       <small>{w('Corrected sales value; cancelled jobs excluded.')}</small>
@@ -93,7 +93,7 @@ export default function DashboardBreakdowns({
         </section>
       )}
       {access.sales && (
-        <section className="panel dashboard-panel" aria-label="Job sources">
+        <section className="panel dashboard-panel" aria-label={w('Job sources')}>
           <h2>{w('Job sources')}</h2>
           <MetricSelect
             label={w('Compare job sources by')}
@@ -109,7 +109,7 @@ export default function DashboardBreakdowns({
           <InteractiveRanking
             currency={sourceMetric === 'sales'}
             key={sourceMetric}
-            title={`Job sources by ${sourceMetric}`}
+            title={w(`Job sources by ${sourceMetric}`)}
             rows={sourceRows.map((row) => ({ id: row.id, name: row.name, value: row[sourceMetric] }))}
             formatValue={format(sourceMetric)}
           />

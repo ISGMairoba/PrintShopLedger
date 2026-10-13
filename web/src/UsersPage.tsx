@@ -6,6 +6,7 @@ import Modal from './Modal';
 import Icon from './Icon';
 import { SortHeader, useTableSort } from './TableSort';
 import { accessLevels, rankValues, canManage, userCode, validateUser } from './users.mjs';
+import { useWords } from './Words';
 
 type Staff = {
   id: string;
@@ -35,6 +36,7 @@ type Props = {
 const date = (value: string | null) =>
   value ? new Date(value).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' }) : 'Never';
 export default function UsersPage({ shopId, actorId, businessUserId, role, online, demo, onChanged }: Props) {
+  const { w } = useWords();
   const [users, setUsers] = useState<Staff[]>([]);
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -517,7 +519,9 @@ export default function UsersPage({ shopId, actorId, businessUserId, role, onlin
           <p>
             {confirmation.archived
               ? 'Restore this user profile? Any revoked access remains revoked.'
-              : 'This user will lose access to this business. Existing jobs, payments and audit records will remain.'}
+              : w(
+                  'This user will lose access to this business. Existing jobs, payments and audit records will remain.',
+                )}
           </p>
           <div className="material-actions">
             <button

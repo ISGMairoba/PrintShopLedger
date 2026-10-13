@@ -6,6 +6,7 @@ import Modal from './Modal';
 import { SortHeader, useTableSort } from './TableSort';
 import { materialActionLabels, materialCode } from './material-display.mjs';
 import type { LedgerEvent, Material, MaterialHistoryEntry, MaterialSnapshot } from './types';
+import { useWords } from './Words';
 
 type Props = {
   history: MaterialHistoryEntry[];
@@ -36,6 +37,7 @@ const valueLabel = (value: unknown) =>
   value == null ? '-' : typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value);
 
 export default function StockHistoryPage({ history, materials, pending, ready, demo }: Props) {
+  const { w } = useWords();
   const [search, setSearch] = useState('');
   const [action, setAction] = useState('');
   const [materialId, setMaterialId] = useState('');
@@ -116,7 +118,7 @@ export default function StockHistoryPage({ history, materials, pending, ready, d
             <option value="">All actions</option>
             {Object.entries(materialActionLabels).map(([value, label]) => (
               <option key={value} value={value}>
-                {label}
+                {w(label)}
               </option>
             ))}
           </select>
@@ -188,7 +190,7 @@ export default function StockHistoryPage({ history, materials, pending, ready, d
                           : `${entry.afterAvailable > entry.beforeAvailable ? '+' : ''}${quantity(Math.round((entry.afterAvailable - entry.beforeAvailable) * 1000) / 1000)}`}
                       </td>
                       <td>
-                        {materialActionLabels[entry.action]}
+                        {w(materialActionLabels[entry.action])}
                         <small>
                           {demo
                             ? 'On this device'
@@ -237,7 +239,7 @@ export default function StockHistoryPage({ history, materials, pending, ready, d
         )}
       </section>
       {selected && (
-        <Modal title={materialActionLabels[selected.action]} wide onClose={() => setSelected(null)}>
+        <Modal title={w(materialActionLabels[selected.action])} wide onClose={() => setSelected(null)}>
           <p>
             {selected.materialName} · {materialCode(selected.materialId, materials)}
           </p>

@@ -1,6 +1,7 @@
 import { useFeedbackMessage } from './Feedback';
 import { useState, type ReactNode } from 'react';
 import { defaultOptions } from './business-options.mjs';
+import { useWords } from './Words';
 type Options = ReturnType<typeof defaultOptions>;
 export default function BusinessOptionsEditor({
   value,
@@ -13,6 +14,7 @@ export default function BusinessOptionsEditor({
   disabled: boolean;
   saveControl?: ReactNode;
 }) {
+  const { w, stage } = useWords();
   const [error, setError] = useFeedbackMessage('error'),
     [payment, setPayment] = useState(''),
     [kind, setKind] = useState('Transfer');
@@ -22,10 +24,11 @@ export default function BusinessOptionsEditor({
   }
   return (
     <fieldset disabled={disabled}>
-      <legend>Dropdowns & job workflow</legend>
+      <legend>{w('Dropdowns & job workflow')}</legend>
       <p>
-        Changes apply to new entries. Saved payments and existing jobs keep their original details and stage
-        order.
+        {w(
+          'Changes apply to new entries. Saved payments and existing jobs keep their original details and stage order.',
+        )}
       </p>
       <h3>Payment methods</h3>
       <p>
@@ -161,9 +164,9 @@ export default function BusinessOptionsEditor({
           ] as const
         ).map(([key, label, max]) => (
           <label key={key}>
-            {label}
+            {w(label)}
             <textarea
-              aria-label={label}
+              aria-label={w(label)}
               rows={5}
               value={value[key].join('\n')}
               onChange={(e) => update(key, e.target.value.split('\n'))}
@@ -176,17 +179,19 @@ export default function BusinessOptionsEditor({
         ))}
       </div>
       <label>
-        Job stages
+        {w('Job stages')}
         <textarea
-          aria-label="Job stages"
+          aria-label={w('Job stages')}
           rows={7}
           value={value.jobStages.join('\n')}
           onChange={(e) => update('jobStages', e.target.value.split('\n'))}
         />
         <small>
-          One stage per line, in production order. Keep Added first, and Completed then Collected last. Add
-          steps such as Design, Approval, Finishing or Packing in between. Existing jobs retain their saved
-          workflow.
+          {w(
+            'One stage per line, in production order. Keep Added first, and Completed then Collected last. Add steps such as Design, Approval, Finishing or Packing in between. Existing jobs retain their saved workflow.',
+          )}
+          {['Added', 'Completed', 'Collected'].some((s) => stage(s) !== s) &&
+            ` Screens show them as ${stage('Added')}, ${stage('Completed')} and ${stage('Collected')} (Words).`}
         </small>
       </label>
       {saveControl}

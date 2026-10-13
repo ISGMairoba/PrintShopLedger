@@ -76,11 +76,24 @@ try {
   for (const name of ['Products', 'Stock items'])
     await menu.getByRole('button', { name, exact: true }).waitFor();
   await nav('Point of Service');
-  await page.getByRole('button', { name: 'Add order', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Add order', exact: true }).click();
+  d = page.getByRole('dialog', { name: 'New checkout' });
+  await d.getByRole('heading', { name: 'Orders in this checkout' }).waitFor();
+  assert.match(await d.innerText(), /Order description/);
+  assert.doesNotMatch(await d.innerText(), /\bjobs?\b/i, 'checkout says order, not job');
+  await d.getByRole('button', { name: 'Close', exact: true }).click();
+  await d.waitFor({ state: 'detached' });
   await page.getByLabel('Show collected and cancelled orders').waitFor();
   await nav('Orders');
   assert.equal(await page.getByRole('heading', { level: 1 }).innerText(), 'Orders');
   await page.getByRole('button', { name: 'New order', exact: true }).waitFor();
+  assert.doesNotMatch(
+    await page.locator('main').innerText(),
+    /\bjobs?\b/i,
+    'Orders page says order, not job',
+  );
+  await nav('Business Settings');
+  await page.getByRole('tab', { name: 'Orders & payments' }).waitFor();
   await page.screenshot({ path: process.env.SHOT ?? '/tmp/retail-orders.png' });
   assert.deepEqual(errors, []);
   console.log('Retail check passed');

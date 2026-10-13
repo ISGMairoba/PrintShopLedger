@@ -9,15 +9,18 @@ import { resolveCustomerState } from './customer-conflicts.mjs';
 import { resolveExpenseState } from './expense-conflicts.mjs';
 import { listRemoteConflicts, getRemoteConflict, resolveRemoteConflict, type RemoteConflict } from './cloud';
 import type { Ledger, LedgerEvent, CheckoutRecord } from './types';
+import { renameActive } from './Words';
 type Review = { conflict: RemoteConflict; ledger: Ledger; token: string };
 const fieldLabel = (key: string) =>
-  ({
-    requireSize: 'Requires size',
-    creditLimit: 'Credit limit',
-    productionStatus: 'Job stage',
-    measurementUnit: 'Measurement unit',
-    available: 'Available quantity',
-  })[key] ?? key.charAt(0).toUpperCase() + key.slice(1);
+  renameActive(
+    {
+      requireSize: 'Requires size',
+      creditLimit: 'Credit limit',
+      productionStatus: 'Job stage',
+      measurementUnit: 'Measurement unit',
+      available: 'Available quantity',
+    }[key] ?? key.charAt(0).toUpperCase() + key.slice(1),
+  );
 const fieldValue = (key: string, value: unknown) =>
   ['price', 'amount', 'creditLimit'].includes(key)
     ? '₦' + (Number(value) / 100).toLocaleString('en-NG')
@@ -29,7 +32,8 @@ const fieldValue = (key: string, value: unknown) =>
 const date = (v: string) => new Date(v).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' });
 const summary = (event: LedgerEvent) =>
   event.kind === 'checkout.completed'
-    ? `${event.data.jobs.length} job(s) · ₦${(event.data.total / 100).toLocaleString('en-NG')}`
+    ? renameActive(`${event.data.jobs.length} job(s)`) +
+      ` · ₦${(event.data.total / 100).toLocaleString('en-NG')}`
     : ('description' in event.data ? event.data.description : undefined) ||
       ('name' in event.data ? event.data.name : undefined) ||
       event.kind.replaceAll('.', ' ');

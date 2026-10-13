@@ -10,6 +10,7 @@ import { money } from './domain.mjs';
 import { expenseSources, expenseCode, expensePaid, expenseDay, makeExpenseEvent } from './expenses.mjs';
 import { materialCode } from './material-display.mjs';
 import type { Expense, ExpenseEvent, ExpenseMaterial, Material } from './types';
+import { useWords } from './Words';
 const currency = (value: number) =>
   new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(value / 100);
 type Props = {
@@ -32,6 +33,7 @@ export default function ExpenseEditor({
   onSave,
   onClose,
 }: Props) {
+  const { w } = useWords();
   const options = useBusinessOptions(),
     expenseCategories = options.expenseCategories,
     paymentMethods = options.paymentMethods.filter((item) => item.enabled);
@@ -268,8 +270,9 @@ export default function ExpenseEditor({
                     )}
                     {expense && (
                       <p className="muted">
-                        Changing or removing a quantity adjusts stock by the difference. Existing job
-                        deductions remain in place.
+                        {w(
+                          'Changing or removing a quantity adjusts stock by the difference. Existing job deductions remain in place.',
+                        )}
                       </p>
                     )}
                   </>

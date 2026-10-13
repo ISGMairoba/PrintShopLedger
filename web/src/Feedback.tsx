@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { renameActive } from './Words';
 export type FeedbackTone = 'success' | 'error' | 'warning' | 'info';
 type Toast = { id: number; message: string; tone: FeedbackTone };
 const labels = { success: 'Success', error: 'Action failed', warning: 'Warning', info: 'Notice' };
@@ -68,7 +69,9 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
     [host, setHost] = useState<HTMLElement>(document.body);
   const viewport = useRef<HTMLDivElement>(null),
     sequence = useRef(0);
-  const notify = useCallback((message: string, tone: FeedbackTone) => {
+  const notify = useCallback((text: string, tone: FeedbackTone) => {
+    // App-written messages use the business's words (jobs → orders for a retail shop).
+    const message = renameActive(text);
     if (!message) {
       setItems([]);
       return;
@@ -120,7 +123,8 @@ export function useFeedbackMessage(defaultTone: FeedbackTone = 'info') {
     [message, setValue] = useState(''),
     [tone, setTone] = useState(defaultTone);
   const setMessage = useCallback(
-    (value: string, severity: FeedbackTone = defaultTone) => {
+    (text: string, severity: FeedbackTone = defaultTone) => {
+      const value = renameActive(text);
       setValue(value);
       setTone(severity);
       notify(value, severity);
