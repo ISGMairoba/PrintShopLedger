@@ -1011,7 +1011,7 @@ export default function CheckoutEditor({
                 </span>
                 {manual ? (
                   <CurrencyInput
-                    aria-label={`Allocate to ${job.service}: ${job.description} (Job ${job.id.slice(0, 8).toUpperCase()})`}
+                    aria-label={`Allocate to ${job.service}: ${job.description} (${w('Job')} ${job.id.slice(0, 8).toUpperCase()})`}
                     max={jobBalance(paymentLedger, job).outstanding / 100}
                     value={allocations[job.id] ?? ''}
                     onValueChange={(value) => editAllocation(job.id, value)}

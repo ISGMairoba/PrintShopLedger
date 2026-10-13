@@ -58,7 +58,9 @@ export default function JobDetails({
     ledger.customers.find((customer) => customer.id === id)?.name ?? 'Unknown customer';
   return (
     <Modal title={job.description} wide busy={busy} onClose={onClose}>
-      <span className="eyebrow">JOB #{shortId(job.id)}</span>
+      <span className="eyebrow">
+        {w('JOB')} #{shortId(job.id)}
+      </span>
       <p>
         {customerName(job.customerId)} · {job.service}
       </p>

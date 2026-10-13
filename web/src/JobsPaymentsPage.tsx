@@ -117,7 +117,7 @@ export default function JobsPaymentsPage({
           <article>
             <span>{w('Total job value')}</span>
             <strong>{currency(total)}</strong>
-            <small>{matchingJobs.length} jobs in this list</small>
+            <small>{w(`${matchingJobs.length} ${matchingJobs.length === 1 ? 'job' : 'jobs'} in this list`)}</small>
           </article>
           <article>
             <span>{w('Paid against jobs')}</span>
@@ -128,7 +128,7 @@ export default function JobsPaymentsPage({
             <span>Outstanding</span>
             <strong>{currency(outstanding)}</strong>
             <small>
-              {balances.filter((balance) => balance.outstanding > 0).length} jobs awaiting payment
+              {w(`${balances.filter((balance) => balance.outstanding > 0).length} jobs awaiting payment`)}
             </small>
           </article>
         </section>

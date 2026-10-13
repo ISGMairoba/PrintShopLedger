@@ -450,7 +450,7 @@ export function SaleAdjustmentEditor({
   return (
     <Modal title="Adjust sale" wide busy={busy} onClose={onClose}>
       <p>
-        {ledger.customers.find((c) => c.id === job.customerId)?.name} · {job.service} · Job #
+        {ledger.customers.find((c) => c.id === job.customerId)?.name} · {job.service} · {w('Job')} #
         {job.id.slice(0, 8).toUpperCase()}
       </p>
       <p>
