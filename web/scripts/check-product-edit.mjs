@@ -111,6 +111,8 @@ try {
     assert.equal(material.minimumStock, 20);
     // The Services page opens the same form for one item.
     await nav('Services');
+    // On phones the extra row buttons sit under "More".
+    if (mobile) await page.locator('.mobile-actions').first().getByRole('button', { name: /More/ }).click();
     await page.getByRole('button', { name: 'Price & stock', exact: true }).first().click();
     await page.getByRole('dialog', { name: 'Edit product' }).getByLabel('Name', { exact: true }).waitFor();
     await page
