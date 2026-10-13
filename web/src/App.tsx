@@ -96,6 +96,7 @@ import type {
 import QuotationsPage from './QuotationsPage';
 import { quotationCheckout, quotationRef } from './quotations.mjs';
 import type { Quotation, QuotationEvent } from './types';
+import QuickSale from './QuickSale';
 
 const DashboardPage = lazy(() => import('./DashboardPage'));
 const ReportsPage = lazy(() => import('./ReportsPage'));
@@ -137,6 +138,7 @@ export default function App() {
   const [receipt, setReceipt] = useState<CheckoutRecord | null>(null);
   // A quotation being turned into an order (checkout opens filled from it).
   const [quoteOrder, setQuoteOrder] = useState<Quotation | null>(null);
+  const [quickSale, setQuickSale] = useState(false);
   const [jobToAdvance, setJobToAdvance] = useState<{ job: Job; mode: ProgressMode } | null>(null);
   const [adjustingJob, setAdjustingJob] = useState<Job | null>(null);
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
@@ -1532,6 +1534,10 @@ export default function App() {
                         setForm('job');
                       }}
                       onPayment={() => openPayment()}
+                      onQuickSale={() => {
+                        setForm(null);
+                        setQuickSale(true);
+                      }}
                       onJob={setSelectedJob}
                       onNext={(job, mode) => setJobToAdvance({ job, mode })}
                       onReceipt={setReceipt}
@@ -1721,6 +1727,21 @@ export default function App() {
                     branding.settings.discounts,
                     demo ? 4 : (shop?.accessLevel ?? 0),
                   )}
+                />
+              )}
+              {quickSale && (
+                <QuickSale
+                  ledger={ledger}
+                  actor={{
+                    id: demo ? 'local-trial' : session!.user.id,
+                    label: demo
+                      ? 'Local trial user'
+                      : shop?.staffName || session!.user.email || session!.user.id,
+                  }}
+                  busy={busy}
+                  onSave={completeCheckout}
+                  onClose={() => setQuickSale(false)}
+                  onReceipt={setReceipt}
                 />
               )}
               {quoteOrder &&
