@@ -14,6 +14,56 @@ export interface Customer {
   modifiedAt: string;
   lastEventId: string | null;
 }
+export type PricingTemplate = {
+  id: string;
+  name: string;
+  version: number;
+  archived: boolean;
+  inputs: {
+    key: string;
+    label: string;
+    kind: string;
+    min: number;
+    max: number;
+    default: number;
+    options: { label: string; value: number }[];
+  }[];
+  derived: { key: string; label: string; formula: string; expression?: any }[];
+  components: {
+    id: string;
+    label: string;
+    serviceId: string;
+    quantityFormula: string;
+    widthFormula?: string;
+    heightFormula?: string;
+    quantityExpression?: any;
+    widthExpression?: any;
+    heightExpression?: any;
+  }[];
+};
+export type PricingSettings = { enabled: boolean; templates: PricingTemplate[] };
+export type TemplateSnapshot = {
+  template: PricingTemplate;
+  inputs: Record<string, number>;
+  components: {
+    id: string;
+    label: string;
+    stockEventId: string;
+    serviceId: string;
+    service: string;
+    serviceVersion: number;
+    unitPrice: number;
+    quantity: number;
+    width: number | null;
+    height: number | null;
+    amount: number;
+    materialId: string | null;
+    materialNeeded: number;
+    requireSize: boolean;
+    measurementUnit: string;
+    stockCountEventId: string | null;
+  }[];
+};
 export interface CustomerCommand {
   id: string;
   name?: string;
@@ -32,6 +82,8 @@ export type CustomerEvent = {
   data: CustomerCommand;
 };
 export interface Job {
+  templateInputs?: Record<string, number | string>;
+  templateSnapshot?: TemplateSnapshot;
   workflow?: string[];
   /** Sold off the shelf (from the service at checkout). */
   shelfItem?: boolean;
@@ -300,6 +352,8 @@ export interface DrawerCommand {
   note: string;
 }
 export interface QuotationLine {
+  templateInputs?: Record<string, number | string>;
+  templateSnapshot?: TemplateSnapshot;
   id: string;
   serviceId: string;
   service: string;
@@ -377,6 +431,7 @@ export type ReminderEvent = {
   };
 };
 export interface Ledger {
+  pricing?: PricingSettings;
   saleAdjustments: SaleAdjustment[];
   materialWaste: MaterialWaste[];
   expenses: Expense[];

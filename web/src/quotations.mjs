@@ -65,6 +65,7 @@ export function priceQuotation(ledger, lines, orderDiscount = null, policy = nul
     orderDiscountShare: j.orderDiscountShare ?? 0,
     discountAmount: j.discountAmount ?? 0,
     amount: j.amount,
+    ...(j.templateSnapshot ? { templateInputs: j.templateInputs, templateSnapshot: j.templateSnapshot } : {}),
   }));
   const subtotal = out.reduce((n, l) => n + l.grossAmount, 0),
     total = out.reduce((n, l) => n + l.amount, 0);
@@ -189,7 +190,25 @@ export function quotationCheckout(ledger, quote) {
   const changes = [];
   const lines = quote.lines.map((l) => {
     const service = ledger.services.find((s) => s.id === l.serviceId);
-    if (!service || service.archived) changes.push(`${l.description}: ${l.service} is no longer available`);
+    if (l.templateSnapshot) {
+      try {
+        const priced = quoteLine(ledger, {
+          ...l,
+          source: 'Quotation',
+          templateStockIds: Object.fromEntries(
+            l.templateSnapshot.components.map((c) => [c.id, crypto.randomUUID()]),
+          ),
+        });
+        if (
+          priced.grossAmount !== l.grossAmount ||
+          JSON.stringify(priced.templateSnapshot.template) !== JSON.stringify(l.templateSnapshot.template)
+        )
+          changes.push(`${l.description}: template or component prices changed; review the new total.`);
+      } catch (e) {
+        changes.push(`${l.description}: ${e.message}`);
+      }
+    } else if (!service || service.archived)
+      changes.push(`${l.description}: ${l.service} is no longer available`);
     else if (service.price !== l.unitPrice)
       changes.push(
         `${l.description}: price changed from ${currency(l.unitPrice)} to ${currency(service.price)}`,
@@ -201,6 +220,9 @@ export function quotationCheckout(ledger, quote) {
       width: l.width,
       height: l.height,
       ...(l.discount ? { discount: l.discount } : {}),
+      ...(l.templateSnapshot
+        ? { templateInputs: l.templateInputs, templateSnapshot: l.templateSnapshot }
+        : {}),
     };
   });
   return {

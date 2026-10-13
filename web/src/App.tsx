@@ -28,7 +28,7 @@ import { isTransientSyncError } from './auto-sync.mjs';
 import Sidebar from './Sidebar';
 import Icon from './Icon';
 import PrintSettingsPage from './PrintSettingsPage';
-import { lazy, Suspense, useEffect, useRef, useState, type FormEvent } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import JobsPaymentsPage from './JobsPaymentsPage';
 import JobDetails from './JobDetails';
@@ -245,7 +245,10 @@ export default function App() {
     const timer = setInterval(tryUpdate, 15000);
     return () => clearInterval(timer);
   }, [needRefresh, busy, updateServiceWorker]);
-  const ledger = state.ledger;
+  const ledger = useMemo(
+    () => ({ ...state.ledger, pricing: branding.settings.pricing }),
+    [state.ledger, branding.settings.pricing],
+  );
   useEffect(() => {
     if (
       ready &&
@@ -1215,7 +1218,10 @@ export default function App() {
                     JSON.stringify(checkoutConflict.cloud.payments) +
                     JSON.stringify(checkoutConflict.cloud.services)
                   }
-                  ledger={checkoutReviewBase(state, checkoutConflict.cloud, checkoutConflict.event.id)}
+                  ledger={{
+                    ...checkoutReviewBase(state, checkoutConflict.cloud, checkoutConflict.event.id),
+                    pricing: branding.settings.pricing,
+                  }}
                   initialCheckout={checkoutConflict.event.data}
                   actor={{
                     id: session!.user.id,
@@ -1472,6 +1478,7 @@ export default function App() {
                   ) : page === 'Business Settings' ? (
                     <BusinessSettingsPage
                       key={scope}
+                      ledger={ledger}
                       settings={branding.settings}
                       version={branding.version}
                       ready={branding.ready}

@@ -123,3 +123,14 @@ Group by checkout adds a second view using the recorded checkout ID. Each group 
 Business Settings → Jobs & payments → Job description entry supports Required (existing default), Optional or Hidden. Checkout and quotations use the service name when an optional/hidden description is blank. Existing descriptions are retained. The generated description preserves compatibility with stored records, receipts and server validation.
 
 Validation: `tests/job-batches.test.mjs` and `scripts/check-job-batches.mjs` cover grouping, mixed stages, skipped items, stale versions, description modes, settings persistence and desktop/iPhone layouts.
+
+
+### Pricing templates
+
+Developer maintenance users can enable **Business Settings → Pricing templates**, create a template or start with the editable Book preset. Link each component to an existing retail item or service, define numeric inputs (or named options with numeric values), and use quantity formulas with optional reusable calculations. The formula editor inserts variables, arithmetic and `ceil`, `floor`, `round`, `min`, `max`; preview the result before saving. Quantity is the order quantity and is never multiplied twice. Component formulas round to three decimal places; intermediate arithmetic uses twelve decimal places on both client and server. A zero component quantity is optional and posts no charge or stock use.
+
+Templates appear in the existing service picker in Quotations and Checkout. They add existing selling prices; they do not apply an additional profit percentage. A quotation posts no stock or payments. Checkout saves one parent job, one payment balance and an immutable version/input/component-price snapshot; each linked material is deducted once per component in the same server transaction. Materialless components deduct no stock. The component breakdown is expandable in checkout, quotations and job details; customer receipts retain the one parent item. Archived/disabled templates cannot be used for new sales, and existing job snapshots are retained.
+
+Apply `supabase/migrations/20261013074911_pricing_templates.sql` before deploying this feature. `supabase/tests/pricing_templates.sql` is a rollback-only authenticated integration check, and `scripts/check-pricing-templates.mjs` checks desktop/light and phone/dark flows. Template definitions are saved with the existing versioned, Developer-only business settings RPC. Catalogue changes and intervening stock counts require review before an offline template checkout can sync.
+
+The first version uses catalogue selling prices. Cost-based expenses, additional profit rules and Compare Options are later extensions. To change a saved template order's component quantities, cancel it and create a replacement; any returned component materials are recorded separately using the existing stock-adjustment tools. Charge, description and payment corrections remain available.

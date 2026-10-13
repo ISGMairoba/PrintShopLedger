@@ -1,3 +1,5 @@
+import PricingTemplatesEditor from './PricingTemplatesEditor';
+import type { Ledger } from './types';
 import { useFeedbackMessage, FeedbackBanner } from './Feedback';
 import { receiptHtml } from './receipts.mjs';
 import { sampleReceipt } from './receipt-sample.mjs';
@@ -11,6 +13,7 @@ import { termPresets } from './terms.mjs';
 import { useWords } from './Words';
 export default function BusinessSettingsPage({
   settings,
+  ledger,
   version,
   ready,
   online,
@@ -20,6 +23,7 @@ export default function BusinessSettingsPage({
   onReload,
 }: {
   settings: Branding;
+  ledger: Ledger;
   version: number;
   ready: boolean;
   online: boolean;
@@ -41,6 +45,7 @@ export default function BusinessSettingsPage({
     'Receipts',
     'Dropdowns & workflow',
     'Jobs & payments',
+    'Pricing templates',
     'Corrections',
     'Page access',
   ];
@@ -534,6 +539,15 @@ export default function BusinessSettingsPage({
               saveControl={sectionSave('Dropdown settings', ['options'])}
             />
           </div>
+          <fieldset hidden={tab !== 'Pricing templates'} disabled={busy || !ready}>
+            <legend>Pricing templates</legend>
+            <PricingTemplatesEditor
+              value={draft.pricing}
+              ledger={ledger}
+              onChange={(value) => field('pricing', value)}
+            />
+            {sectionSave('Pricing templates', ['pricing'])}
+          </fieldset>
           <fieldset hidden={tab !== 'Jobs & payments'} disabled={busy || !ready}>
             <legend>{w('Jobs & payments')}</legend>
             <h3>{w('Default job deadline')}</h3>
