@@ -17,6 +17,8 @@ type Props = {
   ready: boolean;
   onCheckout: () => void;
   onPayment: () => void;
+  /** Sell shelf items quickly (shown when the business has shelf items). */
+  onQuickSale?: () => void;
   onJob: (id: string) => void;
   onNext: (job: Job, mode: ProgressMode) => void;
   onReceipt: (record: CheckoutRecord) => void;
@@ -27,6 +29,7 @@ export default function PointOfServicePage({
   ready,
   onCheckout,
   onPayment,
+  onQuickSale,
   onJob,
   onNext,
   onReceipt,
@@ -124,6 +127,11 @@ export default function PointOfServicePage({
         <button className="secondary" onClick={() => setReceipts((v) => !v)}>
           {receipts ? w('Show jobs') : 'Receipts'}
         </button>
+        {onQuickSale && ledger.services.some((s) => s.shelfItem && !s.archived) && (
+          <button disabled={busy || !ready} onClick={onQuickSale}>
+            <Icon name="drawer" /> Quick sale
+          </button>
+        )}
         <button disabled={busy || !ready} onClick={onCheckout}>
           <Icon name="add" /> {w('Add job')}
         </button>

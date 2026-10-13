@@ -71,6 +71,27 @@ try {
   await nav('Materials');
   assert.match(await page.locator('table').innerText(), /Blue pen[\s\S]*\b7\b/);
 
+  // Quick sale: tap the product twice, take ₦2,000, give ₦1,000 change.
+  await nav('Point of Service');
+  await page.getByRole('button', { name: 'Quick sale', exact: true }).click();
+  d = page.getByRole('dialog', { name: 'Quick sale' });
+  const tile = d.getByRole('group', { name: 'Products' }).getByRole('button', { name: /Blue pen/ });
+  await tile.click();
+  await tile.click();
+  assert.equal(await d.getByLabel('Quantity of Blue pen').inputValue(), '2');
+  await d.getByLabel('Money received (₦)').fill('2000');
+  assert.match(
+    await d.locator('.cart-total').innerText(),
+    /Total ₦1,000\.00[\s\S]*Change to give: ₦1,000\.00/,
+  );
+  await d.getByRole('button', { name: /Complete sale/ }).click();
+  await d.waitFor({ state: 'detached' });
+  await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
+  await nav('Materials');
+  assert.match(await page.locator('table').innerText(), /Blue pen[\s\S]*\b5\b/);
+  await nav('Customers');
+  assert.match(await page.locator('table').innerText(), /Walk-in customer/);
+
   // Retail words.
   await nav('Business Settings');
   await page.getByRole('tab', { name: 'Jobs & payments' }).click();
