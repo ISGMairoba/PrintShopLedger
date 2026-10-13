@@ -117,7 +117,9 @@ export default function JobsPaymentsPage({
           <article>
             <span>{w('Total job value')}</span>
             <strong>{currency(total)}</strong>
-            <small>{w(`${matchingJobs.length} ${matchingJobs.length === 1 ? 'job' : 'jobs'} in this list`)}</small>
+            <small>
+              {w(`${matchingJobs.length} ${matchingJobs.length === 1 ? 'job' : 'jobs'} in this list`)}
+            </small>
           </article>
           <article>
             <span>{w('Paid against jobs')}</span>
