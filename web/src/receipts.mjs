@@ -187,7 +187,7 @@ export function receiptModel(record, business, pending = false, adjustments = []
     note: o.showNote ? record.reference || '' : '',
     adjustments: adjustments.map((a) => ({
       ref: shortRef(a.id),
-      label: adjustmentNames[a.action] ?? a.action.replace('sale.', ''),
+      label: renameTerms(adjustmentNames[a.action] ?? a.action.replace('sale.', ''), b.terms),
       job: shortRef(a.jobId),
       lines: [
         `Charge: ${currency(a.before.amount)} → ${currency(a.after.amount)}`,

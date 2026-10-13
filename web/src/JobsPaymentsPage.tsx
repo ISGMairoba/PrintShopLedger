@@ -156,7 +156,7 @@ export default function JobsPaymentsPage({
           <label className="list-sort-select">
             Sort by
             <select
-              aria-label={page === 'Jobs' ? 'Sort jobs by' : 'Sort payments by'}
+              aria-label={page === 'Jobs' ? w('Sort jobs by') : 'Sort payments by'}
               value={page === 'Jobs' ? jobSorting.key : paymentSorting.key}
               onChange={(e) => (page === 'Jobs' ? jobSorting : paymentSorting).toggle(e.target.value)}
             >
@@ -242,7 +242,7 @@ export default function JobsPaymentsPage({
                   onJob={onJob}
                   onAction={onAction}
                 />
-                {!matchingJobs.length && <p className="empty">No matching jobs.</p>}
+                {!matchingJobs.length && <p className="empty">{w('No matching jobs.')}</p>}
               </div>
             )}
           </>

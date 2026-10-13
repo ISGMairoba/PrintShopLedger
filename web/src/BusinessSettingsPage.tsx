@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import { defaultBranding, validateBranding, suggestedPalette, contrastText } from './business-branding.mjs';
 import type { Branding } from './useBusinessBranding';
 import { termPresets } from './terms.mjs';
+import { useWords } from './Words';
 export default function BusinessSettingsPage({
   settings,
   version,
@@ -27,6 +28,7 @@ export default function BusinessSettingsPage({
   onSave: (settings: Branding, version: number) => Promise<unknown>;
   onReload: () => Promise<void>;
 }) {
+  const { w } = useWords();
   const [draft, setDraft] = useState(settings),
     [base, setBase] = useState(version),
     [dirtyKeys, setDirtyKeys] = useState<(keyof Branding)[]>([]),
@@ -134,7 +136,7 @@ export default function BusinessSettingsPage({
       }
       onClick={() => void saveSection(label, keys)}
     >
-      Save {label.toLowerCase()}
+      Save {w(label).toLowerCase()}
     </button>
   );
   // Receipt printers and full pages each keep their own receipt settings.
@@ -182,7 +184,7 @@ export default function BusinessSettingsPage({
               }
             }}
           >
-            {name}
+            {w(name)}
             {(name === 'Profile & logo'
               ? ['businessName', 'address', 'phones', 'email', 'website', 'socials', 'logo']
               : name === 'Appearance'
@@ -401,24 +403,24 @@ export default function BusinessSettingsPage({
                 {!opts.showBusinessName && !(opts.showLogo && draft.logo) && (
                   <small>The name still shows while there is no logo on the receipt.</small>
                 )}
-                <h3>Each job</h3>
+                <h3>{w('Each job')}</h3>
                 <label>
                   Highlighted line
                   <select value={opts.headline} onChange={(e) => receipt('headline', e.target.value)}>
-                    <option value="description">Job description</option>
-                    <option value="service">Service name</option>
+                    <option value="description">{w('Job description')}</option>
+                    <option value="service">{w('Service name')}</option>
                   </select>
                 </label>
                 {(
                   [
                     [
                       'showSubline',
-                      opts.headline === 'service' ? 'Job description below it' : 'Service name below it',
+                      w(opts.headline === 'service' ? 'Job description below it' : 'Service name below it'),
                     ],
-                    ['showJobId', 'Job ID'],
+                    ['showJobId', w('Job ID')],
                     ['showQuantity', 'Quantity'],
                     ['showSize', 'Size'],
-                    ['showSource', 'How the job was received'],
+                    ['showSource', w('How the job was received')],
                     ['showDueDate', 'Deadline'],
                   ] as const
                 ).map(([key, label]) => (
@@ -431,8 +433,8 @@ export default function BusinessSettingsPage({
                     {label}
                   </label>
                 ))}
-                <h3>Amounts for each job</h3>
-                <small>The job amount always shows.</small>
+                <h3>{w('Amounts for each job')}</h3>
+                <small>{w('The job amount always shows.')}</small>
                 {(
                   [
                     ['showPaidBefore', 'Paid before (part-payments)'],
@@ -504,7 +506,9 @@ export default function BusinessSettingsPage({
                 </label>
                 {!draft.logo && <small>Add a logo under Profile & logo to use a watermark.</small>}
                 <small>
-                  Changes affect receipt and report branding, not saved job amounts or payment balances.
+                  {w(
+                    'Changes affect receipt and report branding, not saved job amounts or payment balances.',
+                  )}
                 </small>
                 {sectionSave('Receipt settings', ['receipt', 'receiptPage', 'documents'])}
               </div>
@@ -531,11 +535,12 @@ export default function BusinessSettingsPage({
             />
           </div>
           <fieldset hidden={tab !== 'Jobs & payments'} disabled={busy || !ready}>
-            <legend>Jobs & payments</legend>
-            <h3>Default job deadline</h3>
+            <legend>{w('Jobs & payments')}</legend>
+            <h3>{w('Default job deadline')}</h3>
             <p>
-              New jobs are due this long after they are added. Staff can change or clear the deadline when
-              adding a job. Use 0 for no default deadline.
+              {w(
+                'New jobs are due this long after they are added. Staff can change or clear the deadline when adding a job. Use 0 for no default deadline.',
+              )}
             </p>
             <div className="form-grid">
               <label>
@@ -654,9 +659,9 @@ export default function BusinessSettingsPage({
             {sectionSave('Words', ['terms'])}
             <h3>Discounts</h3>
             <p>
-              The most each rank may take off a job, as a percentage of its price. Flat naira discounts and
-              discounts on a whole order need Admin or higher. Developers have no limit. Use 0% to stop a rank
-              giving discounts.
+              {w(
+                'The most each rank may take off a job, as a percentage of its price. Flat naira discounts and discounts on a whole order need Admin or higher. Developers have no limit. Use 0% to stop a rank giving discounts.',
+              )}
             </p>
             <div className="form-grid">
               {(
@@ -702,7 +707,7 @@ export default function BusinessSettingsPage({
                 ] as const
               ).map(([key, label]) => (
                 <label key={key}>
-                  {label}
+                  {w(label)}
                   <select
                     value={draft.periods[key]}
                     onChange={(event) => field('periods', { ...draft.periods, [key]: event.target.value })}
@@ -721,7 +726,7 @@ export default function BusinessSettingsPage({
           <fieldset hidden={tab !== 'Corrections'} disabled={busy || !ready}>
             <legend>Correction history</legend>
             <label>
-              Recent jobs window (days)
+              {w('Recent jobs window (days)')}
               <input
                 type="number"
                 min="1"
@@ -732,8 +737,9 @@ export default function BusinessSettingsPage({
               />
             </label>
             <p>
-              Show jobs created within this window in the correction selector. Default: 7 days. Changing this
-              does not delete records or adjustment history.
+              {w(
+                'Show jobs created within this window in the correction selector. Default: 7 days. Changing this does not delete records or adjustment history.',
+              )}
             </p>
             {sectionSave('Correction settings', ['corrections'])}
           </fieldset>

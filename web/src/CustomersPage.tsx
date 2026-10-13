@@ -11,6 +11,7 @@ import { customerCode, customerMatches } from './customers.mjs';
 import { servicePrice } from './services.mjs';
 import { SortHeader, useTableSort } from './TableSort';
 import type { Customer, CustomerEvent, Ledger } from './types';
+import { useWords } from './Words';
 type Props = {
   ledger: Ledger;
   ready: boolean;
@@ -30,6 +31,7 @@ export default function CustomersPage({
   onRecordPayment,
   onStatement,
 }: Props) {
+  const { w } = useWords();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('active');
   const [audit, setAudit] = useState(false);
@@ -68,7 +70,7 @@ export default function CustomersPage({
     },
   );
   const heading = (column: string, label: string) => (
-    <SortHeader column={column} label={label} sort={sorting} />
+    <SortHeader column={column} label={w(label)} sort={sorting} />
   );
   async function changeStatus() {
     if (!confirmation || busy) return;
@@ -263,7 +265,9 @@ export default function CustomersPage({
           <p>
             {confirmation.archived
               ? 'The customer will be active again.'
-              : 'Their details and existing jobs and payments will be retained. You can restore them later.'}
+              : w(
+                  'Their details and existing jobs and payments will be retained. You can restore them later.',
+                )}
           </p>
           <div className="material-actions">
             <button

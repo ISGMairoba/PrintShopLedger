@@ -488,9 +488,9 @@ export default function CheckoutEditor({
           <div className="notice notice-warning">
             <strong>A newer stock count affects this checkout.</strong>
             <p>
-              Confirm whether these jobs were included in the physical count. Select the jobs whose material
-              usage was already included in the physical count. Their sales and payments will be saved without
-              deducting stock twice. Unselected jobs deduct stock normally.
+              {w(
+                'Confirm whether these jobs were included in the physical count. Select the jobs whose material usage was already included in the physical count. Their sales and payments will be saved without deducting stock twice. Unselected jobs deduct stock normally.',
+              )}
             </p>
             {countedReviewJobs.map((job) => (
               <label className="check-label" key={job.id}>
@@ -697,7 +697,7 @@ export default function CheckoutEditor({
                         <label>
                           {w('Job received through')}
                           <select
-                            aria-label="Job received through"
+                            aria-label={w('Job received through')}
                             value={item.source}
                             onChange={(e) => editLine(item.id, 'source', e.target.value)}
                           >
@@ -788,7 +788,9 @@ export default function CheckoutEditor({
                     </small>
                   )}
                   <strong>Total: {cartTotal === null ? '—' : currency(cartTotal)}</strong>
-                  {cartTotal === null && <small>Complete all job details to calculate the total.</small>}
+                  {cartTotal === null && (
+                    <small>{w('Complete all job details to calculate the total.')}</small>
+                  )}
                 </p>
               </>
             )}
@@ -942,8 +944,8 @@ export default function CheckoutEditor({
                 <p>
                   Recommended payment: <strong>{currency(recommended)}</strong>
                   <small>
-                    New jobs {currency(cartTotal ?? 0)} + previous unpaid balance {currency(previousBalance)}{' '}
-                    − wallet credit{' '}
+                    {w('New jobs')} {currency(cartTotal ?? 0)} + previous unpaid balance{' '}
+                    {currency(previousBalance)} − wallet credit{' '}
                     {currency(Math.min(Math.max(0, availableWallet), (cartTotal ?? 0) + previousBalance))}
                   </small>
                 </p>
@@ -979,8 +981,10 @@ export default function CheckoutEditor({
             </div>
             <p className="muted">
               {manual
-                ? 'Your latest edit takes priority. When allocations exceed the available money, earlier-edited allocations reduce first. Each allocation stays within the job’s outstanding balance.'
-                : 'Automatic allocation pays the oldest unpaid jobs first, including earlier orders.'}
+                ? w(
+                    'Your latest edit takes priority. When allocations exceed the available money, earlier-edited allocations reduce first. Each allocation stays within the job’s outstanding balance.',
+                  )
+                : w('Automatic allocation pays the oldest unpaid jobs first, including earlier orders.')}
             </p>
             {manual && allocationBudget !== null && (
               <p className="muted">
@@ -1001,7 +1005,9 @@ export default function CheckoutEditor({
                   <small className="allocation-description" title={job.description}>
                     {job.description}
                   </small>
-                  <small>Job #{job.id.slice(0, 8).toUpperCase()}</small>
+                  <small>
+                    {w('Job')} #{job.id.slice(0, 8).toUpperCase()}
+                  </small>
                 </span>
                 {manual ? (
                   <CurrencyInput
@@ -1020,7 +1026,7 @@ export default function CheckoutEditor({
             {preview && (
               <div className="checkout-summary">
                 <p>
-                  New jobs <strong>{currency(preview.data.total)}</strong>
+                  {w('New jobs')} <strong>{currency(preview.data.total)}</strong>
                 </p>
                 <p>
                   Wallet used <strong>{currency(preview.data.walletUsed)}</strong>

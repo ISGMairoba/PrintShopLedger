@@ -3,6 +3,7 @@ import Modal from './Modal';
 import { useFeedbackMessage } from './Feedback';
 import { applyWaste } from './sale-adjustments.mjs';
 import type { Ledger, SupervisedEvent } from './types';
+import { useWords } from './Words';
 export default function MaterialWastePage({
   ledger,
   ready,
@@ -18,6 +19,7 @@ export default function MaterialWastePage({
   actor: { id: string; label: string };
   onSave: (event: SupervisedEvent) => Promise<void>;
 }) {
+  const { w } = useWords();
   const [submitted, setSubmitted] = useState<SupervisedEvent | null>(null);
   const [query, setQuery] = useState(''),
     [id, setId] = useState<string | null>(null),
@@ -44,7 +46,7 @@ export default function MaterialWastePage({
   return (
     <section className="panel supervisor-page">
       <div className="toolbar">
-        <h2>Material waste, damage and reprints</h2>
+        <h2>{w('Material waste, damage and reprints')}</h2>
         <button
           disabled={!ready || busy || !canSave}
           onClick={() => {
@@ -58,7 +60,7 @@ export default function MaterialWastePage({
             setError('');
           }}
         >
-          Record material waste
+          {w('Record material waste')}
         </button>
       </div>
       <p>
@@ -70,7 +72,7 @@ export default function MaterialWastePage({
       </p>
       <input
         aria-label="Search material waste"
-        placeholder="Search material, reason, job or approver"
+        placeholder={w('Search material, reason, job or approver')}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
@@ -86,7 +88,7 @@ export default function MaterialWastePage({
               <p>{r.reason}</p>
               <small>
                 {r.changedByLabel} · {new Date(r.changedAt).toLocaleString()}
-                {r.jobId && ` · Job ${r.jobId.slice(0, 8).toUpperCase()}`}
+                {r.jobId && w(` · Job ${r.jobId.slice(0, 8).toUpperCase()}`)}
               </small>
               <small>
                 Stock: {r.beforeAvailable} → {r.afterAvailable} {r.measurementUnit}
@@ -180,11 +182,11 @@ export default function MaterialWastePage({
                   required
                 />
                 <small className="muted">
-                  Enter extra material used. The original job usage has already been deducted.
+                  {w('Enter extra material used. The original job usage has already been deducted.')}
                 </small>
               </label>
               <label>
-                Related job (optional)
+                {w('Related job (optional)')}
                 <select
                   value={jobId}
                   onChange={(e) => {
@@ -193,7 +195,7 @@ export default function MaterialWastePage({
                     if (job?.materialId) setMaterial(job.materialId);
                   }}
                 >
-                  <option value="">No linked job</option>
+                  <option value="">{w('No linked job')}</option>
                   {eligibleJobs.map((j) => (
                     <option value={j.id} key={j.id}>
                       {j.description} · {j.id.slice(0, 8).toUpperCase()}

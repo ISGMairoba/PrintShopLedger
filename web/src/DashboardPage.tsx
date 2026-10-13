@@ -53,9 +53,9 @@ export default function DashboardPage({
     );
   const card = (label: string, value: number, note: string, comparison?: string) => (
     <article key={label}>
-      <span>{label}</span>
+      <span>{w(label)}</span>
       <strong>{money(value)}</strong>
-      <small>{note}</small>
+      <small>{w(note)}</small>
       {comparison && <small>{comparison}</small>}
     </article>
   );
@@ -158,7 +158,7 @@ export default function DashboardPage({
               card(
                 'Outstanding from customers',
                 summary.outstanding,
-                `${summary.outstandingJobs} jobs awaiting payment`,
+                w(`${summary.outstandingJobs} jobs awaiting payment`),
               )}
             {access.expenses &&
               card('Unpaid expenses', summary.expenseOutstanding, 'Current remaining expense balances')}

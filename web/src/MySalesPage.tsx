@@ -10,6 +10,7 @@ import { money } from './domain.mjs';
 import { currency } from './receipts.mjs';
 import { myTransactions, drawerSnapshot, salesSummary, saleDay, saleDescription } from './my-sales.mjs';
 import type { Ledger, CheckoutRecord, DrawerClosing, DrawerCommand, SaleAdjustment } from './types';
+import { useWords } from './Words';
 type Props = {
   ledger: Ledger;
   userId: string;
@@ -37,6 +38,7 @@ export default function MySalesPage({
   onReceipt,
   onHandover,
 }: Props) {
+  const { w } = useWords();
   const [query, setQuery] = useState(''),
     [day, setDay] = useState(saleDay(new Date().toISOString())),
     [status, setStatus] = useState('open'),
@@ -128,7 +130,7 @@ export default function MySalesPage({
           <span>Customers served</span>
           <strong>{summary.customers.length}</strong>
           <small>
-            New jobs: {currency(summary.sales)} · {records.length} transactions
+            {w('New jobs')}: {currency(summary.sales)} · {records.length} transactions
           </small>
         </article>
       </div>
@@ -261,7 +263,7 @@ export default function MySalesPage({
               labels={{
                 0: 'ID',
                 1: 'Customer',
-                3: 'New jobs',
+                3: w('New jobs'),
                 5: 'Wallet used',
                 6: 'Method',
                 7: 'Status',
@@ -274,7 +276,7 @@ export default function MySalesPage({
                     <SortHeader label="Transaction ID" column="id" sort={sorting} />
                     <SortHeader label="Customer" column="customer" sort={sorting} />
                     <SortHeader label="Description" column="description" sort={sorting} />
-                    <SortHeader label="New jobs" column="sales" sort={sorting} />
+                    <SortHeader label={w('New jobs')} column="sales" sort={sorting} />
                     <SortHeader label="Money received" column="received" sort={sorting} />
                     <SortHeader label="Wallet used" column="wallet" sort={sorting} />
                     <SortHeader label="Method" column="method" sort={sorting} />
@@ -468,7 +470,7 @@ export default function MySalesPage({
               All collections <strong>{currency(details.totalCollected)}</strong>
             </p>
             <p>
-              New job sales <strong>{currency(details.jobSales)}</strong>
+              {w('New job sales')} <strong>{currency(details.jobSales)}</strong>
             </p>
           </div>
           {ledger.saleAdjustments.some((a) => a.historicalClosingId === details.id) && (

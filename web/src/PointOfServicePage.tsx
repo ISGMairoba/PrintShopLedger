@@ -188,7 +188,7 @@ export default function PointOfServicePage({
           />
           {!visible.length && (
             <p className="empty">
-              No matching jobs. Add a job, choose a longer period or show collected and cancelled jobs.
+              {w('No matching jobs. Add a job, choose a longer period or show collected and cancelled jobs.')}
             </p>
           )}
         </div>

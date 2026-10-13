@@ -6,6 +6,7 @@ import { paymentName } from './business-options.mjs';
 import { jobBalance } from './domain.mjs';
 import { currency, dateLabel, shortId } from './app/shared';
 import type { Job, Ledger } from './types';
+import { useWords } from './Words';
 
 const lagosTime = (value: string) =>
   new Date(value).toLocaleString('en-NG', {
@@ -52,6 +53,7 @@ export default function JobDetails({
   onAction,
   onPayment,
 }: Props) {
+  const { w } = useWords();
   const customerName = (id: string) =>
     ledger.customers.find((customer) => customer.id === id)?.name ?? 'Unknown customer';
   return (
@@ -82,7 +84,7 @@ export default function JobDetails({
       )}
       <div className="detail-summary">
         <span>
-          Job amount <strong>{currency(job.amount)}</strong>
+          {w('Job amount')} <strong>{currency(job.amount)}</strong>
         </span>
         <span>
           Paid <strong>{currency(jobBalance(ledger, job).paid)}</strong>

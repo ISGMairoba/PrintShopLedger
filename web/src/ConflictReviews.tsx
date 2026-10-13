@@ -7,6 +7,7 @@ import type {
   JobSyncConflict,
   MaterialSyncConflict,
 } from './cloud';
+import { renameActive, stageActive } from './Words';
 
 // Review windows for records changed on this device and in the business workspace at the same time.
 // Each shows both versions side by side; the parent decides what "resolve" does.
@@ -115,11 +116,13 @@ export function JobConflictReview({
   onResolve: () => void;
 }) {
   return (
-    <Modal title="Review job progress" busy={busy} onClose={onClose}>
+    <Modal title={renameActive('Review job progress')} busy={busy} onClose={onClose}>
       <p>{conflict.message}</p>
       <p>
         Business status:{' '}
-        {conflict.cloud.jobs.find((j) => j.id === conflict.event.data.id)?.productionStatus ?? 'Added'}
+        {stageActive(
+          conflict.cloud.jobs.find((j) => j.id === conflict.event.data.id)?.productionStatus ?? 'Added',
+        )}
       </p>
       <button disabled={busy} onClick={onResolve}>
         Use business status
