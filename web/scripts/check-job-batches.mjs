@@ -107,6 +107,13 @@ try {
       'row',
     );
     if (!mobile) {
+      const controlTops = await page
+        .locator('.job-view-controls button')
+        .evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().top));
+      assert.ok(
+        controlTops.every((top) => Math.abs(top - controlTops[0]) < 2),
+        'Audit, Group and Select stay together',
+      );
       const boxes = await selection
         .locator('.job-bulk-actions button')
         .evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().top));

@@ -2232,3 +2232,19 @@ input[type="checkbox"] {
 .job-list-toolbar > .job-view-button {
   flex: 0 1 auto;
 }
+
+.job-view-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  flex-wrap: nowrap;
+}
+@media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
+  .job-view-controls {
+    flex-wrap: wrap;
+  }
+  .job-view-controls > button {
+    flex: 1 1 auto;
+  }
+}

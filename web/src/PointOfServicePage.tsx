@@ -126,17 +126,16 @@ export default function PointOfServicePage({
           <input type="checkbox" checked={showClosed} onChange={(e) => setShowClosed(e.target.checked)} />{' '}
           {w('Show collected and cancelled jobs')}
         </label>
-        <button className="secondary" aria-pressed={audit} onClick={() => setAudit(!audit)}>
-          <Icon name={audit ? 'table' : 'audit'} /> {audit ? 'Normal view' : 'Audit view'}
-        </button>
-        {!receipts && (
-          <JobViewControls
-            grouped={grouped}
-            selecting={selecting}
-            onGroup={() => setGrouped((value) => !value)}
-            onSelect={() => setSelecting((value) => !value)}
-          />
-        )}
+
+        <JobViewControls
+          showBatch={!receipts}
+          audit={audit}
+          onAudit={() => setAudit((value) => !value)}
+          grouped={grouped}
+          selecting={selecting}
+          onGroup={() => setGrouped((value) => !value)}
+          onSelect={() => setSelecting((value) => !value)}
+        />
         <button className="secondary" onClick={() => setReceipts((v) => !v)}>
           {receipts ? w('Show jobs') : 'Receipts'}
         </button>

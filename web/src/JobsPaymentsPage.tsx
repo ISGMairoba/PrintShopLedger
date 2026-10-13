@@ -216,10 +216,9 @@ export default function JobsPaymentsPage({
           {dates.button}
           {page === 'Jobs' && (
             <>
-              <button className="secondary" aria-pressed={audit} onClick={() => setAudit(!audit)}>
-                <Icon name={audit ? 'table' : 'audit'} /> {audit ? 'Normal view' : 'Audit view'}
-              </button>
               <JobViewControls
+                audit={audit}
+                onAudit={() => setAudit((value) => !value)}
                 grouped={grouped}
                 selecting={selecting}
                 onGroup={() => setGrouped((value) => !value)}
