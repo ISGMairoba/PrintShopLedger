@@ -602,7 +602,7 @@ function QuotationEditor({
                   <label>
                     {w('Service')}
                     <select
-                      aria-label="Service"
+                      aria-label={w('Service')}
                       required
                       value={item.serviceId}
                       onChange={(e) => {

@@ -184,3 +184,18 @@ test('Receipts use the business words for their item lines', () => {
   assert.ok(m.totals.some((t) => t.label === 'New orders'));
   assert.equal(receiptModel(record, { ...defaultBranding(), businessName: 'Shop' }).itemHeading, 'Job');
 });
+
+test('Words keep fixed names: Point of Service and printer jobs', () => {
+  assert.equal(
+    renameTerms('Open Point of Service to add a job', retail),
+    'Open Point of Service to add an order',
+  );
+  assert.equal(renameTerms('QZ Tray sends print jobs', retail), 'QZ Tray sends print jobs');
+});
+
+test('Articles follow the new word', () => {
+  assert.equal(renameTerms('Add a job, then an item', retail), 'Add an order, then an item');
+  assert.equal(renameTerms('A material is low', retail), 'A stock item is low');
+  assert.equal(renameTerms('An item', retail), 'An item');
+  assert.equal(renameTerms('Add a job', termDefaults()), 'Add a job');
+});

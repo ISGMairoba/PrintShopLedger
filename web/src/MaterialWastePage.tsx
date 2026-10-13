@@ -4,6 +4,7 @@ import { useFeedbackMessage } from './Feedback';
 import { applyWaste } from './sale-adjustments.mjs';
 import type { Ledger, SupervisedEvent } from './types';
 import { useWords } from './Words';
+import { renameActive as wt } from './Words';
 export default function MaterialWastePage({
   ledger,
   ready,
@@ -64,20 +65,21 @@ export default function MaterialWastePage({
         </button>
       </div>
       <p>
-        Record extra material use only. Material already deducted for the original sale must not be deducted
-        again.
+        {wt(
+          'Record extra material use only. Material already deducted for the original sale must not be deducted again.',
+        )}
       </p>
       <p className="muted">
         Admin, Manager or Developer approval requires a connected, fully synced workspace.
       </p>
       <input
-        aria-label="Search material waste"
+        aria-label={wt('Search material waste')}
         placeholder={w('Search material, reason, job or approver')}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
       {!ready ? (
-        <p>Loading material waste…</p>
+        <p>{wt('Loading material waste…')}</p>
       ) : (
         records.map((r) => (
           <article className="history" key={r.id}>
@@ -102,7 +104,7 @@ export default function MaterialWastePage({
       )}
       {ready && !records.length && <p className="empty">No matching waste records.</p>}
       {id && (
-        <Modal title="Record material waste" busy={busy} onClose={() => setId(null)}>
+        <Modal title={wt('Record material waste')} busy={busy} onClose={() => setId(null)}>
           {error && (
             <p role="alert" className="notice">
               {error}
@@ -141,9 +143,9 @@ export default function MaterialWastePage({
           >
             <fieldset disabled={busy || !!submitted}>
               <label>
-                Material
+                {wt('Material')}
                 <select
-                  aria-label="Material"
+                  aria-label={wt('Material')}
                   value={material}
                   onChange={(e) => {
                     setMaterial(e.target.value);
@@ -152,7 +154,7 @@ export default function MaterialWastePage({
                   }}
                   required
                 >
-                  <option value="">Choose a material</option>
+                  <option value="">{wt('Choose a material')}</option>
                   {ledger.materials
                     .filter((m) => !m.archived)
                     .map((m) => (

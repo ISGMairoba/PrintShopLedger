@@ -213,7 +213,7 @@ export default function DashboardPage({
                     ))}
                   </div>
                 ) : (
-                  <p>All active materials are above their stock warning levels.</p>
+                  <p>{w('All active materials are above their stock warning levels.')}</p>
                 )}
               </section>
             )}

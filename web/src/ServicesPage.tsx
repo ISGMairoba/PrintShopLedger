@@ -171,7 +171,9 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
       )}
       {ready && !activeMaterials.length && (
         <div className="notice">
-          You can create services without a material. Add a material when a service should deduct stock.
+          {w(
+            'You can create services without a material. Add a material when a service should deduct stock.',
+          )}
         </div>
       )}
       <section className="panel">
@@ -182,7 +184,7 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <select aria-label="Service status" value={filter} onChange={(e) => setFilter(e.target.value)}>
+          <select aria-label={w('Service status')} value={filter} onChange={(e) => setFilter(e.target.value)}>
             <option value="active">Active</option>
             <option value="archived">Archived</option>
             <option value="all">{w('All services')}</option>
@@ -219,16 +221,20 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
         ) : !visible.length ? (
           <div className="empty">
             <h2>
-              {query
-                ? 'No matching services'
-                : filter === 'archived'
-                  ? 'No archived services'
-                  : 'No services yet'}
+              {w(
+                query
+                  ? 'No matching services'
+                  : filter === 'archived'
+                    ? 'No archived services'
+                    : 'No services yet',
+              )}
             </h2>
             <p>
-              {query
-                ? 'Search by service description, ID, base material or price.'
-                : 'Create printing, pressing, binding and other services, with or without a stock material.'}
+              {w(
+                query
+                  ? 'Search by service description, ID, base material or price.'
+                  : 'Create printing, pressing, binding and other services, with or without a stock material.',
+              )}
             </p>
           </div>
         ) : (
@@ -280,7 +286,7 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
                             : (material?.name ?? w('Material unavailable'))}
                           <small>
                             {material ? materialCode(material.id, materials) : ''}
-                            {material?.archived ? ' · Archived material' : ''}
+                            {material?.archived ? w(' · Archived material') : ''}
                           </small>
                         </td>
                         <td>{servicePrice(service.price)}</td>
@@ -347,9 +353,11 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
             </div>
           )}
           <p>
-            {confirmation.archived
-              ? 'This service will be active again.'
-              : 'Its price, base material link and audit details will be retained. You can restore it later.'}
+            {w(
+              confirmation.archived
+                ? 'This service will be active again.'
+                : 'Its price, base material link and audit details will be retained. You can restore it later.',
+            )}
           </p>
           <div className="material-actions">
             <button
@@ -362,7 +370,7 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
                 })
               }
             >
-              {busy ? 'Saving...' : confirmation.archived ? 'Restore service' : 'Archive service'}
+              {busy ? 'Saving...' : w(confirmation.archived ? 'Restore service' : 'Archive service')}
             </button>
             <button className="secondary" disabled={busy} onClick={() => setConfirmation(null)}>
               Cancel
@@ -382,9 +390,11 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
             </div>
           )}
           {editing ? (
-            <p className="material-id">Service ID: {serviceCode(editing.id, services)}</p>
+            <p className="material-id">
+              {w('Service ID')}: {serviceCode(editing.id, services)}
+            </p>
           ) : (
-            <p className="muted">A permanent service ID is generated when you save.</p>
+            <p className="muted">{w('A permanent service ID is generated when you save.')}</p>
           )}
           <form key={editing ? editing.id + ':' + editing.version : 'new'} onSubmit={submit}>
             <fieldset disabled={busy}>
@@ -430,9 +440,9 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
                 )}
               </p>
               <p className="muted">
-                Choose No material for services such as cap pressing, shirt pressing or binding with
-                customer-supplied materials. These use quantity × price and do not deduct stock. Linked
-                materials retain their Require Size setting.
+                {w(
+                  'Choose No material for services such as cap pressing, shirt pressing or binding with customer-supplied materials. These use quantity × price and do not deduct stock. Linked materials retain their Require Size setting.',
+                )}
               </p>
               <button type="submit">
                 <Icon name="save" /> {busy ? 'Saving...' : w('Save service')}

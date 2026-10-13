@@ -66,13 +66,13 @@ export default function DashboardBreakdowns({
   return (
     <>
       {access.sales && (
-        <section className="panel dashboard-panel" aria-label="Top 5 services">
+        <section className="panel dashboard-panel" aria-label={w('Top 5 services')}>
           <h2>{w('Top 5 services')}</h2>
           <MetricSelect label={w('Rank services by')} value={serviceMetric} onChange={setServiceMetric} />
           {quantityNote(serviceMetric)}
           <InteractivePie
             key={serviceMetric}
-            title={`Top five services by ${serviceMetric === 'sales' ? 'net amount' : 'net quantity'}`}
+            title={w(`Top five services by ${serviceMetric === 'sales' ? 'net amount' : 'net quantity'}`)}
             rows={topServices.map((r) => ({ id: r.id, name: r.name, value: r[serviceMetric] }))}
             formatValue={format(serviceMetric)}
           />

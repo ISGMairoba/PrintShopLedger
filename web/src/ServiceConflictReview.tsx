@@ -3,6 +3,7 @@ import Modal from './Modal';
 import { serviceCode, servicePrice } from './services.mjs';
 import { materialCode } from './material-display.mjs';
 import type { ServiceSyncConflict } from './cloud';
+import { renameActive as wt } from './Words';
 type Props = {
   conflict: ServiceSyncConflict;
   busy: boolean;
@@ -17,9 +18,11 @@ export default function ServiceConflictReview({ conflict, busy, onResolve, onClo
     options.some((item) => item.id === local.materialId) ? (local.materialId ?? '') : '',
   );
   const materialName = (id: string | null) =>
-    id === null ? 'No material' : (materials.find((item) => item.id === id)?.name ?? 'Material unavailable');
+    id === null
+      ? wt('No material')
+      : (materials.find((item) => item.id === id)?.name ?? wt('Material unavailable'));
   return (
-    <Modal title="Review service changes" wide busy={busy} onClose={onClose}>
+    <Modal title={wt('Review service changes')} wide busy={busy} onClose={onClose}>
       {message && (
         <div className="notice" role="status">
           {message}
@@ -42,7 +45,7 @@ export default function ServiceConflictReview({ conflict, busy, onResolve, onClo
               <td>{remote?.description ?? 'Not yet created'}</td>
             </tr>
             <tr>
-              <td>Base material</td>
+              <td>{wt('Base material')}</td>
               <td>{materialName(local.materialId)}</td>
               <td>{remote ? materialName(remote.materialId) : '-'}</td>
             </tr>
@@ -65,9 +68,9 @@ export default function ServiceConflictReview({ conflict, busy, onResolve, onClo
         </table>
       </div>
       <label>
-        Base material for this device's version
+        {wt("Base material for this device's version")}
         <select disabled={busy} value={materialId} onChange={(e) => setMaterialId(e.target.value)}>
-          <option value="">No material — service only</option>
+          <option value="">{wt('No material — service only')}</option>
           {options.map((item) => (
             <option key={item.id} value={item.id}>
               {item.name} ({materialCode(item.id, materials)}){item.archived ? ' · Archived' : ''}
@@ -76,8 +79,9 @@ export default function ServiceConflictReview({ conflict, busy, onResolve, onClo
         </select>
       </label>
       <p>
-        Keeping the business version discards pending changes to this service on this device. Other pending
-        records are kept.
+        {wt(
+          'Keeping the business version discards pending changes to this service on this device. Other pending records are kept.',
+        )}
       </p>
       <div className="material-actions">
         <button disabled={busy} onClick={() => void onResolve('local', materialId || null)}>
