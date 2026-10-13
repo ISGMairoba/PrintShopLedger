@@ -14,53 +14,84 @@ export interface Customer {
   modifiedAt: string;
   lastEventId: string | null;
 }
+export type FormulaTree = { op: string; args: (string | FormulaTree)[] };
+export type TemplateVariable = {
+  key: string;
+  label: string;
+  /** number, named options, a choice of costed items (material selection) or yes/no. */
+  kind: 'number' | 'options' | 'material' | 'yesno';
+  unit: string;
+  default: number;
+  min: number;
+  max: number;
+  integer: boolean;
+  clientVisible: boolean;
+  options?: { value: number; label: string; serviceId?: string }[];
+};
+export type TemplateComputed = {
+  key: string;
+  label: string;
+  unit: string;
+  formula: string;
+  expression?: FormulaTree;
+  /** Take this quantity out of stock: from the selected item of a material variable, or one item. */
+  stock: { variable: string } | { serviceId: string } | null;
+};
+export type ExpenseCalculation = { method: string; rate: string; input: string; capacity: string };
+export type TemplateExpense = {
+  key: string;
+  label: string;
+  formula: string;
+  expression?: FormulaTree;
+  calculation?: ExpenseCalculation;
+};
+export type TemplatePricing = {
+  method: 'markup' | 'margin';
+  rate: number;
+  floor: number;
+  maxDiscount: number;
+  rounding: number;
+};
 export type PricingTemplate = {
   id: string;
   name: string;
+  category: string;
+  description: string;
   version: number;
   archived: boolean;
-  inputs: {
-    key: string;
-    label: string;
-    kind: string;
-    min: number;
-    max: number;
-    default: number;
-    options: { label: string; value: number }[];
-  }[];
-  derived: { key: string; label: string; formula: string; expression?: any }[];
-  components: {
-    id: string;
-    label: string;
-    serviceId: string;
-    quantityFormula: string;
-    widthFormula?: string;
-    heightFormula?: string;
-    quantityExpression?: any;
-    widthExpression?: any;
-    heightExpression?: any;
-  }[];
+  variables: TemplateVariable[];
+  computed: TemplateComputed[];
+  expenses: TemplateExpense[];
+  pricing: TemplatePricing;
 };
 export type PricingSettings = { enabled: boolean; templates: PricingTemplate[] };
+export type TemplateReference = {
+  serviceId: string;
+  key: string;
+  name: string;
+  version: number;
+  amount: number;
+  per: number;
+  purchaseUnit?: string;
+  unit: string;
+  /** Naira per unit, exact decimal text. */
+  rate: string;
+};
 export type TemplateSnapshot = {
   template: PricingTemplate;
   inputs: Record<string, number>;
-  components: {
-    id: string;
-    label: string;
-    stockEventId: string;
+  references: TemplateReference[];
+  outputs: { key: string; label: string; unit: string; value: string }[];
+  expenses: { key: string; label: string; amount: string }[];
+  /** cost and raw are naira (exact text); amount and minimum are kobo. */
+  price: { cost: string; raw: string; amount: number; minimum: number };
+  stock: {
+    materialId: string;
     serviceId: string;
-    service: string;
-    serviceVersion: number;
-    unitPrice: number;
+    name: string;
+    unit: string;
     quantity: number;
-    width: number | null;
-    height: number | null;
-    amount: number;
-    materialId: string | null;
-    materialNeeded: number;
-    requireSize: boolean;
-    measurementUnit: string;
+    stockEventId: string;
     stockCountEventId: string | null;
   }[];
 };
@@ -225,6 +256,10 @@ export interface Service {
   price: number;
   /** Sold off the shelf: no production stages, Collected as soon as it is sold. */
   shelfItem?: boolean;
+  /** Used only inside pricing templates; never offered for sale. */
+  private?: boolean;
+  /** Template cost: amount (kobo) for `per` consumption units, bought as `unit`; `key` names it in formulas. */
+  costing?: ServiceCosting | null;
   archived: boolean;
   version: number;
   createdBy: string;
@@ -235,8 +270,11 @@ export interface Service {
   modifiedAt: string;
   lastEventId: string;
 }
+export type ServiceCosting = { key: string; amount: number; per: number; unit?: string };
 export interface ServiceCommand {
   shelfItem?: boolean;
+  private?: boolean;
+  costing?: ServiceCosting | null;
   id: string;
   description?: string;
   materialId?: string | null;

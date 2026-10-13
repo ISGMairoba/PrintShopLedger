@@ -1,4 +1,4 @@
-import { TemplateInputs, TemplateBreakdown } from './TemplateFields';
+import { TemplateInputs, TemplateEstimate, tryTemplate } from './TemplateFields';
 import { templateDefaults } from './pricing-templates.mjs';
 import type { TemplateSnapshot } from './types';
 import { lineWithDescription } from './job-batches.mjs';
@@ -245,7 +245,7 @@ export default function CheckoutEditor({
             templateInputs: q.templateInputs,
             templateSnapshot: q.templateSnapshot,
             templateStockIds: q.templateSnapshot
-              ? Object.fromEntries(q.templateSnapshot.components.map((c) => [c.id, crypto.randomUUID()]))
+              ? Object.fromEntries(q.templateSnapshot.stock.map((s) => [s.materialId, crypto.randomUUID()]))
               : undefined,
             description: q.description,
             quantity: String(q.quantity),
@@ -612,6 +612,10 @@ export default function CheckoutEditor({
                   const service = working.services.find((s) => s.id === item.serviceId),
                     material = working.materials.find((m) => m.id === service?.materialId);
                   const quote = quotedLines[index];
+                  const templateCheck = template
+                    ? tryTemplate(working, template, item.templateInputs ?? {}, item.quantity)
+                    : null;
+                  const quantityVariable = template?.variables.find((v) => v.key === 'quantity');
                   return (
                     <section className="cart-line" key={item.id}>
                       <div className="cart-line-title">
@@ -652,15 +656,16 @@ export default function CheckoutEditor({
                                         templateInputs: chosenTemplate
                                           ? templateDefaults(chosenTemplate)
                                           : undefined,
-                                        templateStockIds: chosenTemplate
-                                          ? Object.fromEntries(
-                                              chosenTemplate.components.map((c) => [
-                                                c.id,
-                                                crypto.randomUUID(),
-                                              ]),
-                                            )
-                                          : undefined,
-                                        ...(chosenTemplate ? { description: chosenTemplate.name } : {}),
+                                        templateStockIds: chosenTemplate ? {} : undefined,
+                                        ...(chosenTemplate
+                                          ? {
+                                              description: chosenTemplate.name,
+                                              quantity: String(
+                                                chosenTemplate.variables.find((v) => v.key === 'quantity')
+                                                  ?.default ?? 1,
+                                              ),
+                                            }
+                                          : {}),
                                         ...(picked?.shelfItem && !line.description.trim()
                                           ? { description: picked.description.slice(0, 500) }
                                           : {}),
@@ -686,6 +691,7 @@ export default function CheckoutEditor({
                               .filter(
                                 (s) =>
                                   !s.archived &&
+                                  !s.private &&
                                   (s.materialId === null ||
                                     working.materials.some((m) => m.id === s.materialId && !m.archived)),
                               )
@@ -709,20 +715,27 @@ export default function CheckoutEditor({
                           </label>
                         )}
                         <label>
-                          Quantity
+                          {quantityVariable?.label ?? 'Quantity'}
                           <input
                             type="number"
-                            min="0.001"
-                            max="1000000"
-                            step="0.001"
+                            min={quantityVariable?.min ?? 0.001}
+                            max={quantityVariable?.max ?? 1000000}
+                            step={quantityVariable?.integer ? 1 : 0.001}
                             required
                             value={item.quantity}
                             onChange={(e) => editLine(item.id, 'quantity', e.target.value)}
                           />
+                          {templateCheck?.field === 'quantity' && (
+                            <small className="danger-text" role="alert">
+                              {templateCheck.error}
+                            </small>
+                          )}
                         </label>
                         {template && (
                           <TemplateInputs
                             template={template}
+                            errorField={templateCheck?.field}
+                            error={templateCheck?.error}
                             value={item.templateInputs ?? {}}
                             onChange={(value) =>
                               setLines((items) =>
@@ -814,7 +827,7 @@ export default function CheckoutEditor({
                       {quote && (
                         <p>
                           {quote.templateSnapshot
-                            ? 'Template · Component stock calculated below'
+                            ? `${w('Template')} · ${quote.templateSnapshot.stock.length ? `Stock: ${quote.templateSnapshot.stock.map((s: { quantity: number; unit: string; name: string }) => `${s.quantity} ${s.unit} ${s.name}`).join(', ')}` : w('No stock deduction')}`
                             : quote.materialId === null
                               ? w('No material · No stock deduction')
                               : `${w('Material')}: ${material?.name} · Usage: ${quote.materialNeeded} ${quote.measurementUnit}`}
@@ -828,7 +841,23 @@ export default function CheckoutEditor({
                           )}
                         </p>
                       )}
-                      {quote?.templateSnapshot && <TemplateBreakdown snapshot={quote.templateSnapshot} />}
+                      {template && (
+                        <TemplateEstimate
+                          ledger={working}
+                          template={template}
+                          inputs={item.templateInputs ?? {}}
+                          quantity={item.quantity}
+                          amount={priced?.jobs[index]?.amount ?? quote?.amount}
+                          error=""
+                          onUse={(inputs, quantity) =>
+                            setLines((items) =>
+                              items.map((l) =>
+                                l.id === item.id ? { ...l, templateInputs: inputs, quantity } : l,
+                              ),
+                            )
+                          }
+                        />
+                      )}
                     </section>
                   );
                 })}

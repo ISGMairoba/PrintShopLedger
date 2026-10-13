@@ -15,7 +15,7 @@ export const paymentCorrectionToken = (p) => ({
   allocations: [...p.allocations].sort((a, b) => a.jobId.localeCompare(b.jobId)),
 });
 export function quoteCorrectedJob(ledger, job, d) {
-  const service = ledger.services.find((s) => s.id === d.serviceId && !s.archived);
+  const service = ledger.services.find((s) => s.id === d.serviceId && !s.archived && !s.private);
   if (!service || service.version !== d.serviceVersion)
     throw Error('Service changed. Sync and reopen the correction.');
   const material = d.materialId ? ledger.materials.find((m) => m.id === d.materialId && !m.archived) : null;

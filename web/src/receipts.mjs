@@ -1,4 +1,5 @@
 import { paymentName } from './business-options.mjs';
+import { templateSpecLines } from './pricing-templates.mjs';
 import { escapeHtml } from './print-settings.mjs';
 import { receiptBusiness, validLogo } from './business-branding.mjs';
 import { renameTerms } from './terms.mjs';
@@ -87,6 +88,7 @@ export function receiptModel(record, business, pending = false, adjustments = []
       o.showJobId ? (j.ref ?? shortRef(j.id)) : '',
       o.showQuantity && item?.quantity !== undefined && item?.quantity !== null ? `Qty ${item.quantity}` : '',
       o.showSize && item?.requireSize ? `Size ${item.width} × ${item.height}` : '',
+      ...templateSpecLines(item),
       o.showSource && item?.source
         ? `Received: ${item.source}${item.sourceNote ? ' — ' + item.sourceNote : ''}`
         : '',

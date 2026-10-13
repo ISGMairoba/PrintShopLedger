@@ -536,7 +536,7 @@ export function SaleAdjustmentEditor({
                   >
                     <option value="">{w('Choose a service')}</option>
                     {ledger.services
-                      .filter((s) => !s.archived)
+                      .filter((s) => !s.archived && !s.private)
                       .map((s) => (
                         <option key={s.id} value={s.id}>
                           {s.description}

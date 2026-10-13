@@ -26,6 +26,7 @@ import {
   faFloppyDisk,
   faEye,
   faSliders,
+  faCopy,
 } from '@fortawesome/free-solid-svg-icons';
 const icons = {
   expenses: faReceipt,
@@ -55,6 +56,7 @@ const icons = {
   calendar: faCalendarDays,
   quote: faFileInvoice,
   share: faShareNodes,
+  copy: faCopy,
 };
 export type IconName = keyof typeof icons;
 export default function Icon({ name }: { name: IconName }) {

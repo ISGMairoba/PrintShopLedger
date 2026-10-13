@@ -4,7 +4,7 @@ import { validateWorkflow, jobWorkflow } from './business-options.mjs';
 import { applyCustomerEvent, phoneOwner } from './customers.mjs';
 import { jobBalance, customerBalance } from './domain.mjs';
 import { materialSnapshot } from './material-display.mjs';
-import { quoteTemplate } from './pricing-templates.mjs';
+import { checkTemplateDiscount, quoteTemplate } from './pricing-templates.mjs';
 export const jobStatuses = ['Added', 'In Queue', 'Printing', 'Completed', 'Collected'];
 export const jobSources = ['In shop / USB', 'Shop network', 'WhatsApp', 'Email', 'Other'];
 const maxMoney = 100000000000;
@@ -30,7 +30,7 @@ export const stockCountEvent = (ledger, materialId) =>
 const quoteShelf = (ledger, serviceId) => !!ledger.services.find((s) => s.id === serviceId)?.shelfItem;
 export function quoteLine(ledger, line) {
   if (line.templateSnapshot || ledger.pricing?.templates.some((t) => t.id === line.serviceId)) {
-    const priced = quoteTemplate(ledger, line, quoteLine);
+    const priced = quoteTemplate(ledger, line);
     if (!line.description?.trim() || line.description.trim().length > 500)
       throw Error('Enter a job description (up to 500 characters).');
     if (
@@ -61,6 +61,7 @@ export function quoteLine(ledger, line) {
     };
   }
   const service = ledger.services.find((s) => s.id === line.serviceId && !s.archived);
+  if (service?.private) throw Error(`${service.description} is used in templates only and cannot be sold.`);
   const material = ledger.materials.find((m) => m.id === service?.materialId && !m.archived);
   if (!service || (service.materialId !== null && !material))
     throw Error('Select an active service with an active base material, or a service without material.');
@@ -236,6 +237,7 @@ export function prepareCheckout(
   // Order discount shared by price; with a policy, the giver's limits are checked here too.
   const discounts = applyOrderDiscount(quoted, input.orderDiscount, input.discountPolicy ?? null);
   const jobs = discounts.jobs;
+  for (const job of jobs) checkTemplateDiscount(job);
   const ids = new Set(jobs.map((j) => j.id));
   if (
     ids.size !== jobs.length ||
@@ -387,7 +389,13 @@ export function applyCheckout(ledger, event) {
   const materials = next.materials.map((m) => ({ ...m })),
     history = [...next.materialHistory];
   for (const job of rebuilt.data.jobs) {
-    const usages = job.templateSnapshot?.components ?? [{ ...job, stockEventId: job.id }];
+    const usages = job.templateSnapshot
+      ? job.templateSnapshot.stock.map((s) => ({
+          materialId: s.materialId,
+          materialNeeded: s.quantity,
+          stockEventId: s.stockEventId,
+        }))
+      : [{ ...job, stockEventId: job.id }];
     for (const usage of usages) {
       if (usage.materialId === null || usage.materialNeeded === 0) continue;
       const material = materials.find((m) => m.id === usage.materialId);

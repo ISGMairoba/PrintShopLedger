@@ -1,4 +1,4 @@
-import { TemplateInputs, TemplateBreakdown } from './TemplateFields';
+import { TemplateInputs, TemplateEstimate, TemplateSummary, tryTemplate } from './TemplateFields';
 import { templateDefaults } from './pricing-templates.mjs';
 import type { TemplateSnapshot } from './types';
 import { lineWithDescription } from './job-batches.mjs';
@@ -413,7 +413,9 @@ function QuotationSummary({ quote }: { quote: Quotation }) {
                     {l.requireSize && l.width && l.height ? ` · ${l.width} × ${l.height}` : ''}
                     {l.discountAmount > 0 ? ` · Discount -${currency(l.discountAmount)}` : ''}
                   </small>
-                  {l.templateSnapshot && <TemplateBreakdown snapshot={l.templateSnapshot} />}
+                  {l.templateSnapshot && (
+                    <TemplateSummary snapshot={l.templateSnapshot} quantity={l.quantity} amount={l.amount} />
+                  )}
                 </td>
                 <td className="numeric">{l.quantity}</td>
                 <td className="numeric">{currency(l.amount)}</td>
@@ -490,6 +492,7 @@ function QuotationEditor({
   const services = ledger.services.filter(
     (s) =>
       !s.archived &&
+      !s.private &&
       (s.materialId === null || ledger.materials.some((m) => m.id === s.materialId && !m.archived)),
   );
   const input = () => ({
@@ -594,6 +597,10 @@ function QuotationEditor({
             const service = ledger.services.find((s) => s.id === item.serviceId);
             const material = ledger.materials.find((m) => m.id === service?.materialId);
             const line = priced.ok?.lines[index];
+            const templateCheck = template
+              ? tryTemplate(ledger, template, item.templateInputs ?? {}, item.quantity)
+              : null;
+            const quantityVariable = template?.variables.find((v) => v.key === 'quantity');
             return (
               <section className="cart-line" key={item.id}>
                 <div className="cart-line-title">
@@ -624,7 +631,12 @@ function QuotationEditor({
                           serviceId: e.target.value,
                           templateSnapshot: undefined,
                           templateInputs: t ? templateDefaults(t) : undefined,
-                          ...(t ? { description: t.name } : {}),
+                          ...(t
+                            ? {
+                                description: t.name,
+                                quantity: String(t.variables.find((v) => v.key === 'quantity')?.default ?? 1),
+                              }
+                            : {}),
                           ...(!item.description.trim() && picked
                             ? { description: picked.description.slice(0, 500) }
                             : {}),
@@ -663,20 +675,27 @@ function QuotationEditor({
                     </label>
                   )}
                   <label>
-                    Quantity
+                    {quantityVariable?.label ?? 'Quantity'}
                     <input
                       type="number"
-                      min="0.001"
-                      max="1000000"
-                      step="0.001"
+                      min={quantityVariable?.min ?? 0.001}
+                      max={quantityVariable?.max ?? 1000000}
+                      step={quantityVariable?.integer ? 1 : 0.001}
                       required
                       value={item.quantity}
                       onChange={(e) => edit(item.id, { quantity: e.target.value })}
                     />
+                    {templateCheck?.field === 'quantity' && (
+                      <small className="danger-text" role="alert">
+                        {templateCheck.error}
+                      </small>
+                    )}
                   </label>
                   {template && (
                     <TemplateInputs
                       template={template}
+                      errorField={templateCheck?.field}
+                      error={templateCheck?.error}
                       value={item.templateInputs ?? {}}
                       onChange={(value) => edit(item.id, { templateInputs: value })}
                     />
@@ -728,7 +747,17 @@ function QuotationEditor({
                     )}
                   </p>
                 )}
-                {line?.templateSnapshot && <TemplateBreakdown snapshot={line.templateSnapshot} />}
+                {template && (
+                  <TemplateEstimate
+                    ledger={ledger}
+                    template={template}
+                    inputs={item.templateInputs ?? {}}
+                    quantity={item.quantity}
+                    amount={line?.amount}
+                    error=""
+                    onUse={(inputs, quantity) => edit(item.id, { templateInputs: inputs, quantity })}
+                  />
+                )}
               </section>
             );
           })}

@@ -14,9 +14,10 @@ export function eventResources(event, ledger) {
       add('job', job.id);
       add('service', job.serviceId);
       add('material', job.materialId);
-      for (const c of job.templateSnapshot?.components ?? []) {
-        add('service', c.serviceId);
-        add('material', c.materialId);
+      for (const r of job.templateSnapshot?.references ?? []) add('service', r.serviceId);
+      for (const s of job.templateSnapshot?.stock ?? []) {
+        add('service', s.serviceId);
+        add('material', s.materialId);
       }
       add('material', ledger.services.find((s) => s.id === job.serviceId)?.materialId);
     }
