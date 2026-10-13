@@ -292,7 +292,7 @@ export default function ReportsPage({
   // Load the PDF and share code now: phones only open the share sheet straight after the tap.
   useEffect(() => {
     void import('./report-pdf');
-    void import('./share');
+    void import('./share-pdf');
   }, []);
   const tabs = (['Customer statement', 'Transactions', 'Summary'] as Tab[]).filter(
     (t) => t !== 'Customer statement' || (access.customers && access.jobs && access.payments),
@@ -365,7 +365,7 @@ export default function ReportsPage({
     try {
       const [{ createReportPdf }, { sharePdf, shareResult }] = await Promise.all([
         import('./report-pdf'),
-        import('./share'),
+        import('./share-pdf'),
       ]);
       const doc = createReportPdf(brand, {
         title,

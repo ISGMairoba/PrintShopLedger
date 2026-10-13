@@ -78,7 +78,7 @@ export default function QuotationsPage({
   // Load the PDF and share code now: phones only open the share sheet straight after the tap.
   useEffect(() => {
     void import('./receipt-pdf');
-    void import('./share');
+    void import('./share-pdf');
   }, []);
   const { w } = useWords();
   const [query, setQuery] = useState('');
@@ -123,7 +123,7 @@ export default function QuotationsPage({
     try {
       const [{ createQuotationPdf }, { sharePdf, shareResult }] = await Promise.all([
         import('./receipt-pdf'),
-        import('./share'),
+        import('./share-pdf'),
       ]);
       const ref = quotationRef(quote.id);
       const result = await sharePdf(createQuotationPdf(quote, branding, 'a4'), `Quotation-${ref}`, {

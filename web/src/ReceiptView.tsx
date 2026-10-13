@@ -28,7 +28,7 @@ export default function ReceiptView({
   // Load the PDF and share code now: phones only open the share sheet straight after the tap.
   useEffect(() => {
     void import('./receipt-pdf');
-    void import('./share');
+    void import('./share-pdf');
   }, []);
   const [busy, setBusy] = useState(false),
     [message, setMessage, messageTone] = useFeedbackMessage('success');
@@ -58,7 +58,7 @@ export default function ReceiptView({
     try {
       const [{ createReceiptPdf }, { sharePdf, shareResult }] = await Promise.all([
         import('./receipt-pdf'),
-        import('./share'),
+        import('./share-pdf'),
       ]);
       const name = typeof business === 'string' ? business : business.businessName;
       const result = await sharePdf(
