@@ -1,3 +1,4 @@
+import Icon from './Icon';
 import { useState, useEffect } from 'react';
 import { groupJobsByCheckout } from './job-batches.mjs';
 import { jobWorkflow } from './business-options.mjs';
@@ -33,6 +34,8 @@ export default function JobTable({
   onJob,
   onAction,
   onBulkAction,
+  grouped = false,
+  selecting = false,
 }: {
   ledger: Ledger;
   jobs: Job[];
@@ -44,15 +47,19 @@ export default function JobTable({
   onJob: (id: string) => void;
   onAction: (job: Job, mode: ProgressMode) => void;
   onBulkAction?: (jobs: Job[], mode: ProgressMode) => void;
+  grouped?: boolean;
+  selecting?: boolean;
 }) {
   const { w, stage: stageLabel } = useWords();
-  const [grouped, setGrouped] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const visibleKey = jobs.map((job) => job.id).join('|');
   useEffect(() => {
     const visible = new Set(visibleKey.split('|'));
     setSelectedIds((ids) => ids.filter((id) => visible.has(id)));
   }, [visibleKey]);
+  useEffect(() => {
+    if (!selecting) setSelectedIds([]);
+  }, [selecting]);
   const selected = jobs.filter((job) => selectedIds.includes(job.id));
   const toggle = (items: Job[], checked: boolean) =>
     setSelectedIds((ids) =>
@@ -61,26 +68,27 @@ export default function JobTable({
         : ids.filter((id) => !items.some((job) => job.id === id)),
     );
   const actions = (items: Job[]) => (
-    <div className="job-actions">
+    <div className="job-bulk-actions">
       <button
         className="secondary"
         disabled={busy || !items.length}
         onClick={() => onBulkAction?.(items, 'next')}
       >
-        Next action
+        <Icon name="next" /> Next action
       </button>
       <button
         className="secondary"
         disabled={busy || !items.length}
         onClick={() => onBulkAction?.(items, 'set')}
       >
-        Set Action
+        <Icon name="quantity" /> Set Action
       </button>
       <button
         className="secondary"
         disabled={busy || !items.length}
         onClick={() => onBulkAction?.(items, 'complete')}
       >
+        <Icon name="complete" />{' '}
         {stageLabel('Completed') === 'Completed' ? 'Mark as Complete' : `Mark as ${stageLabel('Completed')}`}
       </button>
     </div>
@@ -131,7 +139,7 @@ export default function JobTable({
               <tr key={job.id}>
                 <td>
                   <div className="job-info">
-                    {onBulkAction && (
+                    {onBulkAction && selecting && (
                       <label className="check-label job-selection">
                         <input
                           type="checkbox"
@@ -231,35 +239,27 @@ export default function JobTable({
   );
   return (
     <>
-      {onBulkAction && (
-        <div className="job-batch-toolbar">
-          <div className="toolbar">
-            <label className="check-label">
-              <input
-                type="checkbox"
-                checked={grouped}
-                onChange={(event) => setGrouped(event.target.checked)}
-              />{' '}
-              Group by checkout
-            </label>
-            <label className="check-label">
-              <input
-                type="checkbox"
-                aria-label={w('Select all visible jobs')}
-                disabled={busy || !jobs.length}
-                checked={jobs.length > 0 && selected.length === jobs.length}
-                onChange={(event) => toggle(jobs, event.target.checked)}
-              />{' '}
-              Select all shown
-            </label>
-            <strong aria-live="polite">{selected.length} selected</strong>
-            {selected.length > 0 && (
-              <button className="text-button" disabled={busy} onClick={() => setSelectedIds([])}>
-                Clear selection
-              </button>
-            )}
-          </div>
-          {selected.length > 0 && actions(selected)}
+      {onBulkAction && selecting && (
+        <div className="job-batch-toolbar" role="region" aria-label="Selection actions">
+          <label className="check-label">
+            <input
+              type="checkbox"
+              aria-label={w('Select all visible jobs')}
+              disabled={busy || !jobs.length}
+              checked={jobs.length > 0 && selected.length === jobs.length}
+              onChange={(event) => toggle(jobs, event.target.checked)}
+            />{' '}
+            Select all shown
+          </label>
+          <strong className="selection-count" aria-live="polite">
+            {selected.length} selected
+          </strong>
+          {actions(selected)}
+          {selected.length > 0 && (
+            <button className="text-button" disabled={busy} onClick={() => setSelectedIds([])}>
+              Clear
+            </button>
+          )}
         </div>
       )}
       {grouped && onBulkAction ? (
@@ -274,15 +274,17 @@ export default function JobTable({
             const customer = ledger.customers.find((value) => value.id === items[0].customerId);
             return (
               <section className="checkout-group" key={group.key}>
-                <div className="toolbar">
+                <div className="checkout-group-header">
                   <label className="check-label">
-                    <input
-                      type="checkbox"
-                      aria-label={`Select checkout ${group.checkoutId?.slice(0, 8).toUpperCase() ?? items[0].id.slice(0, 8).toUpperCase()}`}
-                      checked={items.every((job) => selectedIds.includes(job.id))}
-                      disabled={busy}
-                      onChange={(event) => toggle(items, event.target.checked)}
-                    />
+                    {selecting && (
+                      <input
+                        type="checkbox"
+                        aria-label={`Select checkout ${group.checkoutId?.slice(0, 8).toUpperCase() ?? items[0].id.slice(0, 8).toUpperCase()}`}
+                        checked={items.every((job) => selectedIds.includes(job.id))}
+                        disabled={busy}
+                        onChange={(event) => toggle(items, event.target.checked)}
+                      />
+                    )}
                     <strong>
                       {group.checkoutId
                         ? `Checkout ${group.checkoutId.slice(0, 8).toUpperCase()}`

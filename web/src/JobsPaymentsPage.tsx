@@ -1,3 +1,4 @@
+import JobViewControls from './JobViewControls';
 import Icon from './Icon';
 import JobTable from './JobTable';
 import ResponsiveTable from './ResponsiveTable';
@@ -48,6 +49,8 @@ export default function JobsPaymentsPage({
   onReceipt,
 }: Props) {
   const { w } = useWords();
+  const [grouped, setGrouped] = useState(false);
+  const [selecting, setSelecting] = useState(false);
   const customerName = (id: string) =>
     ledger.customers.find((customer) => customer.id === id)?.name ?? 'Unknown customer';
   const search = query.toLowerCase();
@@ -156,7 +159,7 @@ export default function JobsPaymentsPage({
         </section>
       )}
       <section className="panel">
-        <div className="toolbar">
+        <div className="toolbar job-list-toolbar">
           <label className="list-sort-select">
             Sort by
             <select
@@ -212,9 +215,17 @@ export default function JobsPaymentsPage({
           />
           {dates.button}
           {page === 'Jobs' && (
-            <button className="secondary" aria-pressed={audit} onClick={() => setAudit(!audit)}>
-              <Icon name={audit ? 'table' : 'audit'} /> {audit ? 'Normal view' : 'Audit view'}
-            </button>
+            <>
+              <button className="secondary" aria-pressed={audit} onClick={() => setAudit(!audit)}>
+                <Icon name={audit ? 'table' : 'audit'} /> {audit ? 'Normal view' : 'Audit view'}
+              </button>
+              <JobViewControls
+                grouped={grouped}
+                selecting={selecting}
+                onGroup={() => setGrouped((value) => !value)}
+                onSelect={() => setSelecting((value) => !value)}
+              />
+            </>
           )}
           <button
             disabled={!ready || busy || legacyConflict || (page === 'Payments' && !ledger.customers.length)}
@@ -246,6 +257,8 @@ export default function JobsPaymentsPage({
                   onJob={onJob}
                   onAction={onAction}
                   onBulkAction={onBulkAction}
+                  grouped={grouped}
+                  selecting={selecting}
                 />
                 {!matchingJobs.length && <p className="empty">{w('No matching jobs.')}</p>}
               </div>

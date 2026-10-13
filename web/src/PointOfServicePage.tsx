@@ -1,3 +1,4 @@
+import JobViewControls from './JobViewControls';
 import { useState } from 'react';
 import ResponsiveTable from './ResponsiveTable';
 import { SortHeader, useTableSort } from './TableSort';
@@ -37,6 +38,8 @@ export default function PointOfServicePage({
   onReceipt,
 }: Props) {
   const { w } = useWords();
+  const [grouped, setGrouped] = useState(false);
+  const [selecting, setSelecting] = useState(false);
   const [query, setQuery] = useState(''),
     [showClosed, setShowClosed] = useState(false),
     [audit, setAudit] = useState(false),
@@ -111,7 +114,7 @@ export default function PointOfServicePage({
   );
   return (
     <section className="panel">
-      <div className="toolbar">
+      <div className="toolbar job-list-toolbar">
         <input
           aria-label="Search point of service"
           placeholder={w('Search job, customer, source or receipt')}
@@ -126,6 +129,14 @@ export default function PointOfServicePage({
         <button className="secondary" aria-pressed={audit} onClick={() => setAudit(!audit)}>
           <Icon name={audit ? 'table' : 'audit'} /> {audit ? 'Normal view' : 'Audit view'}
         </button>
+        {!receipts && (
+          <JobViewControls
+            grouped={grouped}
+            selecting={selecting}
+            onGroup={() => setGrouped((value) => !value)}
+            onSelect={() => setSelecting((value) => !value)}
+          />
+        )}
         <button className="secondary" onClick={() => setReceipts((v) => !v)}>
           {receipts ? w('Show jobs') : 'Receipts'}
         </button>
@@ -196,6 +207,8 @@ export default function PointOfServicePage({
             onJob={onJob}
             onAction={onNext}
             onBulkAction={onBulkAction}
+            grouped={grouped}
+            selecting={selecting}
           />
           {!visible.length && (
             <p className="empty">
