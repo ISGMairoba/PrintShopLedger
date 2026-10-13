@@ -204,6 +204,23 @@ try {
       await d.getByRole('table', { name: 'Compared options' }).innerText(),
       /50[\s\S]*₦17,500\.00[\s\S]*100[\s\S]*₦35,000\.00/,
     );
+    // The comparison downloads as an A4 or A5 PDF; nothing is printed from the page.
+    await d.getByLabel('Customer name for the comparison', { exact: true }).fill('Book customer');
+    for (const [button, name] of [
+      ['A4 PDF', 'Books-options.pdf'],
+      ['A5 PDF', 'Books-options-A5.pdf'],
+    ]) {
+      const download = page.waitForEvent('download');
+      await d.getByRole('button', { name: button, exact: true }).click();
+      const file = await download;
+      assert.equal(file.suggestedFilename(), name);
+      assert.ok((await file.path()) && (await import('node:fs')).statSync(await file.path()).size > 2000);
+    }
+    // The other buttons still work afterwards.
+    await d.getByRole('button', { name: 'Use option', exact: true }).last().click();
+    assert.equal(await d.getByLabel('Quantity', { exact: true }).inputValue(), '100');
+    await d.getByLabel('Quantity', { exact: true }).fill('50');
+    await d.getByText('₦17,500.00').first().waitFor();
     await d.getByLabel('Customer name or phone', { exact: true }).fill('Book');
     await d.getByRole('option', { name: /Book customer/ }).click();
     await d.getByLabel('Money received (₦)', { exact: true }).fill('5000');
