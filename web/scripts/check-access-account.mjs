@@ -141,7 +141,10 @@ try {
         await nav.getByRole('button').allTextContents(),
         // Material Waste is a tab inside Materials when both are allowed.
         navigationPages.filter(
-          (p) => canAccessPage(p, rank) && !(p === 'Material Waste' && canAccessPage('Materials', rank)),
+          (p) =>
+            p !== 'Pricing Templates' &&
+            canAccessPage(p, rank) &&
+            !(p === 'Material Waste' && canAccessPage('Materials', rank)),
         ),
       );
       await nav.getByRole('button', { name: 'My Account', exact: true }).click();
@@ -180,6 +183,7 @@ try {
       }
       customSettings = {
         ...defaultBranding(),
+        pricing: { ...defaultBranding().pricing, enabled: true },
         businessName: 'Test business',
         pageAccess: {
           1: ['Point of Service', 'Jobs', 'My Account'],
