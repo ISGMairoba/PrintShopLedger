@@ -30,7 +30,8 @@ export function eventResources(event, ledger) {
     add('service', d.id);
     add('material', d.materialId);
     add('material', ledger.services.find((s) => s.id === d.id)?.materialId);
-  } else if (family === 'customer') add('customer', d.id);
+  } else if (event.kind === 'customer.reminded') add('reminder', d.id);
+  else if (family === 'customer') add('customer', d.id);
   else if (family === 'quotation') add('quotation', d.id);
   else if (family === 'expense') {
     add('expense', d.id);

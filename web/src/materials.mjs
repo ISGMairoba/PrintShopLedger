@@ -14,6 +14,7 @@ export function normalizeLedger(ledger) {
     materialHistory: ledger.materialHistory ?? [],
     services: ledger.services ?? [],
     quotations: ledger.quotations ?? [],
+    reminders: ledger.reminders ?? [],
   };
 }
 export function validateMaterial(data) {

@@ -7,6 +7,7 @@ export const pageIcons: Record<Page, IconName> = {
   Reports: 'audit',
   'Point of Service': 'services',
   Quotations: 'quote',
+  'Payment Reminders': 'payments',
   'My Sales': 'drawer',
   Jobs: 'jobs',
   Customers: 'customers',
@@ -45,6 +46,7 @@ export const pageDescriptions: Record<Page, string> = {
   Services: 'Define services, their base materials and prices.',
   'Point of Service': workAndPayments,
   Quotations: 'Price work for customers, send quotations and turn accepted ones into jobs.',
+  'Payment Reminders': 'See who owes money, oldest first, and send a friendly reminder with their statement.',
   Jobs: workAndPayments,
   Payments: workAndPayments,
 };
