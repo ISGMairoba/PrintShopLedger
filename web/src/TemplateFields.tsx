@@ -1,4 +1,6 @@
-import { Fragment, createContext, useContext, useState, type ReactNode } from 'react';
+import { Fragment, createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { comparisonMessage } from './comparison-doc.mjs';
+import type { Branding } from './useBusinessBranding';
 import {
   FieldError,
   canonical,
@@ -12,10 +14,16 @@ import {
   valueLabel,
 } from './pricing-templates.mjs';
 import { currency } from './receipts.mjs';
+import Icon from './Icon';
 import type { Ledger, PricingTemplate, TemplateSnapshot, TemplateVariable } from './types';
 
 /** Whether this person may see costs and the internal job & audit view. */
 export const TemplateAuditContext = createContext(false);
+/** The business look and the person's name, for client documents made from templates. */
+export const TemplateDocumentContext = createContext<{ business: string | Branding; preparedBy: string }>({
+  business: '',
+  preparedBy: '',
+});
 export const useTemplateAudit = () => useContext(TemplateAuditContext);
 
 const naira = (value: string | number) =>
@@ -546,24 +554,60 @@ export function CompareOptions({
     rows: Scenario[];
   }[];
   const headings = !!grouping && groups.some((g) => g.rows.length > 1);
-  function printComparison() {
-    const visible = varied.filter((v) => v.clientVisible !== false);
-    const esc = (t: string) =>
-      t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
-    const body = rows
-      .map(
-        (r) =>
-          `<tr><td>${visible.map((v) => `<b>${esc(v.label)}:</b> ${esc(valueLabel(v, r.inputs[v.key]))}`).join('<br>')}</td><td>${currency(r.amount ?? 0)}</td><td>${currency(r.unit ?? 0)}</td></tr>`,
-      )
-      .join('');
-    const w = window.open('', '_blank');
-    if (!w) return;
-    w.document.write(
-      `<!doctype html><meta charset="utf-8"><title>${esc(template.name)} options</title><style>body{font:14px system-ui;margin:24px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:8px;text-align:left;vertical-align:top}</style><h2>${esc(template.name)} — quotation options</h2><p>Choose one option. Prices are not added together.</p><table><tr><th>Specifications</th><th>Total price</th><th>Unit price</th></tr>${body}</table><p><small>${new Date().toLocaleString('en-GB')} · Unit prices rounded for display.</small></p>`,
-    );
-    w.document.close();
-    w.focus();
-    w.print();
+  const doc = useContext(TemplateDocumentContext);
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [working, setWorking] = useState(false);
+  const [notice, setNotice] = useState('');
+  // Load the PDF code now: phones only open the share sheet straight after the tap.
+  useEffect(() => {
+    if (rows.length) {
+      void import('./receipt-pdf');
+      void import('./share-pdf');
+    }
+  }, [rows.length]);
+  /** The options in the order shown on screen (grouped when grouping is on). */
+  const ordered = () =>
+    groups.flatMap((g) => g.rows) as { inputs: Record<string, number>; amount: number; unit: number }[];
+  async function comparisonPdf(action: 'share' | 'a4' | 'a5' | 'open') {
+    setWorking(true);
+    setNotice('');
+    try {
+      const { createComparisonPdf } = await import('./receipt-pdf');
+      const details = {
+        customerName: customerName.trim(),
+        customerPhone: customerPhone.trim(),
+        preparedBy: doc.preparedBy,
+      };
+      const pdf = createComparisonPdf(
+        template,
+        ordered(),
+        doc.business,
+        details,
+        action === 'a5' ? 'a5' : 'a4',
+      );
+      const fileName = `${template.name.replace(/[^\w-]+/g, '-')}-options${action === 'a5' ? '-A5' : ''}.pdf`;
+      if (action === 'share') {
+        const { sharePdf, shareResult } = await import('./share-pdf');
+        const business = typeof doc.business === 'string' ? doc.business : doc.business.businessName;
+        const result = await sharePdf(pdf, fileName, {
+          title: `${template.name} options`,
+          text: comparisonMessage(template, ordered(), business),
+          phone: customerPhone.trim() || undefined,
+        });
+        setNotice(shareResult(result));
+      } else if (action === 'open') {
+        // A new tab with the PDF: print it from there. Nothing is printed from this page.
+        window.open(String(pdf.output('bloburl')), '_blank', 'noopener');
+      } else {
+        pdf.save(fileName);
+        setNotice('PDF downloaded.');
+      }
+    } catch (cause) {
+      setNotice(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setWorking(false);
+    }
   }
   return (
     <div className="template-compare">
@@ -680,15 +724,54 @@ export function CompareOptions({
                 ))}
               </select>
             </label>
-            <button
-              type="button"
-              className="secondary"
-              disabled={rows.some((r) => r.error)}
-              onClick={printComparison}
-            >
-              Print client comparison
-            </button>
           </div>
+          <fieldset className="template-option-set" disabled={working}>
+            <legend>Send to the client</legend>
+            <div className="form-grid">
+              <label>
+                Customer name (optional)
+                <input
+                  aria-label="Customer name for the comparison"
+                  value={customerName}
+                  maxLength={160}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                />
+              </label>
+              <label>
+                Phone (optional)
+                <input
+                  aria-label="Phone for the comparison"
+                  value={customerPhone}
+                  maxLength={40}
+                  inputMode="tel"
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                />
+              </label>
+            </div>
+            {rows.some((r) => r.error) ? (
+              <p className="danger-text">Fix the options that cannot be priced before sending.</p>
+            ) : (
+              <div className="material-actions">
+                <button type="button" onClick={() => void comparisonPdf('share')}>
+                  <Icon name="share" /> Share PDF
+                </button>
+                <button type="button" className="secondary" onClick={() => void comparisonPdf('a4')}>
+                  A4 PDF
+                </button>
+                <button type="button" className="secondary" onClick={() => void comparisonPdf('a5')}>
+                  A5 PDF
+                </button>
+                <button type="button" className="secondary" onClick={() => void comparisonPdf('open')}>
+                  Open to print
+                </button>
+              </div>
+            )}
+            {notice && (
+              <p className="muted" role="status">
+                {notice}
+              </p>
+            )}
+          </fieldset>
           <div className="table-wrap">
             <table aria-label="Compared options">
               <thead>

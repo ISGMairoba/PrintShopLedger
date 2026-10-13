@@ -4,6 +4,7 @@ import { receiptIntegrityError, receiptModel } from './receipts.mjs';
 import { registerPdfFonts, pdfText, PDF_FONT, rgb } from './pdf-common';
 import type { CheckoutRecord, Quotation, SaleAdjustment } from './types';
 import { quotationModel, quotationRef } from './quotations.mjs';
+import { comparisonModel } from './comparison-doc.mjs';
 import type { Branding } from './useBusinessBranding';
 
 /** The paper a receipt is drawn for (see receiptMedia in print-settings.mjs). */
@@ -25,6 +26,14 @@ export const A4_RECEIPT: ReceiptMedia = {
   width: 210,
   height: 297,
   margins: { top: 14, right: 16, bottom: 12, left: 16 },
+  layout: 'page',
+  color: true,
+  fontScale: 1,
+};
+export const A5_DOCUMENT: ReceiptMedia = {
+  width: 148,
+  height: 210,
+  margins: { top: 10, right: 11, bottom: 9, left: 11 },
   layout: 'page',
   color: true,
   fontScale: 1,
@@ -491,5 +500,20 @@ export function downloadReceiptPdf(
 ) {
   createReceiptPdf(record, business, pending, adjustments, size).save(
     `Receipt-${record.id.slice(0, 8).toUpperCase()}${record.corrected ? '-corrected' : ''}${size === 'roll' ? '-80mm' : ''}.pdf`,
+  );
+}
+
+/** A client comparison of template options as a PDF on A4 or A5, with the business's look. */
+export function createComparisonPdf(
+  template: Parameters<typeof comparisonModel>[0],
+  rows: Parameters<typeof comparisonModel>[1],
+  business: string | Branding,
+  details: Parameters<typeof comparisonModel>[3],
+  size: 'a4' | 'a5' = 'a4',
+) {
+  return modelPdf(
+    comparisonModel(template, rows, business, details) as unknown as Model,
+    size === 'a5' ? A5_DOCUMENT : A4_RECEIPT,
+    !!receiptBusiness(business).documents?.watermark,
   );
 }
