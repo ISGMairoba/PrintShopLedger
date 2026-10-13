@@ -32,6 +32,8 @@ jobs:
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/run-check.mjs node scripts/check-job-batches.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: node scripts/run-check.mjs node scripts/check-pricing-templates.mjs
+      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/run-check.mjs node scripts/check-registration.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/run-check.mjs node scripts/check-dashboard.mjs
@@ -78,5 +80,7 @@ jobs:
             /tmp/ledger-registration-*.png
             /tmp/retail-orders.png
             /tmp/job-batches-*.png
+            /tmp/pricing-templates-*.png
           retention-days: 7
+
 

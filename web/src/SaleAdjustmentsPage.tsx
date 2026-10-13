@@ -485,11 +485,15 @@ export function SaleAdjustmentEditor({
             <select value={action} onChange={(e) => setAction(e.target.value as SupervisedEvent['kind'])}>
               {job.productionStatus !== 'Cancelled' && (
                 <>
-                  <option value="sale.combined_corrected">{w('Correct job and payments together')}</option>
+                  {!job.templateSnapshot && (
+                    <option value="sale.combined_corrected">{w('Correct job and payments together')}</option>
+                  )}
                   <option value="sale.corrected">Correct charge / description</option>
-                  <option value="sale.details_corrected">
-                    {w('Correct quantity / size / service / material')}
-                  </option>
+                  {!job.templateSnapshot && (
+                    <option value="sale.details_corrected">
+                      {w('Correct quantity / size / service / material')}
+                    </option>
+                  )}
                   <option value="sale.cancelled">Cancel sale</option>
                 </>
               )}

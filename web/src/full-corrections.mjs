@@ -268,6 +268,10 @@ export function applyFullCorrection(input, event) {
     historicalClosingId = null,
     paymentId = null;
   if (event.kind === 'sale.details_corrected') {
+    if (job.templateSnapshot)
+      throw Error(
+        'Template components cannot be changed after checkout. Cancel and create a replacement job; adjust returned materials separately.',
+      );
     if (job.productionStatus === 'Cancelled') throw Error('This sale is already cancelled.');
     after = quoteCorrectedJob(ledger, job, d);
     stockChanges = stockCorrectionPlan(ledger, job, after, d.stockMode);

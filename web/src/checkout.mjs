@@ -4,6 +4,7 @@ import { validateWorkflow, jobWorkflow } from './business-options.mjs';
 import { applyCustomerEvent, phoneOwner } from './customers.mjs';
 import { jobBalance, customerBalance } from './domain.mjs';
 import { materialSnapshot } from './material-display.mjs';
+import { quoteTemplate } from './pricing-templates.mjs';
 export const jobStatuses = ['Added', 'In Queue', 'Printing', 'Completed', 'Collected'];
 export const jobSources = ['In shop / USB', 'Shop network', 'WhatsApp', 'Email', 'Other'];
 const maxMoney = 100000000000;
@@ -28,6 +29,37 @@ export const stockCountEvent = (ledger, materialId) =>
   null;
 const quoteShelf = (ledger, serviceId) => !!ledger.services.find((s) => s.id === serviceId)?.shelfItem;
 export function quoteLine(ledger, line) {
+  if (line.templateSnapshot || ledger.pricing?.templates.some((t) => t.id === line.serviceId)) {
+    const priced = quoteTemplate(ledger, line, quoteLine);
+    if (!line.description?.trim() || line.description.trim().length > 500)
+      throw Error('Enter a job description (up to 500 characters).');
+    if (
+      typeof line.source !== 'string' ||
+      !line.source.trim() ||
+      line.source.length > 80 ||
+      /[\x00-\x1f\x7f]/.test(line.source) ||
+      String(line.sourceNote ?? '').length > 200
+    )
+      throw Error('Choose how the job was received.');
+    const discount = validDiscount(line.discount),
+      lineDiscount = discountKobo(discount, priced.amount);
+    const { shelfItem: _s, discount: _d, dueAt: rawDue, templateStockIds: _stockIds, ...rest } = line;
+    const dueAt = validDueAt(rawDue);
+    return {
+      ...rest,
+      ...priced,
+      quantity: units(line.quantity),
+      description: line.description.trim(),
+      sourceNote: String(line.sourceNote ?? '').trim(),
+      stockCountEventId: null,
+      ...(line.workflow ? { workflow: validateWorkflow(line.workflow) } : {}),
+      ...(dueAt ? { dueAt } : {}),
+      ...(discount ? { discount } : {}),
+      grossAmount: priced.amount,
+      lineDiscount,
+      amount: priced.amount - lineDiscount,
+    };
+  }
   const service = ledger.services.find((s) => s.id === line.serviceId && !s.archived);
   const material = ledger.materials.find((m) => m.id === service?.materialId && !m.archived);
   if (!service || (service.materialId !== null && !material))
@@ -318,6 +350,13 @@ export function applyCheckout(ledger, event) {
     data.createdAt,
   );
   for (let index = 0; index < data.jobs.length; index++)
+    if (
+      data.jobs[index].templateSnapshot &&
+      JSON.stringify(data.jobs[index].templateSnapshot) !==
+        JSON.stringify(rebuilt.data.jobs[index].templateSnapshot)
+    )
+      throw Error('Template price, inputs or stock count changed. Review the checkout.');
+  for (let index = 0; index < data.jobs.length; index++)
     for (const key of [
       'amount',
       'unitPrice',
@@ -348,48 +387,51 @@ export function applyCheckout(ledger, event) {
   const materials = next.materials.map((m) => ({ ...m })),
     history = [...next.materialHistory];
   for (const job of rebuilt.data.jobs) {
-    if (job.materialId === null) continue;
-    const material = materials.find((m) => m.id === job.materialId);
-    const before = materialSnapshot(material),
-      available =
-        Math.round(
-          (material.available -
-            ((data.countedMaterialJobs ?? []).includes(job.id) ? 0 : job.materialNeeded)) *
-            1000,
-        ) / 1000;
-    if (Math.abs(available) > 1000000000000) throw Error('Material stock is outside the supported range.');
-    const previous = material.available;
-    Object.assign(material, {
-      available,
-      version: material.version + 1,
-      modifiedBy: data.createdBy,
-      modifiedByLabel: data.createdByLabel,
-      modifiedAt: data.createdAt,
-      lastEventId: job.id,
-    });
-    history.push({
-      id: job.id,
-      materialId: material.id,
-      materialName: material.name,
-      measurementUnit: material.measurementUnit,
-      action: 'material.job_used',
-      beforeAvailable: previous,
-      afterAvailable: available,
-      reason:
-        'Checkout ' +
-        data.id +
-        ' / Job ' +
-        job.id +
-        ((data.countedMaterialJobs ?? []).includes(job.id) ? ' · Already included in physical count' : ''),
-      jobId: job.id,
-      checkoutId: data.id,
-      changedBy: data.createdBy,
-      changedByLabel: data.createdByLabel,
-      changedAt: data.createdAt,
-      before,
-      after: materialSnapshot(material),
-      detailsComplete: true,
-    });
+    const usages = job.templateSnapshot?.components ?? [{ ...job, stockEventId: job.id }];
+    for (const usage of usages) {
+      if (usage.materialId === null || usage.materialNeeded === 0) continue;
+      const material = materials.find((m) => m.id === usage.materialId);
+      const before = materialSnapshot(material),
+        available =
+          Math.round(
+            (material.available -
+              ((data.countedMaterialJobs ?? []).includes(job.id) ? 0 : usage.materialNeeded)) *
+              1000,
+          ) / 1000;
+      if (Math.abs(available) > 1000000000000) throw Error('Material stock is outside the supported range.');
+      const previous = material.available;
+      Object.assign(material, {
+        available,
+        version: material.version + 1,
+        modifiedBy: data.createdBy,
+        modifiedByLabel: data.createdByLabel,
+        modifiedAt: data.createdAt,
+        lastEventId: usage.stockEventId,
+      });
+      history.push({
+        id: usage.stockEventId,
+        materialId: material.id,
+        materialName: material.name,
+        measurementUnit: material.measurementUnit,
+        action: 'material.job_used',
+        beforeAvailable: previous,
+        afterAvailable: available,
+        reason:
+          'Checkout ' +
+          data.id +
+          ' / Job ' +
+          job.id +
+          ((data.countedMaterialJobs ?? []).includes(job.id) ? ' · Already included in physical count' : ''),
+        jobId: job.id,
+        checkoutId: data.id,
+        changedBy: data.createdBy,
+        changedByLabel: data.createdByLabel,
+        changedAt: data.createdAt,
+        before,
+        after: materialSnapshot(material),
+        detailsComplete: true,
+      });
+    }
   }
   const payment =
     data.cashReceived > 0 || data.walletUsed > 0

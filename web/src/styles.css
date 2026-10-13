@@ -2248,3 +2248,72 @@ input[type="checkbox"] {
     flex: 1 1 auto;
   }
 }
+
+/* Templates use the same surfaces, controls and responsive form grid as checkout. */
+.template-list {
+  display: grid;
+  gap: 0.65rem;
+}
+.template-list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+  background: var(--surface);
+  color: var(--ink);
+}
+.template-list-row small,
+.template-breakdown small {
+  display: block;
+  color: var(--surface-subtle);
+}
+.template-breakdown {
+  margin: 0.75rem 0;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+  background: var(--surface);
+  color: var(--ink);
+}
+.template-breakdown ul {
+  list-style: none;
+  padding: 0;
+  margin: 0.6rem 0 0;
+}
+.template-breakdown li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--line);
+}
+.template-breakdown li > strong {
+  white-space: nowrap;
+}
+.formula-field {
+  min-width: 0;
+  margin: 0.6rem 0;
+}
+.formula-tokens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding-top: 0.5rem;
+}
+.formula-field input {
+  font-family: monospace;
+}
+@media (max-width: 700px) {
+  .template-list-row {
+    flex-wrap: wrap;
+  }
+  .template-list-row .job-bulk-actions {
+    width: 100%;
+  }
+  .template-breakdown li {
+    flex-wrap: wrap;
+  }
+}

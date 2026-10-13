@@ -1,3 +1,6 @@
+import { TemplateInputs, TemplateBreakdown } from './TemplateFields';
+import { templateDefaults } from './pricing-templates.mjs';
+import type { TemplateSnapshot } from './types';
 import { lineWithDescription } from './job-batches.mjs';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import Modal from './Modal';
@@ -39,6 +42,8 @@ type Props = {
   onCreateOrder: (quote: Quotation) => void;
 };
 type Line = {
+  templateInputs?: Record<string, number | string>;
+  templateSnapshot?: TemplateSnapshot;
   id: string;
   serviceId: string;
   description: string;
@@ -408,6 +413,7 @@ function QuotationSummary({ quote }: { quote: Quotation }) {
                     {l.requireSize && l.width && l.height ? ` · ${l.width} × ${l.height}` : ''}
                     {l.discountAmount > 0 ? ` · Discount -${currency(l.discountAmount)}` : ''}
                   </small>
+                  {l.templateSnapshot && <TemplateBreakdown snapshot={l.templateSnapshot} />}
                 </td>
                 <td className="numeric">{l.quantity}</td>
                 <td className="numeric">{currency(l.amount)}</td>
@@ -466,6 +472,8 @@ function QuotationEditor({
       ? quote.lines.map((l) => ({
           id: l.id,
           serviceId: l.serviceId,
+          templateInputs: l.templateInputs,
+          templateSnapshot: l.templateSnapshot,
           description: l.description,
           quantity: String(l.quantity),
           width: l.width == null ? '' : String(l.width),
@@ -489,7 +497,10 @@ function QuotationEditor({
       const discount = discountSpec(draft);
       return lineWithDescription(
         { ...l, ...(discount ? { discount } : {}) },
-        ledger.services,
+        [
+          ...ledger.services,
+          ...(ledger.pricing?.templates ?? []).map((t) => ({ id: t.id, description: t.name })),
+        ],
         descriptionMode,
       );
     }),
@@ -579,6 +590,7 @@ function QuotationEditor({
           </div>
           <h3>{w('Items')}</h3>
           {lines.map((item, index) => {
+            const template = ledger.pricing?.templates.find((t) => t.id === item.serviceId);
             const service = ledger.services.find((s) => s.id === item.serviceId);
             const material = ledger.materials.find((m) => m.id === service?.materialId);
             const line = priced.ok?.lines[index];
@@ -607,8 +619,12 @@ function QuotationEditor({
                       value={item.serviceId}
                       onChange={(e) => {
                         const picked = ledger.services.find((s) => s.id === e.target.value);
+                        const t = ledger.pricing?.templates.find((t) => t.id === e.target.value);
                         edit(item.id, {
                           serviceId: e.target.value,
+                          templateSnapshot: undefined,
+                          templateInputs: t ? templateDefaults(t) : undefined,
+                          ...(t ? { description: t.name } : {}),
                           ...(!item.description.trim() && picked
                             ? { description: picked.description.slice(0, 500) }
                             : {}),
@@ -616,6 +632,17 @@ function QuotationEditor({
                       }}
                     >
                       <option value="">{w('Select service')}</option>
+                      {ledger.pricing?.enabled && (
+                        <optgroup label="Pricing templates">
+                          {ledger.pricing.templates
+                            .filter((t) => !t.archived)
+                            .map((t) => (
+                              <option key={t.id} value={t.id}>
+                                {t.name} — Template
+                              </option>
+                            ))}
+                        </optgroup>
+                      )}
                       {services.map((s) => (
                         <option key={s.id} value={s.id}>
                           {s.description} — {currency(s.price)}
@@ -647,6 +674,13 @@ function QuotationEditor({
                       onChange={(e) => edit(item.id, { quantity: e.target.value })}
                     />
                   </label>
+                  {template && (
+                    <TemplateInputs
+                      template={template}
+                      value={item.templateInputs ?? {}}
+                      onChange={(value) => edit(item.id, { templateInputs: value })}
+                    />
+                  )}
                   {material?.requireSize && (
                     <>
                       <label>
@@ -694,6 +728,7 @@ function QuotationEditor({
                     )}
                   </p>
                 )}
+                {line?.templateSnapshot && <TemplateBreakdown snapshot={line.templateSnapshot} />}
               </section>
             );
           })}

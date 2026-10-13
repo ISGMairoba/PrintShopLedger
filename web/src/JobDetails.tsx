@@ -1,3 +1,4 @@
+import { TemplateBreakdown } from './TemplateFields';
 import Modal from './Modal';
 import { deadlineState } from './job-deadlines.mjs';
 import JobActions, { type ProgressMode } from './JobActions';
@@ -84,6 +85,7 @@ export default function JobDetails({
           {deadlineState(job) === 'soon' && <span className="badge partial">Due soon</span>}
         </p>
       )}
+      {job.templateSnapshot && <TemplateBreakdown snapshot={job.templateSnapshot} />}
       <div className="detail-summary">
         <span>
           {w('Job amount')} <strong>{currency(job.amount)}</strong>

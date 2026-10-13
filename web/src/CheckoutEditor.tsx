@@ -1,3 +1,6 @@
+import { TemplateInputs, TemplateBreakdown } from './TemplateFields';
+import { templateDefaults } from './pricing-templates.mjs';
+import type { TemplateSnapshot } from './types';
 import { lineWithDescription } from './job-batches.mjs';
 import { useFeedbackMessage } from './Feedback';
 import { useBusinessOptions } from './BusinessOptionsContext';
@@ -49,6 +52,8 @@ export type QuotationStart = {
   customerPhone: string;
   lines: {
     serviceId: string;
+    templateInputs?: Record<string, number | string>;
+    templateSnapshot?: TemplateSnapshot;
     description: string;
     quantity: number;
     width: number | null;
@@ -164,6 +169,9 @@ function balanceDraft(
   return JSON.stringify(next) === JSON.stringify(state) ? state : next;
 }
 type CartLine = {
+  templateInputs?: Record<string, number | string>;
+  templateSnapshot?: TemplateSnapshot;
+  templateStockIds?: Record<string, string>;
   id: string;
   serviceId: string;
   description: string;
@@ -234,6 +242,11 @@ export default function CheckoutEditor({
         ? fromQuotation.lines.map((q) => ({
             ...newLine(),
             serviceId: q.serviceId,
+            templateInputs: q.templateInputs,
+            templateSnapshot: q.templateSnapshot,
+            templateStockIds: q.templateSnapshot
+              ? Object.fromEntries(q.templateSnapshot.components.map((c) => [c.id, crypto.randomUUID()]))
+              : undefined,
             description: q.description,
             quantity: String(q.quantity),
             width: q.width == null ? '' : String(q.width),
@@ -335,7 +348,14 @@ export default function CheckoutEditor({
     discountDraft(initialCheckout?.orderDiscount ?? fromQuotation?.orderDiscount),
   );
   const cartLines = lines.map((line) =>
-    lineWithDescription(toLine(line), working.services, jobSettings.descriptionMode),
+    lineWithDescription(
+      toLine(line),
+      [
+        ...working.services,
+        ...(working.pricing?.templates ?? []).map((t) => ({ id: t.id, description: t.name })),
+      ],
+      jobSettings.descriptionMode,
+    ),
   );
   const quotedLines = cartLines.map((item) => {
     try {
@@ -588,6 +608,7 @@ export default function CheckoutEditor({
               <>
                 <h3>{w('Jobs in this checkout')}</h3>
                 {lines.map((item, index) => {
+                  const template = working.pricing?.templates.find((t) => t.id === item.serviceId);
                   const service = working.services.find((s) => s.id === item.serviceId),
                     material = working.materials.find((m) => m.id === service?.materialId);
                   const quote = quotedLines[index];
@@ -617,6 +638,9 @@ export default function CheckoutEditor({
                             value={item.serviceId}
                             onChange={(e) => {
                               const picked = working.services.find((s) => s.id === e.target.value);
+                              const chosenTemplate = working.pricing?.templates.find(
+                                (t) => t.id === e.target.value,
+                              );
                               // Shelf items: the product name is a fine description; staff can change it.
                               setLines((items) =>
                                 items.map((line) =>
@@ -624,6 +648,19 @@ export default function CheckoutEditor({
                                     ? {
                                         ...line,
                                         serviceId: e.target.value,
+                                        templateSnapshot: undefined,
+                                        templateInputs: chosenTemplate
+                                          ? templateDefaults(chosenTemplate)
+                                          : undefined,
+                                        templateStockIds: chosenTemplate
+                                          ? Object.fromEntries(
+                                              chosenTemplate.components.map((c) => [
+                                                c.id,
+                                                crypto.randomUUID(),
+                                              ]),
+                                            )
+                                          : undefined,
+                                        ...(chosenTemplate ? { description: chosenTemplate.name } : {}),
                                         ...(picked?.shelfItem && !line.description.trim()
                                           ? { description: picked.description.slice(0, 500) }
                                           : {}),
@@ -634,6 +671,17 @@ export default function CheckoutEditor({
                             }}
                           >
                             <option value="">{w('Select service')}</option>
+                            {working.pricing?.enabled && (
+                              <optgroup label="Pricing templates">
+                                {working.pricing.templates
+                                  .filter((t) => !t.archived)
+                                  .map((t) => (
+                                    <option key={t.id} value={t.id}>
+                                      {t.name} — Template
+                                    </option>
+                                  ))}
+                              </optgroup>
+                            )}
                             {working.services
                               .filter(
                                 (s) =>
@@ -672,6 +720,17 @@ export default function CheckoutEditor({
                             onChange={(e) => editLine(item.id, 'quantity', e.target.value)}
                           />
                         </label>
+                        {template && (
+                          <TemplateInputs
+                            template={template}
+                            value={item.templateInputs ?? {}}
+                            onChange={(value) =>
+                              setLines((items) =>
+                                items.map((l) => (l.id === item.id ? { ...l, templateInputs: value } : l)),
+                              )
+                            }
+                          />
+                        )}
                         {material?.requireSize && (
                           <>
                             <label>
@@ -754,9 +813,11 @@ export default function CheckoutEditor({
                       )}
                       {quote && (
                         <p>
-                          {quote.materialId === null
-                            ? w('No material · No stock deduction')
-                            : `${w('Material')}: ${material?.name} · Usage: ${quote.materialNeeded} ${quote.measurementUnit}`}
+                          {quote.templateSnapshot
+                            ? 'Template · Component stock calculated below'
+                            : quote.materialId === null
+                              ? w('No material · No stock deduction')
+                              : `${w('Material')}: ${material?.name} · Usage: ${quote.materialNeeded} ${quote.measurementUnit}`}
                           {service?.shelfItem ? ' · Collected when sold' : ''} ·{' '}
                           <strong>{currency(quote.amount)}</strong>
                           {quote.lineDiscount > 0 && (
@@ -767,6 +828,7 @@ export default function CheckoutEditor({
                           )}
                         </p>
                       )}
+                      {quote?.templateSnapshot && <TemplateBreakdown snapshot={quote.templateSnapshot} />}
                     </section>
                   );
                 })}
