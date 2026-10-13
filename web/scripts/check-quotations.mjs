@@ -28,6 +28,16 @@ try {
   page.setDefaultTimeout(10000);
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
+  // A desktop test browser: no phone share sheet, and WhatsApp links are recorded, not opened.
+  await page.addInitScript(() => {
+    delete Navigator.prototype.share;
+    delete Navigator.prototype.canShare;
+    window.__opened = [];
+    window.open = (url) => {
+      window.__opened.push(String(url));
+      return null;
+    };
+  });
   await page.goto(`http://127.0.0.1:${port}`);
   await page.getByRole('button', { name: 'Try locally on this device' }).click();
   const menu = page.getByRole('navigation', { name: 'Main' });
@@ -74,17 +84,14 @@ try {
 
   // Share: without a phone share sheet, the PDF downloads and WhatsApp opens with the message.
   // A desktop browser has no share sheet; record the WhatsApp link instead of opening a window.
-  await page.evaluate(() => {
-    Object.defineProperty(navigator, 'canShare', { value: undefined, configurable: true });
-    window.__opened = [];
-    window.open = (url) => {
-      window.__opened.push(String(url));
-      return null;
-    };
-  });
   const shared = page.waitForEvent('download');
   await d.getByRole('button', { name: 'Share', exact: true }).click();
-  assert.match((await shared).suggestedFilename(), /^Quotation-Q-[0-9A-F]{8}\.pdf$/);
+  const sharedFile = await shared.catch(async (cause) => {
+    console.error('Share did not download. Dialog says:', await d.innerText());
+    console.error('Opened:', await page.evaluate(() => window.__opened));
+    throw cause;
+  });
+  assert.match(sharedFile.suggestedFilename(), /^Quotation-Q-[0-9A-F]{8}\.pdf$/);
   await page.waitForFunction(() => window.__opened.length > 0);
   assert.match(await page.evaluate(() => window.__opened[0]), /^https:\/\/wa\.me\/\?text=Hello%20Bello/);
 
