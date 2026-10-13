@@ -3,17 +3,20 @@ import Modal from './Modal';
 import { useWords } from './Words';
 import { useFeedbackMessage } from './Feedback';
 import { jobWorkflow } from './business-options.mjs';
-import { batchProgressPlan } from './job-batches.mjs';
-import type { Job } from './types';
+import { batchProgressPlan, collectionCheck } from './job-batches.mjs';
+import { currency } from './receipts.mjs';
+import type { Job, Ledger } from './types';
 import type { ProgressMode } from './JobActions';
 
 export default function BatchJobProgressDialog({
+  ledger,
   jobs,
   mode,
   busy,
   onClose,
   onSave,
 }: {
+  ledger: Ledger;
   jobs: Job[];
   mode: ProgressMode;
   busy: boolean;
@@ -35,6 +38,8 @@ export default function BatchJobProgressDialog({
   const [error, setError] = useFeedbackMessage('error');
   const plan = batchProgressPlan(jobs, mode, target);
   const eligible = plan.filter((row) => !row.reason);
+  const collect = collectionCheck(plan, ledger);
+  const [unpaidConfirmed, setUnpaidConfirmed] = useState(false);
   return (
     <Modal title={w('Update selected jobs')} wide busy={busy} onClose={onClose}>
       <p>
@@ -84,8 +89,36 @@ export default function BatchJobProgressDialog({
             </li>
           ))}
         </ul>
-        <p className="muted">Mark as Complete leaves collection as a separate action.</p>
-        <button disabled={busy || !eligible.length}>
+        {collect.collecting > 0 ? (
+          <div className="notice notice-warning" role="status">
+            <strong>
+              {collect.collecting} {w(collect.collecting === 1 ? 'job' : 'jobs')} will be marked{' '}
+              {stage('Collected')}.
+            </strong>{' '}
+            This records that the customer has taken {collect.collecting === 1 ? 'it' : 'them'}.
+            {collect.unpaid > 0 && (
+              <>
+                <p>
+                  {collect.collecting === 1
+                    ? 'It still owes '
+                    : `${collect.unpaid} of these still ${collect.unpaid === 1 ? 'owes' : 'owe'} `}
+                  <strong>{currency(collect.owed)}</strong>.
+                </p>
+                <label className="check-label">
+                  <input
+                    type="checkbox"
+                    checked={unpaidConfirmed}
+                    onChange={(e) => setUnpaidConfirmed(e.target.checked)}
+                  />{' '}
+                  {w('Hand over unpaid jobs anyway')}
+                </label>
+              </>
+            )}
+          </div>
+        ) : (
+          <p className="muted">Mark as Complete leaves collection as a separate action.</p>
+        )}
+        <button disabled={busy || !eligible.length || (collect.unpaid > 0 && !unpaidConfirmed)}>
           Apply to {eligible.length} {w(eligible.length === 1 ? 'job' : 'jobs')}
         </button>
       </form>

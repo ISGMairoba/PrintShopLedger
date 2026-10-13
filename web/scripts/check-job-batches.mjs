@@ -154,6 +154,13 @@ try {
       .click();
     d = page.getByRole('dialog', { name: 'Update selected jobs' });
     assert.match(await d.innerText(), /Completed → Collected/);
+    // Collecting unpaid work needs a deliberate tick.
+    assert.match(
+      await d.innerText(),
+      /2 jobs will be marked Collected[\s\S]*2 of these still owe ₦3,000\.00/,
+    );
+    assert.equal(await d.getByRole('button', { name: 'Apply to 2 jobs', exact: true }).isDisabled(), true);
+    await d.getByLabel('Hand over unpaid jobs anyway').check();
     await d.getByRole('button', { name: 'Apply to 2 jobs', exact: true }).click();
     await d.waitFor({ state: 'detached' });
     assert.equal(await page.getByText('Stage: Collected', { exact: true }).count(), 2);

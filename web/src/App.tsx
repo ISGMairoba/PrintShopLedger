@@ -1884,6 +1884,7 @@ export default function App() {
               )}
               {batchToAdvance && (
                 <BatchJobProgressDialog
+                  ledger={ledger}
                   jobs={batchToAdvance.jobs}
                   mode={batchToAdvance.mode}
                   busy={busy}
