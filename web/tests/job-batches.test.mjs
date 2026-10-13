@@ -99,3 +99,34 @@ test('description modes preserve defaults and existing descriptions, and reject 
     'Existing note',
   );
 });
+
+import { collectionCheck } from '../src/job-batches.mjs';
+test('Bulk actions that collect show how many items and how much is still owed', () => {
+  const job = (id, extra) => ({
+    id,
+    customerId: 'c',
+    service: 'S',
+    description: 'd',
+    amount: 5000,
+    createdAt: '2026-10-13T08:00:00Z',
+    version: 1,
+    productionStatus: 'Completed',
+    ...extra,
+  });
+  const jobs = [job('paid'), job('owing'), job('early', { productionStatus: 'Printing' })];
+  const ledger = {
+    jobs,
+    payments: [{ id: 'p', customerId: 'c', amount: 5000, allocations: [{ jobId: 'paid', amount: 5000 }] }],
+    saleAdjustments: [],
+  };
+  assert.deepEqual(collectionCheck(batchProgressPlan(jobs, 'next'), ledger), {
+    collecting: 2,
+    unpaid: 1,
+    owed: 5000,
+  });
+  assert.deepEqual(collectionCheck(batchProgressPlan(jobs, 'complete'), ledger), {
+    collecting: 0,
+    unpaid: 0,
+    owed: 0,
+  });
+});

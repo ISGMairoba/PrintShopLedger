@@ -1,5 +1,6 @@
 import { jobWorkflow } from './business-options.mjs';
 import { progressEvents } from './job-progress.mjs';
+import { jobBalance } from './domain.mjs';
 
 // Group only by the recorded checkout, never by date, customer or similar descriptions.
 /** @param {import('./types').Job[]} jobs */
@@ -62,4 +63,22 @@ export function lineWithDescription(line, services, mode = 'required') {
   if (mode === 'required' || line.description?.trim()) return line;
   const service = services.find((item) => item.id === line.serviceId);
   return { ...line, description: service?.description?.slice(0, 500) ?? '' };
+}
+
+/**
+ * Which planned items would be marked Collected, and which of those still owe money, so the
+ * person sees that the action records collection (and of unpaid work) before applying it.
+ * @param {ReturnType<typeof batchProgressPlan>} plan
+ * @param {import('./types').Ledger} ledger
+ */
+export function collectionCheck(plan, ledger) {
+  const collecting = plan.filter((row) => !row.reason && row.path.includes('Collected'));
+  const unpaid = collecting
+    .map((row) => ({ job: row.job, owed: jobBalance(ledger, row.job).outstanding }))
+    .filter((row) => row.owed > 0);
+  return {
+    collecting: collecting.length,
+    unpaid: unpaid.length,
+    owed: unpaid.reduce((n, r) => n + r.owed, 0),
+  };
 }
