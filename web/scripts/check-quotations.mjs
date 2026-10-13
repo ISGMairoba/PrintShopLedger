@@ -67,6 +67,17 @@ try {
   await d.getByRole('button', { name: 'Download PDF (A4)', exact: true }).click();
   assert.match((await waiting).suggestedFilename(), /^Quotation-Q-[0-9A-F]{8}\.pdf$/);
 
+  // Share: without a phone share sheet, the PDF downloads and WhatsApp opens with the message.
+  await page.context().route('https://wa.me/**', (route) => route.fulfill({ body: 'WhatsApp' }));
+  const shared = page.waitForEvent('download');
+  const chat = page.waitForEvent('popup');
+  await d.getByRole('button', { name: 'Share', exact: true }).click();
+  assert.match((await shared).suggestedFilename(), /^Quotation-Q-[0-9A-F]{8}\.pdf$/);
+  const popup = await chat;
+  await popup.waitForLoadState();
+  assert.match(popup.url(), /^https:\/\/wa\.me\/\?text=Hello%20Bello/);
+  await popup.close();
+
   // Create the order: checkout opens filled from the quote.
   await d.getByRole('button', { name: 'Create job', exact: true }).click();
   d = page.getByRole('dialog', { name: 'New checkout' });

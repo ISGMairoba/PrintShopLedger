@@ -4,7 +4,7 @@ import Icon from './Icon';
 import ResponsiveTable from './ResponsiveTable';
 import ListedCombobox from './ListedCombobox';
 import { SortHeader, useTableSort } from './TableSort';
-import { useFeedbackMessage } from './Feedback';
+import { useFeedback, useFeedbackMessage } from './Feedback';
 import { useWords } from './Words';
 import { currency } from './receipts.mjs';
 import { units } from './checkout.mjs';
@@ -25,6 +25,7 @@ import {
 } from './CheckoutEditor';
 import type { Branding } from './useBusinessBranding';
 import type { Ledger, Quotation, QuotationEvent } from './types';
+import { quotationMessage } from './share.mjs';
 
 type Props = {
   ledger: Ledger;
@@ -80,6 +81,7 @@ export default function QuotationsPage({
   const [editor, setEditor] = useState<Quotation | 'new' | null>(null);
   const [viewing, setViewing] = useState<Quotation | null>(null);
   const [error, setError] = useFeedbackMessage('error');
+  const notify = useFeedback();
   const sorting = useTableSort<Quotation>('date', 'desc');
   const quotes = ledger.quotations ?? [];
   const visible = sorting.sortRows(
@@ -109,6 +111,25 @@ export default function QuotationsPage({
       (action === 'open' ? openQuotationPdf : downloadQuotationPdf)(quote, branding, size);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not create the PDF.');
+    }
+  }
+  async function share(quote: Quotation) {
+    setError('');
+    try {
+      const [{ createQuotationPdf }, { sharePdf, shareResult }] = await Promise.all([
+        import('./receipt-pdf'),
+        import('./share'),
+      ]);
+      const ref = quotationRef(quote.id);
+      const result = await sharePdf(createQuotationPdf(quote, branding, 'a4'), `Quotation-${ref}`, {
+        title: `Quotation ${ref}`,
+        text: quotationMessage(quote, ref, branding.businessName, date(quote.validUntil)),
+        phone: quote.customerPhone,
+      });
+      const note = shareResult(result);
+      if (note) notify(note, 'success');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not share the quotation.');
     }
   }
   async function setStatus(quote: Quotation, kind: 'quotation.archived' | 'quotation.restored') {
@@ -293,6 +314,9 @@ export default function QuotationsPage({
                 </button>
               </>
             )}
+            <button className="secondary" onClick={() => void share(current)}>
+              <Icon name="share" /> Share
+            </button>
             <button className="secondary" onClick={() => void pdf(current, 'a4', 'download')}>
               Download PDF (A4)
             </button>

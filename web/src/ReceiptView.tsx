@@ -7,6 +7,7 @@ import { receiptHtml, receiptIntegrityError, correctedReceipt, receiptLayout } f
 import { loadPrintSettings } from './print-settings.mjs';
 import { printReceipt } from './printing';
 import type { CheckoutRecord } from './types';
+import { receiptMessage } from './share.mjs';
 export default function ReceiptView({
   record: originalRecord,
   ledger,
@@ -41,6 +42,30 @@ export default function ReceiptView({
       const brand = size === 'roll' ? await (await import('./logo-ink')).withInkLogo(business) : business;
       downloadReceiptPdf(record, brand, pending, adjustments, size);
       setMessage('PDF downloaded.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error), 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function share() {
+    setBusy(true);
+    try {
+      const [{ createReceiptPdf }, { sharePdf, shareResult }] = await Promise.all([
+        import('./receipt-pdf'),
+        import('./share'),
+      ]);
+      const name = typeof business === 'string' ? business : business.businessName;
+      const result = await sharePdf(
+        createReceiptPdf(record, business, pending, adjustments, 'a4'),
+        `Receipt-${record.id.slice(0, 8).toUpperCase()}`,
+        {
+          title: `Receipt ${record.id.slice(0, 8).toUpperCase()}`,
+          text: receiptMessage(record, name),
+          phone: record.customerSnapshot?.phone,
+        },
+      );
+      setMessage(shareResult(result));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error), 'error');
     } finally {
@@ -89,6 +114,9 @@ export default function ReceiptView({
           }}
         >
           <Icon name="services" /> {busy ? 'Printing…' : 'Print receipt'}
+        </button>
+        <button className="secondary" disabled={busy || !!warning} onClick={() => void share()}>
+          <Icon name="share" /> Share
         </button>
         <button className="secondary" disabled={busy || !!warning} onClick={() => void pdf('a4')}>
           Download PDF (A4)
