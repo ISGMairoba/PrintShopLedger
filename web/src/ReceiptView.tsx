@@ -1,6 +1,6 @@
 import { AdjustmentHistory } from './SaleAdjustmentsPage';
 import { useFeedbackMessage, FeedbackBanner } from './Feedback';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Modal from './Modal';
 import Icon from './Icon';
 import { receiptHtml, receiptIntegrityError, correctedReceipt, receiptLayout } from './receipts.mjs';
@@ -25,6 +25,11 @@ export default function ReceiptView({
   adjustments?: import('./types').SaleAdjustment[];
   onClose: () => void;
 }) {
+  // Load the PDF and share code now: phones only open the share sheet straight after the tap.
+  useEffect(() => {
+    void import('./receipt-pdf');
+    void import('./share');
+  }, []);
   const [busy, setBusy] = useState(false),
     [message, setMessage, messageTone] = useFeedbackMessage('success');
   const [corrected, setCorrected] = useState(false);

@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import Icon from './Icon';
 import ResponsiveTable from './ResponsiveTable';
@@ -75,6 +75,11 @@ export default function QuotationsPage({
   onSave,
   onCreateOrder,
 }: Props) {
+  // Load the PDF and share code now: phones only open the share sheet straight after the tap.
+  useEffect(() => {
+    void import('./receipt-pdf');
+    void import('./share');
+  }, []);
   const { w } = useWords();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('current');

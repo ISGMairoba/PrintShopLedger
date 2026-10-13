@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import ResponsiveTable from './ResponsiveTable';
 import { validRange } from './dashboard.mjs';
 import PeriodFilter, { usePeriod } from './PeriodFilter';
@@ -289,6 +289,11 @@ export default function ReportsPage({
   onCustomerChange,
   access,
 }: Props) {
+  // Load the PDF and share code now: phones only open the share sheet straight after the tap.
+  useEffect(() => {
+    void import('./report-pdf');
+    void import('./share');
+  }, []);
   const tabs = (['Customer statement', 'Transactions', 'Summary'] as Tab[]).filter(
     (t) => t !== 'Customer statement' || (access.customers && access.jobs && access.payments),
   );
