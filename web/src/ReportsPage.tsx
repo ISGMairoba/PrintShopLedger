@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import ResponsiveTable from './ResponsiveTable';
 import { validRange } from './dashboard.mjs';
 import PeriodFilter, { usePeriod } from './PeriodFilter';
@@ -21,6 +21,9 @@ import './dashboard.css';
 import './reports.css';
 import { useWords } from './Words';
 import { renameTerms, stageName } from './terms.mjs';
+import { statementMessage } from './share.mjs';
+import { useFeedback } from './Feedback';
+import Icon from './Icon';
 
 export type ReportAccess = {
   customers: boolean;
@@ -145,9 +148,24 @@ function Select({
   );
 }
 
-function Exports({ busy, onCsv, onPdf }: { busy: boolean; onCsv: () => void; onPdf: () => void }) {
+function Exports({
+  busy,
+  onCsv,
+  onPdf,
+  onShare,
+}: {
+  busy: boolean;
+  onCsv: () => void;
+  onPdf: () => void;
+  onShare?: () => void;
+}) {
   return (
     <div className="material-actions">
+      {onShare && (
+        <button className="secondary" disabled={busy} onClick={onShare}>
+          <Icon name="share" /> Share
+        </button>
+      )}
       <button disabled={busy} onClick={onCsv}>
         Download spreadsheet
       </button>
@@ -271,6 +289,11 @@ export default function ReportsPage({
   onCustomerChange,
   access,
 }: Props) {
+  // Load the PDF and share code now: phones only open the share sheet straight after the tap.
+  useEffect(() => {
+    void import('./report-pdf');
+    void import('./share-pdf');
+  }, []);
   const tabs = (['Customer statement', 'Transactions', 'Summary'] as Tab[]).filter(
     (t) => t !== 'Customer statement' || (access.customers && access.jobs && access.payments),
   );
@@ -281,6 +304,7 @@ export default function ReportsPage({
   const company = branding.businessName || businessName;
   const { w, terms } = useWords();
   const named = (sections: ReportSection[]) => nameSections(sections, terms);
+  const notify = useFeedback();
 
   async function pdf(file: string, title: string, subtitle: string[], sections: ReportSection[]) {
     if (busy) return;
@@ -328,7 +352,36 @@ export default function ReportsPage({
           ` Last synced: ${new Date(lastSynced).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' })}.`}
       </p>
     );
-  const shared = { ledger, freshness, busy, error, pdf, csv };
+  async function share(
+    file: string,
+    title: string,
+    subtitle: string[],
+    sections: ReportSection[],
+    to: { text: string; phone?: string },
+  ) {
+    if (busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      const [{ createReportPdf }, { sharePdf, shareResult }] = await Promise.all([
+        import('./report-pdf'),
+        import('./share-pdf'),
+      ]);
+      const doc = createReportPdf(brand, {
+        title,
+        subtitle: subtitle.map(w),
+        sections: named(sections),
+        generatedAt: new Date().toISOString(),
+      });
+      const note = shareResult(await sharePdf(doc, file, { title, ...to }));
+      if (note) notify(note, 'success');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not share the PDF.');
+    } finally {
+      setBusy(false);
+    }
+  }
+  const shared = { ledger, freshness, busy, error, pdf, csv, share, company };
   return (
     <div className="dashboard reports">
       <div className="settings-tabs" role="tablist" aria-label="Reports">
@@ -363,6 +416,15 @@ type TabProps = {
   error: string;
   pdf: (file: string, title: string, subtitle: string[], sections: ReportSection[]) => Promise<void>;
   csv: (file: string, title: string, subtitle: string[], sections: ReportSection[]) => void;
+  company: string;
+  /** Share the PDF (WhatsApp on phones), with a message to the customer. */
+  share: (
+    file: string,
+    title: string,
+    subtitle: string[],
+    sections: ReportSection[],
+    to: { text: string; phone?: string },
+  ) => Promise<void>;
 };
 
 function StatementTab({
@@ -372,6 +434,8 @@ function StatementTab({
   error,
   pdf,
   csv,
+  share,
+  company,
   customerId,
   onCustomerChange,
 }: TabProps & { customerId: string; onCustomerChange: (id: string) => void }) {
@@ -478,6 +542,18 @@ function StatementTab({
               onCsv={() => csv(file, title, subtitle, statementSections(statement))}
               onPdf={() =>
                 void pdf(file, title, subtitle, statementSections(statement, { money: currency, unit: '' }))
+              }
+              onShare={() =>
+                void share(
+                  file,
+                  title,
+                  subtitle,
+                  statementSections(statement, { money: currency, unit: '' }),
+                  {
+                    text: statementMessage(statement.customer.name, t.owedNow, company),
+                    phone: statement.customer.phone,
+                  },
+                )
               }
             />
           </section>

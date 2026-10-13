@@ -11,6 +11,11 @@ const server = spawn(
   { stdio: 'inherit' },
 );
 let browser;
+// Never hold up CI: a stuck browser step fails the check instead.
+setTimeout(() => {
+  console.error('Quotations check timed out');
+  process.exit(1);
+}, 240000).unref();
 try {
   for (let i = 0; i < 100; i++) {
     try {
@@ -23,6 +28,16 @@ try {
   page.setDefaultTimeout(10000);
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
+  // A desktop test browser: no phone share sheet, and WhatsApp links are recorded, not opened.
+  await page.addInitScript(() => {
+    delete Navigator.prototype.share;
+    delete Navigator.prototype.canShare;
+    window.__opened = [];
+    window.open = (url) => {
+      window.__opened.push(String(url));
+      return null;
+    };
+  });
   await page.goto(`http://127.0.0.1:${port}`);
   await page.getByRole('button', { name: 'Try locally on this device' }).click();
   const menu = page.getByRole('navigation', { name: 'Main' });
@@ -66,6 +81,19 @@ try {
   const waiting = page.waitForEvent('download');
   await d.getByRole('button', { name: 'Download PDF (A4)', exact: true }).click();
   assert.match((await waiting).suggestedFilename(), /^Quotation-Q-[0-9A-F]{8}\.pdf$/);
+
+  // Share: without a phone share sheet, the PDF downloads and WhatsApp opens with the message.
+  // A desktop browser has no share sheet; record the WhatsApp link instead of opening a window.
+  const shared = page.waitForEvent('download');
+  await d.getByRole('button', { name: 'Share', exact: true }).click();
+  const sharedFile = await shared.catch(async (cause) => {
+    console.error('Share did not download. Dialog says:', await d.innerText());
+    console.error('Opened:', await page.evaluate(() => window.__opened));
+    throw cause;
+  });
+  assert.match(sharedFile.suggestedFilename(), /^Quotation-Q-[0-9A-F]{8}\.pdf$/);
+  await page.waitForFunction(() => window.__opened.length > 0);
+  assert.match(await page.evaluate(() => window.__opened[0]), /^https:\/\/wa\.me\/\?text=Hello%20Bello/);
 
   // Create the order: checkout opens filled from the quote.
   await d.getByRole('button', { name: 'Create job', exact: true }).click();

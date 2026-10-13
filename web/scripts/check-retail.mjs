@@ -12,6 +12,10 @@ const server = spawn(
   { stdio: 'inherit' },
 );
 let browser;
+setTimeout(() => {
+  console.error('Retail check timed out');
+  process.exit(1);
+}, 240000).unref();
 try {
   for (let i = 0; i < 100; i++) {
     try {
