@@ -77,5 +77,6 @@ jobs:
             /tmp/ledger-dashboard-*.png
             /tmp/ledger-registration-*.png
             /tmp/retail-orders.png
+            /tmp/job-batches-*.png
           retention-days: 7
 
