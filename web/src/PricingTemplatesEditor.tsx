@@ -653,6 +653,7 @@ export default function TemplateEditor({
                       <label>
                         Default
                         <select
+                          aria-label="Default"
                           value={String(v.default)}
                           onChange={(e) => setVariable(i, { default: Number(e.target.value) })}
                         >
@@ -665,6 +666,7 @@ export default function TemplateEditor({
                       <label>
                         Default
                         <select
+                          aria-label="Default"
                           value={String(v.default)}
                           onChange={(e) => setVariable(i, { default: Number(e.target.value) })}
                         >
@@ -887,6 +889,7 @@ export default function TemplateEditor({
                   <label>
                     Take from stock
                     <select
+                      aria-label="Take from stock"
                       value={
                         !c.stock
                           ? ''
@@ -1039,6 +1042,7 @@ export default function TemplateEditor({
               <label>
                 Profit method
                 <select
+                  aria-label="Profit method"
                   value={p.method}
                   onChange={(e) =>
                     change({ pricing: { ...p, method: e.target.value as 'markup' | 'margin' } })
@@ -1077,6 +1081,7 @@ export default function TemplateEditor({
               <label>
                 Round price up to
                 <select
+                  aria-label="Round price up to"
                   value={String(p.rounding)}
                   onChange={(e) => change({ pricing: { ...p, rounding: Number(e.target.value) } })}
                 >

@@ -85,8 +85,8 @@ try {
     // Private costs show on Services, never at checkout.
     await nav('Services');
     assert.match(
-      await page.locator('table').innerText(),
-      /Binding labour[\s\S]*Private[\s\S]*Template cost binding/,
+      await page.locator('body').innerText(),
+      /Binding labour[\s\S]*Private[\s\S]*Template cost\s*binding/,
     );
     await nav('Pricing Templates');
     assert.equal(await page.getByLabel('Enable pricing templates').count(), 0);

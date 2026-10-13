@@ -573,7 +573,7 @@ export function CompareOptions({
       </p>
       <label>
         Quantities
-        <input value={quantities} onChange={(e) => setQuantities(e.target.value)} />
+        <input aria-label="Quantities" value={quantities} onChange={(e) => setQuantities(e.target.value)} />
         <small>Separate values with commas</small>
       </label>
       {sets.map((set, index) => {
@@ -624,7 +624,11 @@ export function CompareOptions({
             ) : (
               <label>
                 {v.label} values
-                <input value={set.values} onChange={(e) => update(e.target.value)} />
+                <input
+                  aria-label={`${v.label} values`}
+                  value={set.values}
+                  onChange={(e) => update(e.target.value)}
+                />
                 <small>Separate values with commas{v.unit ? ` · ${v.unit}` : ''}</small>
               </label>
             )}
@@ -663,7 +667,11 @@ export function CompareOptions({
           <div className="material-actions">
             <label>
               Group by
-              <select value={grouping?.key ?? 'none'} onChange={(e) => setGroupBy(e.target.value)}>
+              <select
+                aria-label="Group by"
+                value={grouping?.key ?? 'none'}
+                onChange={(e) => setGroupBy(e.target.value)}
+              >
                 <option value="none">No grouping</option>
                 {varied.map((v) => (
                   <option key={v.key} value={v.key}>
