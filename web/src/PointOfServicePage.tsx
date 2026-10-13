@@ -21,6 +21,7 @@ type Props = {
   onQuickSale?: () => void;
   onJob: (id: string) => void;
   onNext: (job: Job, mode: ProgressMode) => void;
+  onBulkAction: (jobs: Job[], mode: ProgressMode) => void;
   onReceipt: (record: CheckoutRecord) => void;
 };
 export default function PointOfServicePage({
@@ -32,6 +33,7 @@ export default function PointOfServicePage({
   onQuickSale,
   onJob,
   onNext,
+  onBulkAction,
   onReceipt,
 }: Props) {
   const { w } = useWords();
@@ -193,6 +195,7 @@ export default function PointOfServicePage({
             pointOfService
             onJob={onJob}
             onAction={onNext}
+            onBulkAction={onBulkAction}
           />
           {!visible.length && (
             <p className="empty">

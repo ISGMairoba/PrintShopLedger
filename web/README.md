@@ -112,3 +112,14 @@ Admin (access 2), Manager (3) and Developer (4) can use **Sale Adjustments** and
 - Original receipt printouts/PDFs include subsequent adjustments as a labelled appendix without rewriting the original totals.
 
 Validation: `npm test`, `npm run build`, rollback-only `supabase/tests/sale_adjustments.sql`, and `node scripts/check-sale-adjustments.mjs` (Chromium/WebKit, desktop/mobile; run in CI with the other UI checks). The close-drawer Edge Function must be deployed with the refund-aware migration.
+
+
+## Batch progress and checkout groups
+
+Point of Service and Jobs allow selecting multiple visible items and applying Next Action, Set Action or Mark as Complete. The confirmation previews the forward stages for each item and explains skipped items (cancelled, finished or incompatible workflows). Local save writes the entire event batch in one IndexedDB transaction; cloud synchronization retains per-item events, permissions, version checks and conflict review. Cloud sync is not one atomic transaction across the entire batch. Completed remains separate from Collected.
+
+Group by checkout adds a second view using the recorded checkout ID. Each group shows customer, totals and current items with group actions. Filters still apply: hidden items are not selected or changed, and a partial group shows its visible/total count. Older items without a checkout ID remain individual.
+
+Business Settings → Jobs & payments → Job description entry supports Required (existing default), Optional or Hidden. Checkout and quotations use the service name when an optional/hidden description is blank. Existing descriptions are retained. The generated description preserves compatibility with stored records, receipts and server validation.
+
+Validation: `tests/job-batches.test.mjs` and `scripts/check-job-batches.mjs` cover grouping, mixed stages, skipped items, stale versions, description modes, settings persistence and desktop/iPhone layouts.

@@ -30,6 +30,8 @@ jobs:
         timeout-minutes: 5
         run: npx playwright install chromium webkit
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: node scripts/run-check.mjs node scripts/check-job-batches.mjs
+      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/run-check.mjs node scripts/check-registration.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/run-check.mjs node scripts/check-dashboard.mjs
@@ -76,3 +78,4 @@ jobs:
             /tmp/ledger-registration-*.png
             /tmp/retail-orders.png
           retention-days: 7
+

@@ -36,7 +36,11 @@ test('deadline state: overdue, due soon, later, done and none', () => {
 test('job settings default for older saved settings and are validated', () => {
   const { jobs, ...older } = defaultBranding();
   const loaded = validateBranding({ ...older, businessName: 'Shop' });
-  assert.deepEqual(loaded.jobs, { defaultDuration: { value: 0, unit: 'days' }, paymentPrefill: 'suggested' });
+  assert.deepEqual(loaded.jobs, {
+    defaultDuration: { value: 0, unit: 'days' },
+    paymentPrefill: 'suggested',
+    descriptionMode: 'required',
+  });
   assert.equal(loaded.receipt.showBusinessName, true);
   assert.throws(() => validateJobSettings({ defaultDuration: { value: 1.5, unit: 'days' } }), /duration/);
   assert.throws(() => validateJobSettings({ defaultDuration: { value: 800, unit: 'hours' } }), /duration/);

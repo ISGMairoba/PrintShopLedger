@@ -27,6 +27,7 @@ type Props = {
   onAddCustomer: () => void;
   onJob: (jobId: string) => void;
   onAction: (job: Job, mode: ProgressMode) => void;
+  onBulkAction: (jobs: Job[], mode: ProgressMode) => void;
   onReceipt: (record: CheckoutRecord) => void;
 };
 
@@ -43,6 +44,7 @@ export default function JobsPaymentsPage({
   onAddCustomer,
   onJob,
   onAction,
+  onBulkAction,
   onReceipt,
 }: Props) {
   const { w } = useWords();
@@ -243,6 +245,7 @@ export default function JobsPaymentsPage({
                   audit={audit}
                   onJob={onJob}
                   onAction={onAction}
+                  onBulkAction={onBulkAction}
                 />
                 {!matchingJobs.length && <p className="empty">{w('No matching jobs.')}</p>}
               </div>
