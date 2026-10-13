@@ -9,6 +9,7 @@ import { SortHeader, useTableSort } from './TableSort';
 import { money } from './domain.mjs';
 import { materialCode } from './material-display.mjs';
 import { serviceCode, serviceMatches, servicePrice } from './services.mjs';
+import { canonical, consumptionUnit, costRate, suggestCostKey } from './pricing-templates.mjs';
 import type { Material, MaterialEvent, Service, ServiceEvent } from './types';
 import { useWords } from './Words';
 import { useBusinessOptions } from './BusinessOptionsContext';
@@ -34,6 +35,16 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
   const [confirmation, setConfirmation] = useState<Service | null>(null);
   const [error, setError] = useFeedbackMessage('error');
   const editing = editor && editor !== 'new' ? editor : null;
+  const [costed, setCosted] = useState(false);
+  const [privateItem, setPrivateItem] = useState(false);
+  const [costKey, setCostKey] = useState('');
+  const openEditor = (target: Service | 'new') => {
+    const s = target === 'new' ? null : target;
+    setCosted(!!s?.costing);
+    setPrivateItem(!!s?.private);
+    setCostKey(s?.costing?.key ?? '');
+    setEditor(target);
+  };
   const activeMaterials = materials.filter((item) => !item.archived);
   const options = materials.filter((item) => !item.archived || item.id === editing?.materialId);
   const sorting = useTableSort<Service>('description');
@@ -85,14 +96,28 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
     if (busy) return;
     const data = new FormData(e.currentTarget);
     try {
-      const price = money(String(data.get('price')));
+      const price = privateItem ? 0 : money(String(data.get('price')));
+      const id = editing?.id ?? crypto.randomUUID();
+      const costing =
+        costed || privateItem
+          ? {
+              key: String(data.get('costKey') ?? '').trim(),
+              amount: money(String(data.get('costAmount'))),
+              per: Number(data.get('costPer') || 1),
+              ...(String(data.get('costUnit') ?? '').trim()
+                ? { unit: String(data.get('costUnit')).trim() }
+                : {}),
+            }
+          : null;
       await commit(editing ? 'service.updated' : 'service.created', {
-        id: editing?.id ?? crypto.randomUUID(),
+        id,
         baseVersion: editing?.version,
         description: String(data.get('description')).trim(),
         materialId: String(data.get('material')) || null,
         price,
-        shelfItem: data.get('shelfItem') === 'on',
+        shelfItem: !privateItem && data.get('shelfItem') === 'on',
+        private: privateItem,
+        costing,
       });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Enter a valid price.');
@@ -195,7 +220,7 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
           <button
             disabled={!ready || busy}
             onClick={() => {
-              setEditor('new');
+              openEditor('new');
               setConfirmation(null);
               setError('');
             }}
@@ -279,6 +304,19 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
                               <span className="badge paid">Shelf</span> Collected when sold
                             </small>
                           )}
+                          {service.private && (
+                            <small>
+                              <span className="badge partial">Private</span> Used in templates only
+                            </small>
+                          )}
+                          {service.costing && (
+                            <small>
+                              Template cost <code>{service.costing.key}</code>:{' '}
+                              {servicePrice(service.costing.amount)} for {service.costing.per}{' '}
+                              {consumptionUnit(service, materials)} (₦
+                              {canonical(costRate(service.costing))} each)
+                            </small>
+                          )}
                         </td>
                         <td>
                           {service.materialId === null
@@ -310,7 +348,7 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
                                 className="text-button"
                                 disabled={busy}
                                 onClick={() => {
-                                  setEditor(service);
+                                  openEditor(service);
                                   setConfirmation(null);
                                   setError('');
                                 }}
@@ -421,19 +459,98 @@ export default function ServicesPage({ services, materials, ready, busy, actor, 
                     ))}
                   </select>
                 </label>
-                <label>
-                  Price (₦)
-                  <CurrencyInput
-                    name="price"
-                    defaultValue={editing ? (editing.price / 100).toFixed(2) : ''}
-                    required
-                  />
-                </label>
+                {!privateItem && (
+                  <label>
+                    Price (₦)
+                    <CurrencyInput
+                      name="price"
+                      defaultValue={editing ? (editing.price / 100).toFixed(2) : ''}
+                      required
+                    />
+                  </label>
+                )}
               </div>
               <label className="checkbox">
-                <input type="checkbox" name="shelfItem" defaultChecked={editing?.shelfItem ?? false} />
-                Sold off the shelf
+                <input
+                  type="checkbox"
+                  checked={privateItem}
+                  onChange={(e) => {
+                    setPrivateItem(e.target.checked);
+                    if (e.target.checked) setCosted(true);
+                  }}
+                />
+                Private: used in pricing templates only, never sold
               </label>
+              {!privateItem && (
+                <label className="checkbox">
+                  <input type="checkbox" name="shelfItem" defaultChecked={editing?.shelfItem ?? false} />
+                  Sold off the shelf
+                </label>
+              )}
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={costed || privateItem}
+                  disabled={privateItem}
+                  onChange={(e) => setCosted(e.target.checked)}
+                />
+                Has a template cost (use it in pricing template formulas)
+              </label>
+              {(costed || privateItem) && (
+                <div className="form-grid">
+                  <label>
+                    Formula name
+                    <input
+                      name="costKey"
+                      required
+                      value={costKey}
+                      spellCheck={false}
+                      onChange={(e) => setCostKey(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_'))}
+                      onFocus={(e) => {
+                        if (!costKey) {
+                          const form = e.currentTarget.form;
+                          const name = String(new FormData(form!).get('description') ?? '');
+                          setCostKey(suggestCostKey(name, services, editing?.id));
+                        }
+                      }}
+                    />
+                    <small>
+                      Lowercase letters, numbers and _. Renaming it breaks formulas that use the old name.
+                    </small>
+                  </label>
+                  <label>
+                    Cost (₦)
+                    <CurrencyInput
+                      name="costAmount"
+                      defaultValue={editing?.costing ? (editing.costing.amount / 100).toFixed(2) : ''}
+                      required
+                    />
+                  </label>
+                  <label>
+                    For how many units
+                    <input
+                      name="costPer"
+                      type="number"
+                      min="0.001"
+                      step="0.001"
+                      defaultValue={editing?.costing?.per ?? 1}
+                      required
+                    />
+                    <small>
+                      Units are the {w('material')}'s unit, or items. e.g. ₦5,000 for 500 sheets: enter 500.
+                    </small>
+                  </label>
+                  <label>
+                    Bought as (optional)
+                    <input
+                      name="costUnit"
+                      maxLength={40}
+                      defaultValue={editing?.costing?.unit ?? ''}
+                      placeholder="e.g. ream"
+                    />
+                  </label>
+                </div>
+              )}
               <p className="muted">
                 {w(
                   'Shelf items skip the job stages: they are marked Collected as soon as they are sold, with no deadline.',

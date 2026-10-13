@@ -1,5 +1,6 @@
 import { normalizeLedger } from './materials.mjs';
 import { materialCode } from './material-display.mjs';
+import { validCosting } from './pricing-templates.mjs';
 export const serviceCode = (id, services = []) => materialCode(id, services).replace('MAT-', 'SVC-');
 export const servicePrice = (price) =>
   new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(price / 100);
@@ -15,6 +16,8 @@ export function serviceMatches(service, materials, services, query) {
     (service.price / 100).toFixed(2),
     servicePrice(service.price),
     service.shelfItem ? 'shelf' : '',
+    service.private ? 'private templates only' : '',
+    service.costing?.key ?? '',
   ]
     .join(' ')
     .toLowerCase()
@@ -31,6 +34,15 @@ export function validateService(data, ledger, existing) {
     throw new Error('Price must be zero or greater, with at most two decimal places.');
   if (data.shelfItem !== undefined && typeof data.shelfItem !== 'boolean')
     throw new Error('Choose whether this is sold off the shelf.');
+  if (data.private !== undefined && typeof data.private !== 'boolean')
+    throw new Error('Choose whether this is used in templates only.');
+  const costing = validCosting(data.costing);
+  if (data.private && !costing) throw new Error('A templates-only item needs a template cost.');
+  if (
+    costing &&
+    ledger.services.some((s) => s.id !== data.id && !s.archived && s.costing?.key === costing.key)
+  )
+    throw new Error(`The formula name "${costing.key}" is already used by another item.`);
   if (data.materialId === null) return;
   const material = ledger.materials.find((item) => item.id === data.materialId);
   if (!material) throw new Error('Choose a base material from this workspace.');
@@ -65,6 +77,8 @@ export function applyServiceEvent(input, event) {
       materialId: data.materialId,
       price: data.price,
       shelfItem: data.shelfItem ?? false,
+      private: data.private ?? false,
+      costing: validCosting(data.costing),
       archived: false,
       version: 1,
       createdBy: data.modifiedBy,
@@ -87,6 +101,8 @@ export function applyServiceEvent(input, event) {
       materialId: data.materialId,
       price: data.price,
       shelfItem: data.shelfItem ?? existing.shelfItem ?? false,
+      private: data.private ?? existing.private ?? false,
+      costing: data.costing === undefined ? (existing.costing ?? null) : validCosting(data.costing),
       ...audit,
       version: existing.version + 1,
     };
@@ -94,7 +110,18 @@ export function applyServiceEvent(input, event) {
     const archived = event.kind === 'service.archived';
     if (existing.archived === archived)
       throw new Error(archived ? 'Service is already archived.' : 'Service is already active.');
+    if (
+      !archived &&
+      existing.costing &&
+      ledger.services.some(
+        (s) => s.id !== existing.id && !s.archived && s.costing?.key === existing.costing.key,
+      )
+    )
+      throw new Error(`Another item now uses the formula name "${existing.costing.key}". Rename one first.`);
     next = { ...existing, archived, ...audit, version: existing.version + 1 };
   } else throw new Error('Unknown service operation.');
   return { ...ledger, services: ledger.services.map((item) => (item.id === data.id ? next : item)) };
 }
+
+/** Services and products that can be sold: active and not templates-only. */
+export const sellable = (services) => services.filter((s) => !s.archived && !s.private);

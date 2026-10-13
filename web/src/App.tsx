@@ -36,6 +36,7 @@ import JobDetails from './JobDetails';
 import { discountPolicy } from './discounts.mjs';
 import { PeriodDefaultsContext } from './PeriodFilter';
 import { TermsProvider } from './Words';
+import { TemplateAuditContext } from './TemplateFields';
 import { pageName, renameTerms } from './terms.mjs';
 import {
   CustomerConflictReview,
@@ -967,676 +968,727 @@ export default function App() {
   return (
     <BusinessOptionsContext.Provider value={branding.settings.options}>
       <TermsProvider value={branding.settings.terms}>
-        <PeriodDefaultsContext.Provider value={branding.settings.periods}>
-          <div className="app">
-            <Sidebar
-              title={businessName}
-              header={
-                <>
-                  <div className="brand">
-                    {branding.settings.logo && (
-                      <img
-                        className="sidebar-business-logo"
-                        src={branding.settings.logo}
-                        alt={businessName + ' logo'}
-                      />
-                    )}
-                    <div className="brand-copy">
-                      {!branding.settings.logo && <strong className="brand-title">{businessName}</strong>}
-                      <span className={`connection ${online ? 'online' : ''}`} role="status">
-                        {online ? 'Online' : 'Offline'} · {state.pending.length} pending changes
-                      </span>
+        <TemplateAuditContext.Provider
+          value={
+            demo || canAccessPage('Pricing Templates', shop?.accessLevel ?? 0, branding.settings.pageAccess)
+          }
+        >
+          <PeriodDefaultsContext.Provider value={branding.settings.periods}>
+            <div className="app">
+              <Sidebar
+                title={businessName}
+                header={
+                  <>
+                    <div className="brand">
+                      {branding.settings.logo && (
+                        <img
+                          className="sidebar-business-logo"
+                          src={branding.settings.logo}
+                          alt={businessName + ' logo'}
+                        />
+                      )}
+                      <div className="brand-copy">
+                        {!branding.settings.logo && <strong className="brand-title">{businessName}</strong>}
+                        <span className={`connection ${online ? 'online' : ''}`} role="status">
+                          {online ? 'Online' : 'Offline'} · {state.pending.length} pending changes
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="sidebar-user">
-                    <strong>
-                      {demo ? 'Local trial user' : shop?.staffName || 'Not signed in'}
-                      {(demo || shop?.username) && ` (${demo ? 'trial' : shop?.username})`}
-                    </strong>
-                    <small className="staff-rank">{demo ? 'Trial' : shop?.role}</small>
-                  </div>
-                </>
-              }
-              footer={
-                <>
-                  {!demo && (
-                    <button
-                      className="secondary"
-                      disabled={busy || !online}
-                      onClick={() => {
-                        setSwitchUser(true);
-                        setMessage('');
-                      }}
-                    >
-                      Switch user
-                    </button>
-                  )}
-                  {!demo && (
-                    <button
-                      className="secondary"
-                      disabled={busy}
-                      onClick={async () => {
-                        const { error } = await supabase!.auth.signOut({ scope: 'local' });
-                        if (error) setMessage(error.message, 'error');
-                        else {
-                          setSession(null);
-                          setMessage('User signed out. Business remains signed in.');
-                        }
-                      }}
-                    >
-                      Logout
-                    </button>
-                  )}
-                  {supabase && (demo || (shop?.accessLevel ?? 0) >= 3) && (
-                    <button
-                      className="secondary"
-                      disabled={busy}
-                      onClick={async () => {
-                        if (demo) {
-                          setDemo(false);
-                          return;
-                        }
-                        if ((shop?.accessLevel ?? 0) < 3) return;
-                        const results = await Promise.all([
-                          supabase!.auth.signOut({ scope: 'local' }),
-                          businessAuth!.auth.signOut({ scope: 'local' }),
-                        ]);
-                        const failure = results.find((result) => result.error)?.error;
-                        if (failure) setMessage(failure.message, 'error');
-                        else {
-                          setSession(null);
-                          setBusinessSession(null);
-                          setShop(null);
-                          setMessage('Business signed out.');
-                        }
-                      }}
-                    >
-                      {demo ? 'Business sign in' : 'Sign out business'}
-                    </button>
-                  )}
-                </>
-              }
-            >
-              <nav aria-label="Main">
-                {(navigationPages as Page[])
-                  .filter(
-                    (item) =>
-                      // Material Waste lives inside Materials; it has its own menu entry only for
-                      // someone who can record waste but not open Materials.
-                      !(item === 'Material Waste' && allowed('Materials')) &&
-                      (allowed(item) || (item === 'Conflict Inbox' && !!supervisor)),
-                  )
-                  .map((item) => (
-                    <button
-                      key={item}
-                      className={
-                        page === item || (item === 'Materials' && page === 'Material Waste') ? 'active' : ''
-                      }
-                      onClick={() => {
-                        setPage(item);
-                        setSelectedJob(null);
-                        setForm(null);
-                        setQuery('');
-                      }}
-                    >
-                      <Icon name={pageIcons[item]} />
-                      {pageName(item, branding.settings.terms)}
-                    </button>
-                  ))}
-              </nav>
-            </Sidebar>
-            <main>
-              <header>
-                <div>
-                  <span className="eyebrow">{demo ? 'LOCAL TRIAL' : businessName}</span>
-                  <h1>{pageName(page, branding.settings.terms)}</h1>
-                  <p>{renameTerms(pageDescriptions[page], branding.settings.terms)}</p>
-                </div>
-                {!demo && scope && (
-                  <span className="sync-status" role="status" aria-live="polite">
-                    <Icon name="sync" /> {syncLabel}
-                    {state.pending.length > 0 && ` (${state.pending.length})`}
-                  </span>
-                )}
-              </header>
-              {switchUser && (
-                <Modal title="Switch user" busy={busy} onClose={() => setSwitchUser(false)}>
-                  <p>Business: {shop?.name}. Sign in with your staff username and password.</p>
-                  <StaffLoginForm feedback={feedback} busy={busy} online={online} onSubmit={staffLogin} />
-                  <FeedbackBanner message={message} tone={messageTone} login />
-                </Modal>
-              )}
-              {needRefresh && (
-                <div className="notice">
-                  An app update is ready.{' '}
-                  <button
-                    className="secondary"
-                    disabled={busy}
-                    onClick={() => void updateServiceWorker(true)}
-                  >
-                    Update app
-                  </button>
-                </div>
-              )}
-              <FeedbackBanner message={branding.error} tone="warning" />
-              <FeedbackBanner message={message} tone={messageTone} />
-              {hasConflict && !canReviewConflicts && (
-                <div className="notice" role="alert">
-                  <strong>Admin review required.</strong>
-                  <p>
-                    Conflicts have been sent to the business inbox when connected. An Admin, Manager or
-                    Developer can review them remotely. Sales sharing affected stock or customer accounts
-                    wait; unrelated sales can continue. Pending work remains saved on this device.
-                  </p>
-                  <button
-                    className="secondary"
-                    disabled={!online || busy}
-                    onClick={() => setSupervisorLogin(true)}
-                  >
-                    Supervisor review
-                  </button>
-                </div>
-              )}
-              {Object.keys(state.syncConflicts ?? {}).length > 0 && canReviewConflicts && (
-                <div className="notice notice-warning">
-                  {heldWork.eventIds.size} pending operations await review. Unaffected sales can continue.{' '}
-                  <button className="secondary" onClick={() => setPage('Conflict Inbox')}>
-                    Open conflict inbox
-                  </button>
-                </div>
-              )}
-              {hasConflict && supervisor && (
-                <div className="notice">
-                  Supervisor review: {supervisor}. The cashier remains signed in.
-                  <button
-                    className="secondary"
-                    onClick={() => {
-                      clearConflictApproval();
-                      setSupervisor('');
-                    }}
-                  >
-                    End supervisor review
-                  </button>
-                </div>
-              )}
-              {supervisorLogin && (
-                <SupervisorLogin
-                  feedback={feedback}
-                  busy={busy}
-                  online={online}
-                  onClose={() => setSupervisorLogin(false)}
-                  onSubmit={async (username, password) => {
-                    if (busy || !online || !businessAuth || !shop) return;
-                    setBusy(true);
-                    try {
-                      const name = await approveConflictReview(
-                        businessAuth,
-                        scope,
-                        shop.id,
-                        username,
-                        password,
-                      );
-                      if (activeScope.current === scope) {
-                        setSupervisor(name);
-                        setSupervisorLogin(false);
-                        setConflictReviewHidden(false);
-                        if (Object.keys(state.syncConflicts ?? {}).length) setPage('Conflict Inbox');
-                        setMessage('Supervisor access verified for five minutes.');
-                      } else clearConflictApproval();
-                    } catch (error) {
-                      setMessage(errorMessage(error), 'error');
-                    } finally {
-                      setBusy(false);
-                    }
-                  }}
-                />
-              )}
-              {hasConflict && canReviewConflicts && conflictReviewHidden && (
-                <div className="notice notice-warning">
-                  Sync is paused while you review an edit conflict.{' '}
-                  <button className="secondary" onClick={() => setConflictReviewHidden(false)}>
-                    Review changes
-                  </button>
-                </div>
-              )}
-              {expenseConflict && !conflictReviewHidden && canReviewConflicts && (
-                <ExpenseConflictReview
-                  conflict={expenseConflict}
-                  busy={busy}
-                  onClose={() => setConflictReviewHidden(true)}
-                  onResolve={(choice) => void resolveExpenseConflict(choice)}
-                />
-              )}
-              {checkoutConflict && !conflictReviewHidden && canReviewConflicts && (
-                <CheckoutEditor
-                  key={
-                    checkoutConflict.event.id +
-                    JSON.stringify(checkoutConflict.cloud.payments) +
-                    JSON.stringify(checkoutConflict.cloud.services)
-                  }
-                  ledger={{
-                    ...checkoutReviewBase(state, checkoutConflict.cloud, checkoutConflict.event.id),
-                    pricing: branding.settings.pricing,
-                  }}
-                  initialCheckout={checkoutConflict.event.data}
-                  actor={{
-                    id: session!.user.id,
-                    label: shop?.staffName || session!.user.email || session!.user.id,
-                  }}
-                  jobSettings={branding.settings.jobs}
-                  discountPolicy={discountPolicy(
-                    branding.settings.discounts,
-                    demo ? 4 : (shop?.accessLevel ?? 0),
-                  )}
-                  busy={busy}
-                  paymentOnly={!checkoutConflict.event.data.jobs.length}
-                  onClose={() => setConflictReviewHidden(true)}
-                  onReceipt={setReceipt}
-                  onSave={async (operation) => {
-                    setBusy(true);
-                    const target = scope;
-                    try {
-                      const next = await resolvePendingWork(
-                        target,
-                        shop!.id,
-                        checkoutConflict.event.id,
-                        operation,
-                      );
-                      if (activeScope.current === target) {
-                        setState(next);
-                        setCheckoutConflict(null);
-                        channel.current?.postMessage('changed');
-                        setMessage(
-                          'Pending checkout updated. Use the updated receipt; syncing will resume automatically.',
-                        );
-                      }
-                      return next.ledger.checkouts.find((r) => r.id === operation.id)!;
-                    } catch (error) {
-                      if (error instanceof ExpenseSyncConflict) setExpenseConflict(error);
-                      if (error instanceof CheckoutSyncConflict) setCheckoutConflict(error);
-                      throw error;
-                    } finally {
-                      setBusy(false);
-                    }
-                  }}
-                />
-              )}
-              {jobConflict && !conflictReviewHidden && canReviewConflicts && (
-                <JobConflictReview
-                  conflict={jobConflict}
-                  busy={busy}
-                  onClose={() => setConflictReviewHidden(true)}
-                  onResolve={() => void resolveJobConflict()}
-                />
-              )}
-              {customerConflict && !conflictReviewHidden && canReviewConflicts && (
-                <CustomerConflictReview
-                  conflict={customerConflict}
-                  busy={busy}
-                  feedback={feedback}
-                  onClose={() => setConflictReviewHidden(true)}
-                  onResolve={(choice) => void resolveCustomerConflict(choice)}
-                />
-              )}
-              {serviceConflict && !conflictReviewHidden && canReviewConflicts && (
-                <ServiceConflictReview
-                  key={
-                    serviceConflict.local.lastEventId +
-                    (serviceConflict.remote?.lastEventId ?? '') +
-                    serviceConflict.materials.map((item) => item.lastEventId).join('')
-                  }
-                  conflict={serviceConflict}
-                  busy={busy}
-                  message={message}
-                  onClose={() => setConflictReviewHidden(true)}
-                  onResolve={resolveServiceConflict}
-                />
-              )}
-              {conflict && !conflictReviewHidden && canReviewConflicts && (
-                <MaterialConflictReview
-                  conflict={conflict}
-                  busy={busy}
-                  feedback={feedback}
-                  onClose={() => setConflictReviewHidden(true)}
-                  onResolve={(choice) => void resolveConflict(choice)}
-                />
-              )}
-              {!demo && !shop ? (
-                <section className="auth-card">
-                  <h2>Create your business workspace</h2>
-                  <p>Each business gets its own customers, jobs and payments.</p>
-                  <form onSubmit={createWorkspace}>
-                    <label>
-                      Business name
-                      <input
-                        name="businessName"
-                        maxLength={160}
-                        defaultValue={businessSession?.user.user_metadata.business_name ?? ''}
-                        required
-                      />
-                    </label>
-                    {!businessSession?.user.user_metadata.full_name && (
-                      <label>
-                        Owner’s full name
-                        <input name="ownerName" maxLength={160} required />
-                      </label>
+                    <div className="sidebar-user">
+                      <strong>
+                        {demo ? 'Local trial user' : shop?.staffName || 'Not signed in'}
+                        {(demo || shop?.username) && ` (${demo ? 'trial' : shop?.username})`}
+                      </strong>
+                      <small className="staff-rank">{demo ? 'Trial' : shop?.role}</small>
+                    </div>
+                  </>
+                }
+                footer={
+                  <>
+                    {!demo && (
+                      <button
+                        className="secondary"
+                        disabled={busy || !online}
+                        onClick={() => {
+                          setSwitchUser(true);
+                          setMessage('');
+                        }}
+                      >
+                        Switch user
+                      </button>
                     )}
-                    <button disabled={busy || !online}>Create workspace</button>
-                  </form>
-                  <p className="muted">
-                    If you should join an existing business, ask its administrator to add your account.
-                  </p>
-                </section>
-              ) : (
-                <>
-                  {page === 'Reports' && pageAllowed ? (
-                    <Suspense
-                      fallback={
-                        <section className="panel empty" role="status">
-                          Loading reports…
-                        </section>
-                      }
-                    >
-                      <ReportsPage
-                        ledger={ledger}
-                        ready={ready}
-                        online={online}
-                        pending={state.pending.length}
-                        lastSynced={state.lastSynced}
-                        branding={branding.settings}
-                        businessName={businessName}
-                        customerId={reportCustomer}
-                        onCustomerChange={setReportCustomer}
-                        access={{
-                          customers:
-                            demo ||
-                            canAccessPage('Customers', shop?.accessLevel ?? 0, branding.settings.pageAccess),
-                          jobs:
-                            demo ||
-                            canAccessPage('Jobs', shop?.accessLevel ?? 0, branding.settings.pageAccess),
-                          payments:
-                            demo ||
-                            canAccessPage('Payments', shop?.accessLevel ?? 0, branding.settings.pageAccess),
-                          expenses:
-                            demo ||
-                            canAccessPage('Expenses', shop?.accessLevel ?? 0, branding.settings.pageAccess),
-                          stock:
-                            demo ||
-                            canAccessPage(
-                              'Stock History',
-                              shop?.accessLevel ?? 0,
-                              branding.settings.pageAccess,
-                            ) ||
-                            canAccessPage('Materials', shop?.accessLevel ?? 0, branding.settings.pageAccess),
+                    {!demo && (
+                      <button
+                        className="secondary"
+                        disabled={busy}
+                        onClick={async () => {
+                          const { error } = await supabase!.auth.signOut({ scope: 'local' });
+                          if (error) setMessage(error.message, 'error');
+                          else {
+                            setSession(null);
+                            setMessage('User signed out. Business remains signed in.');
+                          }
                         }}
-                      />
-                    </Suspense>
-                  ) : page === 'Dashboard' && pageAllowed ? (
-                    <Suspense
-                      fallback={
-                        <section className="panel empty" role="status">
-                          Loading dashboard charts…
-                        </section>
-                      }
-                    >
-                      <DashboardPage
-                        ledger={ledger}
-                        ready={ready}
-                        online={online}
-                        pending={state.pending.length}
-                        lastSynced={state.lastSynced}
-                        access={{
-                          customers:
-                            demo ||
-                            canAccessPage('Customers', shop?.accessLevel ?? 0, branding.settings.pageAccess),
-                          sales:
-                            demo ||
-                            canAccessPage('Jobs', shop?.accessLevel ?? 0, branding.settings.pageAccess),
-                          payments:
-                            demo ||
-                            canAccessPage('Payments', shop?.accessLevel ?? 0, branding.settings.pageAccess),
-                          expenses:
-                            demo ||
-                            canAccessPage('Expenses', shop?.accessLevel ?? 0, branding.settings.pageAccess),
-                          materials:
-                            demo ||
-                            canAccessPage('Materials', shop?.accessLevel ?? 0, branding.settings.pageAccess),
+                      >
+                        Logout
+                      </button>
+                    )}
+                    {supabase && (demo || (shop?.accessLevel ?? 0) >= 3) && (
+                      <button
+                        className="secondary"
+                        disabled={busy}
+                        onClick={async () => {
+                          if (demo) {
+                            setDemo(false);
+                            return;
+                          }
+                          if ((shop?.accessLevel ?? 0) < 3) return;
+                          const results = await Promise.all([
+                            supabase!.auth.signOut({ scope: 'local' }),
+                            businessAuth!.auth.signOut({ scope: 'local' }),
+                          ]);
+                          const failure = results.find((result) => result.error)?.error;
+                          if (failure) setMessage(failure.message, 'error');
+                          else {
+                            setSession(null);
+                            setBusinessSession(null);
+                            setShop(null);
+                            setMessage('Business signed out.');
+                          }
                         }}
-                      />
-                    </Suspense>
-                  ) : !pageAllowed ? (
-                    <p role="alert">You do not have access to this page.</p>
-                  ) : page === 'Sale Adjustments' ? (
-                    <SaleAdjustmentsPage
-                      recentDays={branding.settings.corrections.recentDays}
-                      ledger={ledger}
-                      ready={ready}
-                      busy={busy || hasConflict}
-                      canSave={demo || online}
-                      onAdjust={setAdjustingJob}
-                    />
-                  ) : page === 'Material Waste' ? (
-                    <>
-                      {materialTabs}
-                      <MaterialWastePage
+                      >
+                        {demo ? 'Business sign in' : 'Sign out business'}
+                      </button>
+                    )}
+                  </>
+                }
+              >
+                <nav aria-label="Main">
+                  {(navigationPages as Page[])
+                    .filter(
+                      (item) =>
+                        // Material Waste lives inside Materials; it has its own menu entry only for
+                        // someone who can record waste but not open Materials.
+                        !(item === 'Material Waste' && allowed('Materials')) &&
+                        (allowed(item) || (item === 'Conflict Inbox' && !!supervisor)),
+                    )
+                    .map((item) => (
+                      <button
+                        key={item}
+                        className={
+                          page === item || (item === 'Materials' && page === 'Material Waste') ? 'active' : ''
+                        }
+                        onClick={() => {
+                          setPage(item);
+                          setSelectedJob(null);
+                          setForm(null);
+                          setQuery('');
+                        }}
+                      >
+                        <Icon name={pageIcons[item]} />
+                        {pageName(item, branding.settings.terms)}
+                      </button>
+                    ))}
+                </nav>
+              </Sidebar>
+              <main>
+                <header>
+                  <div>
+                    <span className="eyebrow">{demo ? 'LOCAL TRIAL' : businessName}</span>
+                    <h1>{pageName(page, branding.settings.terms)}</h1>
+                    <p>{renameTerms(pageDescriptions[page], branding.settings.terms)}</p>
+                  </div>
+                  {!demo && scope && (
+                    <span className="sync-status" role="status" aria-live="polite">
+                      <Icon name="sync" /> {syncLabel}
+                      {state.pending.length > 0 && ` (${state.pending.length})`}
+                    </span>
+                  )}
+                </header>
+                {switchUser && (
+                  <Modal title="Switch user" busy={busy} onClose={() => setSwitchUser(false)}>
+                    <p>Business: {shop?.name}. Sign in with your staff username and password.</p>
+                    <StaffLoginForm feedback={feedback} busy={busy} online={online} onSubmit={staffLogin} />
+                    <FeedbackBanner message={message} tone={messageTone} login />
+                  </Modal>
+                )}
+                {needRefresh && (
+                  <div className="notice">
+                    An app update is ready.{' '}
+                    <button
+                      className="secondary"
+                      disabled={busy}
+                      onClick={() => void updateServiceWorker(true)}
+                    >
+                      Update app
+                    </button>
+                  </div>
+                )}
+                <FeedbackBanner message={branding.error} tone="warning" />
+                <FeedbackBanner message={message} tone={messageTone} />
+                {hasConflict && !canReviewConflicts && (
+                  <div className="notice" role="alert">
+                    <strong>Admin review required.</strong>
+                    <p>
+                      Conflicts have been sent to the business inbox when connected. An Admin, Manager or
+                      Developer can review them remotely. Sales sharing affected stock or customer accounts
+                      wait; unrelated sales can continue. Pending work remains saved on this device.
+                    </p>
+                    <button
+                      className="secondary"
+                      disabled={!online || busy}
+                      onClick={() => setSupervisorLogin(true)}
+                    >
+                      Supervisor review
+                    </button>
+                  </div>
+                )}
+                {Object.keys(state.syncConflicts ?? {}).length > 0 && canReviewConflicts && (
+                  <div className="notice notice-warning">
+                    {heldWork.eventIds.size} pending operations await review. Unaffected sales can continue.{' '}
+                    <button className="secondary" onClick={() => setPage('Conflict Inbox')}>
+                      Open conflict inbox
+                    </button>
+                  </div>
+                )}
+                {hasConflict && supervisor && (
+                  <div className="notice">
+                    Supervisor review: {supervisor}. The cashier remains signed in.
+                    <button
+                      className="secondary"
+                      onClick={() => {
+                        clearConflictApproval();
+                        setSupervisor('');
+                      }}
+                    >
+                      End supervisor review
+                    </button>
+                  </div>
+                )}
+                {supervisorLogin && (
+                  <SupervisorLogin
+                    feedback={feedback}
+                    busy={busy}
+                    online={online}
+                    onClose={() => setSupervisorLogin(false)}
+                    onSubmit={async (username, password) => {
+                      if (busy || !online || !businessAuth || !shop) return;
+                      setBusy(true);
+                      try {
+                        const name = await approveConflictReview(
+                          businessAuth,
+                          scope,
+                          shop.id,
+                          username,
+                          password,
+                        );
+                        if (activeScope.current === scope) {
+                          setSupervisor(name);
+                          setSupervisorLogin(false);
+                          setConflictReviewHidden(false);
+                          if (Object.keys(state.syncConflicts ?? {}).length) setPage('Conflict Inbox');
+                          setMessage('Supervisor access verified for five minutes.');
+                        } else clearConflictApproval();
+                      } catch (error) {
+                        setMessage(errorMessage(error), 'error');
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  />
+                )}
+                {hasConflict && canReviewConflicts && conflictReviewHidden && (
+                  <div className="notice notice-warning">
+                    Sync is paused while you review an edit conflict.{' '}
+                    <button className="secondary" onClick={() => setConflictReviewHidden(false)}>
+                      Review changes
+                    </button>
+                  </div>
+                )}
+                {expenseConflict && !conflictReviewHidden && canReviewConflicts && (
+                  <ExpenseConflictReview
+                    conflict={expenseConflict}
+                    busy={busy}
+                    onClose={() => setConflictReviewHidden(true)}
+                    onResolve={(choice) => void resolveExpenseConflict(choice)}
+                  />
+                )}
+                {checkoutConflict && !conflictReviewHidden && canReviewConflicts && (
+                  <CheckoutEditor
+                    key={
+                      checkoutConflict.event.id +
+                      JSON.stringify(checkoutConflict.cloud.payments) +
+                      JSON.stringify(checkoutConflict.cloud.services)
+                    }
+                    ledger={{
+                      ...checkoutReviewBase(state, checkoutConflict.cloud, checkoutConflict.event.id),
+                      pricing: branding.settings.pricing,
+                    }}
+                    initialCheckout={checkoutConflict.event.data}
+                    actor={{
+                      id: session!.user.id,
+                      label: shop?.staffName || session!.user.email || session!.user.id,
+                    }}
+                    jobSettings={branding.settings.jobs}
+                    discountPolicy={discountPolicy(
+                      branding.settings.discounts,
+                      demo ? 4 : (shop?.accessLevel ?? 0),
+                    )}
+                    busy={busy}
+                    paymentOnly={!checkoutConflict.event.data.jobs.length}
+                    onClose={() => setConflictReviewHidden(true)}
+                    onReceipt={setReceipt}
+                    onSave={async (operation) => {
+                      setBusy(true);
+                      const target = scope;
+                      try {
+                        const next = await resolvePendingWork(
+                          target,
+                          shop!.id,
+                          checkoutConflict.event.id,
+                          operation,
+                        );
+                        if (activeScope.current === target) {
+                          setState(next);
+                          setCheckoutConflict(null);
+                          channel.current?.postMessage('changed');
+                          setMessage(
+                            'Pending checkout updated. Use the updated receipt; syncing will resume automatically.',
+                          );
+                        }
+                        return next.ledger.checkouts.find((r) => r.id === operation.id)!;
+                      } catch (error) {
+                        if (error instanceof ExpenseSyncConflict) setExpenseConflict(error);
+                        if (error instanceof CheckoutSyncConflict) setCheckoutConflict(error);
+                        throw error;
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  />
+                )}
+                {jobConflict && !conflictReviewHidden && canReviewConflicts && (
+                  <JobConflictReview
+                    conflict={jobConflict}
+                    busy={busy}
+                    onClose={() => setConflictReviewHidden(true)}
+                    onResolve={() => void resolveJobConflict()}
+                  />
+                )}
+                {customerConflict && !conflictReviewHidden && canReviewConflicts && (
+                  <CustomerConflictReview
+                    conflict={customerConflict}
+                    busy={busy}
+                    feedback={feedback}
+                    onClose={() => setConflictReviewHidden(true)}
+                    onResolve={(choice) => void resolveCustomerConflict(choice)}
+                  />
+                )}
+                {serviceConflict && !conflictReviewHidden && canReviewConflicts && (
+                  <ServiceConflictReview
+                    key={
+                      serviceConflict.local.lastEventId +
+                      (serviceConflict.remote?.lastEventId ?? '') +
+                      serviceConflict.materials.map((item) => item.lastEventId).join('')
+                    }
+                    conflict={serviceConflict}
+                    busy={busy}
+                    message={message}
+                    onClose={() => setConflictReviewHidden(true)}
+                    onResolve={resolveServiceConflict}
+                  />
+                )}
+                {conflict && !conflictReviewHidden && canReviewConflicts && (
+                  <MaterialConflictReview
+                    conflict={conflict}
+                    busy={busy}
+                    feedback={feedback}
+                    onClose={() => setConflictReviewHidden(true)}
+                    onResolve={(choice) => void resolveConflict(choice)}
+                  />
+                )}
+                {!demo && !shop ? (
+                  <section className="auth-card">
+                    <h2>Create your business workspace</h2>
+                    <p>Each business gets its own customers, jobs and payments.</p>
+                    <form onSubmit={createWorkspace}>
+                      <label>
+                        Business name
+                        <input
+                          name="businessName"
+                          maxLength={160}
+                          defaultValue={businessSession?.user.user_metadata.business_name ?? ''}
+                          required
+                        />
+                      </label>
+                      {!businessSession?.user.user_metadata.full_name && (
+                        <label>
+                          Owner’s full name
+                          <input name="ownerName" maxLength={160} required />
+                        </label>
+                      )}
+                      <button disabled={busy || !online}>Create workspace</button>
+                    </form>
+                    <p className="muted">
+                      If you should join an existing business, ask its administrator to add your account.
+                    </p>
+                  </section>
+                ) : (
+                  <>
+                    {page === 'Reports' && pageAllowed ? (
+                      <Suspense
+                        fallback={
+                          <section className="panel empty" role="status">
+                            Loading reports…
+                          </section>
+                        }
+                      >
+                        <ReportsPage
+                          ledger={ledger}
+                          ready={ready}
+                          online={online}
+                          pending={state.pending.length}
+                          lastSynced={state.lastSynced}
+                          branding={branding.settings}
+                          businessName={businessName}
+                          customerId={reportCustomer}
+                          onCustomerChange={setReportCustomer}
+                          access={{
+                            customers:
+                              demo ||
+                              canAccessPage(
+                                'Customers',
+                                shop?.accessLevel ?? 0,
+                                branding.settings.pageAccess,
+                              ),
+                            jobs:
+                              demo ||
+                              canAccessPage('Jobs', shop?.accessLevel ?? 0, branding.settings.pageAccess),
+                            payments:
+                              demo ||
+                              canAccessPage('Payments', shop?.accessLevel ?? 0, branding.settings.pageAccess),
+                            expenses:
+                              demo ||
+                              canAccessPage('Expenses', shop?.accessLevel ?? 0, branding.settings.pageAccess),
+                            stock:
+                              demo ||
+                              canAccessPage(
+                                'Stock History',
+                                shop?.accessLevel ?? 0,
+                                branding.settings.pageAccess,
+                              ) ||
+                              canAccessPage(
+                                'Materials',
+                                shop?.accessLevel ?? 0,
+                                branding.settings.pageAccess,
+                              ),
+                          }}
+                        />
+                      </Suspense>
+                    ) : page === 'Dashboard' && pageAllowed ? (
+                      <Suspense
+                        fallback={
+                          <section className="panel empty" role="status">
+                            Loading dashboard charts…
+                          </section>
+                        }
+                      >
+                        <DashboardPage
+                          ledger={ledger}
+                          ready={ready}
+                          online={online}
+                          pending={state.pending.length}
+                          lastSynced={state.lastSynced}
+                          access={{
+                            customers:
+                              demo ||
+                              canAccessPage(
+                                'Customers',
+                                shop?.accessLevel ?? 0,
+                                branding.settings.pageAccess,
+                              ),
+                            sales:
+                              demo ||
+                              canAccessPage('Jobs', shop?.accessLevel ?? 0, branding.settings.pageAccess),
+                            payments:
+                              demo ||
+                              canAccessPage('Payments', shop?.accessLevel ?? 0, branding.settings.pageAccess),
+                            expenses:
+                              demo ||
+                              canAccessPage('Expenses', shop?.accessLevel ?? 0, branding.settings.pageAccess),
+                            materials:
+                              demo ||
+                              canAccessPage(
+                                'Materials',
+                                shop?.accessLevel ?? 0,
+                                branding.settings.pageAccess,
+                              ),
+                          }}
+                        />
+                      </Suspense>
+                    ) : !pageAllowed ? (
+                      <p role="alert">You do not have access to this page.</p>
+                    ) : page === 'Sale Adjustments' ? (
+                      <SaleAdjustmentsPage
+                        recentDays={branding.settings.corrections.recentDays}
                         ledger={ledger}
                         ready={ready}
                         busy={busy || hasConflict}
                         canSave={demo || online}
+                        onAdjust={setAdjustingJob}
+                      />
+                    ) : page === 'Material Waste' ? (
+                      <>
+                        {materialTabs}
+                        <MaterialWastePage
+                          ledger={ledger}
+                          ready={ready}
+                          busy={busy || hasConflict}
+                          canSave={demo || online}
+                          actor={{
+                            id: demo ? 'local-trial' : session!.user.id,
+                            label: demo
+                              ? 'Local trial user'
+                              : shop?.staffName || session!.user.email || session!.user.id,
+                          }}
+                          onSave={approveOperation}
+                        />
+                      </>
+                    ) : page === 'Conflict Inbox' ? (
+                      demo ? (
+                        <section className="panel">
+                          <h2>Conflict inbox</h2>
+                          <p>Remote reviews are available in a connected business workspace.</p>
+                        </section>
+                      ) : (
+                        <ConflictInbox
+                          key={scope}
+                          scope={scope}
+                          shopId={shop!.id}
+                          online={online}
+                          onChanged={() => {
+                            if (activeScope.current !== scope) return;
+                            void readState(scope).then((next) => {
+                              if (activeScope.current === scope) setState(next);
+                            });
+                            setMessage(
+                              'Review saved. The original device will receive it automatically when connected.',
+                            );
+                          }}
+                        />
+                      )
+                    ) : page === 'My Account' ? (
+                      <AccountPage
+                        key={`${scope}:${shop?.username}`}
+                        shopId={shop?.id ?? ''}
+                        userId={session?.user.id ?? ''}
+                        businessAccount={!!session && session.user.id === businessSession?.user.id}
+                        username={shop?.username ?? ''}
+                        online={online}
+                        demo={demo}
+                        themePreference={branding.preference}
+                        setThemePreference={branding.setTheme}
+                        onChanged={(message) => {
+                          setMessage(message);
+                          setStaffEpoch((value) => value + 1);
+                        }}
+                      />
+                    ) : page === 'Pricing Templates' ? (
+                      <PricingTemplatesPage
+                        key={scope}
+                        settings={branding.settings}
+                        version={branding.version}
+                        ledger={ledger}
+                        ready={branding.ready}
+                        online={online}
+                        demo={demo}
                         actor={{
                           id: demo ? 'local-trial' : session!.user.id,
                           label: demo
                             ? 'Local trial user'
                             : shop?.staffName || session!.user.email || session!.user.id,
                         }}
-                        onSave={approveOperation}
+                        onSave={branding.save}
+                        onReload={branding.reload}
+                        onSaveService={saveCatalogue}
                       />
-                    </>
-                  ) : page === 'Conflict Inbox' ? (
-                    demo ? (
-                      <section className="panel">
-                        <h2>Conflict inbox</h2>
-                        <p>Remote reviews are available in a connected business workspace.</p>
-                      </section>
-                    ) : (
-                      <ConflictInbox
+                    ) : page === 'Business Settings' ? (
+                      <BusinessSettingsPage
                         key={scope}
-                        scope={scope}
-                        shopId={shop!.id}
+                        settings={branding.settings}
+                        version={branding.version}
+                        ready={branding.ready}
                         online={online}
-                        onChanged={() => {
-                          if (activeScope.current !== scope) return;
-                          void readState(scope).then((next) => {
-                            if (activeScope.current === scope) setState(next);
-                          });
-                          setMessage(
-                            'Review saved. The original device will receive it automatically when connected.',
-                          );
+                        demo={demo}
+                        modifiedAt={branding.modifiedAt}
+                        onSave={branding.save}
+                        onReload={branding.reload}
+                      />
+                    ) : page === 'Expenses' ? (
+                      <ExpensesPage
+                        key={scope}
+                        ledger={ledger}
+                        ready={ready}
+                        busy={(!demo && (shop?.accessLevel ?? 0) < 2) || busy || hasConflict}
+                        actor={{
+                          id: demo ? 'local-trial' : session!.user.id,
+                          label: demo
+                            ? 'Local trial user'
+                            : shop?.staffName || session!.user.email || session!.user.id,
+                        }}
+                        pending={state.pending}
+                        onSave={saveCatalogue}
+                      />
+                    ) : page === 'My Sales' ? (
+                      <MySalesPage
+                        key={scope}
+                        ledger={ledger}
+                        userId={demo ? 'local-trial' : session!.user.id}
+                        username={demo ? 'trial' : (shop?.username ?? '')}
+                        name={demo ? 'Local trial user' : (shop?.staffName ?? '')}
+                        ready={ready}
+                        busy={busy || hasConflict}
+                        online={online}
+                        demo={demo}
+                        pending={state.pending.length}
+                        onReceipt={setReceipt}
+                        onHandover={closeDrawer}
+                      />
+                    ) : page === 'Payment Reminders' ? (
+                      <RemindersPage
+                        key={scope}
+                        ledger={ledger}
+                        ready={ready}
+                        busy={busy || legacyConflict}
+                        branding={branding.settings}
+                        actor={{
+                          id: demo ? 'local-trial' : session!.user.id,
+                          label: demo
+                            ? 'Local trial user'
+                            : shop?.staffName || session!.user.email || session!.user.id,
+                        }}
+                        onSave={saveCatalogue}
+                      />
+                    ) : page === 'Quotations' ? (
+                      <QuotationsPage
+                        key={scope}
+                        ledger={ledger}
+                        ready={ready}
+                        busy={busy || legacyConflict}
+                        branding={branding.settings}
+                        actor={{
+                          id: demo ? 'local-trial' : session!.user.id,
+                          label: demo
+                            ? 'Local trial user'
+                            : shop?.staffName || session!.user.email || session!.user.id,
+                        }}
+                        discountPolicy={discountPolicy(
+                          branding.settings.discounts,
+                          demo ? 4 : (shop?.accessLevel ?? 0),
+                        )}
+                        onSave={saveCatalogue}
+                        onCreateOrder={(quote) => {
+                          setForm(null);
+                          setQuoteOrder(quote);
                         }}
                       />
-                    )
-                  ) : page === 'My Account' ? (
-                    <AccountPage
-                      key={`${scope}:${shop?.username}`}
-                      shopId={shop?.id ?? ''}
-                      userId={session?.user.id ?? ''}
-                      businessAccount={!!session && session.user.id === businessSession?.user.id}
-                      username={shop?.username ?? ''}
-                      online={online}
-                      demo={demo}
-                      themePreference={branding.preference}
-                      setThemePreference={branding.setTheme}
-                      onChanged={(message) => {
-                        setMessage(message);
-                        setStaffEpoch((value) => value + 1);
-                      }}
-                    />
-                  ) : page === 'Pricing Templates' ? (
-                    <PricingTemplatesPage
-                      key={scope}
-                      settings={branding.settings}
-                      version={branding.version}
-                      ledger={ledger}
-                      ready={branding.ready}
-                      online={online}
-                      demo={demo}
-                      onSave={branding.save}
-                      onReload={branding.reload}
-                    />
-                  ) : page === 'Business Settings' ? (
-                    <BusinessSettingsPage
-                      key={scope}
-                      settings={branding.settings}
-                      version={branding.version}
-                      ready={branding.ready}
-                      online={online}
-                      demo={demo}
-                      modifiedAt={branding.modifiedAt}
-                      onSave={branding.save}
-                      onReload={branding.reload}
-                    />
-                  ) : page === 'Expenses' ? (
-                    <ExpensesPage
-                      key={scope}
-                      ledger={ledger}
-                      ready={ready}
-                      busy={(!demo && (shop?.accessLevel ?? 0) < 2) || busy || hasConflict}
-                      actor={{
-                        id: demo ? 'local-trial' : session!.user.id,
-                        label: demo
-                          ? 'Local trial user'
-                          : shop?.staffName || session!.user.email || session!.user.id,
-                      }}
-                      pending={state.pending}
-                      onSave={saveCatalogue}
-                    />
-                  ) : page === 'My Sales' ? (
-                    <MySalesPage
-                      key={scope}
-                      ledger={ledger}
-                      userId={demo ? 'local-trial' : session!.user.id}
-                      username={demo ? 'trial' : (shop?.username ?? '')}
-                      name={demo ? 'Local trial user' : (shop?.staffName ?? '')}
-                      ready={ready}
-                      busy={busy || hasConflict}
-                      online={online}
-                      demo={demo}
-                      pending={state.pending.length}
-                      onReceipt={setReceipt}
-                      onHandover={closeDrawer}
-                    />
-                  ) : page === 'Payment Reminders' ? (
-                    <RemindersPage
-                      key={scope}
-                      ledger={ledger}
-                      ready={ready}
-                      busy={busy || legacyConflict}
-                      branding={branding.settings}
-                      actor={{
-                        id: demo ? 'local-trial' : session!.user.id,
-                        label: demo
-                          ? 'Local trial user'
-                          : shop?.staffName || session!.user.email || session!.user.id,
-                      }}
-                      onSave={saveCatalogue}
-                    />
-                  ) : page === 'Quotations' ? (
-                    <QuotationsPage
-                      key={scope}
-                      ledger={ledger}
-                      ready={ready}
-                      busy={busy || legacyConflict}
-                      branding={branding.settings}
-                      actor={{
-                        id: demo ? 'local-trial' : session!.user.id,
-                        label: demo
-                          ? 'Local trial user'
-                          : shop?.staffName || session!.user.email || session!.user.id,
-                      }}
-                      discountPolicy={discountPolicy(
-                        branding.settings.discounts,
-                        demo ? 4 : (shop?.accessLevel ?? 0),
-                      )}
-                      onSave={saveCatalogue}
-                      onCreateOrder={(quote) => {
-                        setForm(null);
-                        setQuoteOrder(quote);
-                      }}
-                    />
-                  ) : page === 'Point of Service' ? (
-                    <PointOfServicePage
-                      ledger={ledger}
-                      busy={busy || legacyConflict}
-                      ready={ready}
-                      onCheckout={() => {
-                        setPaymentCustomer('');
-                        setForm('job');
-                      }}
-                      onPayment={() => openPayment()}
-                      onQuickSale={() => {
-                        setForm(null);
-                        setQuickSale(true);
-                      }}
-                      onJob={setSelectedJob}
-                      onNext={(job, mode) => setJobToAdvance({ job, mode })}
-                      onBulkAction={(jobs, mode) => setBatchToAdvance({ jobs, mode })}
-                      onReceipt={setReceipt}
-                    />
-                  ) : page === 'Users' ? (
-                    <UsersPage
-                      key={scope}
-                      shopId={shop?.id ?? ''}
-                      actorId={session?.user.id ?? ''}
-                      businessUserId={businessSession?.user.id ?? ''}
-                      role={shop?.role ?? ''}
-                      online={online}
-                      demo={demo}
-                      onChanged={() => setStaffEpoch((value) => value + 1)}
-                    />
-                  ) : page === 'Print Settings' ? (
-                    <PrintSettingsPage
-                      key={scope}
-                      scope={scope}
-                      ready={ready}
-                      trusted={!!signingShop}
-                      business={branding.settings}
-                    />
-                  ) : page === 'Customers' ? (
-                    <CustomersPage
-                      key={scope}
-                      onStatement={
-                        demo ||
-                        (['Reports', 'Jobs', 'Payments'] as const).every((name) =>
-                          canAccessPage(name, shop?.accessLevel ?? 0, branding.settings.pageAccess),
-                        )
-                          ? (id) => {
-                              setReportCustomer(id);
-                              setPage('Reports');
-                            }
-                          : undefined
-                      }
-                      ledger={ledger}
-                      ready={ready}
-                      busy={busy || hasConflict}
-                      actor={{
-                        id: demo ? 'local-trial' : session!.user.id,
-                        label: demo
-                          ? 'Local trial user'
-                          : shop?.staffName ||
-                            session!.user.user_metadata.full_name ||
-                            session!.user.email ||
-                            session!.user.id,
-                      }}
-                      onSave={saveCatalogue}
-                      onRecordPayment={(id) => openPayment(id)}
-                    />
-                  ) : page === 'Materials' ? (
-                    <>
-                      {materialTabs}
-                      <MaterialsPage
+                    ) : page === 'Point of Service' ? (
+                      <PointOfServicePage
+                        ledger={ledger}
+                        busy={busy || legacyConflict}
+                        ready={ready}
+                        onCheckout={() => {
+                          setPaymentCustomer('');
+                          setForm('job');
+                        }}
+                        onPayment={() => openPayment()}
+                        onQuickSale={() => {
+                          setForm(null);
+                          setQuickSale(true);
+                        }}
+                        onJob={setSelectedJob}
+                        onNext={(job, mode) => setJobToAdvance({ job, mode })}
+                        onBulkAction={(jobs, mode) => setBatchToAdvance({ jobs, mode })}
+                        onReceipt={setReceipt}
+                      />
+                    ) : page === 'Users' ? (
+                      <UsersPage
                         key={scope}
+                        shopId={shop?.id ?? ''}
+                        actorId={session?.user.id ?? ''}
+                        businessUserId={businessSession?.user.id ?? ''}
+                        role={shop?.role ?? ''}
+                        online={online}
+                        demo={demo}
+                        onChanged={() => setStaffEpoch((value) => value + 1)}
+                      />
+                    ) : page === 'Print Settings' ? (
+                      <PrintSettingsPage
+                        key={scope}
+                        scope={scope}
+                        ready={ready}
+                        trusted={!!signingShop}
+                        business={branding.settings}
+                      />
+                    ) : page === 'Customers' ? (
+                      <CustomersPage
+                        key={scope}
+                        onStatement={
+                          demo ||
+                          (['Reports', 'Jobs', 'Payments'] as const).every((name) =>
+                            canAccessPage(name, shop?.accessLevel ?? 0, branding.settings.pageAccess),
+                          )
+                            ? (id) => {
+                                setReportCustomer(id);
+                                setPage('Reports');
+                              }
+                            : undefined
+                        }
+                        ledger={ledger}
+                        ready={ready}
+                        busy={busy || hasConflict}
+                        actor={{
+                          id: demo ? 'local-trial' : session!.user.id,
+                          label: demo
+                            ? 'Local trial user'
+                            : shop?.staffName ||
+                              session!.user.user_metadata.full_name ||
+                              session!.user.email ||
+                              session!.user.id,
+                        }}
+                        onSave={saveCatalogue}
+                        onRecordPayment={(id) => openPayment(id)}
+                      />
+                    ) : page === 'Materials' ? (
+                      <>
+                        {materialTabs}
+                        <MaterialsPage
+                          key={scope}
+                          materials={ledger.materials}
+                          history={ledger.materialHistory}
+                          ready={ready}
+                          busy={(!demo && shop?.role === 'cashier') || busy || hasConflict}
+                          actor={{
+                            id: demo ? 'local-trial' : session!.user.id,
+                            label: demo
+                              ? 'Local trial user'
+                              : shop?.staffName ||
+                                session!.user.user_metadata.full_name ||
+                                session!.user.email ||
+                                session!.user.id,
+                          }}
+                          onSave={saveCatalogue}
+                          expenses={ledger.expenses}
+                          businessName={businessName}
+                          canRecordPurchase={demo || allowed('Expenses')}
+                          onSaveExpense={saveCatalogue}
+                        />
+                      </>
+                    ) : page === 'Services' ? (
+                      <ServicesPage
+                        key={scope}
+                        services={ledger.services}
                         materials={ledger.materials}
-                        history={ledger.materialHistory}
                         ready={ready}
                         busy={(!demo && shop?.role === 'cashier') || busy || hasConflict}
                         actor={{
@@ -1649,334 +1701,312 @@ export default function App() {
                               session!.user.id,
                         }}
                         onSave={saveCatalogue}
-                        expenses={ledger.expenses}
-                        businessName={businessName}
-                        canRecordPurchase={demo || allowed('Expenses')}
-                        onSaveExpense={saveCatalogue}
+                        onSaveMany={saveCatalogueMany}
                       />
-                    </>
-                  ) : page === 'Services' ? (
-                    <ServicesPage
-                      key={scope}
-                      services={ledger.services}
-                      materials={ledger.materials}
-                      ready={ready}
-                      busy={(!demo && shop?.role === 'cashier') || busy || hasConflict}
-                      actor={{
-                        id: demo ? 'local-trial' : session!.user.id,
-                        label: demo
-                          ? 'Local trial user'
-                          : shop?.staffName ||
-                            session!.user.user_metadata.full_name ||
-                            session!.user.email ||
-                            session!.user.id,
-                      }}
-                      onSave={saveCatalogue}
-                      onSaveMany={saveCatalogueMany}
-                    />
-                  ) : page === 'Stock History' ? (
-                    <StockHistoryPage
-                      key={scope}
-                      history={ledger.materialHistory}
-                      materials={ledger.materials}
-                      pending={state.pending}
-                      ready={ready}
-                      demo={demo}
-                    />
-                  ) : (
-                    <JobsPaymentsPage
-                      key={page}
-                      page={page === 'Payments' ? 'Payments' : 'Jobs'}
-                      ledger={ledger}
-                      ready={ready}
-                      busy={busy}
-                      legacyConflict={legacyConflict}
-                      query={query}
-                      onQuery={setQuery}
-                      onCreate={() => {
-                        setMessage('');
-                        if (page === 'Payments') openPayment();
-                        else setForm('job');
-                      }}
-                      onAddCustomer={() => setForm('customer')}
-                      onJob={setSelectedJob}
-                      onAction={(job, mode) => setJobToAdvance({ job, mode })}
-                      onBulkAction={(jobs, mode) => setBatchToAdvance({ jobs, mode })}
-                      onReceipt={setReceipt}
-                    />
-                  )}
-                  <p className="footnote">
-                    {demo
-                      ? 'Local trial · This device only · No cloud uploads'
-                      : `Last synced: ${state.lastSynced ? new Date(state.lastSynced).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' }) : 'Not yet synced'}`}{' '}
-                    · Currency: NGN
-                  </p>
-                </>
-              )}
-              {currentJob && (
-                <JobDetails
-                  job={currentJob}
-                  ledger={ledger}
-                  busy={busy}
-                  hasConflict={hasConflict}
-                  legacyConflict={legacyConflict}
-                  customerHeld={heldWork.resources.has('customer:' + currentJob.customerId)}
-                  canAdjust={
-                    demo ||
-                    canAccessPage('Sale Adjustments', shop?.accessLevel ?? 0, branding.settings.pageAccess)
-                  }
-                  canSave={demo || online}
-                  onClose={() => setSelectedJob(null)}
-                  onAdjust={(job) => {
-                    setSelectedJob(null);
-                    setAdjustingJob(job);
-                  }}
-                  onAction={(job, mode) => setJobToAdvance({ job, mode })}
-                  onPayment={openPayment}
-                />
-              )}
-              {form === 'customer' && (
-                <CustomerEditor
-                  customers={ledger.customers}
-                  busy={busy}
-                  actor={{
-                    id: demo ? 'local-trial' : session!.user.id,
-                    label: demo
-                      ? 'Local trial user'
-                      : shop?.staffName ||
-                        session!.user.user_metadata.full_name ||
-                        session!.user.email ||
-                        session!.user.id,
-                  }}
-                  onSave={saveCatalogue}
-                  onClose={() => setForm(null)}
-                />
-              )}
-              {form && form !== 'customer' && (
-                <CheckoutEditor
-                  ledger={ledger}
-                  actor={{
-                    id: demo ? 'local-trial' : session!.user.id,
-                    label: demo
-                      ? 'Local trial user'
-                      : shop?.staffName || session!.user.email || session!.user.id,
-                  }}
-                  busy={busy}
-                  paymentOnly={form === 'payment'}
-                  initialCustomer={form === 'payment' ? paymentCustomer : ''}
-                  onSave={completeCheckout}
-                  onClose={() => setForm(null)}
-                  onReceipt={setReceipt}
-                  jobSettings={branding.settings.jobs}
-                  discountPolicy={discountPolicy(
-                    branding.settings.discounts,
-                    demo ? 4 : (shop?.accessLevel ?? 0),
-                  )}
-                />
-              )}
-              {quickSale && (
-                <QuickSale
-                  ledger={ledger}
-                  actor={{
-                    id: demo ? 'local-trial' : session!.user.id,
-                    label: demo
-                      ? 'Local trial user'
-                      : shop?.staffName || session!.user.email || session!.user.id,
-                  }}
-                  busy={busy}
-                  onSave={completeCheckout}
-                  onClose={() => setQuickSale(false)}
-                  onReceipt={setReceipt}
-                />
-              )}
-              {quoteOrder &&
-                !form &&
-                (() => {
-                  const start = quotationCheckout(ledger, quoteOrder);
-                  return (
-                    <CheckoutEditor
-                      key={quoteOrder.id}
-                      ledger={ledger}
-                      actor={{
-                        id: demo ? 'local-trial' : session!.user.id,
-                        label: demo
-                          ? 'Local trial user'
-                          : shop?.staffName || session!.user.email || session!.user.id,
-                      }}
-                      busy={busy}
-                      fromQuotation={{
-                        reference: quotationRef(quoteOrder.id),
-                        customerId: start.customerId,
-                        customerName: quoteOrder.customerName,
-                        customerPhone: quoteOrder.customerPhone,
-                        lines: start.lines,
-                        orderDiscount: start.orderDiscount,
-                        changes: start.changes,
-                      }}
-                      onSave={async (operation) => {
-                        const record = await completeCheckout(operation);
-                        // Link the quotation to the sale. It syncs with the rest of the pending work.
-                        const target = scope;
-                        if (target && activeScope.current === target) {
-                          try {
-                            const next = await saveEvent(
-                              target,
-                              {
-                                id: crypto.randomUUID(),
-                                kind: 'quotation.converted',
-                                data: {
-                                  id: quoteOrder.id,
-                                  checkoutId: operation.id,
-                                  baseVersion: quoteOrder.version,
-                                  modifiedBy: demo ? 'local-trial' : session!.user.id,
-                                  modifiedByLabel: demo
-                                    ? 'Local trial user'
-                                    : shop?.staffName || session!.user.email || session!.user.id,
-                                  modifiedAt: new Date().toISOString(),
+                    ) : page === 'Stock History' ? (
+                      <StockHistoryPage
+                        key={scope}
+                        history={ledger.materialHistory}
+                        materials={ledger.materials}
+                        pending={state.pending}
+                        ready={ready}
+                        demo={demo}
+                      />
+                    ) : (
+                      <JobsPaymentsPage
+                        key={page}
+                        page={page === 'Payments' ? 'Payments' : 'Jobs'}
+                        ledger={ledger}
+                        ready={ready}
+                        busy={busy}
+                        legacyConflict={legacyConflict}
+                        query={query}
+                        onQuery={setQuery}
+                        onCreate={() => {
+                          setMessage('');
+                          if (page === 'Payments') openPayment();
+                          else setForm('job');
+                        }}
+                        onAddCustomer={() => setForm('customer')}
+                        onJob={setSelectedJob}
+                        onAction={(job, mode) => setJobToAdvance({ job, mode })}
+                        onBulkAction={(jobs, mode) => setBatchToAdvance({ jobs, mode })}
+                        onReceipt={setReceipt}
+                      />
+                    )}
+                    <p className="footnote">
+                      {demo
+                        ? 'Local trial · This device only · No cloud uploads'
+                        : `Last synced: ${state.lastSynced ? new Date(state.lastSynced).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' }) : 'Not yet synced'}`}{' '}
+                      · Currency: NGN
+                    </p>
+                  </>
+                )}
+                {currentJob && (
+                  <JobDetails
+                    job={currentJob}
+                    ledger={ledger}
+                    busy={busy}
+                    hasConflict={hasConflict}
+                    legacyConflict={legacyConflict}
+                    customerHeld={heldWork.resources.has('customer:' + currentJob.customerId)}
+                    canAdjust={
+                      demo ||
+                      canAccessPage('Sale Adjustments', shop?.accessLevel ?? 0, branding.settings.pageAccess)
+                    }
+                    canSave={demo || online}
+                    onClose={() => setSelectedJob(null)}
+                    onAdjust={(job) => {
+                      setSelectedJob(null);
+                      setAdjustingJob(job);
+                    }}
+                    onAction={(job, mode) => setJobToAdvance({ job, mode })}
+                    onPayment={openPayment}
+                  />
+                )}
+                {form === 'customer' && (
+                  <CustomerEditor
+                    customers={ledger.customers}
+                    busy={busy}
+                    actor={{
+                      id: demo ? 'local-trial' : session!.user.id,
+                      label: demo
+                        ? 'Local trial user'
+                        : shop?.staffName ||
+                          session!.user.user_metadata.full_name ||
+                          session!.user.email ||
+                          session!.user.id,
+                    }}
+                    onSave={saveCatalogue}
+                    onClose={() => setForm(null)}
+                  />
+                )}
+                {form && form !== 'customer' && (
+                  <CheckoutEditor
+                    ledger={ledger}
+                    actor={{
+                      id: demo ? 'local-trial' : session!.user.id,
+                      label: demo
+                        ? 'Local trial user'
+                        : shop?.staffName || session!.user.email || session!.user.id,
+                    }}
+                    busy={busy}
+                    paymentOnly={form === 'payment'}
+                    initialCustomer={form === 'payment' ? paymentCustomer : ''}
+                    onSave={completeCheckout}
+                    onClose={() => setForm(null)}
+                    onReceipt={setReceipt}
+                    jobSettings={branding.settings.jobs}
+                    discountPolicy={discountPolicy(
+                      branding.settings.discounts,
+                      demo ? 4 : (shop?.accessLevel ?? 0),
+                    )}
+                  />
+                )}
+                {quickSale && (
+                  <QuickSale
+                    ledger={ledger}
+                    actor={{
+                      id: demo ? 'local-trial' : session!.user.id,
+                      label: demo
+                        ? 'Local trial user'
+                        : shop?.staffName || session!.user.email || session!.user.id,
+                    }}
+                    busy={busy}
+                    onSave={completeCheckout}
+                    onClose={() => setQuickSale(false)}
+                    onReceipt={setReceipt}
+                  />
+                )}
+                {quoteOrder &&
+                  !form &&
+                  (() => {
+                    const start = quotationCheckout(ledger, quoteOrder);
+                    return (
+                      <CheckoutEditor
+                        key={quoteOrder.id}
+                        ledger={ledger}
+                        actor={{
+                          id: demo ? 'local-trial' : session!.user.id,
+                          label: demo
+                            ? 'Local trial user'
+                            : shop?.staffName || session!.user.email || session!.user.id,
+                        }}
+                        busy={busy}
+                        fromQuotation={{
+                          reference: quotationRef(quoteOrder.id),
+                          customerId: start.customerId,
+                          customerName: quoteOrder.customerName,
+                          customerPhone: quoteOrder.customerPhone,
+                          lines: start.lines,
+                          orderDiscount: start.orderDiscount,
+                          changes: start.changes,
+                        }}
+                        onSave={async (operation) => {
+                          const record = await completeCheckout(operation);
+                          // Link the quotation to the sale. It syncs with the rest of the pending work.
+                          const target = scope;
+                          if (target && activeScope.current === target) {
+                            try {
+                              const next = await saveEvent(
+                                target,
+                                {
+                                  id: crypto.randomUUID(),
+                                  kind: 'quotation.converted',
+                                  data: {
+                                    id: quoteOrder.id,
+                                    checkoutId: operation.id,
+                                    baseVersion: quoteOrder.version,
+                                    modifiedBy: demo ? 'local-trial' : session!.user.id,
+                                    modifiedByLabel: demo
+                                      ? 'Local trial user'
+                                      : shop?.staffName || session!.user.email || session!.user.id,
+                                    modifiedAt: new Date().toISOString(),
+                                  },
                                 },
-                              },
-                              !demo,
-                            );
-                            if (activeScope.current === target) setState(next);
-                          } catch {
-                            setMessage(
-                              'The sale is saved, but the quotation could not be marked converted.',
-                              'warning',
-                            );
+                                !demo,
+                              );
+                              if (activeScope.current === target) setState(next);
+                            } catch {
+                              setMessage(
+                                'The sale is saved, but the quotation could not be marked converted.',
+                                'warning',
+                              );
+                            }
                           }
-                        }
-                        setQuoteOrder(null);
-                        return record;
-                      }}
-                      onClose={() => setQuoteOrder(null)}
-                      onReceipt={setReceipt}
-                      jobSettings={branding.settings.jobs}
-                      discountPolicy={discountPolicy(
-                        branding.settings.discounts,
-                        demo ? 4 : (shop?.accessLevel ?? 0),
-                      )}
-                    />
-                  );
-                })()}
-              {adjustingJob && (
-                <SaleAdjustmentEditor
-                  ledger={ledger}
-                  job={adjustingJob}
-                  busy={busy}
-                  actor={{
-                    id: demo ? 'local-trial' : session!.user.id,
-                    label: demo
-                      ? 'Local trial user'
-                      : shop?.staffName || session!.user.email || session!.user.id,
-                  }}
-                  onClose={() => setAdjustingJob(null)}
-                  onSave={approveOperation}
-                />
-              )}
-              {receipt && (
-                <ReceiptView
-                  ledger={ledger}
-                  record={ledger.checkouts.find((r) => r.id === receipt.id) ?? receipt}
-                  scope={scope}
-                  business={branding.settings}
-                  adjustments={ledger.saleAdjustments.filter(
-                    (a) =>
-                      a.before.checkoutId === receipt.id ||
-                      receipt.jobBalances.some((j) => j.id === a.jobId) ||
-                      a.paymentChanges.some(
-                        (p) =>
-                          p.before.id === receipt.id ||
-                          p.before.checkoutId === receipt.id ||
-                          [...p.before.allocations, ...p.after.allocations].some((x) =>
-                            receipt.jobBalances.some((j) => j.id === x.jobId),
-                          ),
-                      ),
-                  )}
-                  pending={state.pending.some((e) => e.id === receipt.id)}
-                  onClose={() => setReceipt(null)}
-                />
-              )}
-              {batchToAdvance && (
-                <BatchJobProgressDialog
-                  ledger={ledger}
-                  jobs={batchToAdvance.jobs}
-                  mode={batchToAdvance.mode}
-                  busy={busy}
-                  onClose={() => setBatchToAdvance(null)}
-                  onSave={async (targetStage) => {
-                    if (busy || !ready || !scope || legacyConflict)
-                      throw Error('Wait until the workspace is ready.');
-                    const targetScope = scope;
-                    for (const item of batchToAdvance.jobs) {
-                      const current = state.ledger.jobs.find((job) => job.id === item.id);
-                      if (
-                        !current ||
-                        current.version !== item.version ||
-                        current.productionStatus !== item.productionStatus
-                      )
-                        throw Error('An item changed. Close this window and select the items again.');
-                    }
-                    const events = batchProgressEvents(
-                      batchToAdvance.jobs,
-                      batchToAdvance.mode,
-                      targetStage,
-                      {
-                        id: demo ? 'local-trial' : session!.user.id,
-                        label: demo
-                          ? 'Local trial user'
-                          : shop?.staffName || session!.user.email || session!.user.id,
-                      },
+                          setQuoteOrder(null);
+                          return record;
+                        }}
+                        onClose={() => setQuoteOrder(null)}
+                        onReceipt={setReceipt}
+                        jobSettings={branding.settings.jobs}
+                        discountPolicy={discountPolicy(
+                          branding.settings.discounts,
+                          demo ? 4 : (shop?.accessLevel ?? 0),
+                        )}
+                      />
                     );
-                    if (!events.length) throw Error('No selected items can take this action.');
-                    setBusy(true);
-                    try {
-                      const next = await saveEvents(targetScope, events, !demo);
-                      if (activeScope.current === targetScope) {
-                        setState(next);
-                        channel.current?.postMessage('changed');
-                        setBatchToAdvance(null);
-                        setMessage('Selected items updated. Changes sync automatically when connected.');
+                  })()}
+                {adjustingJob && (
+                  <SaleAdjustmentEditor
+                    ledger={ledger}
+                    job={adjustingJob}
+                    busy={busy}
+                    actor={{
+                      id: demo ? 'local-trial' : session!.user.id,
+                      label: demo
+                        ? 'Local trial user'
+                        : shop?.staffName || session!.user.email || session!.user.id,
+                    }}
+                    onClose={() => setAdjustingJob(null)}
+                    onSave={approveOperation}
+                  />
+                )}
+                {receipt && (
+                  <ReceiptView
+                    ledger={ledger}
+                    record={ledger.checkouts.find((r) => r.id === receipt.id) ?? receipt}
+                    scope={scope}
+                    business={branding.settings}
+                    adjustments={ledger.saleAdjustments.filter(
+                      (a) =>
+                        a.before.checkoutId === receipt.id ||
+                        receipt.jobBalances.some((j) => j.id === a.jobId) ||
+                        a.paymentChanges.some(
+                          (p) =>
+                            p.before.id === receipt.id ||
+                            p.before.checkoutId === receipt.id ||
+                            [...p.before.allocations, ...p.after.allocations].some((x) =>
+                              receipt.jobBalances.some((j) => j.id === x.jobId),
+                            ),
+                        ),
+                    )}
+                    pending={state.pending.some((e) => e.id === receipt.id)}
+                    onClose={() => setReceipt(null)}
+                  />
+                )}
+                {batchToAdvance && (
+                  <BatchJobProgressDialog
+                    ledger={ledger}
+                    jobs={batchToAdvance.jobs}
+                    mode={batchToAdvance.mode}
+                    busy={busy}
+                    onClose={() => setBatchToAdvance(null)}
+                    onSave={async (targetStage) => {
+                      if (busy || !ready || !scope || legacyConflict)
+                        throw Error('Wait until the workspace is ready.');
+                      const targetScope = scope;
+                      for (const item of batchToAdvance.jobs) {
+                        const current = state.ledger.jobs.find((job) => job.id === item.id);
+                        if (
+                          !current ||
+                          current.version !== item.version ||
+                          current.productionStatus !== item.productionStatus
+                        )
+                          throw Error('An item changed. Close this window and select the items again.');
                       }
-                    } finally {
-                      setBusy(false);
-                    }
-                  }}
-                />
-              )}
-              {jobToAdvance && (
-                <JobProgressDialog
-                  job={jobToAdvance.job}
-                  mode={jobToAdvance.mode}
-                  busy={busy}
-                  onClose={() => setJobToAdvance(null)}
-                  onSave={async (targetStage) => {
-                    if (busy || !ready || !scope || legacyConflict)
-                      throw Error('Wait until the workspace is ready.');
-                    const targetScope = scope;
-                    setBusy(true);
-                    try {
-                      const events = progressEvents(jobToAdvance.job, targetStage, {
-                        id: demo ? 'local-trial' : session!.user.id,
-                        label: demo
-                          ? 'Local trial user'
-                          : shop?.staffName || session!.user.email || session!.user.id,
-                      });
-                      const next = await saveEvents(targetScope, events, !demo);
-                      if (activeScope.current === targetScope) {
-                        setState(next);
-                        channel.current?.postMessage('changed');
-                        setJobToAdvance(null);
-                        setMessage('Job stages saved in order. Changes sync automatically when connected.');
+                      const events = batchProgressEvents(
+                        batchToAdvance.jobs,
+                        batchToAdvance.mode,
+                        targetStage,
+                        {
+                          id: demo ? 'local-trial' : session!.user.id,
+                          label: demo
+                            ? 'Local trial user'
+                            : shop?.staffName || session!.user.email || session!.user.id,
+                        },
+                      );
+                      if (!events.length) throw Error('No selected items can take this action.');
+                      setBusy(true);
+                      try {
+                        const next = await saveEvents(targetScope, events, !demo);
+                        if (activeScope.current === targetScope) {
+                          setState(next);
+                          channel.current?.postMessage('changed');
+                          setBatchToAdvance(null);
+                          setMessage('Selected items updated. Changes sync automatically when connected.');
+                        }
+                      } finally {
+                        setBusy(false);
                       }
-                    } finally {
-                      setBusy(false);
-                    }
-                  }}
-                />
-              )}
-            </main>
-          </div>
-        </PeriodDefaultsContext.Provider>
+                    }}
+                  />
+                )}
+                {jobToAdvance && (
+                  <JobProgressDialog
+                    job={jobToAdvance.job}
+                    mode={jobToAdvance.mode}
+                    busy={busy}
+                    onClose={() => setJobToAdvance(null)}
+                    onSave={async (targetStage) => {
+                      if (busy || !ready || !scope || legacyConflict)
+                        throw Error('Wait until the workspace is ready.');
+                      const targetScope = scope;
+                      setBusy(true);
+                      try {
+                        const events = progressEvents(jobToAdvance.job, targetStage, {
+                          id: demo ? 'local-trial' : session!.user.id,
+                          label: demo
+                            ? 'Local trial user'
+                            : shop?.staffName || session!.user.email || session!.user.id,
+                        });
+                        const next = await saveEvents(targetScope, events, !demo);
+                        if (activeScope.current === targetScope) {
+                          setState(next);
+                          channel.current?.postMessage('changed');
+                          setJobToAdvance(null);
+                          setMessage('Job stages saved in order. Changes sync automatically when connected.');
+                        }
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  />
+                )}
+              </main>
+            </div>
+          </PeriodDefaultsContext.Provider>
+        </TemplateAuditContext.Provider>
       </TermsProvider>
     </BusinessOptionsContext.Provider>
   );

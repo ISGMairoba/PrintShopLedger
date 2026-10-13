@@ -12,7 +12,7 @@ export const WALK_IN_PHONE = 'Walk-in';
  */
 export function shelfProducts(ledger) {
   return ledger.services
-    .filter((s) => s.shelfItem && !s.archived)
+    .filter((s) => s.shelfItem && !s.archived && !s.private)
     .map((s) => {
       const material = s.materialId ? ledger.materials.find((m) => m.id === s.materialId) : null;
       return {

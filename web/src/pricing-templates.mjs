@@ -1,158 +1,554 @@
-// Selling-price bundles. Formula evaluation is a small arithmetic grammar, never JavaScript/eval.
+// Pricing templates, modelled on Costora. A template has editable variables (what staff enter),
+// computed variables (paper, cards, impressions...), expenses (what the job costs) and a pricing
+// rule (markup or margin, a minimum, a maximum discount and rounding). Costs come from services and
+// products that have a template cost; private ones exist only for templates and are never sold.
+//
+// Formulas are a small arithmetic grammar evaluated with exact decimals, never JavaScript. Every
+// operation is rounded to 12 decimal places, exactly as the server does when it checks the price.
+
 /** @returns {import('./types').PricingSettings} */
 export const pricingDefaults = () => ({ enabled: false, templates: [] });
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const keyPattern = /^[a-zA-Z][a-zA-Z0-9_]{0,39}$/;
-const functions = { ceil: Math.ceil, floor: Math.floor, round: Math.round, min: Math.min, max: Math.max };
-export function parseFormula(text) {
-  if (typeof text !== 'string' || !text.trim() || text.length > 200)
-    throw Error('Enter a formula up to 200 characters.');
-  const tokens = text.match(/\d+(?:\.\d+)?|[a-zA-Z][a-zA-Z0-9_]*|[()+*/,-]|\S/g) ?? [];
-  let at = 0,
-    nodes = 0;
-  const node = (op, args) => {
-    if (++nodes > 80) throw Error('Formula is too complex.');
-    return { op, args };
-  };
-  function atom(depth) {
-    if (depth > 12) throw Error('Formula is nested too deeply.');
-    const t = tokens[at++];
-    if (t === '-') return node('*', [node('number', [-1]), atom(depth + 1)]);
-    if (t === '(') {
-      const n = expression(depth + 1);
-      if (tokens[at++] !== ')') throw Error('Close the formula bracket.');
-      return n;
-    }
-    if (/^\d+(\.\d+)?$/.test(t ?? '')) {
-      if ((t.split('.')[1]?.length ?? 0) > 12)
-        throw Error('Formula numbers allow up to twelve decimal places.');
-      const n = Number(t);
-      if (!Number.isFinite(n) || n > 1000000000000) throw Error('Formula number is too large.');
-      return node('number', [n]);
-    }
-    if (!keyPattern.test(t ?? ''))
-      throw Error('Use numbers, variables, arithmetic and ceil/floor/round/min/max.');
-    if (tokens[at] !== '(') return node('variable', [t]);
-    if (!Object.hasOwn(functions, t)) throw Error('Unknown formula function: ' + t);
-    at++;
-    const args = [expression(depth + 1)];
-    while (tokens[at] === ',') {
-      at++;
-      args.push(expression(depth + 1));
-    }
-    if (tokens[at++] !== ')' || args.length !== (['min', 'max'].includes(t) ? 2 : 1))
-      throw Error('Check the function brackets and arguments.');
-    return node(t, args);
+export const keyPattern = /^[a-z][a-z0-9_]{0,39}$/;
+/** Function name → [fewest, most] arguments. */
+export const formulaFunctions = {
+  CEILING: [1, 2],
+  FLOOR: [1, 2],
+  ROUNDUP: [2, 2],
+  ROUND: [2, 2],
+  SUM: [1, 50],
+  ABS: [1, 1],
+  MIN: [2, 10],
+  MAX: [2, 10],
+  IF: [3, 3],
+};
+const reservedNames = new Set(Object.keys(formulaFunctions).map((f) => f.toLowerCase()));
+const comparisons = ['==', '!=', '>', '<', '>=', '<='];
+const priority = { '==': 1, '!=': 1, '>': 1, '<': 1, '>=': 1, '<=': 1, '+': 2, '-': 2, '*': 3, '/': 3 };
+export const variableKinds = ['number', 'options', 'material', 'yesno'];
+export const expenseMethods = ['fixed', 'perItem', 'perInput', 'orderInput', 'batch', 'custom'];
+export const roundingChoices = [0.01, 1, 5, 10, 50, 100, 500, 1000];
+
+/** An error about one field, so forms can highlight it. `field` is a variable key or 'discount'. */
+export class FieldError extends Error {
+  constructor(message, field) {
+    super(message);
+    this.name = 'FieldError';
+    this.field = field;
   }
-  function product(depth) {
-    let a = atom(depth);
-    while (['*', '/'].includes(tokens[at])) {
-      const op = tokens[at++];
-      a = node(op, [a, atom(depth)]);
-    }
-    return a;
-  }
-  function expression(depth) {
-    let a = product(depth);
-    while (['+', '-'].includes(tokens[at])) {
-      const op = tokens[at++];
-      a = node(op, [a, product(depth)]);
-    }
-    return a;
-  }
-  const result = expression(0);
-  if (at !== tokens.length) throw Error('Check the formula near ' + tokens[at] + '.');
-  return result;
 }
-// Decimal arithmetic is rounded to 12 places after each operation on both client and server.
-// Keep the fraction until the final quantity rounding, avoiding binary half-cent/half-unit drift.
-const scale = 1000000000000n;
-const decimal = (value) => {
+
+// ---------------------------------------------------------------- formulas
+
+/** Parse a formula into a tree: { op, args }. Names stay lowercase; functions are upper case. */
+export function parseFormula(source) {
+  if (typeof source !== 'string' || !source.trim() || source.length > 1500)
+    throw Error('Formula is empty or too long.');
+  const tokens = [];
+  let pos = 0;
+  while (pos < source.length) {
+    const rest = source.slice(pos);
+    const m = /^\s*(\d+(?:\.\d+)?|[A-Za-z_][A-Za-z0-9_]*|>=|<=|==|!=|[+*/(),<>-])/.exec(rest);
+    if (!m) {
+      if (!rest.trim()) break;
+      throw Error('Unsupported formula symbol near "' + rest.trim().slice(0, 12) + '".');
+    }
+    tokens.push(m[1]);
+    pos += m[0].length;
+  }
+  let i = 0,
+    count = 0;
+  const node = (op, args) => ({ op, args });
+  function expression(min = 0, depth = 0) {
+    if (depth > 32 || ++count > 256) throw Error('Formula is too complex.');
+    let n;
+    const t = tokens[i++];
+    if (t === undefined) throw Error('Formula is incomplete.');
+    if (t === '-') n = node('-', [node('number', ['0']), expression(4, depth + 1)]);
+    else if (t === '(') {
+      n = expression(0, depth + 1);
+      if (tokens[i++] !== ')') throw Error('Close the formula bracket.');
+    } else if (/^\d/.test(t)) {
+      checkLiteral(t);
+      n = node('number', [canonical(decimal(t))]);
+    } else if (/^[A-Za-z_]/.test(t)) {
+      if (tokens[i] === '(') {
+        i++;
+        const name = t.toUpperCase();
+        if (!formulaFunctions[name]) throw Error('Unknown function: ' + t);
+        const args = [];
+        if (tokens[i] !== ')')
+          for (;;) {
+            args.push(expression(0, depth + 1));
+            if (tokens[i] !== ',') break;
+            i++;
+          }
+        if (tokens[i++] !== ')') throw Error('Close the bracket after ' + name + '.');
+        const [lo, hi] = formulaFunctions[name];
+        if (args.length < lo || args.length > hi)
+          throw Error(`${name} takes ${lo === hi ? lo : `${lo} to ${hi}`} value${hi === 1 ? '' : 's'}.`);
+        n = node(name, args);
+      } else {
+        if (!keyPattern.test(t)) throw Error(`Use lowercase letters, numbers and _ in names: ${t}`);
+        n = node('name', [t]);
+      }
+    } else throw Error('Unexpected "' + t + '" in the formula.');
+    while (i < tokens.length && priority[tokens[i]] !== undefined && priority[tokens[i]] >= min) {
+      const op = tokens[i++];
+      n = node(op, [n, expression(priority[op] + 1, depth + 1)]);
+    }
+    return n;
+  }
+  const tree = expression();
+  if (i !== tokens.length) throw Error('Check the formula near "' + tokens[i] + '".');
+  return tree;
+}
+function checkLiteral(t) {
+  if ((t.split('.')[1]?.length ?? 0) > 12) throw Error('Formula numbers allow up to 12 decimal places.');
+  if (t.replace('.', '').replace(/^0+/, '').length > 25 || Number(t) > 1e12)
+    throw Error('Formula number is too large.');
+}
+/** Names a formula refers to, in order of first use. */
+export function formulaNames(tree, out = []) {
+  if (tree.op === 'name') {
+    if (!out.includes(tree.args[0])) out.push(tree.args[0]);
+  } else if (tree.op !== 'number') for (const a of tree.args) formulaNames(a, out);
+  return out;
+}
+/** Formula text from a tree (used to compare a generated formula with its method). */
+export function formulaText(n) {
+  if (n.op === 'number') return n.args[0];
+  if (n.op === 'name') return n.args[0];
+  if (formulaFunctions[n.op]) return `${n.op}(${n.args.map(formulaText).join(', ')})`;
+  return `(${formulaText(n.args[0])} ${n.op} ${formulaText(n.args[1])})`;
+}
+
+// ---------------------------------------------------------------- exact decimals
+// A value is a fraction { n, d } of BigInts with d > 0.
+const S = 1000000000000n; // 12 decimal places
+const LIMIT = 1000000000000n;
+export function decimal(value) {
   if (value && typeof value === 'object' && 'n' in value) return value;
-  const [coefficient, exponent = '0'] = String(value).toLowerCase().split('e');
-  const [whole, fraction = ''] = coefficient.split('.');
+  const text = String(value).trim().toLowerCase();
+  if (!/^-?\d+(\.\d+)?(e[-+]?\d+)?$/.test(text)) throw Error('Enter a valid number.');
+  const [coefficient, exponent = '0'] = text.split('e');
+  const negative = coefficient.startsWith('-');
+  const [whole, fraction = ''] = coefficient.replace('-', '').split('.');
   let n = BigInt(whole + fraction),
     d = 10n ** BigInt(fraction.length);
   const e = Number(exponent);
+  if (Math.abs(e) > 30) throw Error('Number is outside the supported range.');
   if (e >= 0) n *= 10n ** BigInt(e);
   else d *= 10n ** BigInt(-e);
-  return { n, d };
+  return { n: negative ? -n : n, d };
+}
+const floorDiv = (n, d) => (n >= 0n ? n / d : -((-n + d - 1n) / d));
+/** Round half up (towards +∞ at exactly .5) to 12 places, as the server does. */
+const round12 = (r) => ({ n: floorDiv(2n * r.n * S + r.d, 2n * r.d), d: S });
+const add = (a, b) => ({ n: a.n * b.d + b.n * a.d, d: a.d * b.d });
+const sub = (a, b) => ({ n: a.n * b.d - b.n * a.d, d: a.d * b.d });
+const mul = (a, b) => ({ n: a.n * b.n, d: a.d * b.d });
+function div(a, b) {
+  if (!b.n) throw Error('A formula divides by zero.');
+  const r = { n: a.n * b.d, d: a.d * b.n };
+  return r.d < 0n ? { n: -r.n, d: -r.d } : r;
+}
+const cmp = (a, b) => {
+  const x = a.n * b.d - b.n * a.d;
+  return x > 0n ? 1 : x < 0n ? -1 : 0;
 };
-const floorDivide = (n, d) => (n >= 0n ? n / d : -((-n + d - 1n) / d));
-const rounded = (r, s) => floorDivide(2n * r.n * s + r.d, 2n * r.d);
-function exactFormula(expression, resolve, depth = 0) {
-  if (depth > 80) throw Error('Formula is too complex.');
-  const { op, args } = expression;
+const isZero = (a) => a.n === 0n;
+const ceilFrac = (a) => ({ n: -floorDiv(-a.n, a.d), d: 1n });
+// Rounding steps ignore leftovers below 9 decimal places, so 2/3*3 rounds up to 2, not 3.
+const G = 1000000000n;
+const snap = (r) => ({ n: floorDiv(2n * r.n * G + r.d, 2n * r.d), d: G });
+/** CEILING/FLOOR of x to a positive step. */
+const toStep = (x, step, up) => {
+  const q = snap(div(x, step));
+  return mul(up ? ceilFrac(q) : floorFrac(q), step);
+};
+const floorFrac = (a) => ({ n: floorDiv(a.n, a.d), d: 1n });
+const absFrac = (a) => (a.n < 0n ? { n: -a.n, d: a.d } : a);
+const pow10 = (k) => (k >= 0 ? { n: 10n ** BigInt(k), d: 1n } : { n: 1n, d: 10n ** BigInt(-k) });
+const ZERO = { n: 0n, d: 1n },
+  ONE = { n: 1n, d: 1n },
+  HUNDRED = { n: 100n, d: 1n };
+function inRange(r) {
+  if (r.n > LIMIT * r.d || r.n < -LIMIT * r.d) throw Error('Calculation exceeds supported limits.');
+  return r;
+}
+/** Shortest exact text of a 12-place value: "10.5", "0", "-3.25". */
+export function canonical(value) {
+  const r = round12(decimal(value));
+  const negative = r.n < 0n;
+  const abs = negative ? -r.n : r.n;
+  const whole = abs / S,
+    fraction = (abs % S).toString().padStart(12, '0').replace(/0+$/, '');
+  if (!whole && !fraction) return '0';
+  return (negative ? '-' : '') + whole.toString() + (fraction ? '.' + fraction : '');
+}
+export const toNumber = (value) => {
+  const r = decimal(value);
+  return Number(r.n) / Number(r.d);
+};
+
+/** Evaluate a tree. `resolve(name)` returns a decimal. Results are rounded to 12 places. */
+export function evaluate(tree, resolve, depth = 0) {
+  if (depth > 64) throw Error('Formula is too complex.');
+  const { op, args } = tree;
   if (op === 'number') return decimal(args[0]);
-  if (op === 'variable') return decimal(resolve(args[0]));
-  const v = args.map((a) => exactFormula(a, resolve, depth + 1));
-  const a = v[0],
-    b = v[1];
-  let result;
+  if (op === 'name') return decimal(resolve(args[0]));
+  const ev = (n) => evaluate(n, resolve, depth + 1);
+  let r;
+  if (op === 'IF') return ev(args[isZero(ev(args[0])) ? 2 : 1]);
+  const v = args.map(ev);
   switch (op) {
     case '+':
-      result = { n: a.n * b.d + b.n * a.d, d: a.d * b.d };
+      r = add(v[0], v[1]);
       break;
     case '-':
-      result = { n: a.n * b.d - b.n * a.d, d: a.d * b.d };
+      r = sub(v[0], v[1]);
       break;
     case '*':
-      result = { n: a.n * b.n, d: a.d * b.d };
+      r = mul(v[0], v[1]);
       break;
     case '/':
-      if (!b.n) throw Error('A formula divides by zero.');
-      result = { n: a.n * b.d, d: a.d * b.n };
-      if (result.d < 0n) {
-        result.n = -result.n;
-        result.d = -result.d;
-      }
+      r = div(v[0], v[1]);
       break;
-    case 'ceil':
-      result = { n: -floorDivide(-a.n, a.d), d: 1n };
+    case '>':
+    case '<':
+    case '>=':
+    case '<=':
+    case '==':
+    case '!=': {
+      const c = cmp(snap(v[0]), snap(v[1]));
+      const yes = { '>': c > 0, '<': c < 0, '>=': c >= 0, '<=': c <= 0, '==': c === 0, '!=': c !== 0 }[op];
+      r = yes ? ONE : ZERO;
       break;
-    case 'floor':
-      result = { n: floorDivide(a.n, a.d), d: 1n };
+    }
+    case 'CEILING':
+    case 'FLOOR': {
+      const step = v[1] ?? ONE;
+      if (cmp(step, ZERO) <= 0) throw Error(op + ': the rounding step must be more than zero.');
+      r = toStep(v[0], step, op === 'CEILING');
       break;
-    case 'round':
-      result = { n: rounded(a, 1n), d: 1n };
+    }
+    case 'ROUND':
+    case 'ROUNDUP': {
+      const places = v[1];
+      if (places.d !== 1n && places.n % places.d !== 0n)
+        throw Error(op + ': decimal places must be a whole number.');
+      const k = Number(places.n / places.d);
+      if (k < -6 || k > 6) throw Error(op + ': decimal places must be from -6 to 6.');
+      const scaled = snap(mul(absFrac(v[0]), pow10(k)));
+      const whole = op === 'ROUND' ? floorFrac(add(scaled, { n: 1n, d: 2n })) : ceilFrac(scaled);
+      r = div(whole, pow10(k));
+      if (v[0].n < 0n) r = { n: -r.n, d: r.d };
       break;
-    case 'min':
-      result = a.n * b.d <= b.n * a.d ? a : b;
+    }
+    case 'SUM':
+      r = v.reduce(add, ZERO);
       break;
-    case 'max':
-      result = a.n * b.d >= b.n * a.d ? a : b;
+    case 'ABS':
+      r = absFrac(v[0]);
+      break;
+    case 'MIN':
+      r = v.reduce((a, b) => (cmp(b, a) < 0 ? b : a));
+      break;
+    case 'MAX':
+      r = v.reduce((a, b) => (cmp(b, a) > 0 ? b : a));
       break;
     default:
       throw Error('Unsupported formula.');
   }
-  if (result.n > 1000000000000n * result.d || result.n < -1000000000000n * result.d)
-    throw Error('Formula result is outside the supported range.');
-  return { n: rounded(result, scale), d: scale };
+  return inRange(round12(r));
 }
-export function evaluateFormula(expression, resolve) {
-  const r = exactFormula(expression, resolve);
-  return Number(r.n) / Number(r.d);
-}
-const formulaUnits = (expression, resolve) =>
-  Number(rounded(exactFormula(expression, resolve), 1000n)) / 1000;
 
-const numeric = (v, label, min = 0, max = 1000000) => {
-  if (
-    v === '' ||
-    v === null ||
-    typeof v === 'boolean' ||
-    !Number.isFinite(Number(v)) ||
-    Number(v) < min ||
-    Number(v) > max ||
-    Math.round(Number(v) * 1000) / 1000 !== Number(v)
-  )
-    throw Error(label + ' must be a number in range, with up to three decimal places.');
-  return Number(v);
-};
-const text = (v, label, max = 80) => {
-  if (typeof v !== 'string' || !v.trim() || v.length > max) throw Error('Enter ' + label + '.');
+// ---------------------------------------------------------------- expense methods (Costora)
+
+/** Read a standard method back from a formula without changing it; otherwise 'custom'. */
+export function expenseControls(source, variableKeys) {
+  const fallback = { method: 'custom', rate: '100', input: 'quantity', capacity: '25' };
+  const keys = new Set(variableKeys);
+  try {
+    const tree = parseFormula(source);
+    const factors = (n) => (n.op === '*' ? [...factors(n.args[0]), ...factors(n.args[1])] : [n]);
+    const render = (n) => formulaText(n).replace(/^\((.*)\)$/, '$1');
+    const parts = factors(tree);
+    const batch = parts.findIndex(
+      (n) =>
+        n.op === 'CEILING' &&
+        n.args.length === 1 &&
+        n.args[0].op === '/' &&
+        n.args[0].args[0].op === 'name' &&
+        n.args[0].args[0].args[0] === 'quantity',
+    );
+    if (batch >= 0)
+      return {
+        ...fallback,
+        method: 'batch',
+        capacity: render(parts[batch].args[0].args[1]),
+        rate:
+          parts
+            .filter((_, i) => i !== batch)
+            .map(render)
+            .join(' * ') || '1',
+      };
+    const q = parts.findIndex((n) => n.op === 'name' && n.args[0] === 'quantity');
+    const v = parts.findIndex((n) => n.op === 'name' && n.args[0] !== 'quantity' && keys.has(n.args[0]));
+    if (q >= 0 && v >= 0)
+      return {
+        ...fallback,
+        method: 'perInput',
+        input: parts[v].args[0],
+        rate:
+          parts
+            .filter((_, i) => i !== q && i !== v)
+            .map(render)
+            .join(' * ') || '1',
+      };
+    if (q >= 0 && parts.length > 1)
+      return {
+        ...fallback,
+        method: 'perItem',
+        rate: parts
+          .filter((_, i) => i !== q)
+          .map(render)
+          .join(' * '),
+      };
+    if (v >= 0 && parts.length > 1)
+      return {
+        ...fallback,
+        method: 'orderInput',
+        input: parts[v].args[0],
+        rate: parts
+          .filter((_, i) => i !== v)
+          .map(render)
+          .join(' * '),
+      };
+    if (!formulaNames(tree).some((name) => keys.has(name) || name === 'quantity'))
+      return { ...fallback, method: 'fixed', rate: source.trim() };
+  } catch {
+    /* fall through */
+  }
+  return fallback;
+}
+/** The formula a standard method stands for. */
+export function formulaFromControls(c) {
+  if (c.method === 'custom') throw Error('Custom formulas are edited directly.');
+  if (c.method === 'fixed') return c.rate;
+  if (c.method === 'perItem') return `quantity * (${c.rate})`;
+  if (c.method === 'perInput') {
+    if (!c.input || c.input === 'quantity') throw Error('Choose a variable other than quantity.');
+    return `quantity * ${c.input} * (${c.rate})`;
+  }
+  if (c.method === 'orderInput') return `${c.input} * (${c.rate})`;
+  return `CEILING(quantity / (${c.capacity})) * (${c.rate})`;
+}
+
+// ---------------------------------------------------------------- validation
+
+const plain = (v, label, max) => {
+  if (typeof v !== 'string' || v.trim().length > max || /[\x00-\x1f\x7f]/.test(v))
+    throw Error(`${label} must be up to ${max} characters.`);
   return v.trim();
 };
+const required = (v, label, max) => {
+  const t = plain(v ?? '', label, max);
+  if (!t) throw Error('Enter ' + label.toLowerCase() + '.');
+  return t;
+};
+/** A variable value: 0 to 1,000,000,000 with up to 6 decimal places. */
+const amountOf = (v, label) => {
+  const n = typeof v === 'string' && v.trim() !== '' ? Number(v) : v;
+  if (typeof n !== 'number' || !Number.isFinite(n) || n < 0 || n > 1e9 || Math.round(n * 1e6) / 1e6 !== n)
+    throw Error(`${label} must be a number from 0 to 1,000,000,000 with up to 6 decimal places.`);
+  return n;
+};
+const percent = (v, label, max) => {
+  const n = typeof v === 'string' && v.trim() !== '' ? Number(v) : v;
+  if (typeof n !== 'number' || !Number.isFinite(n) || n < 0 || n > max || Math.round(n * 100) / 100 !== n)
+    throw Error(`${label} must be from 0 to ${max}, with up to 2 decimal places.`);
+  return n;
+};
+
+/** Structural checks for one template (no service costs needed). Returns the canonical template. */
+export function validateTemplate(t) {
+  if (!t || typeof t !== 'object') throw Error('Invalid template.');
+  if (
+    !uuid.test(t.id) ||
+    !Number.isSafeInteger(t.version) ||
+    t.version < 1 ||
+    typeof t.archived !== 'boolean'
+  )
+    throw Error('Invalid template identity or version.');
+  const name = required(t.name, 'A template name', 100);
+  const category = plain(t.category ?? '', 'Category', 50);
+  const description = plain(t.description ?? '', 'Description', 200);
+  if (!Array.isArray(t.variables) || t.variables.length < 1 || t.variables.length > 30)
+    throw Error('Use 1 to 30 editable variables.');
+  if (!Array.isArray(t.computed) || t.computed.length > 100)
+    throw Error('Use at most 100 computed variables.');
+  if (!Array.isArray(t.expenses) || t.expenses.length < 1 || t.expenses.length > 100)
+    throw Error('Add 1 to 100 expenses.');
+  const names = new Set();
+  const claim = (key, what) => {
+    if (typeof key !== 'string' || !keyPattern.test(key))
+      throw Error(`${what}: use a name of lowercase letters, numbers and _ (starting with a letter).`);
+    if (reservedNames.has(key)) throw Error(`${what}: "${key}" is a formula function name.`);
+    if (names.has(key)) throw Error(`The name "${key}" is used twice in this template.`);
+    names.add(key);
+    return key;
+  };
+  const variables = t.variables.map((v) => {
+    const label = required(v.label, 'A variable label', 80);
+    const key = claim(v.key, label);
+    if (!variableKinds.includes(v.kind)) throw Error(label + ': choose a variable type.');
+    if (key === 'quantity' && v.kind !== 'number') throw Error('Quantity must stay a number.');
+    const unit = plain(v.unit ?? '', label + ' unit', 40);
+    const clientVisible = v.clientVisible !== false;
+    let integer = !!v.integer,
+      options = [],
+      min,
+      max;
+    if (v.kind === 'yesno') {
+      min = 0;
+      max = 1;
+      integer = true;
+    } else if (v.kind === 'number') {
+      min = amountOf(v.min, label + ' minimum');
+      max = amountOf(v.max, label + ' maximum');
+      if (max < min) throw Error(label + ': the maximum must be at least the minimum.');
+    } else {
+      if (!Array.isArray(v.options) || !v.options.length || v.options.length > 100)
+        throw Error(label + ': add 1 to 100 options.');
+      const seen = new Set(),
+        services = new Set();
+      options = v.options.map((o) => {
+        const value = amountOf(o.value, label + ' option value');
+        if (seen.has(value)) throw Error(label + ': each option needs its own value.');
+        seen.add(value);
+        const option = { value, label: required(o.label, label + ' option label', 80) };
+        if (v.kind === 'material') {
+          if (!uuid.test(o.serviceId ?? '') || services.has(o.serviceId))
+            throw Error(label + ': choose a different costed item for each option.');
+          if (!Number.isInteger(value) || value < 1)
+            throw Error(label + ': option values must be whole numbers.');
+          services.add(o.serviceId);
+          option.serviceId = o.serviceId;
+        }
+        return option;
+      });
+      if (v.kind === 'material') integer = true;
+      if (integer && options.some((o) => !Number.isInteger(o.value)))
+        throw Error(label + ': whole numbers only, so option values must be whole.');
+      min = Math.min(...options.map((o) => o.value));
+      max = Math.max(...options.map((o) => o.value));
+    }
+    const value = amountOf(v.default, label + ' default');
+    if (value < min || value > max || (integer && !Number.isInteger(value)))
+      throw Error(`${label}: the default must be ${integer ? 'a whole number ' : ''}from ${min} to ${max}.`);
+    if (v.kind === 'options' || v.kind === 'material')
+      if (!options.some((o) => o.value === value))
+        throw Error(label + ': the default must be one of the options.');
+    if (key === 'quantity' && (min <= 0 || max > 1000000))
+      throw Error('Quantity must be more than 0 and at most 1,000,000.');
+    const out = { key, label, kind: v.kind, unit, default: value, min, max, integer, clientVisible };
+    if (options.length) out.options = options;
+    return out;
+  });
+  if (!variables.some((v) => v.key === 'quantity')) throw Error('Keep the quantity variable.');
+  for (const v of variables) if (v.kind === 'material') claim(v.key + '_rate', v.label + ' rate');
+  const materialKeys = variables.filter((v) => v.kind === 'material').map((v) => v.key);
+  const computed = t.computed.map((c) => {
+    const label = required(c.label, 'A computed variable name', 80);
+    const key = claim(c.key, label);
+    const unit = required(c.unit, label + ' unit', 40);
+    const formula = required(c.formula, label + ' formula', 1500);
+    let expression;
+    try {
+      expression = parseFormula(formula);
+    } catch (cause) {
+      throw Error(`${label}: ${cause.message}`);
+    }
+    const out = { key, label, unit, formula, expression, stock: null };
+    if (c.stock) {
+      if (c.stock.variable !== undefined) {
+        if (!materialKeys.includes(c.stock.variable))
+          throw Error(label + ': choose a material selection variable to take stock from.');
+        out.stock = { variable: c.stock.variable };
+      } else if (uuid.test(c.stock.serviceId ?? '')) out.stock = { serviceId: c.stock.serviceId };
+      else throw Error(label + ': choose where its stock comes from.');
+    }
+    return out;
+  });
+  const expenses = t.expenses.map((e) => {
+    const label = required(e.label, 'An expense name', 80);
+    const key = claim(e.key, label);
+    const formula = required(e.formula, label + ' formula', 1500);
+    let expression;
+    try {
+      expression = parseFormula(formula);
+    } catch (cause) {
+      throw Error(`${label}: ${cause.message}`);
+    }
+    const out = { key, label, formula, expression };
+    if (e.calculation) {
+      const c = e.calculation;
+      if (!expenseMethods.includes(c.method)) throw Error(label + ': choose a calculation method.');
+      const calculation = {
+        method: c.method,
+        rate: plain(String(c.rate ?? ''), label + ' rate', 200),
+        input: plain(String(c.input ?? ''), label + ' variable', 40),
+        capacity: plain(String(c.capacity ?? ''), label + ' batch size', 40),
+      };
+      if (
+        c.method !== 'custom' &&
+        formulaText(parseFormula(formulaFromControls(calculation))) !== formulaText(expression)
+      )
+        throw Error(label + ': the formula does not match its calculation method.');
+      out.calculation = calculation;
+    }
+    return out;
+  });
+  // Every name must be defined here or be a service cost; template formulas must not loop.
+  const formulas = new Map([...computed, ...expenses].map((x) => [x.key, x]));
+  const state = new Map();
+  const walk = (key, path) => {
+    if (state.get(key) === 'done') return;
+    if (state.get(key) === 'active') throw Error('Circular calculation: ' + [...path, key].join(' → '));
+    state.set(key, 'active');
+    for (const name of formulaNames(formulas.get(key).expression))
+      if (formulas.has(name)) walk(name, [...path, key]);
+    state.set(key, 'done');
+  };
+  for (const key of formulas.keys()) walk(key, []);
+  const p = t.pricing ?? {};
+  if (!['markup', 'margin'].includes(p.method)) throw Error('Choose markup or margin.');
+  const rate = percent(p.rate, 'Profit rate', p.method === 'margin' ? 99.99 : 1000);
+  const floor = percent(p.floor, 'Minimum profit rate', rate);
+  const maxDiscount = percent(p.maxDiscount, 'Maximum discount', 100);
+  const rounding = Number(p.rounding);
+  if (
+    !Number.isFinite(rounding) ||
+    rounding < 0.01 ||
+    rounding > 100000 ||
+    Math.round(rounding * 100) / 100 !== rounding
+  )
+    throw Error('Round prices to at least ₦0.01, with up to 2 decimal places.');
+  return {
+    id: t.id,
+    name,
+    category,
+    description,
+    version: t.version,
+    archived: t.archived,
+    variables,
+    computed,
+    expenses,
+    pricing: { method: p.method, rate, floor, maxDiscount, rounding },
+  };
+}
 export function validatePricingSettings(input = pricingDefaults()) {
   if (
     !input ||
@@ -161,259 +557,422 @@ export function validatePricingSettings(input = pricingDefaults()) {
     input.templates.length > 30
   )
     throw Error('Pricing needs a switch and at most 30 templates.');
-  const ids = new Set();
+  const ids = new Set(),
+    names = new Set();
   const templates = input.templates.map((t) => {
-    if (
-      !uuid.test(t.id) ||
-      ids.has(t.id) ||
-      !Number.isSafeInteger(t.version) ||
-      t.version < 1 ||
-      typeof t.archived !== 'boolean'
-    )
-      throw Error('Invalid template identity or version.');
-    ids.add(t.id);
-    if (
-      !Array.isArray(t.inputs) ||
-      t.inputs.length > 20 ||
-      !Array.isArray(t.derived) ||
-      t.derived.length > 20 ||
-      !Array.isArray(t.components) ||
-      t.components.length < 1 ||
-      t.components.length > 20
-    )
-      throw Error('Use at most 20 inputs, calculations and components. Add at least one component.');
-    const keys = new Set(['quantity']);
-    const named = (key) => {
-      if (!keyPattern.test(key) || keys.has(key) || Object.hasOwn(functions, key))
-        throw Error('Use a unique variable name; quantity is reserved.');
-      keys.add(key);
-      return key;
-    };
-    const inputs = t.inputs.map((i) => {
-      const key = named(i.key),
-        label = text(i.label, 'an input label');
-      const min = numeric(i.min, label + ' minimum'),
-        max = numeric(i.max, label + ' maximum', min);
-      const value = numeric(i.default, label + ' default', min, max);
-      if (!['number', 'choice'].includes(i.kind)) throw Error('Choose number or options for each input.');
-      const options =
-        i.kind === 'choice'
-          ? (i.options ?? []).map((o) => ({
-              label: text(o.label, 'an option label'),
-              value: numeric(o.value, label, min, max),
-            }))
-          : [];
-      if (
-        i.kind === 'choice' &&
-        (!options.length ||
-          options.length > 20 ||
-          !options.some((o) => o.value === value) ||
-          new Set(options.map((o) => o.value)).size !== options.length)
-      )
-        throw Error('Add unique numeric options and choose one as the default.');
-      return { key, label, kind: i.kind, min, max, default: value, options };
-    });
-    const derived = t.derived.map((d) => ({
-      key: named(d.key),
-      label: text(d.label, 'a calculation label'),
-      formula: d.formula,
-      expression: parseFormula(d.formula),
-    }));
-    const componentIds = new Set();
-    const components = t.components.map((c) => {
-      if (!uuid.test(c.id) || componentIds.has(c.id) || !uuid.test(c.serviceId))
-        throw Error('Choose an item or service for every component.');
-      componentIds.add(c.id);
-      const out = {
-        id: c.id,
-        label: text(c.label, 'a component label'),
-        serviceId: c.serviceId,
-        quantityFormula: c.quantityFormula,
-        quantityExpression: parseFormula(c.quantityFormula),
-      };
-      for (const dimension of ['width', 'height'])
-        if (c[dimension + 'Formula']) {
-          out[dimension + 'Formula'] = c[dimension + 'Formula'];
-          out[dimension + 'Expression'] = parseFormula(c[dimension + 'Formula']);
-        }
-      return out;
-    });
-    const check = (n) => {
-      if (n.op === 'variable' && !keys.has(n.args[0])) throw Error('Unknown variable: ' + n.args[0]);
-      if (!['number', 'variable'].includes(n.op)) n.args.forEach(check);
-    };
-    derived.forEach((d) => check(d.expression));
-    components.forEach((c) => {
-      check(c.quantityExpression);
-      if (c.widthExpression) check(c.widthExpression);
-      if (c.heightExpression) check(c.heightExpression);
-    });
-    const template = {
-      id: t.id,
-      name: text(t.name, 'a template name', 160),
-      version: t.version,
-      archived: t.archived,
-      inputs,
-      derived,
-      components,
-    };
-    templateValues(template, {}, 1); // Resolve every derived variable to detect cycles/default division by zero.
-    return template;
+    const out = validateTemplate(t);
+    if (ids.has(out.id)) throw Error('Invalid template identity or version.');
+    if (!out.archived && names.has(out.name.toLowerCase()))
+      throw Error('Use a different name for each template.');
+    ids.add(out.id);
+    if (!out.archived) names.add(out.name.toLowerCase());
+    return out;
   });
   return { enabled: input.enabled, templates };
 }
-export function templateValues(template, supplied, quantity) {
-  const values = Object.create(null),
-    visiting = new Set();
-  values.quantity = numeric(quantity, 'Quantity', 0.001);
-  const inputs = {};
-  for (const i of template.inputs) {
-    const value = numeric(supplied?.[i.key] ?? i.default, i.label, i.min, i.max);
-    if (i.kind === 'choice' && !i.options.some((o) => o.value === value))
-      throw Error('Choose a valid ' + i.label + '.');
-    values[i.key] = inputs[i.key] = value;
-  }
-  if (Object.keys(supplied ?? {}).some((key) => !template.inputs.some((i) => i.key === key)))
-    throw Error('Template inputs changed. Review the job.');
-  const resolve = (key) => {
-    if (Object.hasOwn(values, key)) return values[key];
-    const d = template.derived.find((d) => d.key === key);
-    if (!d) throw Error('Unknown variable: ' + key);
-    if (visiting.has(key)) throw Error('Circular calculation: ' + key);
-    visiting.add(key);
-    values[key] = exactFormula(d.expression, resolve);
-    visiting.delete(key);
-    return values[key];
-  };
-  template.derived.forEach((d) => resolve(d.key));
-  return { inputs, values, resolve };
+
+// ---------------------------------------------------------------- service costs
+
+const costKeyFrom = (text) =>
+  text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^[^a-z]+|_+$/g, '')
+    .slice(0, 40)
+    .replace(/_+$/, '') || 'cost';
+/** A unique formula name for a service, e.g. "Art card 300gsm" → art_card_300gsm. */
+export function suggestCostKey(description, services, ownId) {
+  const base = costKeyFrom(description);
+  const taken = new Set(
+    services.filter((s) => s.id !== ownId && !s.archived && s.costing).map((s) => s.costing.key),
+  );
+  let key = reservedNames.has(base) || base === 'quantity' ? base + '_cost' : base,
+    n = 2;
+  while (taken.has(key)) key = `${base.slice(0, 36)}_${n++}`;
+  return key;
 }
-/** Template components price through the normal service rules, including size and materialless items. */
-export function quoteTemplate(ledger, line, quoteService) {
+/** A service's template cost as entered: none, or { key, amount (kobo), per, unit }. */
+export function validCosting(input) {
+  if (input === undefined || input === null) return null;
+  if (typeof input !== 'object') throw Error('Enter the template cost.');
+  const key = String(input.key ?? '').trim();
+  if (!keyPattern.test(key) || reservedNames.has(key) || key === 'quantity')
+    throw Error('Formula name: use lowercase letters, numbers and _ (not quantity or a function name).');
+  if (!Number.isSafeInteger(input.amount) || input.amount < 0 || input.amount > 100000000000)
+    throw Error('Enter the cost, with at most two decimal places.');
+  const per = Number(input.per);
+  if (!Number.isFinite(per) || per <= 0 || per > 1000000 || Math.round(per * 1000) / 1000 !== per)
+    throw Error('Units per cost must be more than 0, with up to 3 decimal places.');
+  const unit = plain(String(input.unit ?? ''), 'Bought as', 40);
+  return { key, amount: input.amount, per, ...(unit ? { unit } : {}) };
+}
+/** Naira cost of one consumption unit (12 places). */
+export const costRate = (costing) =>
+  round12(div({ n: BigInt(costing.amount), d: 100n }, decimal(costing.per)));
+/** The unit a service is consumed in: its material's unit, or 'item'. */
+export const consumptionUnit = (service, materials) =>
+  materials.find((m) => m.id === service.materialId)?.measurementUnit ?? 'item';
+
+// ---------------------------------------------------------------- pricing
+
+const stockCountOf = (ledger, materialId) =>
+  ledger.materialHistory
+    ?.filter((h) => h.materialId === materialId && h.action === 'material.stock_set')
+    .sort((a, b) => Date.parse(b.changedAt) - Date.parse(a.changedAt) || b.id.localeCompare(a.id))[0]?.id ??
+  null;
+
+/** Check and convert entered values (numbers or text) for every variable. */
+export function templateInputs(template, supplied, quantity) {
+  /** @type {Record<string, number>} */
+  const inputs = {};
+  if (
+    Object.keys(supplied ?? {}).some(
+      (key) => key === 'quantity' || !template.variables.some((v) => v.key === key),
+    )
+  )
+    throw Error('Template variables changed. Review the line.');
+  for (const v of template.variables) {
+    const raw = v.key === 'quantity' ? quantity : (supplied?.[v.key] ?? v.default);
+    const range = `${v.label}: enter ${v.integer ? 'a whole number' : 'a number'} from ${v.min} to ${v.max}.`;
+    if (raw === '' || raw === null || raw === undefined)
+      throw new FieldError(`${v.label} is required.`, v.key);
+    let n;
+    try {
+      n = amountOf(raw, v.label);
+    } catch {
+      throw new FieldError(range, v.key);
+    }
+    if (n < v.min || n > v.max || (v.integer && !Number.isInteger(n))) throw new FieldError(range, v.key);
+    if (v.options && !v.options.some((o) => o.value === n))
+      throw new FieldError(`${v.label}: choose one of the options.`, v.key);
+    if (v.key === 'quantity' && Math.round(n * 1000) / 1000 !== n)
+      throw new FieldError('Quantity allows up to three decimal places.', v.key);
+    if (v.key !== 'quantity') inputs[v.key] = n;
+  }
+  return inputs;
+}
+
+/**
+ * Price a template. Returns the job's snapshot: { template, inputs, references, outputs, expenses,
+ * price: { cost, raw, amount (kobo), minimum (kobo) }, stock }. Decimal values are exact text.
+ */
+export function priceTemplate(ledger, template, supplied, quantity, stockIds = {}) {
+  const inputs = templateInputs(template, supplied, quantity);
+  const values = new Map([['quantity', decimal(quantity)]]);
+  for (const [k, n] of Object.entries(inputs)) values.set(k, decimal(n));
+  const costed = new Map(
+    ledger.services.filter((s) => !s.archived && s.costing).map((s) => [s.costing.key, s]),
+  );
+  const used = new Map();
+  const reference = (service) => {
+    if (!used.has(service.costing.key))
+      used.set(service.costing.key, {
+        serviceId: service.id,
+        key: service.costing.key,
+        name: service.description,
+        version: service.version,
+        amount: service.costing.amount,
+        per: service.costing.per,
+        ...(service.costing.unit ? { purchaseUnit: service.costing.unit } : {}),
+        unit: consumptionUnit(service, ledger.materials),
+        rate: canonical(costRate(service.costing)),
+      });
+    return used.get(service.costing.key);
+  };
+  const selected = new Map();
+  for (const v of template.variables)
+    if (v.kind === 'material') {
+      const option = v.options.find((o) => o.value === inputs[v.key]);
+      const service = ledger.services.find((s) => s.id === option.serviceId && !s.archived && s.costing);
+      if (!service)
+        throw new FieldError(
+          `${v.label}: ${option.label} is no longer available. Review the template.`,
+          v.key,
+        );
+      selected.set(v.key, service);
+      values.set(v.key + '_rate', decimal(reference(service).rate));
+    }
+  const formulas = new Map([...template.computed, ...template.expenses].map((x) => [x.key, x]));
+  // Every cost a formula names is looked up first (the server does the same), even in unused IF branches.
+  for (const f of formulas.values())
+    for (const name of formulaNames(f.expression)) {
+      if (values.has(name) || formulas.has(name)) continue;
+      const service = costed.get(name);
+      if (!service) throw Error(`Unknown value "${name}". Check the template or the cost on its item.`);
+      values.set(name, decimal(reference(service).rate));
+    }
+  const active = new Set();
+  const resolve = (name) => {
+    if (values.has(name)) return values.get(name);
+    const f = formulas.get(name);
+    if (f) {
+      if (active.has(name)) throw Error('Circular calculation: ' + name);
+      active.add(name);
+      const x = evaluate(f.expression, resolve);
+      active.delete(name);
+      values.set(name, x);
+      return x;
+    }
+    throw Error(`Unknown value "${name}".`);
+  };
+  const outputs = template.computed.map((c) => {
+    const x = resolve(c.key);
+    if (x.n < 0n) throw Error(c.label + ' cannot be negative.');
+    return { key: c.key, label: c.label, unit: c.unit, value: canonical(x) };
+  });
+  const expenses = template.expenses.map((e) => {
+    const x = resolve(e.key);
+    if (x.n < 0n) throw Error(e.label + ' cannot be negative. Use a discount instead.');
+    return { key: e.key, label: e.label, amount: canonical(x) };
+  });
+  const cost = template.expenses.reduce((sum, e) => add(sum, values.get(e.key)), ZERO);
+  const p = template.pricing;
+  const r = div(decimal(p.rate), HUNDRED),
+    f = div(decimal(p.floor), HUNDRED);
+  const markup = p.method === 'markup';
+  const raw = round12(markup ? mul(cost, add(ONE, r)) : div(cost, sub(ONE, r)));
+  const minimum = round12(markup ? mul(cost, add(ONE, f)) : div(cost, sub(ONE, f)));
+  const step = decimal(p.rounding);
+  const kobo = mul(toStep(raw, step, true), HUNDRED);
+  const amount = Number(kobo.n / kobo.d);
+  const minimumKobo = Number(toStep(mul(minimum, HUNDRED), ONE, true).n);
+  if (amount > 100000000000) throw Error('Template price exceeds the supported range.');
+  // Computed variables linked to stock take their quantity out of a material at checkout.
+  const stock = [];
+  for (const c of template.computed) {
+    if (!c.stock) continue;
+    const service = c.stock.variable
+      ? selected.get(c.stock.variable)
+      : ledger.services.find((s) => s.id === c.stock.serviceId && !s.archived);
+    if (!service) throw Error(`${c.label}: its stock item is no longer available. Review the template.`);
+    if (service.materialId === null) continue;
+    const material = ledger.materials.find((m) => m.id === service.materialId && !m.archived);
+    if (!material) throw Error(`${c.label}: the material for ${service.description} is unavailable.`);
+    const x = values.get(c.key);
+    const needed = Number(floorDiv(2n * x.n * 1000n + x.d, 2n * x.d)) / 1000;
+    if (needed === 0) continue;
+    const entry = stock.find((s) => s.materialId === material.id);
+    if (entry) entry.quantity = Math.round((entry.quantity + needed) * 1000) / 1000;
+    else {
+      const stockEventId = stockIds[material.id] ?? crypto.randomUUID();
+      if (!uuid.test(stockEventId)) throw Error('Invalid stock identity.');
+      stock.push({
+        materialId: material.id,
+        serviceId: service.id,
+        name: material.name,
+        unit: material.measurementUnit,
+        quantity: needed,
+        stockEventId,
+        stockCountEventId: stockCountOf(ledger, material.id),
+      });
+    }
+  }
+  if (stock.some((s) => s.quantity > 1000000000000))
+    throw Error('Material usage is outside the supported range.');
+  return {
+    template,
+    inputs,
+    references: [...used.values()].sort((a, b) => (a.key < b.key ? -1 : 1)),
+    outputs,
+    expenses,
+    price: { cost: canonical(cost), raw: canonical(raw), amount, minimum: minimumKobo },
+    stock,
+  };
+}
+
+/** Find an active template for a line, or the snapshot's own template when replaying history. */
+function lineTemplate(ledger, line) {
   const pricing = ledger.pricing;
   const raw = pricing
     ? pricing.templates.find((t) => t.id === line.serviceId && !t.archived)
     : line.templateSnapshot?.template;
   if (!raw || (pricing && !pricing.enabled))
-    throw Error('This pricing template is unavailable. Review the job.');
-  const template = validatePricingSettings({ enabled: true, templates: [raw] }).templates[0];
-  const { inputs, resolve } = templateValues(
+    throw Error('This pricing template is unavailable. Review the line.');
+  return validateTemplate(raw);
+}
+/** Template line fields for checkout and quotations. */
+export function quoteTemplate(ledger, line) {
+  const template = lineTemplate(ledger, line);
+  const stockIds =
+    line.templateStockIds ??
+    Object.fromEntries((line.templateSnapshot?.stock ?? []).map((s) => [s.materialId, s.stockEventId]));
+  const snapshot = priceTemplate(
+    ledger,
     template,
     line.templateInputs ?? line.templateSnapshot?.inputs ?? {},
     line.quantity,
+    stockIds,
   );
-  const components = template.components.map((c) => {
-    if (c.serviceId === template.id || ledger.pricing?.templates.some((t) => t.id === c.serviceId))
-      throw Error('Choose catalogue items or services as components; nested templates are not supported.');
-    const roundUnits = (expression, min = 0.001) => {
-      const n = formulaUnits(expression, resolve);
-      return numeric(n, c.label, min);
-    };
-    const quantity = roundUnits(c.quantityExpression, 0);
-    const q = quoteService(ledger, {
-      serviceId: c.serviceId,
-      description: c.label,
-      quantity: quantity || 1,
-      width: c.widthExpression ? roundUnits(c.widthExpression) : '',
-      height: c.heightExpression ? roundUnits(c.heightExpression) : '',
-      source: 'Template',
-      sourceNote: '',
-    });
-    if (quantity === 0) {
-      q.quantity = 0;
-      q.amount = 0;
-      q.materialNeeded = 0;
-    }
-    const stockEventId =
-      line.templateStockIds?.[c.id] ??
-      line.templateSnapshot?.components.find((s) => s.id === c.id)?.stockEventId ??
-      crypto.randomUUID();
-    if (!uuid.test(stockEventId)) throw Error('Invalid component stock identity.');
-    return {
-      id: c.id,
-      label: c.label,
-      stockEventId,
-      serviceId: c.serviceId,
-      service: q.service,
-      serviceVersion: q.serviceVersion,
-      unitPrice: q.unitPrice,
-      quantity: q.quantity,
-      width: q.width,
-      height: q.height,
-      amount: q.amount,
-      materialId: q.materialId,
-      materialNeeded: q.materialNeeded,
-      requireSize: q.requireSize,
-      measurementUnit: q.measurementUnit,
-      stockCountEventId: q.stockCountEventId,
-    };
-  });
-  const amount = components.reduce((n, c) => n + c.amount, 0);
-  if (!Number.isSafeInteger(amount) || amount > 100000000000)
-    throw Error('Template price exceeds the supported range.');
+  const amount = snapshot.price.amount;
   const qUnits = BigInt(Math.round(Number(line.quantity) * 1000));
-  const unitPrice = Number((BigInt(amount) * 1000n + qUnits / 2n) / qUnits);
-  if (unitPrice > 100000000000) throw Error('Template price per item exceeds the supported range.');
   return {
     amount,
     service: template.name,
     serviceVersion: template.version,
-    unitPrice,
+    unitPrice: Number((BigInt(amount) * 1000n + qUnits / 2n) / qUnits),
     materialId: null,
     materialNeeded: 0,
     requireSize: false,
     measurementUnit: 'item',
     width: null,
     height: null,
-    templateInputs: inputs,
-    templateSnapshot: { template, inputs, components },
+    templateInputs: snapshot.inputs,
+    templateSnapshot: snapshot,
   };
 }
-export const templateDefaults = (t) => Object.fromEntries(t.inputs.map((i) => [i.key, i.default]));
-export function bookTemplate() {
+/** The deepest discount (%) the minimum profit allows, rounded down to 2 places (Costora). */
+export function policyDiscountLimit(p) {
+  const rate = p.rate / 100,
+    floor = p.floor / 100;
+  if (floor >= rate) return 0;
+  const keep = p.method === 'markup' ? (1 + floor) / (1 + rate) : (1 - rate) / (1 - floor);
+  return Math.floor((1 - keep) * 10000 + 1e-9) / 100;
+}
+/** The discount staff can actually give: the lower of the maximum and the minimum-profit limit. */
+export const discountCeiling = (p) => Math.min(p.maxDiscount, policyDiscountLimit(p));
+/** After discounts: a template job may not go below its minimum price or past its maximum discount. */
+export function checkTemplateDiscount(job) {
+  const s = job.templateSnapshot;
+  if (!s) return;
+  const gross = s.price.amount;
+  const off = gross - job.amount;
+  if (off > Math.ceil((gross * s.template.pricing.maxDiscount) / 100))
+    throw Error(
+      `${job.description}: the most discount allowed on ${s.template.name} is ${s.template.pricing.maxDiscount}%.`,
+    );
+  if (job.amount < s.price.minimum)
+    throw Error(
+      `${job.description}: this discount takes ${s.template.name} below its minimum ${s.template.pricing.floor}% ${s.template.pricing.method}. Reduce the discount.`,
+    );
+}
+
+// ---------------------------------------------------------------- display helpers
+
+export const templateDefaults = (t) =>
+  Object.fromEntries(t.variables.filter((v) => v.key !== 'quantity').map((v) => [v.key, v.default]));
+/** How a variable's value reads: its option label, Yes/No, or the number with its unit. */
+export function valueLabel(v, value) {
+  if (!v) return String(value);
+  const n = Number(value);
+  const option = v.options?.find((o) => o.value === n);
+  if (option) return option.label;
+  if (v.kind === 'yesno') return n ? 'Yes' : 'No';
+  return `${n.toLocaleString('en-NG', { maximumFractionDigits: 6 })}${v.unit ? ' ' + v.unit : ''}`;
+}
+/** Customer-safe details: only variables marked to show on the client quote. Never costs. */
+export function clientSpecs(snapshot, quantity) {
+  return snapshot.template.variables
+    .filter((v) => v.clientVisible !== false)
+    .map((v) => ({
+      label: v.label,
+      value: valueLabel(v, v.key === 'quantity' ? quantity : snapshot.inputs[v.key]),
+    }));
+}
+/** A snapshot's value for a name (for showing formulas with their numbers). */
+export function snapshotValue(snapshot, quantity, name) {
+  if (name === 'quantity') return String(quantity);
+  if (name in snapshot.inputs) return String(snapshot.inputs[name]);
+  const found =
+    snapshot.outputs.find((o) => o.key === name)?.value ??
+    snapshot.expenses.find((e) => e.key === name)?.amount ??
+    snapshot.references.find((r) => r.key === name)?.rate;
+  if (found !== undefined) return found;
+  if (name.endsWith('_rate')) {
+    const v = snapshot.template.variables.find((x) => x.key === name.slice(0, -5) && x.kind === 'material');
+    const option = v?.options?.find((o) => o.value === snapshot.inputs[v.key]);
+    const ref = snapshot.references.find((r) => r.serviceId === option?.serviceId);
+    if (ref) return ref.rate;
+  }
+  return name;
+}
+export const explainFormula = (formula, valueOf) =>
+  formula.replace(/\b[a-z][a-z0-9_]*\b/g, (name) => valueOf(name));
+
+/** Every combination of the chosen values (at most 100), for comparing options. */
+export function scenarioInputs(template, base, vary) {
+  let count = 1;
+  const lists = Object.entries(vary).map(([key, items]) => {
+    if (!template.variables.some((v) => v.key === key)) throw Error('Choose a variable from this template.');
+    const unique = [
+      ...new Set(
+        items
+          .map((x) => String(x).trim())
+          .filter(Boolean)
+          .map((x) => canonical(x)),
+      ),
+    ];
+    if (!unique.length) throw Error('Enter at least one value for each option set.');
+    count *= unique.length;
+    if (count > 100) throw Error('Compare at most 100 combinations.');
+    return [key, unique];
+  });
+  return lists.reduce(
+    (rows, [key, items]) => rows.flatMap((row) => items.map((value) => ({ ...row, [key]: Number(value) }))),
+    [{ ...base }],
+  );
+}
+/** Group rows by a key, keeping the order they were asked for. */
+export function groupRows(rows, keyFor) {
+  if (!keyFor) return [{ key: '', rows }];
+  const groups = new Map();
+  for (const row of rows) {
+    const key = keyFor(row);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(row);
+  }
+  return [...groups].map(([key, rows]) => ({ key, rows }));
+}
+
+/** A blank template: quantity and one expense. */
+export function newTemplate() {
   return {
     id: crypto.randomUUID(),
     version: 1,
     archived: false,
-    name: 'Book',
-    inputs: [
+    name: '',
+    category: '',
+    description: '',
+    variables: [
       {
-        key: 'pages',
-        label: 'Pages per book',
+        key: 'quantity',
+        label: 'Quantity',
         kind: 'number',
-        min: 1,
-        max: 1000000,
-        default: 40,
-        options: [],
-      },
-      {
-        key: 'pagesPerSheet',
-        label: 'Pages per paper sheet (including both sides)',
-        kind: 'number',
-        min: 1,
-        max: 1000,
-        default: 4,
-        options: [],
-      },
-      {
-        key: 'coversPerCard',
-        label: 'Complete book covers per card',
-        kind: 'number',
-        min: 0.001,
-        max: 1000,
+        unit: 'items',
         default: 1,
-        options: [],
+        min: 1,
+        max: 100000,
+        integer: true,
+        clientVisible: true,
       },
     ],
-    derived: [
-      { key: 'cards', label: 'Cover cards', formula: 'ceil(quantity / coversPerCard)' },
-      { key: 'sheets', label: 'Inner paper sheets', formula: 'quantity * ceil(pages / pagesPerSheet)' },
+    computed: [],
+    expenses: [
+      {
+        key: 'expense_1',
+        label: 'Production',
+        formula: 'quantity * (100)',
+        calculation: { method: 'perItem', rate: '100', input: 'quantity', capacity: '25' },
+      },
     ],
-    components: [
-      { id: crypto.randomUUID(), label: 'Cover cards', serviceId: '', quantityFormula: 'cards' },
-      { id: crypto.randomUUID(), label: 'Cover printing', serviceId: '', quantityFormula: 'cards' },
-      { id: crypto.randomUUID(), label: 'Inner paper printing', serviceId: '', quantityFormula: 'sheets' },
-      { id: crypto.randomUUID(), label: 'Binding', serviceId: '', quantityFormula: 'quantity' },
-    ],
+    pricing: { method: 'markup', rate: 30, floor: 20, maxDiscount: 5, rounding: 100 },
   };
 }
+/** Warnings for a template against today's costs, by trying its default values. */
+export function templateProblem(ledger, template) {
+  try {
+    const t = validateTemplate(template);
+    const q = t.variables.find((v) => v.key === 'quantity').default;
+    priceTemplate(ledger, t, templateDefaults(t), q);
+    return '';
+  } catch (cause) {
+    return cause instanceof Error ? cause.message : 'This template cannot be priced.';
+  }
+}
+
+/** Receipt and quotation lines: the client-visible details other than quantity, e.g. "Inner paper: 80 gsm". */
+export const templateSpecLines = (job) =>
+  job?.templateSnapshot
+    ? job.templateSnapshot.template.variables
+        .filter((v) => v.clientVisible !== false && v.key !== 'quantity')
+        .map((v) => `${v.label}: ${valueLabel(v, job.templateSnapshot.inputs[v.key])}`)
+    : [];

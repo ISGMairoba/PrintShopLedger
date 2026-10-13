@@ -8,6 +8,7 @@ import { normalizeLedger } from './materials.mjs';
 import { receiptBusiness, validLogo } from './business-branding.mjs';
 import { currency, discountLines } from './receipts.mjs';
 import { renameTerms } from './terms.mjs';
+import { checkTemplateDiscount, templateSpecLines } from './pricing-templates.mjs';
 
 export const quotationRef = (id) => 'Q-' + String(id).replace(/-/g, '').slice(0, 8).toUpperCase();
 const lagosDay = (iso) => new Date(iso).toLocaleDateString('en-CA', { timeZone: 'Africa/Lagos' });
@@ -48,6 +49,7 @@ export function priceQuotation(ledger, lines, orderDiscount = null, policy = nul
     return quoteLine(ledger, { ...line, source: 'Quotation', sourceNote: '', dueAt: '' });
   });
   const priced = applyOrderDiscount(quoted, orderDiscount, policy);
+  for (const job of priced.jobs) checkTemplateDiscount(job);
   const out = priced.jobs.map((j, index) => ({
     id: lines[index].id,
     serviceId: lines[index].serviceId,
@@ -196,14 +198,14 @@ export function quotationCheckout(ledger, quote) {
           ...l,
           source: 'Quotation',
           templateStockIds: Object.fromEntries(
-            l.templateSnapshot.components.map((c) => [c.id, crypto.randomUUID()]),
+            l.templateSnapshot.stock.map((s) => [s.materialId, crypto.randomUUID()]),
           ),
         });
         if (
           priced.grossAmount !== l.grossAmount ||
           JSON.stringify(priced.templateSnapshot.template) !== JSON.stringify(l.templateSnapshot.template)
         )
-          changes.push(`${l.description}: template or component prices changed; review the new total.`);
+          changes.push(`${l.description}: the template or its costs changed; review the new total.`);
       } catch (e) {
         changes.push(`${l.description}: ${e.message}`);
       }
@@ -257,6 +259,7 @@ export function quotationModel(quote, business, layout = 'page', now = new Date(
     meta: [
       `Qty ${l.quantity}`,
       l.requireSize && l.width && l.height ? `Size ${l.width} × ${l.height}` : '',
+      ...templateSpecLines(l),
       `${currency(l.unitPrice)} each`,
       ...discountLines(l),
     ].filter(Boolean),

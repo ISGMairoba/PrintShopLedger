@@ -82,48 +82,85 @@ try {
     );
     await page.getByLabel('Enable pricing templates').check();
     await page.getByRole('button', { name: 'Save pricing templates', exact: true }).click();
+    // Private costs show on Services, never at checkout.
+    await nav('Services');
+    assert.match(
+      await page.locator('table').innerText(),
+      /Binding labour[\s\S]*Private[\s\S]*Template cost binding/,
+    );
     await nav('Pricing Templates');
     assert.equal(await page.getByLabel('Enable pricing templates').count(), 0);
-    await page.getByRole('button', { name: 'Start with book', exact: true }).click();
-    let d = page.getByRole('dialog', { name: 'New pricing template' });
-    const picks = d.getByLabel('Item or service', { exact: true });
-    assert.equal(await picks.count(), 4);
-
-    for (const [index, label] of [
-      'Art cards — ₦200.00',
-      'DI printing — ₦500.00',
-      'Paper Printing — ₦100.00',
-      'Binding — ₦300.00',
-    ].entries())
-      await picks.nth(index).selectOption({ label });
-    const pagesInput = d.locator('.cart-line').first();
-    await pagesInput.getByLabel('Input type', { exact: true }).selectOption('choice');
-    for (const [label, value] of [
-      ['Standard (40 pages)', '40'],
-      ['41 pages', '41'],
-    ]) {
-      await pagesInput.getByRole('button', { name: 'Add option', exact: true }).click();
-      await pagesInput.getByLabel('Option label', { exact: true }).last().fill(label);
-      await pagesInput.getByLabel('Option value', { exact: true }).last().fill(value);
-    }
-    await d.getByLabel('Default', { exact: true }).nth(2).fill('2');
-    await d.getByLabel('Preview quantity', { exact: true }).fill('10');
-    await d.getByLabel('Pages per book', { exact: true }).selectOption('41');
-    assert.match(await d.locator('.cart-total').innerText(), /₦17,500\.00/);
-    await d.getByRole('button', { name: 'Use template', exact: true }).click();
-    await d.waitFor({ state: 'detached' });
-    await page.getByRole('button', { name: 'Save pricing templates', exact: true }).click();
-    assert.match(await page.locator('.template-list').innerText(), /Book[\s\S]*4 components/);
-    assert.equal(await page.getByRole('heading', { level: 1 }).innerText(), 'Pricing Templates');
+    assert.match(
+      await page.getByRole('table', { name: 'Costs used in formulas' }).innerText(),
+      /paper_70[\s\S]*₦10 \/ sheet/,
+    );
+    await page.getByRole('button', { name: 'New template', exact: true }).click();
+    const d0 = page.getByRole('dialog', { name: 'New pricing template' });
+    await d0.getByLabel('Template name', { exact: true }).fill('Books');
+    const add = (name) => d0.getByRole('button', { name, exact: true }).click();
+    await add('Add editable variable');
+    let section = d0.locator('.template-section').nth(1);
+    await section.getByLabel('Label', { exact: true }).fill('Sheets per book');
+    await section.getByLabel('Default value', { exact: true }).fill('25');
+    await section.getByLabel('Minimum', { exact: true }).fill('1');
+    await section.getByLabel('Maximum', { exact: true }).fill('500');
+    await section.getByLabel('Whole numbers only', { exact: true }).check();
+    await add('Add editable variable');
+    section = d0.locator('.template-section').nth(2);
+    await section.getByLabel('Label', { exact: true }).fill('Inner paper');
+    await section.getByLabel('Variable type', { exact: true }).selectOption('material');
+    await section.getByLabel(/^Paper 70gsm/).check();
+    await section.getByLabel(/^Paper 80gsm/).check();
+    assert.equal(await section.getByLabel(/^Art card/).isDisabled(), true); // cards are not sheets
+    await d0.getByRole('tab', { name: /Computed variables/ }).click();
+    await add('Add computed variable');
+    section = d0.locator('.template-section').first();
+    await section.getByLabel('Name', { exact: true }).fill('Paper required');
+    await section.getByLabel('Unit', { exact: true }).fill('sheet');
+    await section.getByLabel('Take from stock', { exact: true }).selectOption({ label: 'Inner paper' });
+    await section
+      .getByLabel('Paper required formula', { exact: true })
+      .fill('CEILING(quantity * sheets_per_book / 2 * 1.04)');
+    await d0.getByRole('tab', { name: /^Expenses/ }).click();
+    section = d0.locator('.template-section').first();
+    await section.getByLabel('Expense name', { exact: true }).fill('Paper');
+    await section.getByLabel('Calculation method', { exact: true }).selectOption('custom');
+    await section.getByLabel('Formula · paper', { exact: true }).fill('paper_required * inner_paper_rate');
+    await add('Add an expense');
+    section = d0.locator('.template-section').nth(1);
+    await section.getByLabel('Expense name', { exact: true }).fill('Binding');
+    await section.getByLabel('Rate source', { exact: true }).selectOption('binding');
+    // "binding" is a cost's formula name, so the expense gets its own name.
+    assert.equal(
+      await section.getByLabel('Formula · binding_2', { exact: true }).inputValue(),
+      'quantity * (binding)',
+    );
+    await d0.getByRole('tab', { name: 'Pricing & preview', exact: true }).click();
+    // Defaults: 1 book of 25 sheets = 13 sheets × ₦10 + ₦100 binding = ₦230 → +30% = ₦299 → rounded up to ₦300.
+    assert.match(
+      await d0.locator('.template-audit').innerText(),
+      /Total expense[\s\S]*₦230\.00[\s\S]*Template price\s*₦300\.00/,
+    );
+    await d0.screenshot({ path: `/tmp/pricing-templates-editor-${mobile ? 'mobile' : 'desktop'}.png` });
+    await d0.getByRole('button', { name: 'Check & save template', exact: true }).click();
+    await d0.waitFor({ state: 'detached' });
+    assert.match(
+      await page.locator('.template-grid').innerText(),
+      /Books[\s\S]*3 editable variables · 1 computed variables · 2 expenses/,
+    );
     await page.screenshot({ path: `/tmp/pricing-templates-page-${mobile ? 'mobile' : 'desktop'}.png` });
     await nav('Quotations');
     await page.getByRole('button', { name: 'New quotation', exact: true }).click();
-    d = page.getByRole('dialog', { name: 'New quotation' });
+    let d = page.getByRole('dialog', { name: 'New quotation' });
     await d.getByLabel('Customer', { exact: true }).fill('Book customer');
-    await d.getByLabel('Service', { exact: true }).selectOption({ label: 'Book — Template' });
-    await d.getByLabel('Quantity', { exact: true }).fill('10');
-    await d.getByLabel('Pages per book', { exact: true }).selectOption('41');
-    assert.match(await d.locator('.cart-total').innerText(), /₦17,500\.00/);
+    await d.getByLabel('Service', { exact: true }).selectOption({ label: 'Books — Template' });
+    assert.equal(
+      await d.getByLabel('Service', { exact: true }).locator('option', { hasText: 'Binding labour' }).count(),
+      0,
+    );
+    await d.getByLabel('Quantity', { exact: true }).fill('50');
+    // 650 sheets × ₦10 + 50 × ₦100 = ₦11,500 → +30% = ₦14,950 → ₦15,000.
+    await d.getByText('₦15,000.00').first().waitFor();
     await d.getByRole('button', { name: 'Save quotation', exact: true }).click();
     await d.waitFor({ state: 'detached' });
     const readState = () =>
@@ -141,45 +178,51 @@ try {
       });
     let state = await readState();
     assert.equal(state.ledger.jobs.length, 0);
-    assert.deepEqual(
-      state.ledger.materials.map((m) => m.available),
-      [100, 200],
-    );
-    assert.equal(state.ledger.quotations[0].lines[0].templateSnapshot.components.length, 4);
+    assert.equal(state.ledger.materials[0].available, 2000);
+    assert.equal(state.ledger.quotations[0].lines[0].amount, 1500000);
     await nav('Point of Service');
     await page.getByRole('button', { name: 'Add job', exact: true }).click();
     d = page.getByRole('dialog', { name: 'New checkout' });
-    await d.getByLabel('Service', { exact: true }).selectOption({ label: 'Book — Template' });
-    await d.getByLabel('Quantity', { exact: true }).fill('10');
-    await d.getByLabel('Pages per book', { exact: true }).selectOption('41');
-    await d.locator('.template-breakdown summary').click();
+    await d.getByLabel('Service', { exact: true }).selectOption({ label: 'Books — Template' });
+    await d.getByLabel('Quantity', { exact: true }).fill('50');
+    await d.getByLabel('Inner paper', { exact: true }).selectOption({ label: 'Paper 80gsm' });
+    // 650 × ₦13 + ₦5,000 = ₦13,450 → ₦17,485 → ₦17,500.
+    await d.getByText('₦17,500.00').first().waitFor();
     assert.match(
-      await d.locator('.template-breakdown').innerText(),
-      /Cover cards[\s\S]*Stock: 5 card[\s\S]*No stock deduction[\s\S]*Stock: 110 sheet/,
+      await d.locator('.template-specs').first().innerText(),
+      /Sheets per book[\s\S]*25[\s\S]*Inner paper[\s\S]*Paper 80gsm/,
+    );
+    await d.getByRole('button', { name: 'Internal job & audit', exact: true }).click();
+    assert.match(
+      await d.locator('.template-audit').innerText(),
+      /Paper required[\s\S]*650 sheet[\s\S]*Stock taken at checkout[\s\S]*Paper 80gsm[\s\S]*650 sheet/,
+    );
+    await d.getByLabel('Compare options', { exact: true }).check();
+    await d.getByLabel('Quantities', { exact: true }).fill('50, 100');
+    await d.getByRole('button', { name: 'Compare prices', exact: true }).click();
+    assert.match(
+      await d.getByRole('table', { name: 'Compared options' }).innerText(),
+      /50[\s\S]*₦17,500\.00[\s\S]*100[\s\S]*₦35,000\.00/,
     );
     await d.getByLabel('Customer name or phone', { exact: true }).fill('Book');
     await d.getByRole('option', { name: /Book customer/ }).click();
     await d.getByLabel('Money received (₦)', { exact: true }).fill('5000');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
-    await d.evaluate((el) => (el.scrollTop = 0));
+    await d.locator('.template-audit').scrollIntoViewIfNeeded();
     await d.screenshot({ path: `/tmp/pricing-templates-${mobile ? 'mobile' : 'desktop'}.png` });
-    await d.locator('.template-breakdown').scrollIntoViewIfNeeded();
-    await d.screenshot({ path: `/tmp/pricing-templates-${mobile ? 'mobile' : 'desktop'}-breakdown.png` });
     await d.getByRole('button', { name: 'Complete checkout', exact: true }).click();
     await d.waitFor({ state: 'detached' });
     const receipt = page.getByRole('dialog');
-    assert.match(await receipt.innerText(), /Book/);
+    assert.match(await receipt.innerText(), /Books/);
     await receipt.getByRole('button', { name: 'Close', exact: true }).click();
     state = await readState();
     assert.equal(state.ledger.jobs.length, 1);
-    assert.equal(state.ledger.jobs[0].productionStatus, 'Added');
     assert.equal(state.ledger.jobs[0].amount, 1750000);
     assert.deepEqual(
       state.ledger.materials.map((m) => m.available),
-      [95, 90],
+      [2000, 1350, 100],
     );
-    assert.equal(state.ledger.materialHistory.length, 2);
-    assert.equal(state.ledger.payments[0].allocations[0].jobId, state.ledger.jobs[0].id);
+    assert.equal(state.ledger.materialHistory.length, 1);
     await nav('Business Settings');
     await page.getByRole('tab', { name: 'Pricing templates', exact: true }).click();
     await page.getByLabel('Enable pricing templates').uncheck();
@@ -198,7 +241,7 @@ try {
       await d
         .getByLabel('Service', { exact: true })
         .locator('option')
-        .filter({ hasText: 'Book — Template' })
+        .filter({ hasText: 'Books — Template' })
         .count(),
       0,
     );
