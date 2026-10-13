@@ -1,11 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { canAccessPage, pages } from '../src/page-access.mjs';
+import { canAccessPage, pages, navigationPages } from '../src/page-access.mjs';
 test('cashier sees only operational pages and own credentials', () =>
   assert.deepEqual(
     pages.filter((page) => canAccessPage(page, 1)),
     ['Point of Service', 'My Sales', 'Print Settings', 'My Account'],
   ));
+test('Pricing Templates keeps Developer maintenance access and sits beside Services', () => {
+  for (const rank of [0, 1, 2, 3]) assert.equal(canAccessPage('Pricing Templates', rank), false);
+  assert.equal(canAccessPage('Pricing Templates', 4), true);
+  assert.equal(navigationPages[navigationPages.indexOf('Services') + 1], 'Pricing Templates');
+});
 test('admin sees existing pages and account, business settings require manager', () => {
   for (const page of pages) assert.equal(canAccessPage(page, 2), page !== 'Business Settings');
 });

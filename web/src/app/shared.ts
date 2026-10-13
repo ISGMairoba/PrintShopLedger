@@ -29,6 +29,7 @@ export type Page =
   | 'Expenses'
   | 'My Account'
   | 'Business Settings'
+  | 'Pricing Templates'
   | 'Conflict Inbox';
 export const currency = (amount: number) =>
   new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount / 100);

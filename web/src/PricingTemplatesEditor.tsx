@@ -102,14 +102,6 @@ export default function PricingTemplatesEditor({
   }
   return (
     <>
-      <label className="check-label">
-        <input
-          type="checkbox"
-          checked={value.enabled}
-          onChange={(e) => onChange({ ...value, enabled: e.target.checked })}
-        />
-        Enable pricing templates
-      </label>
       <p className="muted">
         Combine existing items and services into one job. Selling prices are added together; no extra profit
         is added. Stock is deducted only when checkout is saved.
@@ -654,7 +646,7 @@ function TemplateEditor({
           </p>
         )}
         <p className="muted">
-          Adding this template updates the settings draft. Save pricing templates to make it available at
+          Adding this template updates the template list. Save pricing templates to make it available at
           checkout.
         </p>
         <button disabled={!preview}>Use template</button>

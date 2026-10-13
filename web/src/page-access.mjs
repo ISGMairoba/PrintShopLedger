@@ -23,13 +23,22 @@ export const derivedPages = {
   Reports: 'Dashboard',
   Quotations: 'Point of Service',
   'Payment Reminders': 'Customers',
+  'Pricing Templates': 'Business Settings',
 };
 export const navigationPages = [
   'Dashboard',
   'Reports',
   'Point of Service',
   'Quotations',
-  ...pages.slice(2).flatMap((page) => (page === 'Customers' ? [page, 'Payment Reminders'] : [page])),
+  ...pages
+    .slice(2)
+    .flatMap((page) =>
+      page === 'Customers'
+        ? [page, 'Payment Reminders']
+        : page === 'Services'
+          ? [page, 'Pricing Templates']
+          : [page],
+    ),
 ];
 export const roleNames = { 1: 'Cashier', 2: 'Admin', 3: 'Manager', 4: 'Developer' };
 export const minimumPageAccess = (page) =>
