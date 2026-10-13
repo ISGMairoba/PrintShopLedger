@@ -1,4 +1,5 @@
 import BatchJobProgressDialog from './BatchJobProgressDialog';
+import PricingTemplatesPage from './PricingTemplatesPage';
 import { batchProgressEvents } from './job-batches.mjs';
 import { BusinessSignup, DeveloperActivation, registrationError } from './BusinessRegistration';
 import { validateBusinessRegistration, validActivationToken } from './registration.mjs';
@@ -182,7 +183,8 @@ export default function App() {
     demo,
   );
   const allowed = (item: Page) =>
-    demo || canAccessPage(item, shop?.accessLevel ?? 0, branding.settings.pageAccess);
+    (item !== 'Pricing Templates' || branding.settings.pricing.enabled) &&
+    (demo || canAccessPage(item, shop?.accessLevel ?? 0, branding.settings.pageAccess));
   // Stock and waste share one screen with two tabs when the user may see both.
   const materialTabs =
     allowed('Materials') && allowed('Material Waste') ? (
@@ -204,16 +206,10 @@ export default function App() {
         ))}
       </div>
     ) : null;
-  const pageAllowed =
-    demo ||
-    (page === 'Conflict Inbox' && !!supervisor) ||
-    canAccessPage(page, shop?.accessLevel ?? 0, branding.settings.pageAccess);
+  const pageAllowed = (page === 'Conflict Inbox' && !!supervisor) || allowed(page);
   useEffect(() => {
-    if (!demo && branding.ready && session && shop?.userId === session.user.id && !pageAllowed) {
-      setPage(
-        (pages.find((item) => canAccessPage(item, shop?.accessLevel ?? 0, branding.settings.pageAccess)) ??
-          'My Account') as Page,
-      );
+    if (branding.ready && (demo || (session && shop?.userId === session.user.id)) && !pageAllowed) {
+      setPage((pages.find((item) => allowed(item as Page)) ?? 'My Account') as Page);
       setForm(null);
       setSelectedJob(null);
       setBatchToAdvance(null);
@@ -1475,10 +1471,21 @@ export default function App() {
                         setStaffEpoch((value) => value + 1);
                       }}
                     />
+                  ) : page === 'Pricing Templates' ? (
+                    <PricingTemplatesPage
+                      key={scope}
+                      settings={branding.settings}
+                      version={branding.version}
+                      ledger={ledger}
+                      ready={branding.ready}
+                      online={online}
+                      demo={demo}
+                      onSave={branding.save}
+                      onReload={branding.reload}
+                    />
                   ) : page === 'Business Settings' ? (
                     <BusinessSettingsPage
                       key={scope}
-                      ledger={ledger}
                       settings={branding.settings}
                       version={branding.version}
                       ready={branding.ready}

@@ -72,7 +72,18 @@ try {
     };
     await nav('Business Settings');
     await page.getByRole('tab', { name: 'Pricing templates', exact: true }).click();
+    assert.equal(await page.getByRole('button', { name: 'Start with book', exact: true }).count(), 0);
+    assert.equal(
+      await page
+        .getByRole('navigation', { name: 'Main' })
+        .getByRole('button', { name: 'Pricing Templates', exact: true })
+        .count(),
+      0,
+    );
     await page.getByLabel('Enable pricing templates').check();
+    await page.getByRole('button', { name: 'Save pricing templates', exact: true }).click();
+    await nav('Pricing Templates');
+    assert.equal(await page.getByLabel('Enable pricing templates').count(), 0);
     await page.getByRole('button', { name: 'Start with book', exact: true }).click();
     let d = page.getByRole('dialog', { name: 'New pricing template' });
     const picks = d.getByLabel('Item or service', { exact: true });
@@ -103,6 +114,8 @@ try {
     await d.waitFor({ state: 'detached' });
     await page.getByRole('button', { name: 'Save pricing templates', exact: true }).click();
     assert.match(await page.locator('.template-list').innerText(), /Book[\s\S]*4 components/);
+    assert.equal(await page.getByRole('heading', { level: 1 }).innerText(), 'Pricing Templates');
+    await page.screenshot({ path: `/tmp/pricing-templates-page-${mobile ? 'mobile' : 'desktop'}.png` });
     await nav('Quotations');
     await page.getByRole('button', { name: 'New quotation', exact: true }).click();
     d = page.getByRole('dialog', { name: 'New quotation' });
@@ -171,6 +184,13 @@ try {
     await page.getByRole('tab', { name: 'Pricing templates', exact: true }).click();
     await page.getByLabel('Enable pricing templates').uncheck();
     await page.getByRole('button', { name: 'Save pricing templates', exact: true }).click();
+    assert.equal(
+      await page
+        .getByRole('navigation', { name: 'Main' })
+        .getByRole('button', { name: 'Pricing Templates', exact: true })
+        .count(),
+      0,
+    );
     await nav('Point of Service');
     await page.getByRole('button', { name: 'Add job', exact: true }).click();
     d = page.getByRole('dialog', { name: 'New checkout' });
