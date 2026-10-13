@@ -70,11 +70,14 @@ try {
       }
       await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name, exact: true }).click();
     };
+    // Point of Service is for selling: no catalogue editing there.
     await nav('Point of Service');
-    await page.getByRole('button', { name: 'Edit product', exact: true }).click();
+    assert.equal(await page.getByRole('button', { name: 'Edit product', exact: true }).count(), 0);
+    await nav('Edit Products');
+    await page.getByLabel('Search products', { exact: true }).fill('art');
+    assert.match(await page.locator('body').innerText(), /Art card[\s\S]*100 card/);
+    await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
     const d = page.getByRole('dialog', { name: 'Edit product' });
-    await d.getByLabel('Search products', { exact: true }).fill('art');
-    await d.getByRole('button', { name: /^Art card/ }).click();
     assert.equal(await d.getByLabel('Rename the stock item to the same name').isChecked(), true);
     await d.getByLabel('Name', { exact: true }).fill('Art card 300gsm');
     await d.getByLabel('Price', { exact: true }).fill('250');

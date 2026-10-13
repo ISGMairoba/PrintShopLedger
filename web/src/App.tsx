@@ -102,6 +102,7 @@ import { quotationCheckout, quotationRef } from './quotations.mjs';
 import type { Quotation, QuotationEvent, ReminderEvent } from './types';
 import QuickSale from './QuickSale';
 import ProductEditor from './ProductEditor';
+import EditProductsPage from './EditProductsPage';
 import RemindersPage from './RemindersPage';
 
 const DashboardPage = lazy(() => import('./DashboardPage'));
@@ -195,6 +196,7 @@ export default function App() {
       canAccessPage('Services', shop.accessLevel, branding.settings.pageAccess));
   const allowed = (item: Page) =>
     (item !== 'Pricing Templates' || branding.settings.pricing.enabled) &&
+    (item !== 'Edit Products' || canEditCatalogue) &&
     (demo || canAccessPage(item, shop?.accessLevel ?? 0, branding.settings.pageAccess));
   // Stock and waste share one screen with two tabs when the user may see both.
   const materialTabs =
@@ -1503,6 +1505,14 @@ export default function App() {
                           setStaffEpoch((value) => value + 1);
                         }}
                       />
+                    ) : page === 'Edit Products' ? (
+                      <EditProductsPage
+                        key={scope}
+                        ledger={ledger}
+                        ready={ready}
+                        busy={busy || hasConflict}
+                        onEdit={(id) => setProductEdit(id)}
+                      />
                     ) : page === 'Pricing Templates' ? (
                       <PricingTemplatesPage
                         key={scope}
@@ -1616,7 +1626,6 @@ export default function App() {
                           setForm(null);
                           setQuickSale(true);
                         }}
-                        onEditProduct={canEditCatalogue ? () => setProductEdit('') : undefined}
                         onJob={setSelectedJob}
                         onNext={(job, mode) => setJobToAdvance({ job, mode })}
                         onBulkAction={(jobs, mode) => setBatchToAdvance({ jobs, mode })}
