@@ -262,6 +262,7 @@ export default function App() {
     setJobConflict(null);
     setReceipt(null);
     setJobToAdvance(null);
+    setBatchToAdvance(null);
     setForm(null);
     setSelectedJob(null);
     setAdjustingJob(null);
