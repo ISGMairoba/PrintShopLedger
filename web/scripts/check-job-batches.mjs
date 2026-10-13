@@ -35,7 +35,10 @@ try {
     await page.goto(`http://127.0.0.1:${port}`);
     await page.getByRole('button', { name: 'Try locally on this device' }).click();
     const nav = async (name) => {
-      if (mobile) await page.getByRole('button', { name: 'Menu', exact: true }).click();
+      if (mobile) {
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.getByRole('button', { name: 'Menu', exact: true }).click();
+      }
       await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name, exact: true }).click();
     };
     await nav('Services');
