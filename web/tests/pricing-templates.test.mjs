@@ -157,3 +157,17 @@ test('optional components can use zero, and decimal formula rounding is exact', 
   );
   assert.throws(() => parseFormula('0.00000000000001'), /twelve/);
 });
+
+test('named options supply numeric formula values and reject values outside the list', () => {
+  const { ledger, line } = fixture();
+  const pages = ledger.pricing.templates[0].inputs[0];
+  pages.kind = 'choice';
+  pages.options = [
+    { label: 'Standard', value: 40 },
+    { label: 'Long', value: 80 },
+  ];
+  ledger.pricing = validatePricingSettings(ledger.pricing);
+  const q = quoteLine(ledger, { ...line, templateInputs: { pages: 80, pagesPerSheet: 4, coversPerCard: 2 } });
+  assert.equal(q.templateSnapshot.components[2].quantity, 200);
+  assert.throws(() => quoteLine(ledger, line), /Choose a valid/);
+});

@@ -308,6 +308,7 @@ function TemplateEditor({
               <label>
                 Input type
                 <select
+                  aria-label="Input type"
                   value={i.kind}
                   onChange={(e) =>
                     setDraft({

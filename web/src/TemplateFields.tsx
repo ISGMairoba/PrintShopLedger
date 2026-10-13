@@ -17,6 +17,7 @@ export function TemplateInputs({
           {i.label}
           {i.kind === 'choice' ? (
             <select
+              aria-label={i.label}
               value={value[i.key] ?? i.default}
               onChange={(e) => onChange({ ...value, [i.key]: e.target.value })}
             >

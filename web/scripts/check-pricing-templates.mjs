@@ -85,9 +85,19 @@ try {
       'Binding — ₦300.00',
     ].entries())
       await picks.nth(index).selectOption({ label });
+    const pagesInput = d.locator('.cart-line').first();
+    await pagesInput.getByLabel('Input type', { exact: true }).selectOption('choice');
+    for (const [label, value] of [
+      ['Standard (40 pages)', '40'],
+      ['41 pages', '41'],
+    ]) {
+      await pagesInput.getByRole('button', { name: 'Add option', exact: true }).click();
+      await pagesInput.getByLabel('Option label', { exact: true }).last().fill(label);
+      await pagesInput.getByLabel('Option value', { exact: true }).last().fill(value);
+    }
     await d.getByLabel('Default', { exact: true }).nth(2).fill('2');
     await d.getByLabel('Preview quantity', { exact: true }).fill('10');
-    await d.getByLabel('Pages per book', { exact: true }).fill('41');
+    await d.getByLabel('Pages per book', { exact: true }).selectOption('41');
     assert.match(await d.locator('.cart-total').innerText(), /₦17,500\.00/);
     await d.getByRole('button', { name: 'Use template', exact: true }).click();
     await d.waitFor({ state: 'detached' });
@@ -99,7 +109,7 @@ try {
     await d.getByLabel('Customer', { exact: true }).fill('Book customer');
     await d.getByLabel('Service', { exact: true }).selectOption({ label: 'Book — Template' });
     await d.getByLabel('Quantity', { exact: true }).fill('10');
-    await d.getByLabel('Pages per book', { exact: true }).fill('41');
+    await d.getByLabel('Pages per book', { exact: true }).selectOption('41');
     assert.match(await d.locator('.cart-total').innerText(), /₦17,500\.00/);
     await d.getByRole('button', { name: 'Save quotation', exact: true }).click();
     await d.waitFor({ state: 'detached' });
@@ -128,7 +138,7 @@ try {
     d = page.getByRole('dialog', { name: 'New checkout' });
     await d.getByLabel('Service', { exact: true }).selectOption({ label: 'Book — Template' });
     await d.getByLabel('Quantity', { exact: true }).fill('10');
-    await d.getByLabel('Pages per book', { exact: true }).fill('41');
+    await d.getByLabel('Pages per book', { exact: true }).selectOption('41');
     await d.locator('.template-breakdown summary').click();
     assert.match(
       await d.locator('.template-breakdown').innerText(),
