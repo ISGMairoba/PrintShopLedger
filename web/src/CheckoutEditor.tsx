@@ -38,11 +38,29 @@ type Props = {
   jobSettings?: JobSettings;
   /** What this user may discount: the cap per job (%) and whether flat/whole-order is allowed. */
   discountPolicy?: { maxPercent: number; canFlat: boolean };
+  /** Start from an accepted quotation: its lines, customer and discounts. */
+  fromQuotation?: QuotationStart;
 };
-type DiscountDraft = { kind: '' | 'percent' | 'amount'; value: string; reason: string };
-const noDiscount = (): DiscountDraft => ({ kind: '', value: '', reason: '' });
+export type QuotationStart = {
+  reference: string;
+  customerId: string;
+  customerName: string;
+  customerPhone: string;
+  lines: {
+    serviceId: string;
+    description: string;
+    quantity: number;
+    width: number | null;
+    height: number | null;
+    discount?: { kind: string; value: number; reason?: string };
+  }[];
+  orderDiscount: { kind: string; value: number; reason?: string } | null;
+  changes: string[];
+};
+export type DiscountDraft = { kind: '' | 'percent' | 'amount'; value: string; reason: string };
+export const noDiscount = (): DiscountDraft => ({ kind: '', value: '', reason: '' });
 /** The discount as typed → the stored form (percent, or kobo for an amount). */
-const discountSpec = (d: DiscountDraft) =>
+export const discountSpec = (d: DiscountDraft) =>
   d.kind
     ? {
         kind: d.kind,
@@ -50,7 +68,9 @@ const discountSpec = (d: DiscountDraft) =>
         reason: d.reason,
       }
     : null;
-const discountDraft = (spec?: { kind: string; value: number; reason?: string } | null): DiscountDraft =>
+export const discountDraft = (
+  spec?: { kind: string; value: number; reason?: string } | null,
+): DiscountDraft =>
   spec
     ? {
         kind: spec.kind as DiscountDraft['kind'],
@@ -59,7 +79,7 @@ const discountDraft = (spec?: { kind: string; value: number; reason?: string } |
       }
     : noDiscount();
 /** Discount type, value and optional reason, for one job or the whole order. */
-function DiscountFields({
+export function DiscountFields({
   label,
   value,
   allowFlat,
@@ -185,6 +205,7 @@ export default function CheckoutEditor({
   onReceipt,
   jobSettings = jobSettingsDefaults(),
   discountPolicy = { maxPercent: 0, canFlat: false },
+  fromQuotation,
 }: Props) {
   const options = useBusinessOptions(),
     jobSources = options.jobSources;
@@ -208,9 +229,19 @@ export default function CheckoutEditor({
           dueAt: j.dueAt ?? '',
           discountDraft: discountDraft(j.discount),
         }))
-      : paymentOnly
-        ? []
-        : [newLine()],
+      : fromQuotation
+        ? fromQuotation.lines.map((q) => ({
+            ...newLine(),
+            serviceId: q.serviceId,
+            description: q.description,
+            quantity: String(q.quantity),
+            width: q.width == null ? '' : String(q.width),
+            height: q.height == null ? '' : String(q.height),
+            discountDraft: discountDraft(q.discount),
+          }))
+        : paymentOnly
+          ? []
+          : [newLine()],
   );
   // A customer added offline can clash with one created elsewhere in the meantime (for
   // example the same phone number). Detect it once so the reviewer picks a customer instead
@@ -220,12 +251,17 @@ export default function CheckoutEditor({
     return { event, clash: offlineCustomerClash(ledger, event) };
   });
   const clash = offlineCustomer.clash;
-  const [customerId, setCustomerId] = useState(clash ? '' : (initialCheckout?.customerId ?? initialCustomer));
+  const [customerId, setCustomerId] = useState(
+    clash ? '' : (initialCheckout?.customerId ?? (initialCustomer || fromQuotation?.customerId || '')),
+  );
   const [query, setQuery] = useState(
     clash
       ? ''
-      : (ledger.customers.find((c) => c.id === (initialCheckout?.customerId ?? initialCustomer))?.name ??
+      : (ledger.customers.find(
+          (c) => c.id === (initialCheckout?.customerId ?? (initialCustomer || fromQuotation?.customerId)),
+        )?.name ??
           offlineCustomer.event?.data.name ??
+          fromQuotation?.customerName ??
           ''),
   );
   const [suggest, setSuggest] = useState(false),
@@ -295,7 +331,7 @@ export default function CheckoutEditor({
   const editLine = (id: string, key: string, value: string) =>
     setLines((items) => items.map((item) => (item.id === id ? { ...item, [key]: value } : item)));
   const [orderDiscount, setOrderDiscount] = useState<DiscountDraft>(() =>
-    discountDraft(initialCheckout?.orderDiscount),
+    discountDraft(initialCheckout?.orderDiscount ?? fromQuotation?.orderDiscount),
   );
   const cartLines = lines.map(toLine);
   const quotedLines = cartLines.map((item) => {
@@ -526,6 +562,25 @@ export default function CheckoutEditor({
           }}
         >
           <fieldset disabled={busy}>
+            {fromQuotation && (
+              <div className="notice" role="status">
+                <strong>From quotation {fromQuotation.reference}.</strong>{' '}
+                {fromQuotation.customerId
+                  ? 'Check the details, take any payment and complete checkout.'
+                  : `${fromQuotation.customerName}${fromQuotation.customerPhone ? ` (${fromQuotation.customerPhone})` : ''} is not a saved customer yet: choose them or use Add new customer.`}
+                {fromQuotation.changes.length > 0 && (
+                  <>
+                    {' '}
+                    Prices are charged at today's rates. Changed since the quote:
+                    <ul>
+                      {fromQuotation.changes.map((c) => (
+                        <li key={c}>{c}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
+            )}
             {!paymentOnly && (
               <>
                 <h3>{w('Jobs in this checkout')}</h3>

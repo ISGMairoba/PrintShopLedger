@@ -93,6 +93,9 @@ import type {
   ExpenseEvent,
   SupervisedEvent,
 } from './types';
+import QuotationsPage from './QuotationsPage';
+import { quotationCheckout, quotationRef } from './quotations.mjs';
+import type { Quotation, QuotationEvent } from './types';
 
 const DashboardPage = lazy(() => import('./DashboardPage'));
 const ReportsPage = lazy(() => import('./ReportsPage'));
@@ -132,6 +135,8 @@ export default function App() {
   const [query, setQuery] = useState('');
   const [form, setForm] = useState<'customer' | 'job' | 'payment' | null>(null);
   const [receipt, setReceipt] = useState<CheckoutRecord | null>(null);
+  // A quotation being turned into an order (checkout opens filled from it).
+  const [quoteOrder, setQuoteOrder] = useState<Quotation | null>(null);
   const [jobToAdvance, setJobToAdvance] = useState<{ job: Job; mode: ProgressMode } | null>(null);
   const [adjustingJob, setAdjustingJob] = useState<Job | null>(null);
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
@@ -297,7 +302,9 @@ export default function App() {
       demo ? 'Saved on this device.' : 'Saved on this device. Changes sync automatically when connected.',
     );
   }
-  async function saveCatalogue(operation: MaterialEvent | ServiceEvent | CustomerEvent | ExpenseEvent) {
+  async function saveCatalogue(
+    operation: MaterialEvent | ServiceEvent | CustomerEvent | ExpenseEvent | QuotationEvent,
+  ) {
     if (
       busy ||
       !ready ||
@@ -1492,6 +1499,29 @@ export default function App() {
                       onReceipt={setReceipt}
                       onHandover={closeDrawer}
                     />
+                  ) : page === 'Quotations' ? (
+                    <QuotationsPage
+                      key={scope}
+                      ledger={ledger}
+                      ready={ready}
+                      busy={busy || legacyConflict}
+                      branding={branding.settings}
+                      actor={{
+                        id: demo ? 'local-trial' : session!.user.id,
+                        label: demo
+                          ? 'Local trial user'
+                          : shop?.staffName || session!.user.email || session!.user.id,
+                      }}
+                      discountPolicy={discountPolicy(
+                        branding.settings.discounts,
+                        demo ? 4 : (shop?.accessLevel ?? 0),
+                      )}
+                      onSave={saveCatalogue}
+                      onCreateOrder={(quote) => {
+                        setForm(null);
+                        setQuoteOrder(quote);
+                      }}
+                    />
                   ) : page === 'Point of Service' ? (
                     <PointOfServicePage
                       ledger={ledger}
@@ -1693,6 +1723,75 @@ export default function App() {
                   )}
                 />
               )}
+              {quoteOrder &&
+                !form &&
+                (() => {
+                  const start = quotationCheckout(ledger, quoteOrder);
+                  return (
+                    <CheckoutEditor
+                      key={quoteOrder.id}
+                      ledger={ledger}
+                      actor={{
+                        id: demo ? 'local-trial' : session!.user.id,
+                        label: demo
+                          ? 'Local trial user'
+                          : shop?.staffName || session!.user.email || session!.user.id,
+                      }}
+                      busy={busy}
+                      fromQuotation={{
+                        reference: quotationRef(quoteOrder.id),
+                        customerId: start.customerId,
+                        customerName: quoteOrder.customerName,
+                        customerPhone: quoteOrder.customerPhone,
+                        lines: start.lines,
+                        orderDiscount: start.orderDiscount,
+                        changes: start.changes,
+                      }}
+                      onSave={async (operation) => {
+                        const record = await completeCheckout(operation);
+                        // Link the quotation to the sale. It syncs with the rest of the pending work.
+                        const target = scope;
+                        if (target && activeScope.current === target) {
+                          try {
+                            const next = await saveEvent(
+                              target,
+                              {
+                                id: crypto.randomUUID(),
+                                kind: 'quotation.converted',
+                                data: {
+                                  id: quoteOrder.id,
+                                  checkoutId: operation.id,
+                                  baseVersion: quoteOrder.version,
+                                  modifiedBy: demo ? 'local-trial' : session!.user.id,
+                                  modifiedByLabel: demo
+                                    ? 'Local trial user'
+                                    : shop?.staffName || session!.user.email || session!.user.id,
+                                  modifiedAt: new Date().toISOString(),
+                                },
+                              },
+                              !demo,
+                            );
+                            if (activeScope.current === target) setState(next);
+                          } catch {
+                            setMessage(
+                              'The sale is saved, but the quotation could not be marked converted.',
+                              'warning',
+                            );
+                          }
+                        }
+                        setQuoteOrder(null);
+                        return record;
+                      }}
+                      onClose={() => setQuoteOrder(null)}
+                      onReceipt={setReceipt}
+                      jobSettings={branding.settings.jobs}
+                      discountPolicy={discountPolicy(
+                        branding.settings.discounts,
+                        demo ? 4 : (shop?.accessLevel ?? 0),
+                      )}
+                    />
+                  );
+                })()}
               {adjustingJob && (
                 <SaleAdjustmentEditor
                   ledger={ledger}

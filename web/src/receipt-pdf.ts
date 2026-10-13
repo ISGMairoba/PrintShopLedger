@@ -2,7 +2,8 @@ import { jsPDF, GState } from 'jspdf';
 import { receiptBusiness } from './business-branding.mjs';
 import { receiptIntegrityError, receiptModel } from './receipts.mjs';
 import { registerPdfFonts, pdfText, PDF_FONT, rgb } from './pdf-common';
-import type { CheckoutRecord, SaleAdjustment } from './types';
+import type { CheckoutRecord, Quotation, SaleAdjustment } from './types';
+import { quotationModel, quotationRef } from './quotations.mjs';
 import type { Branding } from './useBusinessBranding';
 
 /** The paper a receipt is drawn for (see receiptMedia in print-settings.mjs). */
@@ -422,8 +423,15 @@ export function createReceiptPdf(
 ) {
   const warning = receiptIntegrityError(record);
   if (warning) throw Error(warning);
-  const media = mediaFor(size),
-    m = receiptModel(record, business, pending, adjustments, media.layout);
+  const media = mediaFor(size);
+  return modelPdf(
+    receiptModel(record, business, pending, adjustments, media.layout),
+    media,
+    !!receiptBusiness(business).documents?.watermark,
+  );
+}
+/** Draw a receipt-shaped model (a receipt or a quotation) on a page or a roll. */
+function modelPdf(m: Model, media: ReceiptMedia, watermark: boolean) {
   if (media.layout === 'roll') {
     // Measure on a long strip, then draw again on a page exactly as tall as the content.
     const probe = new jsPDF({ unit: 'mm', format: [media.width, 3000] });
@@ -444,8 +452,35 @@ export function createReceiptPdf(
     orientation: media.height >= media.width ? 'portrait' : 'landscape',
   });
   registerPdfFonts(doc);
-  drawPage(doc, m, media, !!receiptBusiness(business).documents?.watermark);
+  drawPage(doc, m, media, watermark);
   return doc;
+}
+/** A quotation as a PDF, on A4 or an 80 mm roll, with the business's receipt look. */
+export function createQuotationPdf(
+  quote: Quotation,
+  business: string | Branding,
+  size: ReceiptPdfSize = 'a4',
+) {
+  const media = mediaFor(size);
+  return modelPdf(
+    quotationModel(quote, business, media.layout) as unknown as Model,
+    media,
+    !!receiptBusiness(business).documents?.watermark,
+  );
+}
+export function downloadQuotationPdf(
+  quote: Quotation,
+  business: string | Branding,
+  size: 'a4' | 'roll' = 'a4',
+) {
+  createQuotationPdf(quote, business, size).save(
+    `Quotation-${quotationRef(quote.id)}${size === 'roll' ? '-80mm' : ''}.pdf`,
+  );
+}
+/** Open the quotation PDF in a new tab, where it can be printed or shared. */
+export function openQuotationPdf(quote: Quotation, business: string | Branding, size: 'a4' | 'roll' = 'a4') {
+  const url = createQuotationPdf(quote, business, size).output('bloburl');
+  window.open(String(url), '_blank', 'noopener');
 }
 export function downloadReceiptPdf(
   record: CheckoutRecord,

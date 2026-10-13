@@ -13,6 +13,7 @@ export function normalizeLedger(ledger) {
     materials: ledger.materials ?? [],
     materialHistory: ledger.materialHistory ?? [],
     services: ledger.services ?? [],
+    quotations: ledger.quotations ?? [],
   };
 }
 export function validateMaterial(data) {

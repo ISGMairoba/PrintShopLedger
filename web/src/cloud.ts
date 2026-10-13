@@ -137,17 +137,19 @@ async function synchronize(scope: string, shopId: string) {
       .rpc(
         event.kind.startsWith('expense.')
           ? 'apply_expense_event'
-          : event.kind === 'checkout.completed'
-            ? 'apply_checkout_event'
-            : event.kind === 'job.status_changed'
-              ? 'apply_job_status_event'
-              : event.kind.startsWith('customer.')
-                ? 'apply_customer_event'
-                : event.kind.startsWith('material.')
-                  ? 'apply_material_event'
-                  : event.kind.startsWith('service.')
-                    ? 'apply_service_event'
-                    : 'apply_ledger_event',
+          : event.kind.startsWith('quotation.')
+            ? 'apply_quotation_event'
+            : event.kind === 'checkout.completed'
+              ? 'apply_checkout_event'
+              : event.kind === 'job.status_changed'
+                ? 'apply_job_status_event'
+                : event.kind.startsWith('customer.')
+                  ? 'apply_customer_event'
+                  : event.kind.startsWith('material.')
+                    ? 'apply_material_event'
+                    : event.kind.startsWith('service.')
+                      ? 'apply_service_event'
+                      : 'apply_ledger_event',
         { p_shop: shopId, p_event: event },
       )
       .abortSignal(AbortSignal.timeout(30000));
