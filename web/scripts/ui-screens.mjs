@@ -89,9 +89,11 @@ try {
     if (mobile) {
       await page.getByRole('button', { name: 'Menu', exact: true }).click();
       await shot('01-menu-open', false);
-      await page.keyboard.press('Escape');
-      await page.reload();
-      await delay(500);
+      await page
+        .getByRole('navigation', { name: 'Main' })
+        .getByRole('button', { name: 'Point of Service', exact: true })
+        .click();
+      await delay(400);
     }
     for (const name of navigationPages) {
       if (name === 'Material Waste') continue;
@@ -111,6 +113,18 @@ try {
         await page.keyboard.press('Escape').catch(() => {});
       }
     }
+    const closeDialogs = async () => {
+      for (let i = 0; i < 3 && (await page.locator('dialog[open]').count()); i++) {
+        await page
+          .locator('dialog[open]')
+          .last()
+          .getByRole('button', { name: /^Close$|^Cancel$/ })
+          .first()
+          .click()
+          .catch(() => {});
+        await delay(300);
+      }
+    };
     // Main dialogs.
     const dialog = async (pageName, button, file) => {
       try {
@@ -122,11 +136,10 @@ try {
           .getByRole('dialog')
           .first()
           .screenshot({ path: `${out}/${mode}-91-dialog-${file}-full.png` });
-        await page.keyboard.press('Escape');
-        await delay(300);
+        await closeDialogs();
       } catch (e) {
         failures.push(`${mode} dialog ${file}: ${e.message.split('\n')[0]}`);
-        await page.keyboard.press('Escape').catch(() => {});
+        await closeDialogs();
       }
     };
     await dialog('Point of Service', 'Add job', 'new-checkout');
@@ -138,7 +151,7 @@ try {
     await dialog('Materials', 'Add material', 'add-material');
     await dialog('Services', 'Add service', 'add-service');
     await dialog('Edit Products', 'Edit', 'edit-product');
-    await dialog('Jobs', 'Details', 'job-details');
+    await dialog('Jobs', 'Books', 'job-details');
     try {
       await nav('Pricing Templates');
       await page.getByRole('tab', { name: 'Templates', exact: true }).click();
@@ -152,7 +165,7 @@ try {
         await next.click();
         await delay(250);
       }
-      await page.keyboard.press('Escape');
+      await closeDialogs();
     } catch (e) {
       failures.push(`${mode} template editor: ${e.message.split('\n')[0]}`);
     }
