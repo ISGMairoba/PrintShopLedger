@@ -1,4 +1,5 @@
 import { useFeedbackMessage, FeedbackBanner } from './Feedback';
+import { TEMPLATE_LIMIT } from './pricing-templates.mjs';
 import { receiptHtml } from './receipts.mjs';
 import { sampleReceipt } from './receipt-sample.mjs';
 import BusinessOptionsEditor from './BusinessOptionsEditor';
@@ -544,6 +545,27 @@ export default function BusinessSettingsPage({
                 onChange={(e) => field('pricing', { ...draft.pricing, enabled: e.target.checked })}
               />
               Enable pricing templates
+            </label>
+            <label>
+              Most active templates
+              <input
+                aria-label="Most active templates"
+                type="number"
+                min={1}
+                max={TEMPLATE_LIMIT}
+                step={1}
+                value={draft.pricing.maxTemplates ?? 100}
+                onChange={(e) =>
+                  field('pricing', {
+                    ...draft.pricing,
+                    maxTemplates: e.target.value === '' ? 1 : Math.round(Number(e.target.value)),
+                  })
+                }
+              />
+              <small>
+                1 to {TEMPLATE_LIMIT}. Archived templates don't count. Every device downloads all templates,
+                so keep only the ones you use.
+              </small>
             </label>
             {sectionSave('Pricing templates', ['pricing'])}
           </fieldset>

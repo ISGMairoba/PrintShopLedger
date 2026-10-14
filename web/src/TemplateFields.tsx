@@ -366,7 +366,7 @@ export function TemplateAudit({
       </dl>
       {s.references.length > 0 && (
         <details open>
-          <summary>Costs used</summary>
+          <summary>Costs and prices used</summary>
           <ul className="template-lines">
             {s.references.map((r) => (
               <li key={r.key}>
@@ -375,7 +375,9 @@ export function TemplateAudit({
                     {r.name} · v{r.version}
                   </strong>
                   <small>
-                    {r.key} · {currency(r.amount)} for {number(r.per)} {r.unit}
+                    {r.kind === 'price'
+                      ? `${r.key} · selling price`
+                      : `${r.key} · ${currency(r.amount)} for ${number(r.per)} ${r.unit}`}
                     {r.purchaseUnit ? ` (bought as ${r.purchaseUnit})` : ''}
                   </small>
                 </span>

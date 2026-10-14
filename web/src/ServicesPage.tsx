@@ -9,7 +9,7 @@ import { SortHeader, useTableSort } from './TableSort';
 import { money } from './domain.mjs';
 import { materialCode } from './material-display.mjs';
 import { serviceCode, serviceMatches, servicePrice } from './services.mjs';
-import { canonical, consumptionUnit, costRate, suggestCostKey } from './pricing-templates.mjs';
+import { canonical, consumptionUnit, costRate, hasCost, suggestCostKey } from './pricing-templates.mjs';
 import type { Material, MaterialEvent, Service, ServiceEvent } from './types';
 import { useWords } from './Words';
 import { useBusinessOptions } from './BusinessOptionsContext';
@@ -109,14 +109,20 @@ export default function ServicesPage({
     try {
       const price = privateItem ? 0 : money(String(data.get('price')));
       const id = editing?.id ?? crypto.randomUUID();
+      const costText = String(data.get('costAmount') ?? '').trim();
+      // A formula name alone lets templates use the selling price; a cost is optional (needed when private).
       const costing =
         costed || privateItem
           ? {
               key: String(data.get('costKey') ?? '').trim(),
-              amount: money(String(data.get('costAmount'))),
-              per: Number(data.get('costPer') || 1),
-              ...(String(data.get('costUnit') ?? '').trim()
-                ? { unit: String(data.get('costUnit')).trim() }
+              ...(costText
+                ? {
+                    amount: money(costText),
+                    per: Number(data.get('costPer') || 1),
+                    ...(String(data.get('costUnit') ?? '').trim()
+                      ? { unit: String(data.get('costUnit')).trim() }
+                      : {}),
+                  }
                 : {}),
             }
           : null;
@@ -327,10 +333,20 @@ export default function ServicesPage({
                           )}
                           {service.costing && (
                             <small>
-                              Template cost <code>{service.costing.key}</code>:{' '}
-                              {servicePrice(service.costing.amount)} for {service.costing.per}{' '}
-                              {consumptionUnit(service, materials)} (₦
-                              {canonical(costRate(service.costing))} each)
+                              In templates as <code>{service.costing.key}</code>
+                              {hasCost(service.costing) ? (
+                                <>
+                                  : cost {servicePrice(service.costing.amount!)} for {service.costing.per}{' '}
+                                  {consumptionUnit(service, materials)} (₦
+                                  {canonical(costRate(service.costing))} each)
+                                </>
+                              ) : null}
+                              {!service.private && (
+                                <>
+                                  {' '}
+                                  · selling price as <code>{service.costing.key}_price</code>
+                                </>
+                              )}
                             </small>
                           )}
                         </td>
@@ -520,7 +536,7 @@ export default function ServicesPage({
                   disabled={privateItem}
                   onChange={(e) => setCosted(e.target.checked)}
                 />
-                Has a template cost (use it in pricing template formulas)
+                Use in pricing templates (gives it a formula name)
               </label>
               {(costed || privateItem) && (
                 <div className="form-grid">
@@ -545,12 +561,27 @@ export default function ServicesPage({
                     </small>
                   </label>
                   <label>
-                    Cost (₦)
+                    {privateItem ? 'Cost (₦)' : 'Cost (₦, optional)'}
                     <CurrencyInput
                       name="costAmount"
-                      defaultValue={editing?.costing ? (editing.costing.amount / 100).toFixed(2) : ''}
-                      required
+                      defaultValue={
+                        hasCost(editing?.costing) ? (editing!.costing!.amount! / 100).toFixed(2) : ''
+                      }
+                      required={privateItem}
                     />
+                    <small>
+                      In formulas, <code>{costKey || 'name'}</code> is the cost
+                      {privateItem ? (
+                        ''
+                      ) : (
+                        <>
+                          {' '}
+                          and <code>{(costKey || 'name') + '_price'}</code> the selling price. Leave the cost
+                          empty to use only the selling price
+                        </>
+                      )}
+                      .
+                    </small>
                   </label>
                   <label>
                     For how many units
@@ -560,7 +591,6 @@ export default function ServicesPage({
                       min="0.001"
                       step="0.001"
                       defaultValue={editing?.costing?.per ?? 1}
-                      required
                     />
                     <small>
                       Units are the {w('material')}'s unit, or items. e.g. ₦5,000 for 500 sheets: enter 500.

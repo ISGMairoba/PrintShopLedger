@@ -64,7 +64,7 @@ export type PricingTemplate = {
   expenses: TemplateExpense[];
   pricing: TemplatePricing;
 };
-export type PricingSettings = { enabled: boolean; templates: PricingTemplate[] };
+export type PricingSettings = { enabled: boolean; maxTemplates?: number; templates: PricingTemplate[] };
 export type TemplateReference = {
   serviceId: string;
   key: string;
@@ -76,6 +76,8 @@ export type TemplateReference = {
   unit: string;
   /** Naira per unit, exact decimal text. */
   rate: string;
+  /** 'price' when the formula used the selling price (name_price) rather than the cost. */
+  kind?: 'price';
 };
 export type TemplateSnapshot = {
   template: PricingTemplate;
@@ -270,7 +272,8 @@ export interface Service {
   modifiedAt: string;
   lastEventId: string;
 }
-export type ServiceCosting = { key: string; amount: number; per: number; unit?: string };
+/** Template use: a formula name, and optionally a cost (amount in kobo for `per` units). */
+export type ServiceCosting = { key: string; amount?: number; per?: number; unit?: string };
 export interface ServiceCommand {
   shelfItem?: boolean;
   private?: boolean;

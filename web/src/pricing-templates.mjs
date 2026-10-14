@@ -7,7 +7,9 @@
 // operation is rounded to 12 decimal places, exactly as the server does when it checks the price.
 
 /** @returns {import('./types').PricingSettings} */
-export const pricingDefaults = () => ({ enabled: false, templates: [] });
+export const pricingDefaults = () => ({ enabled: false, maxTemplates: 100, templates: [] });
+/** The most active templates a business may choose to allow. */
+export const TEMPLATE_LIMIT = 500;
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const keyPattern = /^[a-z][a-z0-9_]{0,39}$/;
 /** Function name → [fewest, most] arguments. */
@@ -550,13 +552,17 @@ export function validateTemplate(t) {
   };
 }
 export function validatePricingSettings(input = pricingDefaults()) {
-  if (
-    !input ||
-    typeof input.enabled !== 'boolean' ||
-    !Array.isArray(input.templates) ||
-    input.templates.length > 30
-  )
-    throw Error('Pricing needs a switch and at most 30 templates.');
+  if (!input || typeof input.enabled !== 'boolean' || !Array.isArray(input.templates))
+    throw Error('Pricing needs a switch and a list of templates.');
+  const maxTemplates = input.maxTemplates ?? 100;
+  if (!Number.isInteger(maxTemplates) || maxTemplates < 1 || maxTemplates > TEMPLATE_LIMIT)
+    throw Error(`The template limit must be a whole number from 1 to ${TEMPLATE_LIMIT}.`);
+  if (input.templates.length > TEMPLATE_LIMIT)
+    throw Error(`A business can keep at most ${TEMPLATE_LIMIT} templates, including archived ones.`);
+  if (input.templates.filter((t) => !t.archived).length > maxTemplates)
+    throw Error(
+      `Your limit is ${maxTemplates} active templates. Archive one or raise the limit in Business Settings.`,
+    );
   const ids = new Set(),
     names = new Set();
   const templates = input.templates.map((t) => {
@@ -568,7 +574,7 @@ export function validatePricingSettings(input = pricingDefaults()) {
     if (!out.archived) names.add(out.name.toLowerCase());
     return out;
   });
-  return { enabled: input.enabled, templates };
+  return { enabled: input.enabled, maxTemplates, templates };
 }
 
 // ---------------------------------------------------------------- service costs
@@ -591,13 +597,19 @@ export function suggestCostKey(description, services, ownId) {
   while (taken.has(key)) key = `${base.slice(0, 36)}_${n++}`;
   return key;
 }
-/** A service's template cost as entered: none, or { key, amount (kobo), per, unit }. */
+/**
+ * A service's use in templates: none, or { key, amount (kobo), per, unit }. The formula name `key`
+ * gives its cost (when it has one); `key_price` gives its selling price.
+ */
 export function validCosting(input) {
   if (input === undefined || input === null) return null;
-  if (typeof input !== 'object') throw Error('Enter the template cost.');
+  if (typeof input !== 'object') throw Error('Enter the formula name.');
   const key = String(input.key ?? '').trim();
-  if (!keyPattern.test(key) || reservedNames.has(key) || key === 'quantity')
-    throw Error('Formula name: use lowercase letters, numbers and _ (not quantity or a function name).');
+  if (!keyPattern.test(key) || reservedNames.has(key) || key === 'quantity' || key.endsWith('_price'))
+    throw Error(
+      'Formula name: use lowercase letters, numbers and _ (not quantity, a function name, or ending in _price).',
+    );
+  if (input.amount === undefined || input.amount === null) return { key };
   if (!Number.isSafeInteger(input.amount) || input.amount < 0 || input.amount > 100000000000)
     throw Error('Enter the cost, with at most two decimal places.');
   const per = Number(input.per);
@@ -606,6 +618,8 @@ export function validCosting(input) {
   const unit = plain(String(input.unit ?? ''), 'Bought as', 40);
   return { key, amount: input.amount, per, ...(unit ? { unit } : {}) };
 }
+/** Whether a service's template use includes a cost (not only a formula name). */
+export const hasCost = (costing) => !!costing && costing.amount !== undefined && costing.amount !== null;
 /** Naira cost of one consumption unit (12 places). */
 export const costRate = (costing) =>
   round12(div({ n: BigInt(costing.amount), d: 100n }, decimal(costing.per)));
@@ -679,11 +693,29 @@ export function priceTemplate(ledger, template, supplied, quantity, stockIds = {
       });
     return used.get(service.costing.key);
   };
+  // A service's selling price in a formula: <formula name>_price, per unit (naira).
+  const priceReference = (service, name) => {
+    if (!used.has(name))
+      used.set(name, {
+        serviceId: service.id,
+        key: name,
+        name: service.description,
+        version: service.version,
+        amount: service.price,
+        per: 1,
+        unit: consumptionUnit(service, ledger.materials),
+        rate: canonical(div({ n: BigInt(service.price), d: 1n }, HUNDRED)),
+        kind: 'price',
+      });
+    return used.get(name);
+  };
   const selected = new Map();
   for (const v of template.variables)
     if (v.kind === 'material') {
       const option = v.options.find((o) => o.value === inputs[v.key]);
-      const service = ledger.services.find((s) => s.id === option.serviceId && !s.archived && s.costing);
+      const service = ledger.services.find(
+        (s) => s.id === option.serviceId && !s.archived && hasCost(s.costing),
+      );
       if (!service)
         throw new FieldError(
           `${v.label}: ${option.label} is no longer available. Review the template.`,
@@ -698,8 +730,18 @@ export function priceTemplate(ledger, template, supplied, quantity, stockIds = {
     for (const name of formulaNames(f.expression)) {
       if (values.has(name) || formulas.has(name)) continue;
       const service = costed.get(name);
-      if (!service) throw Error(`Unknown value "${name}". Check the template or the cost on its item.`);
-      values.set(name, decimal(reference(service).rate));
+      if (service) {
+        if (!hasCost(service.costing))
+          throw Error(
+            `${service.description} has no template cost. Use ${name}_price for its selling price.`,
+          );
+        values.set(name, decimal(reference(service).rate));
+        continue;
+      }
+      const priced = name.endsWith('_price') ? costed.get(name.slice(0, -6)) : null;
+      if (!priced)
+        throw Error(`Unknown value "${name}". Check the template or the formula name on its item.`);
+      values.set(name, decimal(priceReference(priced, name).rate));
     }
   const active = new Set();
   const resolve = (name) => {

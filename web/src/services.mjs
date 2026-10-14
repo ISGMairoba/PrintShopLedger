@@ -1,6 +1,6 @@
 import { normalizeLedger } from './materials.mjs';
 import { materialCode } from './material-display.mjs';
-import { validCosting } from './pricing-templates.mjs';
+import { hasCost, validCosting } from './pricing-templates.mjs';
 export const serviceCode = (id, services = []) => materialCode(id, services).replace('MAT-', 'SVC-');
 export const servicePrice = (price) =>
   new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(price / 100);
@@ -37,7 +37,7 @@ export function validateService(data, ledger, existing) {
   if (data.private !== undefined && typeof data.private !== 'boolean')
     throw new Error('Choose whether this is used in templates only.');
   const costing = validCosting(data.costing);
-  if (data.private && !costing) throw new Error('A templates-only item needs a template cost.');
+  if (data.private && !hasCost(costing)) throw new Error('A templates-only item needs a template cost.');
   if (
     costing &&
     ledger.services.some((s) => s.id !== data.id && !s.archived && s.costing?.key === costing.key)

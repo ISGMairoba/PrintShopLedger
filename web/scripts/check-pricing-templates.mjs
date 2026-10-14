@@ -86,7 +86,7 @@ try {
     await nav('Services');
     assert.match(
       await page.locator('body').innerText(),
-      /Binding labour[\s\S]*Private[\s\S]*Template cost\s*binding/,
+      /Binding labour[\s\S]*Private[\s\S]*In templates as\s*binding/,
     );
     await nav('Pricing Templates');
     assert.equal(await page.getByLabel('Enable pricing templates').count(), 0);
