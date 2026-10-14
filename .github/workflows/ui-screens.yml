@@ -1,0 +1,32 @@
+name: UI screenshots
+# Captures every screen for a visual review and saves them on the ui-screens-output branch.
+on:
+  push:
+    branches: ['claude/ui-screens*']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  screens:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: mkdir -p /tmp/ui-screens && node scripts/ui-screens.mjs /tmp/ui-screens | tee /tmp/ui-screens/result.txt
+      - name: Save screenshots
+        run: |
+          cd /tmp/ui-screens
+          git init -q -b ui-screens-output
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add -A
+          git commit -qm "Screens for ${GITHUB_SHA}"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" ui-screens-output
