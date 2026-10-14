@@ -139,6 +139,36 @@ try {
         await delay(300);
       }
     };
+    // Every text box, date box and dropdown on screen should be one height.
+    const fieldHeights = async (where) => {
+      const sizes = await page.evaluate(() =>
+        [
+          ...document.querySelectorAll(
+            'main input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=file]), main select, dialog[open] input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=file]), dialog[open] select',
+          ),
+        ]
+          .filter((el) => el.getBoundingClientRect().width > 0)
+          .map((el) => Math.round(el.getBoundingClientRect().height)),
+      );
+      if (new Set(sizes).size > 1)
+        failures.push(`${mode} ${where}: field heights ${[...new Set(sizes)].join('/')}`);
+    };
+    // Expenses with its filter row open, and the statement customer search.
+    try {
+      await nav('Expenses');
+      await page.locator('.filter-button').click();
+      await page.getByRole('button', { name: /^Dates:/ }).click();
+      await fieldHeights('Expenses filters');
+      await shot('93-expenses-filters');
+      await nav('Reports');
+      await page.getByLabel('Customer', { exact: true }).fill('Book');
+      await fieldHeights('Reports customer');
+      await shot('94-reports-customer-search', false);
+      await nav('Dashboard');
+      await fieldHeights('Dashboard period');
+    } catch (e) {
+      failures.push(`${mode} filters: ${e.message.split('\n')[0]}`);
+    }
     // Main dialogs.
     const dialog = async (pageName, button, file) => {
       try {
@@ -146,6 +176,7 @@ try {
         await page.getByRole('button', { name: button, exact: true }).first().click();
         await page.getByRole('dialog').first().waitFor();
         await shot(`90-dialog-${file}`, false);
+        await fieldHeights(`dialog ${file}`);
         await page
           .getByRole('dialog')
           .first()

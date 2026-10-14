@@ -23,6 +23,11 @@ import { useWords } from './Words';
 import { statementMessage } from './share.mjs';
 import { useFeedback } from './Feedback';
 import Icon from './Icon';
+import ListedCombobox from './ListedCombobox';
+
+/** How a customer appears in the statement picker: name, phone, and archived when it is. */
+const customerOption = (c: { name: string; phone: string; archived?: boolean }) =>
+  `${c.name}${c.phone ? ' — ' + c.phone : ''}${c.archived ? ' (archived)' : ''}`;
 import { nameSections } from './report-words';
 
 export type ReportAccess = {
@@ -420,6 +425,10 @@ function StatementTab({
     () => [...ledger.customers].sort((a, b) => a.name.localeCompare(b.name)),
     [ledger.customers],
   );
+  const [customerText, setCustomerText] = useState(() => {
+    const saved = ledger.customers.find((c) => c.id === customerId);
+    return saved ? customerOption(saved) : '';
+  });
   const full = useMemo(
     () =>
       valid && customerId && ledger.customers.some((c) => c.id === customerId)
@@ -462,25 +471,25 @@ function StatementTab({
   return (
     <>
       <section className="panel dashboard-filters report-filters">
-        <label className="wide">
-          Customer
-          <select
-            value={customerId}
-            onChange={(e) => {
-              onCustomerChange(e.target.value);
-              clear();
+        <div className="wide">
+          <ListedCombobox
+            label="Customer"
+            name="statement-customer"
+            placeholder="Type a name or phone number"
+            required={false}
+            emptyText="No matching customer."
+            options={customers.map(customerOption)}
+            value={customerText}
+            onChange={(text) => {
+              setCustomerText(text);
+              const picked = customers.find((c) => customerOption(c) === text);
+              if ((picked?.id ?? '') !== customerId) {
+                onCustomerChange(picked?.id ?? '');
+                clear();
+              }
             }}
-          >
-            <option value="">Choose a customer</option>
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-                {c.phone ? ` · ${c.phone}` : ''}
-                {c.archived ? ' (archived)' : ''}
-              </option>
-            ))}
-          </select>
-        </label>
+          />
+        </div>
         {controls}
         <small>Dates use Africa/Lagos.</small>
       </section>

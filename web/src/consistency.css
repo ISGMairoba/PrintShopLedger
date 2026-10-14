@@ -509,3 +509,71 @@ p.empty {
     font-size: 16px;
   }
 }
+
+/* ---- One control height everywhere ----
+   Text boxes, date boxes, dropdowns and ordinary buttons are the same height on every screen,
+   in forms, pop-ups and filter rows alike (a little taller on touch screens). Rows of fields
+   line their controls up along the bottom, so a longer field name never pushes one down. */
+@media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
+  :root {
+    --control-h: 44px;
+  }
+}
+input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]):not([type="file"]),
+select {
+  height: var(--control-h);
+  min-height: var(--control-h);
+  padding-top: 0;
+  padding-bottom: 0;
+  line-height: normal;
+}
+button:not(
+    .text-button,
+    .sort-button,
+    .chart-toggle,
+    [role="tab"],
+    [role="option"],
+    .reason-options button,
+    .logo-palette button,
+    .formula-tokens button,
+    nav button,
+    .settings-tabs button,
+    .sidebar-bottom button,
+    .detail > button
+  ) {
+  min-height: var(--control-h);
+}
+.form-grid,
+.period-panel,
+.discount-fields,
+.dashboard-filters {
+  align-items: end;
+}
+.listed-combobox-input > button {
+  height: var(--control-h);
+  min-height: var(--control-h);
+}
+/* The Expenses filter row: three filters and Reset, lined up like the date row. */
+.filter-panel {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+}
+.filter-panel select {
+  width: 100%;
+  max-width: none;
+}
+@media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
+  .filter-panel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .filter-panel > .history-filter-reset {
+    grid-column: auto;
+  }
+}
+.filter-button.filtered {
+  border-color: var(--brand-link, #124b40);
+}
+/* A type-to-search box's name sits the same distance above it as any other field name. */
+.listed-combobox > label {
+  display: block;
+  margin-bottom: 7px;
+}

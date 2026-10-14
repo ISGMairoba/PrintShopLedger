@@ -5,12 +5,18 @@ export default function ListedCombobox({
   options,
   value,
   onChange,
+  placeholder,
+  required = true,
+  emptyText = 'No matching category. Choose an option from Business Settings.',
 }: {
   label: string;
   name: string;
   options: string[];
   value: string;
   onChange: (value: string) => void;
+  placeholder?: string;
+  required?: boolean;
+  emptyText?: string;
 }) {
   const id = useId(),
     [open, setOpen] = useState(false),
@@ -38,7 +44,8 @@ export default function ListedCombobox({
           aria-activedescendant={open && choices[active] ? `${id}-option-${active}` : undefined}
           value={value}
           autoComplete="off"
-          required
+          placeholder={placeholder}
+          required={required}
           onChange={(e) => {
             onChange(e.target.value);
             setShowAll(false);
@@ -102,7 +109,7 @@ export default function ListedCombobox({
               {item}
             </button>
           ))}
-          {!choices.length && <p>No matching category. Choose an option from Business Settings.</p>}
+          {!choices.length && <p>{emptyText}</p>}
         </div>
       )}
     </div>

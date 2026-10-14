@@ -2,6 +2,11 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { webkit, devices } from 'playwright';
+const openFilters = async (scope) => {
+  const toggle = scope.locator('.filter-button').first();
+  if ((await toggle.count()) && (await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+  return scope;
+};
 const openMore = async (scope) => {
   // Pages with a single extra action show it directly; others put it under More.
   const toggle = scope.locator('.toolbar-actions .more-menu > button').first();
@@ -184,7 +189,7 @@ try {
   await fits('Stock History filters');
   await datesFit('Stock History date filter');
   await page.getByLabel('From', { exact: true }).fill('2020-01-01');
-  await page.getByRole('button', { name: 'Reset filters', exact: true }).click();
+  await (await openFilters(page)).getByRole('button', { name: 'Reset filters', exact: true }).click();
   assert.equal(await page.getByLabel('Period', { exact: true }).inputValue(), 'all');
   const bar = page.locator('.mobile-app-bar');
   assert.equal(await bar.evaluate((node) => getComputedStyle(node).position), 'fixed', 'Menu bar is fixed');
