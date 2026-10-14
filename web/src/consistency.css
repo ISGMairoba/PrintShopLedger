@@ -252,8 +252,7 @@ label small,
 [data-theme] .more-menu-panel button:hover:not(:disabled) {
   background: var(--surface-alt);
 }
-.more-menu-panel button[aria-pressed="true"]::after {
-  content: "✓";
+.more-menu-panel .menu-check {
   margin-left: auto;
   font-weight: 700;
 }

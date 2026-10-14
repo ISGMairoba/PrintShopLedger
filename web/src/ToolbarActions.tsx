@@ -88,6 +88,11 @@ export function MenuToggle({
   return (
     <button type="button" className="secondary" aria-pressed={pressed} onClick={onClick}>
       {icon && <Icon name={icon} />} {children}
+      {pressed && (
+        <span className="menu-check" aria-hidden="true">
+          ✓
+        </span>
+      )}
     </button>
   );
 }
