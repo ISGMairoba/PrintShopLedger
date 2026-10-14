@@ -1,4 +1,4 @@
-import JobViewControls from './JobViewControls';
+import jobViewItems from './JobViewControls';
 import ToolbarActions, { MenuToggle } from './ToolbarActions';
 import { useState } from 'react';
 import ResponsiveTable from './ResponsiveTable';
@@ -131,15 +131,15 @@ export default function PointOfServicePage({
         <ToolbarActions
           more={
             <>
-              <JobViewControls
-                showBatch={!receipts}
-                audit={audit}
-                onAudit={() => setAudit((value) => !value)}
-                grouped={grouped}
-                selecting={selecting}
-                onGroup={() => setGrouped((value) => !value)}
-                onSelect={() => setSelecting((value) => !value)}
-              />
+              {jobViewItems({
+                showBatch: !receipts,
+                audit: audit,
+                onAudit: () => setAudit((value) => !value),
+                grouped: grouped,
+                selecting: selecting,
+                onGroup: () => setGrouped((value) => !value),
+                onSelect: () => setSelecting((value) => !value),
+              })}
               <MenuToggle pressed={receipts} icon="details" onClick={() => setReceipts((v) => !v)}>
                 Receipts
               </MenuToggle>

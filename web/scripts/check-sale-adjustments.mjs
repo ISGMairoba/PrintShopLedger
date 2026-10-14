@@ -6,7 +6,9 @@ import { emptyLedger, applyEvent } from '../src/domain.mjs';
 import { prepareCheckout, walletBalance } from '../src/checkout.mjs';
 import { drawerSnapshot } from '../src/my-sales.mjs';
 const openMore = async (scope) => {
+  // Pages with a single extra action show it directly; others put it under More.
   const toggle = scope.locator('.toolbar-actions .more-menu > button').first();
+  if (!(await toggle.count())) return scope;
   if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
   await scope.locator('.more-menu-panel').first().waitFor();
   return scope;
