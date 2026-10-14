@@ -209,7 +209,20 @@ function drawPage(doc: jsPDF, m: Model, media: ReceiptMedia, watermark: boolean)
       doc.setFontSize(8.2 * k);
       const sub = subline ? (doc.splitTextToSize(pdfText(subline), descW) as string[]) : [];
       const h = name.length * 4.2 * k + sub.length * 3.5 * k + (i.paidBefore ? 3.6 * k : 0) + 4.5 * k;
-      if (page(h + 4 * k)) head();
+      const heading = (i as { heading?: string }).heading;
+      // A group title (comparisons): a tinted band that always stays with its first option.
+      if (heading) {
+        if (page(h + 16 * k)) head();
+        y += 2 * k;
+        doc.setFillColor(...(media.color ? ([240, 245, 243] as Colour) : ([238, 238, 238] as Colour)));
+        doc.rect(L, y - 4.5 * k, U, 8.5 * k, 'F');
+        doc.setDrawColor(...brand);
+        doc.setLineWidth(1.4 * k);
+        doc.line(L, y - 4.5 * k, L, y + 4 * k);
+        doc.setLineWidth(0.2);
+        text(heading, L + 4 * k, 10, 'bold', media.color ? brand : INK, 'left', U - 8 * k);
+        y += 9 * k;
+      } else if (page(h + 4 * k)) head();
       const top = y;
       y += text(i.title, L, 10, 'bold', INK, 'left', descW);
       if (sub.length) text(sub.join('\n'), L, 8.2, 'normal', MUTED);

@@ -578,6 +578,8 @@ export function CompareOptions({
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),
         preparedBy: doc.preparedBy,
+        // Groups as on screen, when the grouping detail is one the client may see.
+        ...(headings && grouping && grouping.clientVisible !== false ? { groupBy: grouping.key } : {}),
       };
       const pdf = createComparisonPdf(
         template,
