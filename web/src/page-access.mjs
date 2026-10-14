@@ -23,7 +23,7 @@ export const derivedPages = {
   Reports: 'Dashboard',
   Quotations: 'Point of Service',
   'Payment Reminders': 'Customers',
-  'Pricing Templates': 'Business Settings',
+  'Pricing Templates': 'Point of Service',
   'Edit Products': 'Services',
 };
 export const navigationPages = [
@@ -31,13 +31,14 @@ export const navigationPages = [
   'Reports',
   'Point of Service',
   'Quotations',
+  'Pricing Templates',
   ...pages
     .slice(2)
     .flatMap((page) =>
       page === 'Customers'
         ? [page, 'Payment Reminders']
         : page === 'Services'
-          ? [page, 'Edit Products', 'Pricing Templates']
+          ? [page, 'Edit Products']
           : [page],
     ),
 ];

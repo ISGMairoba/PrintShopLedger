@@ -44,6 +44,8 @@ type Props = {
   discountPolicy?: { maxPercent: number; canFlat: boolean };
   /** Start from an accepted quotation: its lines, customer and discounts. */
   fromQuotation?: QuotationStart;
+  /** Start with one template line, priced on the Pricing Templates page. */
+  startTemplate?: { templateId: string; inputs: Record<string, number | string>; quantity: string };
 };
 export type QuotationStart = {
   reference: string;
@@ -215,6 +217,7 @@ export default function CheckoutEditor({
   jobSettings = jobSettingsDefaults(),
   discountPolicy = { maxPercent: 0, canFlat: false },
   fromQuotation,
+  startTemplate,
 }: Props) {
   const options = useBusinessOptions(),
     jobSources = options.jobSources;
@@ -255,7 +258,19 @@ export default function CheckoutEditor({
           }))
         : paymentOnly
           ? []
-          : [newLine()],
+          : startTemplate
+            ? [
+                {
+                  ...newLine(),
+                  serviceId: startTemplate.templateId,
+                  templateInputs: startTemplate.inputs,
+                  templateStockIds: {},
+                  description:
+                    ledger.pricing?.templates.find((t) => t.id === startTemplate.templateId)?.name ?? '',
+                  quantity: startTemplate.quantity,
+                },
+              ]
+            : [newLine()],
   );
   // A customer added offline can clash with one created elsewhere in the meantime (for
   // example the same phone number). Detect it once so the reviewer picks a customer instead
@@ -849,13 +864,6 @@ export default function CheckoutEditor({
                           quantity={item.quantity}
                           amount={priced?.jobs[index]?.amount ?? quote?.amount}
                           error=""
-                          onUse={(inputs, quantity) =>
-                            setLines((items) =>
-                              items.map((l) =>
-                                l.id === item.id ? { ...l, templateInputs: inputs, quantity } : l,
-                              ),
-                            )
-                          }
                         />
                       )}
                     </section>

@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import TemplateEditor from './PricingTemplatesEditor';
 import Modal from './Modal';
 import Icon from './Icon';
+import { TemplateCalculator, useTemplateAudit, type TemplateStart } from './TemplateFields';
 import CurrencyInput from './CurrencyInput';
 import type { Ledger, PricingTemplate, ServiceEvent } from './types';
 import type { Branding } from './useBusinessBranding';
@@ -31,6 +32,10 @@ export default function PricingTemplatesPage({
   onSave,
   onReload,
   onSaveService,
+  canManage,
+  canEditCosts,
+  onStartCheckout,
+  onStartQuotation,
 }: {
   settings: Branding;
   version: number;
@@ -42,6 +47,12 @@ export default function PricingTemplatesPage({
   onSave: (settings: Branding, version: number) => Promise<unknown>;
   onReload: () => Promise<void>;
   onSaveService: (event: ServiceEvent) => Promise<void>;
+  /** May build and change templates (Business Settings access). */
+  canManage: boolean;
+  /** May add private costs (catalogue editing). */
+  canEditCosts: boolean;
+  onStartCheckout: (start: TemplateStart) => void;
+  onStartQuotation: (start: TemplateStart) => void;
 }) {
   const { w } = useWords();
   const [editing, setEditing] = useState<PricingTemplate | null>(null);
@@ -50,11 +61,20 @@ export default function PricingTemplatesPage({
   const [showArchived, setShowArchived] = useState(false);
   const [message, setMessage, tone] = useFeedbackMessage('success');
   const [costKey, setCostKey] = useState('');
+  // Costs are shown to the ranks allowed to see template costs, and to template managers.
+  const canSeeCosts = useTemplateAudit() || canManage;
+  const tabs = [
+    ['price', 'Price & compare'],
+    ...(canManage ? [['templates', 'Templates']] : []),
+    ...(canSeeCosts ? [['costs', 'Costs']] : []),
+  ];
+  const [tab, setTab] = useState('price');
   const canSave = ready && (demo || online) && !busy;
   const pricing = settings.pricing;
   useEffect(() => {
-    if (!online && !demo) setMessage('Connect to save pricing templates.', 'error');
-  }, [online, demo, setMessage]);
+    if (!online && !demo && canManage && tab === 'templates')
+      setMessage('Connect to save pricing templates.', 'error');
+  }, [online, demo, canManage, tab, setMessage]);
   async function saveTemplates(templates: PricingTemplate[], done: string) {
     setBusy(true);
     setMessage('');
@@ -131,202 +151,241 @@ export default function PricingTemplatesPage({
   return (
     <section className="panel editor" aria-label="Pricing templates">
       <FeedbackBanner message={message} tone={tone} />
-      {!pricing.enabled && (
-        <p className="notice">
-          Pricing templates are switched off in Business Settings, so staff cannot use them.
-        </p>
-      )}
-      <section className="stats">
-        <article>
-          <span>Active templates</span>
-          <strong>{pricing.templates.filter((t) => !t.archived).length}</strong>
-          <small>Limit {pricing.maxTemplates ?? 100} (Business Settings)</small>
-        </article>
-        <article>
-          <span>Costs for formulas</span>
-          <strong>{costs.length}</strong>
-          <small>{w('Services')} with a template cost</small>
-        </article>
-        <article>
-          <span>Private costs</span>
-          <strong>{costs.filter((s) => s.private).length}</strong>
-          <small>Used in templates only, never sold</small>
-        </article>
-      </section>
-      <div className="toolbar">
-        <button
-          type="button"
-          disabled={!canSave}
-          onClick={() => setEditing(newTemplate() as PricingTemplate)}
-        >
-          <Icon name="add" /> New template
-        </button>
-        <button
-          type="button"
-          className="secondary"
-          disabled={!ready || busy}
-          onClick={() => {
-            setAdding(true);
-            setCostKey('');
-          }}
-        >
-          <Icon name="add" /> Add private cost
-        </button>
-        <label className="check-label">
-          <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
-          Show archived
-        </label>
-        <button
-          type="button"
-          className="secondary"
-          disabled={busy}
-          onClick={() =>
-            void onReload().catch((e) => setMessage(e instanceof Error ? e.message : String(e), 'error'))
-          }
-        >
-          Reload saved templates
-        </button>
+      <div className="settings-tabs" role="tablist" aria-label="Pricing templates sections">
+        {tabs.map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={tab === key}
+            className={tab === key ? 'active' : 'secondary'}
+            onClick={() => {
+              setTab(key);
+              setMessage('');
+            }}
+          >
+            {label}
+          </button>
+        ))}
       </div>
-      {!visible.length ? (
-        <div className="empty">
-          <h2>No templates yet</h2>
-          <p>
-            A template works out a price from costs: enter the variables staff fill in, the quantities to
-            calculate, the expenses, and your markup or margin.
-          </p>
-        </div>
-      ) : (
-        <div className="template-grid">
-          {visible.map((t) => {
-            const problem = t.archived ? '' : templateProblem(ledger, t);
-            return (
-              <article className="template-card" key={t.id}>
-                <div className="row-between">
-                  <span className="badge">{t.category || 'General'}</span>
-                  <small>v{t.version}</small>
-                </div>
-                <h3>{t.name}</h3>
-                <p className="muted">{t.description || 'A reusable pricing template.'}</p>
-                <small>
-                  {t.variables.length} editable variables · {t.computed.length} computed variables ·{' '}
-                  {t.expenses.length} expenses · {t.pricing.rate}% {t.pricing.method}
-                </small>
-                {t.archived && <span className="badge unpaid">Archived</span>}
-                {problem && (
-                  <p className="danger-text" role="status">
-                    Cannot price with today's costs: {problem}
-                  </p>
-                )}
-                <div className="material-actions">
-                  {!t.archived && (
-                    <button
-                      type="button"
-                      className="text-button"
-                      disabled={!canSave}
-                      onClick={() => setEditing(structuredClone(t))}
-                    >
-                      <Icon name="edit" /> Edit
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className="text-button"
-                    disabled={!canSave}
-                    onClick={() =>
-                      setEditing({
-                        ...structuredClone(t),
-                        id: crypto.randomUUID(),
-                        name: `${t.name} copy`,
-                        version: 1,
-                        archived: false,
-                      })
-                    }
-                  >
-                    <Icon name="copy" /> Duplicate
-                  </button>
-                  <button
-                    type="button"
-                    className={`text-button ${t.archived ? '' : 'danger-text'}`}
-                    disabled={!canSave}
-                    onClick={() =>
-                      void saveTemplates(
-                        pricing.templates.map((x) =>
-                          x.id === t.id ? { ...x, archived: !x.archived, version: x.version + 1 } : x,
-                        ),
-                        `${t.name} ${t.archived ? 'restored' : 'archived'}.`,
-                      ).catch(() => {})
-                    }
-                  >
-                    <Icon name={t.archived ? 'restore' : 'archive'} /> {t.archived ? 'Restore' : 'Archive'}
-                  </button>
-                </div>
-              </article>
-            );
-          })}
-        </div>
+      {tab === 'price' && (
+        <TemplateCalculator
+          ledger={ledger}
+          templates={pricing.templates}
+          onCheckout={onStartCheckout}
+          onQuotation={onStartQuotation}
+        />
       )}
-      <h3>Costs used in formulas</h3>
-      <p className="muted">
-        Any {w('service')} or product with a template cost can be used in formulas by its formula name.
-        Private ones are for templates only and never appear at checkout. Change costs on the {w('Services')}{' '}
-        page; saved orders and quotations keep the costs they were priced with.
-      </p>
-      {!costs.length ? (
-        <p className="empty">
-          No costs yet. Add a template cost to a {w('service')}, or use Add private cost.
-        </p>
-      ) : (
-        <div className="table-wrap">
-          <table aria-label="Costs used in formulas">
-            <thead>
-              <tr>
-                <th>{w('Item')}</th>
-                <th>Formula name</th>
-                <th className="numeric">Cost</th>
-                <th className="numeric">Per unit</th>
-              </tr>
-            </thead>
-            <tbody>
-              {costs.map((s) => {
-                const unit = consumptionUnit(s, ledger.materials);
+      {tab === 'templates' && canManage && (
+        <>
+          <section className="stats">
+            <article>
+              <span>Active templates</span>
+              <strong>{pricing.templates.filter((t) => !t.archived).length}</strong>
+              <small>Limit {pricing.maxTemplates ?? 100} (Business Settings)</small>
+            </article>
+          </section>
+          <div className="toolbar">
+            <button
+              type="button"
+              disabled={!canSave}
+              onClick={() => setEditing(newTemplate() as PricingTemplate)}
+            >
+              <Icon name="add" /> New template
+            </button>
+            <label className="check-label">
+              <input
+                type="checkbox"
+                checked={showArchived}
+                onChange={(e) => setShowArchived(e.target.checked)}
+              />
+              Show archived
+            </label>
+            <button
+              type="button"
+              className="secondary"
+              disabled={busy}
+              onClick={() =>
+                void onReload().catch((e) => setMessage(e instanceof Error ? e.message : String(e), 'error'))
+              }
+            >
+              Reload saved templates
+            </button>
+          </div>
+          {!visible.length ? (
+            <div className="empty">
+              <h2>No templates yet</h2>
+              <p>
+                A template works out a price from costs: enter the variables staff fill in, the quantities to
+                calculate, the expenses, and your markup or margin.
+              </p>
+            </div>
+          ) : (
+            <div className="template-grid">
+              {visible.map((t) => {
+                const problem = t.archived ? '' : templateProblem(ledger, t);
                 return (
-                  <tr key={s.id}>
-                    <td>
-                      {s.description}
-                      <small>
-                        {s.private ? 'Private · templates only' : 'Also sold'}
-                        {s.materialId
-                          ? ` · ${w('stock item')}: ${ledger.materials.find((m) => m.id === s.materialId)?.name}`
-                          : ''}
-                      </small>
-                    </td>
-                    <td>
-                      {hasCost(s.costing) && <code>{s.costing!.key}</code>}
-                      {!s.private && (
-                        <small>
-                          <code>{s.costing!.key}_price</code> = {currency(s.price)} selling price
-                        </small>
+                  <article className="template-card" key={t.id}>
+                    <div className="row-between">
+                      <span className="badge">{t.category || 'General'}</span>
+                      <small>v{t.version}</small>
+                    </div>
+                    <h3>{t.name}</h3>
+                    <p className="muted">{t.description || 'A reusable pricing template.'}</p>
+                    <small>
+                      {t.variables.length} editable variables · {t.computed.length} computed variables ·{' '}
+                      {t.expenses.length} expenses · {t.pricing.rate}% {t.pricing.method}
+                    </small>
+                    {t.archived && <span className="badge unpaid">Archived</span>}
+                    {problem && (
+                      <p className="danger-text" role="status">
+                        Cannot price with today's costs: {problem}
+                      </p>
+                    )}
+                    <div className="material-actions">
+                      {!t.archived && (
+                        <button
+                          type="button"
+                          className="text-button"
+                          disabled={!canSave}
+                          onClick={() => setEditing(structuredClone(t))}
+                        >
+                          <Icon name="edit" /> Edit
+                        </button>
                       )}
-                    </td>
-                    <td className="numeric">
-                      {hasCost(s.costing) ? (
-                        <>
-                          {currency(s.costing!.amount!)} for {s.costing!.per} {unit}
-                          {s.costing!.unit ? <small>bought as {s.costing!.unit}</small> : null}
-                        </>
-                      ) : (
-                        <small>No cost · selling price only</small>
-                      )}
-                    </td>
-                    <td className="numeric">
-                      {hasCost(s.costing) ? `₦${canonical(costRate(s.costing!))} / ${unit}` : '—'}
-                    </td>
-                  </tr>
+                      <button
+                        type="button"
+                        className="text-button"
+                        disabled={!canSave}
+                        onClick={() =>
+                          setEditing({
+                            ...structuredClone(t),
+                            id: crypto.randomUUID(),
+                            name: `${t.name} copy`,
+                            version: 1,
+                            archived: false,
+                          })
+                        }
+                      >
+                        <Icon name="copy" /> Duplicate
+                      </button>
+                      <button
+                        type="button"
+                        className={`text-button ${t.archived ? '' : 'danger-text'}`}
+                        disabled={!canSave}
+                        onClick={() =>
+                          void saveTemplates(
+                            pricing.templates.map((x) =>
+                              x.id === t.id ? { ...x, archived: !x.archived, version: x.version + 1 } : x,
+                            ),
+                            `${t.name} ${t.archived ? 'restored' : 'archived'}.`,
+                          ).catch(() => {})
+                        }
+                      >
+                        <Icon name={t.archived ? 'restore' : 'archive'} />{' '}
+                        {t.archived ? 'Restore' : 'Archive'}
+                      </button>
+                    </div>
+                  </article>
                 );
               })}
-            </tbody>
-          </table>
-        </div>
+            </div>
+          )}
+        </>
+      )}
+      {tab === 'costs' && canSeeCosts && (
+        <>
+          <section className="stats">
+            <article>
+              <span>Costs for formulas</span>
+              <strong>{costs.length}</strong>
+              <small>{w('Services')} with a template cost</small>
+            </article>
+            <article>
+              <span>Private costs</span>
+              <strong>{costs.filter((s) => s.private).length}</strong>
+              <small>Used in templates only, never sold</small>
+            </article>
+          </section>
+          {canEditCosts && (
+            <div className="toolbar">
+              <button
+                type="button"
+                className="secondary"
+                disabled={!ready || busy}
+                onClick={() => {
+                  setAdding(true);
+                  setCostKey('');
+                }}
+              >
+                <Icon name="add" /> Add private cost
+              </button>
+            </div>
+          )}
+          <h3>Costs used in formulas</h3>
+          <p className="muted">
+            Any {w('service')} or product with a template cost can be used in formulas by its formula name.
+            Private ones are for templates only and never appear at checkout. Change costs on the{' '}
+            {w('Services')} page; saved orders and quotations keep the costs they were priced with.
+          </p>
+          {!costs.length ? (
+            <p className="empty">
+              No costs yet. Add a template cost to a {w('service')}, or use Add private cost.
+            </p>
+          ) : (
+            <div className="table-wrap">
+              <table aria-label="Costs used in formulas">
+                <thead>
+                  <tr>
+                    <th>{w('Item')}</th>
+                    <th>Formula name</th>
+                    <th className="numeric">Cost</th>
+                    <th className="numeric">Per unit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {costs.map((s) => {
+                    const unit = consumptionUnit(s, ledger.materials);
+                    return (
+                      <tr key={s.id}>
+                        <td>
+                          {s.description}
+                          <small>
+                            {s.private ? 'Private · templates only' : 'Also sold'}
+                            {s.materialId
+                              ? ` · ${w('stock item')}: ${ledger.materials.find((m) => m.id === s.materialId)?.name}`
+                              : ''}
+                          </small>
+                        </td>
+                        <td>
+                          {hasCost(s.costing) && <code>{s.costing!.key}</code>}
+                          {!s.private && (
+                            <small>
+                              <code>{s.costing!.key}_price</code> = {currency(s.price)} selling price
+                            </small>
+                          )}
+                        </td>
+                        <td className="numeric">
+                          {hasCost(s.costing) ? (
+                            <>
+                              {currency(s.costing!.amount!)} for {s.costing!.per} {unit}
+                              {s.costing!.unit ? <small>bought as {s.costing!.unit}</small> : null}
+                            </>
+                          ) : (
+                            <small>No cost · selling price only</small>
+                          )}
+                        </td>
+                        <td className="numeric">
+                          {hasCost(s.costing) ? `₦${canonical(costRate(s.costing!))} / ${unit}` : '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
       {editing && (
         <TemplateEditor

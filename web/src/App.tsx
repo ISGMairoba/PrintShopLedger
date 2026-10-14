@@ -36,7 +36,7 @@ import JobDetails from './JobDetails';
 import { discountPolicy } from './discounts.mjs';
 import { PeriodDefaultsContext } from './PeriodFilter';
 import { TermsProvider } from './Words';
-import { TemplateAuditContext, TemplateDocumentContext } from './TemplateFields';
+import { TemplateAuditContext, TemplateDocumentContext, type TemplateStart } from './TemplateFields';
 import { canSeeTemplateCosts } from './pricing-templates.mjs';
 import { pageName, renameTerms } from './terms.mjs';
 import {
@@ -146,6 +146,15 @@ export default function App() {
   const [receipt, setReceipt] = useState<CheckoutRecord | null>(null);
   // A quotation being turned into an order (checkout opens filled from it).
   const [quoteOrder, setQuoteOrder] = useState<Quotation | null>(null);
+  // A template line priced on the Pricing Templates page, waiting to start a checkout or quotation.
+  const [checkoutStart, setCheckoutStart] = useState<TemplateStart | null>(null);
+  const [quotationStart, setQuotationStart] = useState<TemplateStart | null>(null);
+  useEffect(() => {
+    if (form !== 'job') setCheckoutStart(null);
+  }, [form]);
+  useEffect(() => {
+    if (page !== 'Quotations') setQuotationStart(null);
+  }, [page]);
   const [batchToAdvance, setBatchToAdvance] = useState<{ jobs: Job[]; mode: ProgressMode } | null>(null);
   const [quickSale, setQuickSale] = useState(false);
   /** The product being edited ('' = choose one), or null when closed. */
@@ -1554,6 +1563,18 @@ export default function App() {
                           onSave={branding.save}
                           onReload={branding.reload}
                           onSaveService={saveCatalogue}
+                          canManage={demo || canAccessPage('Business Settings', shop?.accessLevel ?? 0)}
+                          canEditCosts={canEditCatalogue}
+                          onStartCheckout={(start) => {
+                            setQuickSale(false);
+                            setPaymentCustomer('');
+                            setCheckoutStart(start);
+                            setForm('job');
+                          }}
+                          onStartQuotation={(start) => {
+                            setQuotationStart(start);
+                            setPage('Quotations');
+                          }}
                         />
                       ) : page === 'Business Settings' ? (
                         <BusinessSettingsPage
@@ -1634,6 +1655,7 @@ export default function App() {
                             setForm(null);
                             setQuoteOrder(quote);
                           }}
+                          start={quotationStart}
                         />
                       ) : page === 'Point of Service' ? (
                         <PointOfServicePage
@@ -1841,6 +1863,7 @@ export default function App() {
                       busy={busy}
                       paymentOnly={form === 'payment'}
                       initialCustomer={form === 'payment' ? paymentCustomer : ''}
+                      startTemplate={form === 'job' ? (checkoutStart ?? undefined) : undefined}
                       onSave={completeCheckout}
                       onClose={() => setForm(null)}
                       onReceipt={setReceipt}
