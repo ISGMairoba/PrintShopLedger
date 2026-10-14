@@ -2,6 +2,7 @@ import { useFeedbackMessage, FeedbackBanner } from './Feedback';
 import { useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import Icon from './Icon';
+import ToolbarActions from './ToolbarActions';
 import { sampleReceipt } from './receipt-sample.mjs';
 import type { CheckoutRecord } from './types';
 import type { Branding } from './useBusinessBranding';
@@ -133,27 +134,34 @@ export default function PrintSettingsPage({
   return (
     <section className="panel print-settings-panel">
       <div className="toolbar">
-        <button
-          disabled={!ready || busy}
-          onClick={() => {
-            setMessage('');
-            setDraft(structuredClone(settings));
-          }}
+        <ToolbarActions
+          more={
+            <>
+              <button className="secondary" disabled={busy || !ready || !settings.printer} onClick={test}>
+                <Icon name="services" /> Test print
+              </button>
+              <button className="secondary" onClick={() => setPreview(true)}>
+                <Icon name="details" /> Layout sample
+              </button>
+              <button className="secondary" onClick={() => setHelp(true)}>
+                <Icon name="quantity" /> Printer setup
+              </button>
+            </>
+          }
         >
-          <Icon name="edit" /> Edit settings
-        </button>
-        <button className="secondary" disabled={busy || !ready} onClick={connect}>
-          <Icon name="sync" /> Connect printers
-        </button>
-        <button className="secondary" disabled={busy || !ready || !settings.printer} onClick={test}>
-          <Icon name="services" /> Test print
-        </button>
-        <button className="secondary" onClick={() => setPreview(true)}>
-          <Icon name="details" /> Layout sample
-        </button>
-        <button className="secondary" onClick={() => setHelp(true)}>
-          Printer setup
-        </button>
+          <button className="secondary" disabled={busy || !ready} onClick={connect}>
+            <Icon name="sync" /> Connect printers
+          </button>
+          <button
+            disabled={!ready || busy}
+            onClick={() => {
+              setMessage('');
+              setDraft(structuredClone(settings));
+            }}
+          >
+            <Icon name="edit" /> Edit settings
+          </button>
+        </ToolbarActions>
       </div>
       <FeedbackBanner message={message} tone={messageTone} />
       <p className="muted">

@@ -1,3 +1,4 @@
+import ToolbarActions from './ToolbarActions';
 import { useFeedbackMessage } from './Feedback';
 import { useEffect, useState } from 'react';
 import CheckoutEditor from './CheckoutEditor';
@@ -180,13 +181,15 @@ export default function ConflictInbox({
     <section className="panel">
       <div className="toolbar">
         <h2>Conflict inbox</h2>
-        <button className="secondary" disabled={!online || busy} onClick={() => void refresh()}>
-          Refresh inbox
-        </button>
         <label className="check-label">
           <input type="checkbox" checked={history} onChange={(e) => setHistory(e.target.checked)} />
           Show resolved reviews
         </label>
+        <ToolbarActions>
+          <button className="secondary" disabled={!online || busy} onClick={() => void refresh()}>
+            Refresh inbox
+          </button>
+        </ToolbarActions>
       </div>
       <p>
         Review work sent by other devices. Sales stay attributed to the original cashier. Decisions apply only
@@ -198,7 +201,12 @@ export default function ConflictInbox({
           {error}
         </p>
       )}
-      {!visible.length && <p className="empty">No conflicts awaiting review.</p>}
+      {!visible.length && (
+        <div className="empty">
+          <h2>All clear</h2>
+          <p>No conflicts awaiting review.</p>
+        </div>
+      )}
       {visible.map((item) => (
         <article
           key={item.event_id}

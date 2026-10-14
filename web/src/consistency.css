@@ -1,6 +1,57 @@
 /* One look across every screen. Loaded last, so these rules settle differences between older
    and newer screens. Colours always come from the theme tokens. */
 
+/* Shared sizes: controls 8px corners, small boxes 10px, cards and dialogs 12px. */
+:root {
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+}
+button,
+input,
+select,
+textarea {
+  border-radius: var(--radius-sm);
+}
+.panel,
+.stats article,
+.auth-card,
+dialog.modal,
+.template-card,
+.template-section,
+.template-breakdown,
+.template-list-row,
+.business-settings fieldset,
+.checkout-summary,
+.payment-recommendation,
+.print-setting-summary div,
+.dashboard-card,
+.empty-state {
+  border-radius: var(--radius-lg);
+}
+.template-option-set,
+.more-menu-panel,
+.customer-picker [role="listbox"] {
+  border-radius: var(--radius-md);
+}
+h2 {
+  font-size: 20px;
+  line-height: 1.3;
+}
+h3 {
+  font-size: 15px;
+  line-height: 1.35;
+}
+.panel h2:first-child,
+.panel h3:first-child {
+  margin-top: 0;
+}
+
 /* Typed values are regular weight; labels stay bold. Hints under a field are regular too. */
 input,
 select,
@@ -141,4 +192,189 @@ label small,
 /* Sign-in: stacked secondary buttons get the same gap as everything else. */
 .auth-card > .secondary + .secondary {
   margin-top: 10px;
+}
+
+/* List toolbars: search and filters on the left; actions grouped on the right, main action last. */
+.toolbar {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+}
+.toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-left: auto;
+}
+.toolbar-actions > button,
+.more-menu > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.more-menu {
+  position: relative;
+}
+.more-menu-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 30;
+  display: grid;
+  gap: 4px;
+  min-width: 220px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, 10px);
+  background: var(--surface);
+  box-shadow: 0 12px 32px #0002;
+}
+.more-menu-panel > button,
+.more-menu-panel > * > button {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-color: transparent;
+  background: transparent;
+}
+[data-theme] .more-menu-panel > button,
+[data-theme] .more-menu-panel > * > button {
+  background: transparent;
+  border-color: transparent;
+}
+[data-theme] .more-menu-panel button:hover:not(:disabled) {
+  background: var(--surface-alt);
+}
+.more-menu-panel button[aria-pressed="true"]::after {
+  content: "✓";
+  margin-left: auto;
+  font-weight: 700;
+}
+@media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
+  .toolbar-actions {
+    flex: 1 1 100%;
+    margin-left: 0;
+    grid-column: 1 / -1;
+  }
+  .toolbar-actions > * {
+    flex: 1 1 auto;
+  }
+  .toolbar-actions > button:last-child:not(.secondary) {
+    flex-basis: 100%;
+    order: 10;
+  }
+  .more-menu > button {
+    width: 100%;
+  }
+  .more-menu-panel {
+    left: 0;
+    right: auto;
+    min-width: min(280px, calc(100vw - 48px));
+  }
+}
+.toolbar.history-pagination {
+  justify-content: flex-end;
+}
+/* A heading at the start of a toolbar keeps its own line on phones. */
+.toolbar > h2 {
+  margin: 0;
+}
+
+/* Lists on phones: each row is a card. Name and details on the left, the amount on the right,
+   actions along the bottom. The table keeps its header for screen readers. */
+@media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
+  .mobile-cards,
+  .mobile-cards tbody {
+    display: block;
+    width: 100%;
+  }
+  .mobile-cards thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .mobile-cards tbody {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+  }
+  .mobile-cards tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 12px;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg, 12px);
+    background: var(--surface);
+    color: var(--ink);
+  }
+  .mobile-cards td {
+    display: block;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+  }
+  .mobile-cards td.mobile-cell-main {
+    grid-column: 1;
+  }
+  .mobile-cards td.mobile-cell-side {
+    grid-column: 2;
+    grid-row: 1;
+    text-align: right;
+    max-width: 45vw;
+  }
+  .mobile-cards td.mobile-cell-side .mobile-meta {
+    text-align: right;
+  }
+  .mobile-cards td.mobile-cell-actions {
+    grid-column: 1 / -1;
+    padding-top: 10px;
+    margin-top: 4px;
+    border-top: 1px solid var(--line);
+  }
+  .mobile-cards .mobile-actions,
+  .mobile-cards .mobile-actions > div,
+  .mobile-cards .job-actions,
+  .mobile-cards .material-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 16px;
+  }
+  .mobile-cards .mobile-actions > .text-button:last-child:not(:first-child) {
+    margin-left: auto;
+  }
+}
+
+/* Empty pages: one look — a short title, one line of explanation, then the next step. */
+.empty {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--surface-subtle);
+}
+.empty h2 {
+  font-size: 17px;
+  margin: 0 0 6px;
+  color: var(--ink);
+}
+.empty p {
+  margin: 0 auto 16px;
+  max-width: 420px;
+}
+.empty p:last-child {
+  margin-bottom: 0;
+}
+p.empty {
+  padding: 32px 24px;
+  margin: 0;
 }

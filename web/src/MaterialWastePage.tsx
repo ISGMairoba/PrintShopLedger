@@ -1,3 +1,4 @@
+import ToolbarActions from './ToolbarActions';
 import { useState } from 'react';
 import Modal from './Modal';
 import { useFeedbackMessage } from './Feedback';
@@ -48,21 +49,23 @@ export default function MaterialWastePage({
     <section className="panel supervisor-page">
       <div className="toolbar">
         <h2>{w('Material waste, damage and reprints')}</h2>
-        <button
-          disabled={!ready || busy || !canSave}
-          onClick={() => {
-            setSubmitted(null);
-            setId(crypto.randomUUID());
-            setMaterial('');
-            setQuantity('');
-            setCategory('Waste');
-            setJobId('');
-            setReason('');
-            setError('');
-          }}
-        >
-          {w('Record material waste')}
-        </button>
+        <ToolbarActions>
+          <button
+            disabled={!ready || busy || !canSave}
+            onClick={() => {
+              setSubmitted(null);
+              setId(crypto.randomUUID());
+              setMaterial('');
+              setQuantity('');
+              setCategory('Waste');
+              setJobId('');
+              setReason('');
+              setError('');
+            }}
+          >
+            {w('Record material waste')}
+          </button>
+        </ToolbarActions>
       </div>
       <p>
         {wt(
@@ -102,7 +105,12 @@ export default function MaterialWastePage({
           </article>
         ))
       )}
-      {ready && !records.length && <p className="empty">No matching waste records.</p>}
+      {ready && !records.length && (
+        <div className="empty">
+          <h2>No waste records</h2>
+          <p>Nothing matches yet. Record waste, damage or reprints with the button above.</p>
+        </div>
+      )}
       {id && (
         <Modal title={wt('Record material waste')} busy={busy} onClose={() => setId(null)}>
           {error && (

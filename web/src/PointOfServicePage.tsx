@@ -1,4 +1,5 @@
 import JobViewControls from './JobViewControls';
+import ToolbarActions, { MenuToggle } from './ToolbarActions';
 import { useState } from 'react';
 import ResponsiveTable from './ResponsiveTable';
 import { SortHeader, useTableSort } from './TableSort';
@@ -127,29 +128,40 @@ export default function PointOfServicePage({
           {w('Show collected and cancelled jobs')}
         </label>
 
-        <JobViewControls
-          showBatch={!receipts}
-          audit={audit}
-          onAudit={() => setAudit((value) => !value)}
-          grouped={grouped}
-          selecting={selecting}
-          onGroup={() => setGrouped((value) => !value)}
-          onSelect={() => setSelecting((value) => !value)}
-        />
-        <button className="secondary" onClick={() => setReceipts((v) => !v)}>
-          {receipts ? w('Show jobs') : 'Receipts'}
-        </button>
-        {onQuickSale && ledger.services.some((s) => s.shelfItem && !s.archived) && (
-          <button disabled={busy || !ready} onClick={onQuickSale}>
-            <Icon name="drawer" /> Quick sale
+        <ToolbarActions
+          more={
+            <>
+              <JobViewControls
+                showBatch={!receipts}
+                audit={audit}
+                onAudit={() => setAudit((value) => !value)}
+                grouped={grouped}
+                selecting={selecting}
+                onGroup={() => setGrouped((value) => !value)}
+                onSelect={() => setSelecting((value) => !value)}
+              />
+              <MenuToggle pressed={receipts} icon="details" onClick={() => setReceipts((v) => !v)}>
+                Receipts
+              </MenuToggle>
+            </>
+          }
+        >
+          <button
+            className="secondary"
+            disabled={busy || !ready || !ledger.customers.length}
+            onClick={onPayment}
+          >
+            <Icon name="payments" /> Receive payment
           </button>
-        )}
-        <button disabled={busy || !ready} onClick={onCheckout}>
-          <Icon name="add" /> {w('Add job')}
-        </button>
-        <button disabled={busy || !ready || !ledger.customers.length} onClick={onPayment}>
-          <Icon name="payments" /> Receive payment
-        </button>
+          {onQuickSale && ledger.services.some((s) => s.shelfItem && !s.archived) && (
+            <button className="secondary" disabled={busy || !ready} onClick={onQuickSale}>
+              <Icon name="drawer" /> Quick sale
+            </button>
+          )}
+          <button disabled={busy || !ready} onClick={onCheckout}>
+            <Icon name="add" /> {w('Add job')}
+          </button>
+        </ToolbarActions>
       </div>
       {dates.panel}
       {!ready ? (
@@ -192,7 +204,12 @@ export default function PointOfServicePage({
               </tbody>
             </table>
           </ResponsiveTable>
-          {!records.length && <p className="empty">No receipts match.</p>}
+          {!records.length && (
+            <div className="empty">
+              <h2>No receipts</h2>
+              <p>No receipts match your search and dates.</p>
+            </div>
+          )}
         </div>
       ) : (
         <div className="table-wrap">

@@ -11,6 +11,7 @@ import { lineWithDescription } from './job-batches.mjs';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import Icon from './Icon';
+import ToolbarActions from './ToolbarActions';
 import ResponsiveTable from './ResponsiveTable';
 import ListedCombobox from './ListedCombobox';
 import { SortHeader, useTableSort } from './TableSort';
@@ -212,9 +213,11 @@ export default function QuotationsPage({
             <option value="archived">Archived</option>
             <option value="all">All quotations</option>
           </select>
-          <button disabled={!ready || busy} onClick={() => setEditor('new')}>
-            <Icon name="add" /> New quotation
-          </button>
+          <ToolbarActions>
+            <button disabled={!ready || busy} onClick={() => setEditor('new')}>
+              <Icon name="add" /> New quotation
+            </button>
+          </ToolbarActions>
         </div>
         {!ready ? (
           <div className="empty">Loading quotations.</div>

@@ -3,6 +3,10 @@ import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from 'playwright';
 import { defaultBranding, themeColors } from '../src/business-branding.mjs';
+const openMore = async (scope) => {
+  await scope.locator('.toolbar-actions .more-menu > button').first().click();
+  return scope;
+};
 
 const port = 4186,
   url = `http://127.0.0.1:${port}`;
@@ -142,7 +146,7 @@ try {
     await assertBackground('dialog.modal input:not([type=checkbox])', '#333366');
     await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
     await nav('Print Settings');
-    await page.getByRole('button', { name: 'Layout sample', exact: true }).click();
+    await (await openMore(page)).getByRole('button', { name: 'Layout sample', exact: true }).click();
     await assertBackground('.print-layout-sample', '#ffffff');
     await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
     await appearance();

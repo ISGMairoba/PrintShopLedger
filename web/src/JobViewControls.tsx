@@ -1,5 +1,6 @@
-import Icon from './Icon';
+import { MenuToggle } from './ToolbarActions';
 
+/** Job list view switches, shown as items in a toolbar's More menu. */
 export default function JobViewControls({
   showBatch = true,
   audit,
@@ -18,32 +19,20 @@ export default function JobViewControls({
   onSelect: () => void;
 }) {
   return (
-    <div className="job-view-controls">
-      <button type="button" className="secondary" aria-pressed={audit} onClick={onAudit}>
-        <Icon name={audit ? 'table' : 'audit'} /> {audit ? 'Normal view' : 'Audit view'}
-      </button>
+    <>
+      <MenuToggle pressed={audit} icon="audit" onClick={onAudit}>
+        Audit view
+      </MenuToggle>
       {showBatch && (
         <>
-          <button
-            type="button"
-            className="secondary job-view-button"
-            aria-pressed={grouped}
-            onClick={onGroup}
-            title="Group by checkout"
-          >
-            <Icon name="jobs" /> Group by checkout
-          </button>
-          <button
-            type="button"
-            className="secondary job-view-button"
-            aria-expanded={selecting}
-            onClick={onSelect}
-            title="Select items"
-          >
-            <Icon name="complete" /> Select
-          </button>
+          <MenuToggle pressed={grouped} icon="jobs" onClick={onGroup}>
+            Group by checkout
+          </MenuToggle>
+          <MenuToggle pressed={selecting} icon="complete" onClick={onSelect}>
+            Select
+          </MenuToggle>
         </>
       )}
-    </div>
+    </>
   );
 }

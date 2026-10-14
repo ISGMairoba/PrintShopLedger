@@ -5,6 +5,11 @@ import { chromium, webkit } from 'playwright';
 import { emptyLedger, applyEvent } from '../src/domain.mjs';
 import { prepareCheckout, walletBalance } from '../src/checkout.mjs';
 import { drawerSnapshot } from '../src/my-sales.mjs';
+const openMore = async (scope) => {
+  await scope.locator('.toolbar-actions .more-menu > button').first().click();
+  return scope;
+};
+
 const server = spawn(
   process.execPath,
   ['node_modules/vite/bin/vite.js', 'preview', '--host', '127.0.0.1', '--port', '4196', '--strictPort'],
@@ -242,7 +247,7 @@ try {
         assert.match(await d.innerText(), /Sale cancelled/);
         await d.getByRole('button', { name: 'Close', exact: true }).click();
         await nav('Point of Service');
-        await page.getByRole('button', { name: 'Receipts', exact: true }).click();
+        await (await openMore(page)).getByRole('button', { name: 'Receipts', exact: true }).click();
         await page.getByRole('button', { name: 'Receipt', exact: true }).click();
         d = page.getByRole('dialog');
         assert.match(await d.locator('.receipt-sheet').innerText(), /Original receipt/);
@@ -351,7 +356,7 @@ try {
         assert.equal(cloud.checkouts[0].cashReceived, 20000);
         await dismiss();
         await nav('Point of Service');
-        await page.getByRole('button', { name: 'Receipts', exact: true }).click();
+        await (await openMore(page)).getByRole('button', { name: 'Receipts', exact: true }).click();
         await page.getByRole('button', { name: 'Receipt', exact: true }).click();
         d = page.getByRole('dialog');
         await d.getByRole('button', { name: 'Corrected receipt', exact: true }).click();

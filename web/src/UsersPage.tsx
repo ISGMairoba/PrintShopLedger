@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { supabase } from './cloud';
 import Modal from './Modal';
 import Icon from './Icon';
+import ToolbarActions, { MenuToggle } from './ToolbarActions';
 import { SortHeader, useTableSort } from './TableSort';
 import { accessLevels, rankValues, canManage, userCode, validateUser } from './users.mjs';
 import { useWords } from './Words';
@@ -282,28 +283,33 @@ export default function UsersPage({ shopId, actorId, businessUserId, role, onlin
             <option value="archived">Archived</option>
             <option value="all">All users</option>
           </select>
-          <button className="secondary" aria-pressed={audit} onClick={() => setAudit(!audit)}>
-            <Icon name={audit ? 'table' : 'audit'} /> {audit ? 'Normal view' : 'Audit view'}
-          </button>
-          <button
-            className="secondary"
-            disabled={busy || !online}
-            onClick={() => {
-              setError('');
-              void load().catch((cause) => setError(cause.message));
-            }}
+          <ToolbarActions
+            more={
+              <MenuToggle pressed={audit} icon="audit" onClick={() => setAudit(!audit)}>
+                Audit view
+              </MenuToggle>
+            }
           >
-            <Icon name="sync" /> Refresh
-          </button>
-          <button
-            disabled={busy || !ready || !online}
-            onClick={() => {
-              setEditor('new');
-              setFormError('');
-            }}
-          >
-            <Icon name="add" /> Add user
-          </button>
+            <button
+              className="secondary"
+              disabled={busy || !online}
+              onClick={() => {
+                setError('');
+                void load().catch((cause) => setError(cause.message));
+              }}
+            >
+              <Icon name="sync" /> Refresh
+            </button>
+            <button
+              disabled={busy || !ready || !online}
+              onClick={() => {
+                setEditor('new');
+                setFormError('');
+              }}
+            >
+              <Icon name="add" /> Add user
+            </button>
+          </ToolbarActions>
         </div>
         {!online && <div className="notice">Connect to the internet to manage user accounts.</div>}
         <FeedbackBanner message={error} tone={errorTone} />

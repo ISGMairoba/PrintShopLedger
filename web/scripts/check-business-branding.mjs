@@ -3,6 +3,11 @@ import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { readFile } from 'node:fs/promises';
 import { chromium } from 'playwright';
+const openMore = async (scope) => {
+  await scope.locator('.toolbar-actions .more-menu > button').first().click();
+  return scope;
+};
+
 const server = spawn(
   process.execPath,
   ['node_modules/vite/bin/vite.js', 'preview', '--host', '127.0.0.1', '--port', '4179', '--strictPort'],
@@ -217,7 +222,7 @@ try {
     await page.getByText('Business settings saved.', { exact: true }).waitFor();
     await nav('Point of Service');
     await page.getByRole('button', { name: 'Next: Approval', exact: true }).waitFor();
-    await page.getByRole('button', { name: 'Receipts', exact: true }).click();
+    await (await openMore(page)).getByRole('button', { name: 'Receipts', exact: true }).click();
     await page.getByRole('button', { name: 'Receipt', exact: true }).click();
     await page.getByRole('dialog').getByText('Paid now (Opay)', { exact: false }).waitFor();
     await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();

@@ -2,6 +2,10 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from 'playwright';
+const openMore = async (scope) => {
+  await scope.locator('.toolbar-actions .more-menu > button').first().click();
+  return scope;
+};
 
 const server = spawn(
   process.execPath,
@@ -166,7 +170,7 @@ try {
     assert.equal(await page.locator('tbody tr').count(), 1, 'Search includes ' + query);
   }
   await page.getByLabel('Search customers').fill('');
-  await page.getByRole('button', { name: 'Audit view', exact: true }).click();
+  await (await openMore(page)).getByRole('button', { name: 'Audit view', exact: true }).click();
   assert.equal(await page.locator('thead th').count(), 14, 'Audit contains normal and audit columns');
   await page.getByRole('button', { name: 'Add customer', exact: true }).click();
   dialog = page.getByRole('dialog', { name: 'Add customer' });

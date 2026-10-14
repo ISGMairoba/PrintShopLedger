@@ -2,6 +2,7 @@ import { useFeedbackMessage } from './Feedback';
 import { useBusinessOptions } from './BusinessOptionsContext';
 import ResponsiveTable from './ResponsiveTable';
 import Icon from './Icon';
+import ToolbarActions, { MenuToggle } from './ToolbarActions';
 import { useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import { SortHeader, useTableSort } from './TableSort';
@@ -160,23 +161,28 @@ export default function MaterialsPage({
             <option value="archived">Archived</option>
             <option value="all">{w('All materials')}</option>
           </select>
-          <button className="secondary" aria-pressed={audit} onClick={() => setAudit(!audit)}>
-            <Icon name={audit ? 'table' : 'audit'} /> {audit ? 'Normal view' : 'Audit view'}
-          </button>
-          <button
-            disabled={!ready || busy}
-            onClick={() => {
-              setEditor('new');
-              setConfirmation(null);
-              setStock(null);
-              setError('');
-            }}
+          <ToolbarActions
+            more={
+              <MenuToggle pressed={audit} icon="audit" onClick={() => setAudit(!audit)}>
+                Audit view
+              </MenuToggle>
+            }
           >
-            <Icon name="add" /> {w('Add material')}
-          </button>
-          <button className="secondary" disabled={!ready} onClick={() => setReorder(true)}>
-            <Icon name="materials" /> Reorder list{toReorder ? ` (${toReorder})` : ''}
-          </button>
+            <button className="secondary" disabled={!ready} onClick={() => setReorder(true)}>
+              <Icon name="materials" /> Reorder list{toReorder ? ` (${toReorder})` : ''}
+            </button>
+            <button
+              disabled={!ready || busy}
+              onClick={() => {
+                setEditor('new');
+                setConfirmation(null);
+                setStock(null);
+                setError('');
+              }}
+            >
+              <Icon name="add" /> {w('Add material')}
+            </button>
+          </ToolbarActions>
         </div>
         {!ready ? (
           <div className="empty">{w('Loading materials.')}</div>

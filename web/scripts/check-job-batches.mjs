@@ -2,6 +2,10 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { chromium, webkit } from 'playwright';
+const openMore = async (scope) => {
+  await scope.locator('.toolbar-actions .more-menu > button').first().click();
+  return scope;
+};
 
 const port = 4187;
 const server = spawn(
@@ -83,7 +87,7 @@ try {
     let receipt = page.getByRole('dialog');
     assert.match(await receipt.innerText(), /₦3,000.00/);
     await receipt.getByRole('button', { name: 'Close', exact: true }).click();
-    await page.getByRole('button', { name: 'Group by checkout', exact: true }).click();
+    await (await openMore(page)).getByRole('button', { name: 'Group by checkout', exact: true }).click();
     assert.equal(await page.locator('.checkout-group').count(), 1);
     const group = page.locator('.checkout-group');
     assert.match(await group.innerText(), /2 jobs shown/);
@@ -93,8 +97,8 @@ try {
     await d.getByRole('button', { name: 'Apply to 2 jobs', exact: true }).click();
     await d.waitFor({ state: 'detached' });
     assert.equal(await group.getByText('Stage: In Queue', { exact: true }).count(), 2);
-    await page.getByRole('button', { name: 'Group by checkout', exact: true }).click();
-    await page.getByRole('button', { name: 'Select', exact: true }).click();
+    await (await openMore(page)).getByRole('button', { name: 'Group by checkout', exact: true }).click();
+    await (await openMore(page)).getByRole('button', { name: 'Select', exact: true }).click();
     await page.getByLabel('Select all visible jobs').check();
     const selection = page.getByRole('region', { name: 'Selection actions' });
     assert.equal(
@@ -107,13 +111,6 @@ try {
       'row',
     );
     if (!mobile) {
-      const controlTops = await page
-        .locator('.job-view-controls button')
-        .evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().top));
-      assert.ok(
-        controlTops.every((top) => Math.abs(top - controlTops[0]) < 2),
-        'Audit, Group and Select stay together',
-      );
       const boxes = await selection
         .locator('.job-bulk-actions button')
         .evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().top));
@@ -127,10 +124,12 @@ try {
       true,
       'Selection view fits',
     );
-    const groupButton = page.getByRole('button', { name: 'Group by checkout', exact: true });
     assert.ok(
-      await groupButton.evaluate((node) => node.closest('.job-list-toolbar') !== null),
-      'Grouping is in the main toolbar',
+      await page
+        .locator('.more-menu > button')
+        .first()
+        .evaluate((node) => node.closest('.job-list-toolbar') !== null),
+      'View options are in the main toolbar',
     );
     await page.screenshot({ path: `/tmp/job-batches-${mobile ? 'mobile' : 'desktop'}.png` });
     await page.locator('.job-batch-toolbar').getByRole('button', { name: 'Set Action', exact: true }).click();
@@ -146,7 +145,7 @@ try {
     await page.getByLabel('Search point of service').fill('');
     await page.getByText('1 selected', { exact: true }).waitFor();
     await nav('Jobs');
-    await page.getByRole('button', { name: 'Select', exact: true }).click();
+    await (await openMore(page)).getByRole('button', { name: 'Select', exact: true }).click();
     await page.getByLabel('Select all visible jobs').check();
     await page
       .locator('.job-batch-toolbar')

@@ -3,6 +3,7 @@ import { walletBalance } from './checkout.mjs';
 import CustomerAccount from './CustomerAccount';
 import ResponsiveTable from './ResponsiveTable';
 import Icon from './Icon';
+import ToolbarActions, { MenuToggle } from './ToolbarActions';
 import { useState } from 'react';
 import Modal from './Modal';
 import CustomerEditor from './CustomerEditor';
@@ -107,18 +108,23 @@ export default function CustomersPage({
             <option value="archived">Archived</option>
             <option value="all">All customers</option>
           </select>
-          <button className="secondary" aria-pressed={audit} onClick={() => setAudit(!audit)}>
-            <Icon name={audit ? 'table' : 'audit'} /> {audit ? 'Normal view' : 'Audit view'}
-          </button>
-          <button
-            disabled={!ready || busy}
-            onClick={() => {
-              setEditor('new');
-              setError('');
-            }}
+          <ToolbarActions
+            more={
+              <MenuToggle pressed={audit} icon="audit" onClick={() => setAudit(!audit)}>
+                Audit view
+              </MenuToggle>
+            }
           >
-            <Icon name="add" /> Add customer
-          </button>
+            <button
+              disabled={!ready || busy}
+              onClick={() => {
+                setEditor('new');
+                setError('');
+              }}
+            >
+              <Icon name="add" /> Add customer
+            </button>
+          </ToolbarActions>
         </div>
         {!ready ? (
           <div className="empty">Loading customers.</div>
