@@ -113,7 +113,8 @@ try {
               .map((el) => Math.round(el.getBoundingClientRect().height)),
           ),
         );
-        if (new Set(sizes).size > 1) failures.push(`${mode} ${name}: toolbar heights ${[...new Set(sizes)].join('/')}`);
+        if (new Set(sizes).size > 1)
+          failures.push(`${mode} ${name}: toolbar heights ${[...new Set(sizes)].join('/')}`);
         const tabs = page.getByRole('main').getByRole('tab');
         const count = await tabs.count();
         for (let t = 1; t < count; t++) {
