@@ -397,6 +397,13 @@ export default function TemplateEditor({
   const { w } = useWords();
   const [d, setD] = useState<Draft>(() => structuredClone(initial) as Draft);
   const [tab, setTab] = useState<(typeof tabs)[number]>(tabs[0]);
+  const step = tabs.indexOf(tab);
+  const actions = useRef<HTMLDivElement>(null);
+  /** Move to another section and show it from the top. */
+  const go = (n: number) => {
+    setTab(tabs[n]);
+    requestAnimationFrame(() => actions.current?.closest('dialog')?.scrollTo({ top: 0 }));
+  };
   const [error, setError] = useState('');
   const costs = ledger.services.filter((s) => !s.archived && s.costing);
   const stockItems = ledger.services.filter((s) => !s.archived && s.materialId);
@@ -1123,10 +1130,21 @@ export default function TemplateEditor({
           {error}
         </p>
       )}
-      <div className="material-actions">
-        <button type="button" disabled={busy || !!problem} onClick={() => void save()}>
-          <Icon name="save" /> {busy ? 'Saving...' : 'Check & save template'}
-        </button>
+      <div className="material-actions" ref={actions}>
+        {step > 0 && (
+          <button type="button" className="secondary" disabled={busy} onClick={() => go(step - 1)}>
+            Back
+          </button>
+        )}
+        {step < tabs.length - 1 ? (
+          <button type="button" disabled={busy} onClick={() => go(step + 1)}>
+            Next: {tabs[step + 1]}
+          </button>
+        ) : (
+          <button type="button" disabled={busy || !!problem} onClick={() => void save()}>
+            <Icon name="save" /> {busy ? 'Saving...' : 'Check & save template'}
+          </button>
+        )}
         <button type="button" className="secondary" disabled={busy} onClick={onClose}>
           Cancel
         </button>

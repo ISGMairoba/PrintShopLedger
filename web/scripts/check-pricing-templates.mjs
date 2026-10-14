@@ -135,7 +135,8 @@ try {
       await section.getByLabel('Formula · binding_2', { exact: true }).inputValue(),
       'quantity * (binding)',
     );
-    await d0.getByRole('tab', { name: 'Pricing & preview', exact: true }).click();
+    assert.equal(await d0.getByRole('button', { name: 'Check & save template', exact: true }).count(), 0);
+    await d0.getByRole('button', { name: 'Next: Pricing & preview', exact: true }).click();
     // Defaults: 1 book of 25 sheets = 13 sheets × ₦10 + ₦100 binding = ₦230 → +30% = ₦299 → rounded up to ₦300.
     assert.match(
       await d0.locator('.template-audit').innerText(),
