@@ -1,4 +1,4 @@
-import JobViewControls from './JobViewControls';
+import jobViewItems from './JobViewControls';
 import ToolbarActions from './ToolbarActions';
 import Icon from './Icon';
 import JobTable from './JobTable';
@@ -217,16 +217,16 @@ export default function JobsPaymentsPage({
           </button>
           <ToolbarActions
             more={
-              page === 'Jobs' ? (
-                <JobViewControls
-                  audit={audit}
-                  onAudit={() => setAudit((value) => !value)}
-                  grouped={grouped}
-                  selecting={selecting}
-                  onGroup={() => setGrouped((value) => !value)}
-                  onSelect={() => setSelecting((value) => !value)}
-                />
-              ) : undefined
+              page === 'Jobs'
+                ? jobViewItems({
+                    audit: audit,
+                    onAudit: () => setAudit((value) => !value),
+                    grouped: grouped,
+                    selecting: selecting,
+                    onGroup: () => setGrouped((value) => !value),
+                    onSelect: () => setSelecting((value) => !value),
+                  })
+                : undefined
             }
           >
             <button

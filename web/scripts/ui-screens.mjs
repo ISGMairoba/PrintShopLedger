@@ -101,6 +101,20 @@ try {
       try {
         await nav(name);
         await shot(`${id}-${slug(name)}`);
+        // Toolbar controls should share one height, and rows should line up.
+        const sizes = await page.evaluate(() =>
+          [...document.querySelectorAll('main .toolbar')].flatMap((bar) =>
+            [
+              ...bar.querySelectorAll(
+                ':scope > input:not([type=checkbox]), :scope > select, :scope > button, :scope > label > select, :scope > label > input:not([type=checkbox]), .toolbar-actions > button, .more-menu > button',
+              ),
+            ]
+              .filter((el) => el.getBoundingClientRect().width > 0)
+              .map((el) => Math.round(el.getBoundingClientRect().height)),
+          ),
+        );
+        if (new Set(sizes).size > 1)
+          failures.push(`${mode} ${name}: toolbar heights ${[...new Set(sizes)].join('/')}`);
         const tabs = page.getByRole('main').getByRole('tab');
         const count = await tabs.count();
         for (let t = 1; t < count; t++) {

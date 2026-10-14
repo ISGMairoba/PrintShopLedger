@@ -1,4 +1,13 @@
-import { Children, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import {
+  Children,
+  Fragment,
+  isValidElement,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import Icon from './Icon';
 
 /**
@@ -65,11 +74,22 @@ export function MoreMenu({ children, label = 'More' }: { children: ReactNode; la
  * main (filled) action last. Search and filters stay on the left as the toolbar's other children.
  */
 export default function ToolbarActions({ more, children }: { more?: ReactNode; children?: ReactNode }) {
+  // A menu with a single item is just an extra click: show that item as a button instead.
+  const items = flatten(more);
   return (
     <div className="toolbar-actions">
-      {more && <MoreMenu>{more}</MoreMenu>}
+      {items.length > 1 ? <MoreMenu>{items}</MoreMenu> : items}
       {children}
     </div>
+  );
+}
+
+/** Menu items, with fragments and arrays opened up so each button counts once. */
+function flatten(node: ReactNode): ReactNode[] {
+  return Children.toArray(node).flatMap((child) =>
+    isValidElement(child) && child.type === Fragment
+      ? flatten((child.props as { children?: ReactNode }).children)
+      : [child],
   );
 }
 

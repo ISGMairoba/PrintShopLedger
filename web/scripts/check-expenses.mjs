@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 const openMore = async (scope) => {
+  // Pages with a single extra action show it directly; others put it under More.
   const toggle = scope.locator('.toolbar-actions .more-menu > button').first();
+  if (!(await toggle.count())) return scope;
   if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
   await scope.locator('.more-menu-panel').first().waitFor();
   return scope;
