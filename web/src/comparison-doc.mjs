@@ -18,7 +18,8 @@ export const comparisonRef = (seed = crypto.randomUUID()) =>
 
 /**
  * template: the pricing template. rows: [{ inputs (incl. quantity), amount (kobo), unit (kobo) }].
- * details: { customerName, customerPhone, preparedBy, note, ref, now }.
+ * details: { customerName, customerPhone, preparedBy, note, ref, now, groupBy }. With groupBy (a
+ * variable key), rows should already be in group order; each group gets a title.
  */
 export function comparisonModel(template, rows, business, details = {}) {
   if (!rows.length || rows.some((r) => r.amount === undefined))
@@ -28,7 +29,15 @@ export function comparisonModel(template, rows, business, details = {}) {
   const now = details.now ?? new Date().toISOString();
   const ref = details.ref ?? comparisonRef();
   const visible = template.variables.filter((v) => v.clientVisible !== false);
+  const group = details.groupBy ? template.variables.find((v) => v.key === details.groupBy) : null;
+  const sizes = new Map();
+  if (group) for (const r of rows) sizes.set(r.inputs[group.key], (sizes.get(r.inputs[group.key]) ?? 0) + 1);
   const items = rows.map((r, n) => ({
+    ...(group && (n === 0 || rows[n - 1].inputs[group.key] !== r.inputs[group.key])
+      ? {
+          heading: `${group.label}: ${valueLabel(group, r.inputs[group.key])} · ${sizes.get(r.inputs[group.key])} option${sizes.get(r.inputs[group.key]) === 1 ? '' : 's'}`,
+        }
+      : {}),
     id: String(n),
     ref: '',
     description: `Option ${n + 1}`,

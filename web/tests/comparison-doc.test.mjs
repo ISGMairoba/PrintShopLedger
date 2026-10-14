@@ -61,3 +61,28 @@ test('a comparison document lists each option with client details only, never co
   assert.match(comparisonRef(), /^CMP-[0-9A-F]{8}$/);
   assert.throws(() => comparisonModel(t, [{ inputs: {}, error: 'x' }], 'Shop'), /Compare prices first/);
 });
+
+test('grouped comparisons get one titled group per value, numbering continues', () => {
+  const { ledger } = fixture();
+  const t = ledger.pricing.templates[0];
+  const rows = [
+    [50, 1],
+    [50, 2],
+    [100, 1],
+    [100, 2],
+  ].map(([quantity, inner_paper]) => ({
+    inputs: { quantity, sheets_per_book: 25, inner_paper, cover_card: 1 },
+    amount: 100,
+    unit: 2,
+  }));
+  const m = comparisonModel(t, rows, 'Shop', { groupBy: 'quantity' });
+  assert.deepEqual(
+    m.items.map((i) => i.heading ?? ''),
+    ['Number of books: 50 books · 2 options', '', 'Number of books: 100 books · 2 options', ''],
+  );
+  assert.deepEqual(
+    m.items.map((i) => i.title),
+    ['Option 1', 'Option 2', 'Option 3', 'Option 4'],
+  );
+  assert.ok(comparisonModel(t, rows, 'Shop').items.every((i) => !i.heading));
+});
