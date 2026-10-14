@@ -224,14 +224,14 @@ test('File names drop characters that break downloads', () => {
   );
 });
 
-test('Reports follow Dashboard access: Admin+ by default, off when Dashboard is off, never for Cashier', () => {
+test('Reports: Admin+ by default, set on its own, never for Cashier', () => {
   assert.equal(canAccessPage('Reports', 1), false);
   for (const rank of [2, 3, 4]) assert.equal(canAccessPage('Reports', rank), true);
   const custom = defaultPageAccess();
-  custom['2'] = custom['2'].filter((p) => p !== 'Dashboard');
+  custom['2'] = custom['2'].filter((p) => p !== 'Reports');
   assert.equal(canAccessPage('Reports', 2, custom), false);
+  assert.equal(canAccessPage('Dashboard', 2, custom), true);
   assert.equal(canAccessPage('Reports', 3, custom), true);
-  // Reports is never stored in saved settings, so older saved settings keep working.
   const saved = defaultPageAccess();
   saved['1'].push('Reports');
   assert.throws(() => validatePageAccess(saved));

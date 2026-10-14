@@ -13,7 +13,7 @@ import { BusinessOptionsContext } from './BusinessOptionsContext';
 import useBusinessBranding from './useBusinessBranding';
 import BusinessSettingsPage from './BusinessSettingsPage';
 import AccountPage from './AccountPage';
-import { canAccessPage, pages, navigationPages } from './page-access.mjs';
+import { allowedSettingsTabs, canAccessPage, pages, navigationPages } from './page-access.mjs';
 import ExpensesPage from './ExpensesPage';
 import type { ProgressMode } from './JobActions';
 import JobProgressDialog from './JobProgressDialog';
@@ -206,7 +206,7 @@ export default function App() {
       canAccessPage('Services', shop.accessLevel, branding.settings.pageAccess));
   const allowed = (item: Page) =>
     (item !== 'Pricing Templates' || branding.settings.pricing.enabled) &&
-    (item !== 'Edit Products' || canEditCatalogue) &&
+    (item !== 'Edit Products' || demo || (!!shop && shop.role !== 'cashier' && shop.accessLevel >= 2)) &&
     (demo || canAccessPage(item, shop?.accessLevel ?? 0, branding.settings.pageAccess));
   // Stock and waste share one screen with two tabs when the user may see both.
   const materialTabs =
@@ -1563,7 +1563,12 @@ export default function App() {
                           onSave={branding.save}
                           onReload={branding.reload}
                           onSaveService={saveCatalogue}
-                          canManage={demo || canAccessPage('Business Settings', shop?.accessLevel ?? 0)}
+                          canManage={
+                            demo ||
+                            allowedSettingsTabs(shop?.accessLevel ?? 0, branding.settings).includes(
+                              'Pricing templates',
+                            )
+                          }
                           canEditCosts={canEditCatalogue}
                           onStartCheckout={(start) => {
                             setQuickSale(false);
@@ -1585,6 +1590,7 @@ export default function App() {
                           online={online}
                           demo={demo}
                           modifiedAt={branding.modifiedAt}
+                          accessLevel={demo ? 4 : (shop?.accessLevel ?? 0)}
                           onSave={branding.save}
                           onReload={branding.reload}
                         />

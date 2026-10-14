@@ -1,4 +1,11 @@
-import { validatePageAccess, defaultPageAccess } from './page-access.mjs';
+import {
+  validatePageAccess,
+  defaultPageAccess,
+  upgradePageAccess,
+  validateSettingsTabs,
+  defaultSettingsTabs,
+  PAGE_ACCESS_VERSION,
+} from './page-access.mjs';
 import { defaultOptions, validateOptions } from './business-options.mjs';
 import { discountDefaults, validateDiscountSettings } from './discounts.mjs';
 import { termDefaults, validateTerms } from './terms.mjs';
@@ -67,6 +74,8 @@ export const defaultBranding = () => ({
   discounts: discountDefaults(),
   terms: termDefaults(),
   pageAccess: defaultPageAccess(),
+  pageAccessVersion: PAGE_ACCESS_VERSION,
+  settingsTabs: defaultSettingsTabs(),
   receipt: {
     showLogo: true,
     showBusinessName: true,
@@ -130,7 +139,10 @@ export function validateBranding(input) {
     throw Error('Invalid document options.');
   value.documents = { watermark: value.documents.watermark };
   value.options = validateOptions(value.options);
+  if (value.pageAccessVersion !== PAGE_ACCESS_VERSION) value.pageAccess = upgradePageAccess(value.pageAccess);
   value.pageAccess = validatePageAccess(value.pageAccess);
+  value.pageAccessVersion = PAGE_ACCESS_VERSION;
+  value.settingsTabs = validateSettingsTabs(value.settingsTabs);
   value.jobs = validateJobSettings(value.jobs);
   value.pricing = validatePricingSettings(value.pricing);
   value.discounts = validateDiscountSettings(value.discounts);
