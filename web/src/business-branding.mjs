@@ -47,6 +47,7 @@ export const defaultPeriods = () => ({
   payments: 'all',
   expenses: 'all',
   stockHistory: 'all',
+  mySales: 'today',
 });
 export const periodChoices = ['today', 'week', 'month', '30days', 'all'];
 export const pagesWithoutAll = ['dashboard', 'reports'];

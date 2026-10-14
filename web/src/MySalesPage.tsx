@@ -1,3 +1,5 @@
+import { useDateFilter } from './PeriodFilter';
+import { inPeriod } from './dashboard.mjs';
 import { useFeedbackMessage } from './Feedback';
 import { paymentName } from './business-options.mjs';
 import { useState } from 'react';
@@ -9,7 +11,7 @@ import ResponsiveTable from './ResponsiveTable';
 import { SortHeader, useTableSort } from './TableSort';
 import { money } from './domain.mjs';
 import { currency } from './receipts.mjs';
-import { myTransactions, drawerSnapshot, salesSummary, saleDay, saleDescription } from './my-sales.mjs';
+import { myTransactions, drawerSnapshot, salesSummary, saleDescription } from './my-sales.mjs';
 import type { Ledger, CheckoutRecord, DrawerClosing, DrawerCommand, SaleAdjustment } from './types';
 import { useWords } from './Words';
 type Props = {
@@ -40,8 +42,8 @@ export default function MySalesPage({
   onHandover,
 }: Props) {
   const { w } = useWords();
+  const dates = useDateFilter('mySales');
   const [query, setQuery] = useState(''),
-    [day, setDay] = useState(saleDay(new Date().toISOString())),
     [status, setStatus] = useState('open'),
     [history, setHistory] = useState(false);
   const [closing, setClosing] = useState<string | null>(null),
@@ -55,7 +57,7 @@ export default function MySalesPage({
   const records = sorting.sortRows(
     myTransactions(ledger, userId, true).filter(
       (r: CheckoutRecord) =>
-        (!day || saleDay(r.createdAt) === day) &&
+        inPeriod(r.createdAt, dates.period) &&
         (status === 'all' || (status === 'open' ? openIds.has(r.id) : !openIds.has(r.id))) &&
         [
           r.id,
@@ -89,7 +91,7 @@ export default function MySalesPage({
     ledger.drawerClosings.filter(
       (d) =>
         (d.fromUserId === userId || d.toUserId === userId) &&
-        (!day || saleDay(d.closedAt) === day) &&
+        inPeriod(d.closedAt, dates.period) &&
         [d.id, d.fromUserLabel, d.toUserLabel, d.countedCash / 100, d.note, d.closedAt]
           .join(' ')
           .toLowerCase()
@@ -143,13 +145,7 @@ export default function MySalesPage({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <label>
-            Date
-            <input type="date" value={day} onChange={(e) => setDay(e.target.value)} />
-          </label>
-          <button className="secondary" onClick={() => setDay('')}>
-            All dates
-          </button>
+          {dates.button}
           <select aria-label="My sales status" value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="open">Unclosed</option>
             <option value="closed">Closed</option>
@@ -171,6 +167,7 @@ export default function MySalesPage({
             </button>
           </ToolbarActions>
         </div>
+        {dates.panel}
         {demo && (
           <p className="drawer-info">
             Sign in to a business to verify both users and record a drawer handover.

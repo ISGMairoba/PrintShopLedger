@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
+const openFilters = async (scope) => {
+  const toggle = scope.locator('.filter-button').first();
+  if ((await toggle.count()) && (await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+  return scope;
+};
 const openMore = async (scope) => {
   // Pages with a single extra action show it directly; others put it under More.
   const toggle = scope.locator('.toolbar-actions .more-menu > button').first();
@@ -144,7 +149,7 @@ try {
   assert.equal(await page.locator('tbody tr').count(), 1);
   await page.getByLabel('Search expenses').fill('no-such-expense');
   assert.match(await page.locator('main').innerText(), /No matching expenses/);
-  await page.getByRole('button', { name: 'Reset filters', exact: true }).click();
+  await (await openFilters(page)).getByRole('button', { name: 'Reset filters', exact: true }).click();
   await page.getByRole('button', { name: 'Details', exact: true }).click();
   d = page.getByRole('dialog');
   assert.match(await d.innerText(), /Payment history/);
@@ -159,7 +164,7 @@ try {
   assert.equal(saved.ledger.materials[0].available, 0);
   assert.ok(saved.ledger.expenses[0].voided);
   assert.equal(saved.ledger.expenses[0].payments.length, 2);
-  await page.getByLabel('Expense status').selectOption('Voided');
+  await (await openFilters(page)).getByLabel('Expense status').selectOption('Voided');
   assert.equal(await page.locator('tbody tr').count(), 1);
   await nav('Stock History');
   assert.equal(await page.locator('tbody tr').count(), 4);
@@ -181,7 +186,7 @@ try {
   await page.reload();
   await page.getByRole('button', { name: 'Try locally on this device' }).click();
   await nav('Expenses');
-  await page.getByLabel('Expense status').selectOption('all');
+  await (await openFilters(page)).getByLabel('Expense status').selectOption('all');
   assert.equal(await page.locator('tbody tr').count(), 2);
   await page.screenshot({ path: '/tmp/expenses-desktop.png', fullPage: true });
   mobileBrowser = await (process.env.EXPENSE_MOBILE_CHROMIUM ? chromium : webkit).launch({ headless: true });
@@ -220,7 +225,7 @@ try {
     .getByRole('button', { name: 'Expenses', exact: true })
     .click();
   assert.equal(await mobile.locator('.mobile-list thead th').count(), 3);
-  await mobile.getByLabel('Expense status').selectOption('all');
+  await (await openFilters(mobile)).getByLabel('Expense status').selectOption('all');
   await (await openMore(mobile)).getByRole('button', { name: 'Audit view', exact: true }).click();
   assert.ok(
     await mobile.evaluate(() => document.documentElement.scrollWidth <= innerWidth),

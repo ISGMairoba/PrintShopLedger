@@ -18,8 +18,10 @@
 .reports .report-none {
   padding: 0 20px 18px;
 }
-.reports .report-filters label.wide {
+.reports .report-filters label.wide,
+.reports .report-filters div.wide {
   flex: 2 1 260px;
+  min-width: 0;
 }
 .reports .report-shown {
   margin: -6px 0 16px;
@@ -60,7 +62,8 @@
   .reports .report-header button {
     flex: 1;
   }
-  .reports .report-filters label.wide {
+  .reports .report-filters label.wide,
+  .reports .report-filters div.wide {
     flex-basis: 100%;
   }
 }

@@ -776,6 +776,7 @@ export default function BusinessSettingsPage({
                   ['dashboard', 'Dashboard'],
                   ['reports', 'Reports'],
                   ['pointOfService', 'Point of Service'],
+                  ['mySales', 'My Sales'],
                   ['jobs', 'Jobs'],
                   ['payments', 'Payments'],
                   ['expenses', 'Expenses'],

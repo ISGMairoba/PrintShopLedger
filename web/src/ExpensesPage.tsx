@@ -43,7 +43,8 @@ export default function ExpensesPage({
   const [query, setQuery] = useState(''),
     [status, setStatus] = useState('active'),
     [category, setCategory] = useState(''),
-    [staff, setStaff] = useState('');
+    [staff, setStaff] = useState(''),
+    [filtersOpen, setFiltersOpen] = useState(false);
   const dates = useDateFilter('expenses');
   const from = dates.period.preset === 'all' ? '' : dates.period.from,
     to = dates.period.preset === 'all' ? '' : dates.period.to;
@@ -110,6 +111,7 @@ export default function ExpensesPage({
         .slice()
         .reverse()
     : [];
+  const activeFilters = (status !== 'active' ? 1 : 0) + (category ? 1 : 0) + (staff ? 1 : 0);
   const reset = () => {
     setQuery('');
     setStatus('active');
@@ -156,39 +158,15 @@ export default function ExpensesPage({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <select aria-label="Expense status" value={status} onChange={(e) => setStatus(e.target.value)}>
-            {['active', 'all', 'Unpaid', 'Partly paid', 'Paid', 'Voided'].map((value) => (
-              <option key={value} value={value}>
-                {value === 'active' ? 'Active expenses' : value === 'all' ? 'All expenses' : value}
-              </option>
-            ))}
-          </select>
-          <select
-            aria-label="Expense category"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
+          <button
+            type="button"
+            className={`secondary filter-button${activeFilters ? ' filtered' : ''}`}
+            aria-expanded={filtersOpen}
+            onClick={() => setFiltersOpen(!filtersOpen)}
           >
-            <option value="">All categories</option>
-            {[...new Set([...expenseCategories, ...ledger.expenses.map((item) => item.category)])]
-              .sort()
-              .map((value) => (
-                <option key={value}>{value}</option>
-              ))}
-          </select>
-          <select aria-label="Recorded by" value={staff} onChange={(e) => setStaff(e.target.value)}>
-            <option value="">All staff</option>
-            {[...new Map(ledger.expenses.map((item) => [item.createdBy, item.createdByLabel])).entries()].map(
-              ([id, label]) => (
-                <option key={id} value={id}>
-                  {label}
-                </option>
-              ),
-            )}
-          </select>
-          {dates.button}
-          <button className="secondary history-filter-reset" onClick={reset}>
-            Reset filters
+            <Icon name="sort" /> Filters{activeFilters ? ` (${activeFilters})` : ''}
           </button>
+          {dates.button}
           <ToolbarActions
             more={
               <MenuToggle pressed={audit} icon="audit" onClick={() => setAudit(!audit)}>
@@ -202,6 +180,51 @@ export default function ExpensesPage({
             </button>
           </ToolbarActions>
         </div>
+        {filtersOpen && (
+          <div className="period-panel filter-panel" role="group" aria-label="Expense filters">
+            <label>
+              Status
+              <select aria-label="Expense status" value={status} onChange={(e) => setStatus(e.target.value)}>
+                {['active', 'all', 'Unpaid', 'Partly paid', 'Paid', 'Voided'].map((value) => (
+                  <option key={value} value={value}>
+                    {value === 'active' ? 'Active expenses' : value === 'all' ? 'All expenses' : value}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Category
+              <select
+                aria-label="Expense category"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+              >
+                <option value="">All categories</option>
+                {[...new Set([...expenseCategories, ...ledger.expenses.map((item) => item.category)])]
+                  .sort()
+                  .map((value) => (
+                    <option key={value}>{value}</option>
+                  ))}
+              </select>
+            </label>
+            <label>
+              Recorded by
+              <select aria-label="Recorded by" value={staff} onChange={(e) => setStaff(e.target.value)}>
+                <option value="">All staff</option>
+                {[
+                  ...new Map(ledger.expenses.map((item) => [item.createdBy, item.createdByLabel])).entries(),
+                ].map(([id, label]) => (
+                  <option key={id} value={id}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button type="button" className="secondary history-filter-reset" onClick={reset}>
+              Reset filters
+            </button>
+          </div>
+        )}
         {dates.panel}
         {!ready ? (
           <p className="empty">Loading expenses…</p>
