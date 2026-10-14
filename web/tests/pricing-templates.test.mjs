@@ -392,3 +392,75 @@ test('expense methods match Costora and comparisons combine options', () => {
     /100/,
   );
 });
+
+test('selling prices in formulas: name_price, and items with a formula name but no cost', () => {
+  const { ledger } = fixture();
+  // Art card sells at ₦200 and costs ₦200; add a sold service with a formula name only.
+  ledger.services.push({
+    id: id(60),
+    description: 'Lamination',
+    materialId: null,
+    price: 15000,
+    archived: false,
+    version: 3,
+    costing: { key: 'lamination' },
+  });
+  const t = structuredClone(ledger.pricing.templates[0]);
+  t.expenses.push({
+    key: 'finish',
+    label: 'Lamination',
+    formula: 'quantity * lamination_price + art_card_price',
+  });
+  const s = priceTemplate(
+    ledger,
+    validateTemplate(t),
+    { sheets_per_book: 25, inner_paper: 1, cover_card: 1 },
+    50,
+  );
+  assert.equal(s.expenses.at(-1).amount, '7700'); // 50 × ₦150 + ₦200
+  const price = s.references.find((r) => r.key === 'lamination_price');
+  assert.deepEqual(price, {
+    serviceId: id(60),
+    key: 'lamination_price',
+    name: 'Lamination',
+    version: 3,
+    amount: 15000,
+    per: 1,
+    unit: 'item',
+    rate: '150',
+    kind: 'price',
+  });
+  // Its cost is not set, so the plain name explains what to use instead.
+  t.expenses.at(-1).formula = 'lamination';
+  assert.throws(
+    () => priceTemplate(ledger, validateTemplate(t), {}, 50),
+    /Lamination has no template cost\. Use lamination_price/,
+  );
+  assert.deepEqual(validCosting({ key: 'lamination' }), { key: 'lamination' });
+  assert.throws(() => validCosting({ key: 'x_price' }), /_price/);
+});
+
+test('the active template limit comes from settings', () => {
+  const t = bookTemplate();
+  const copies = (n, archived = false) =>
+    Array.from({ length: n }, (_, i) => ({
+      ...structuredClone(t),
+      id: id(500 + i),
+      name: `Book ${i}`,
+      archived,
+    }));
+  assert.equal(validatePricingSettings({ enabled: true, templates: [] }).maxTemplates, 100);
+  assert.equal(
+    validatePricingSettings({
+      enabled: true,
+      maxTemplates: 2,
+      templates: [...copies(2), ...copies(3, true).map((x, i) => ({ ...x, id: id(600 + i) }))],
+    }).templates.length,
+    5,
+  );
+  assert.throws(
+    () => validatePricingSettings({ enabled: true, maxTemplates: 2, templates: copies(3) }),
+    /limit is 2 active templates/,
+  );
+  assert.throws(() => validatePricingSettings({ enabled: true, maxTemplates: 0, templates: [] }), /1 to 500/);
+});

@@ -5,6 +5,7 @@ import { TemplateAudit } from './TemplateFields';
 import {
   consumptionUnit,
   costRate,
+  hasCost,
   canonical,
   expenseControls,
   formulaFromControls,
@@ -49,7 +50,7 @@ const slug = (text: string) =>
 const kindLabels: Record<TemplateVariable['kind'], string> = {
   number: 'Number',
   options: 'Named options',
-  material: 'Material selection',
+  material: 'Choice of items',
   yesno: 'Yes / No',
 };
 const methodLabels: Record<string, string> = {
@@ -110,7 +111,12 @@ function FormulaEditor({
   const c: ExpenseCalculation = customOnly ? { ...inferred, method: 'custom' } : (calculation ?? inferred);
   const custom = c.method === 'custom';
   const rates = [
-    ...costs.map((s) => [s.costing!.key, `${s.description} · ${s.costing!.key}`]),
+    ...costs
+      .filter((s) => hasCost(s.costing))
+      .map((s) => [s.costing!.key, `${s.description} · cost · ${s.costing!.key}`]),
+    ...costs
+      .filter((s) => !s.private)
+      .map((s) => [`${s.costing!.key}_price`, `${s.description} · selling price · ${s.costing!.key}_price`]),
     ...draft.variables
       .filter((v) => v.kind === 'material')
       .map((v) => [v.key + '_rate', `${v.label} · selected item's cost (${v.key}_rate)`]),
@@ -752,55 +758,59 @@ export default function TemplateEditor({
                   {v.kind === 'material' && (
                     <div className="template-options">
                       <p className="muted">
-                        Choose the {w('services')} staff can pick from. In formulas, <code>{v.key}_rate</code>{' '}
-                        is the chosen item's cost per {materialUnit || 'unit'}. All choices must use the same
-                        unit.
+                        Staff pick one of these when pricing (e.g. Basic, Premium or Luxury shirt). Any{' '}
+                        {w('service')}, product or private cost with a template cost can be a choice. In
+                        formulas, <code>{v.key}_rate</code> is the chosen item's cost per{' '}
+                        {materialUnit || 'unit'}. All choices must use the same unit. To take the chosen item
+                        out of stock, link a computed variable to this choice.
                       </p>
-                      {!costs.length && (
+                      {!costs.some((s) => hasCost(s.costing)) && (
                         <p className="notice">
                           Give {w('services')} a template cost first (on the {w('Services')} page or with Add
                           private cost).
                         </p>
                       )}
-                      {costs.map((s) => {
-                        const unit = consumptionUnit(s, ledger.materials);
-                        const chosen = v.options?.find((o) => o.serviceId === s.id);
-                        return (
-                          <label className="check-label" key={s.id}>
-                            <input
-                              type="checkbox"
-                              checked={!!chosen}
-                              disabled={!chosen && !!materialUnit && unit !== materialUnit}
-                              onChange={(e) => {
-                                const options = e.target.checked
-                                  ? [
-                                      ...(v.options ?? []),
-                                      {
-                                        value:
-                                          Math.max(0, ...(v.options ?? []).map((o) => Number(o.value))) + 1,
-                                        label: s.description.slice(0, 80),
-                                        serviceId: s.id,
-                                      },
-                                    ]
-                                  : (v.options ?? []).filter((o) => o.serviceId !== s.id);
-                                setVariable(i, {
-                                  options,
-                                  default: options.some((o) => o.value === Number(v.default))
-                                    ? v.default
-                                    : (options[0]?.value ?? 1),
-                                });
-                              }}
-                            />
-                            {s.description}
-                            <small>
-                              {' '}
-                              {canonical(costRate(s.costing!))} per {unit}
-                              {s.materialId ? ' · stock item' : ''}
-                              {s.private ? ' · private' : ''}
-                            </small>
-                          </label>
-                        );
-                      })}
+                      {costs
+                        .filter((s) => hasCost(s.costing))
+                        .map((s) => {
+                          const unit = consumptionUnit(s, ledger.materials);
+                          const chosen = v.options?.find((o) => o.serviceId === s.id);
+                          return (
+                            <label className="check-label" key={s.id}>
+                              <input
+                                type="checkbox"
+                                checked={!!chosen}
+                                disabled={!chosen && !!materialUnit && unit !== materialUnit}
+                                onChange={(e) => {
+                                  const options = e.target.checked
+                                    ? [
+                                        ...(v.options ?? []),
+                                        {
+                                          value:
+                                            Math.max(0, ...(v.options ?? []).map((o) => Number(o.value))) + 1,
+                                          label: s.description.slice(0, 80),
+                                          serviceId: s.id,
+                                        },
+                                      ]
+                                    : (v.options ?? []).filter((o) => o.serviceId !== s.id);
+                                  setVariable(i, {
+                                    options,
+                                    default: options.some((o) => o.value === Number(v.default))
+                                      ? v.default
+                                      : (options[0]?.value ?? 1),
+                                  });
+                                }}
+                              />
+                              {s.description}
+                              <small>
+                                {' '}
+                                {canonical(costRate(s.costing!))} per {unit}
+                                {s.materialId ? ' · stock item' : ''}
+                                {s.private ? ' · private' : ''}
+                              </small>
+                            </label>
+                          );
+                        })}
                     </div>
                   )}
                   <div className="material-actions">

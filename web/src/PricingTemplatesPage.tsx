@@ -10,6 +10,7 @@ import {
   canonical,
   consumptionUnit,
   costRate,
+  hasCost,
   newTemplate,
   suggestCostKey,
   templateProblem,
@@ -77,7 +78,10 @@ export default function PricingTemplatesPage({
       )
     )
       throw Error('Use a name that no other template has.');
-    if (!old && pricing.templates.length >= 30) throw Error('A business can have at most 30 templates.');
+    if (!old && pricing.templates.filter((x) => !x.archived).length >= (pricing.maxTemplates ?? 100))
+      throw Error(
+        `Your limit is ${pricing.maxTemplates ?? 100} active templates. Archive one or raise the limit in Business Settings.`,
+      );
     const next = { ...t, version: old ? old.version + 1 : 1 };
     await saveTemplates(
       old ? pricing.templates.map((x) => (x.id === t.id ? next : x)) : [...pricing.templates, next],
@@ -136,7 +140,7 @@ export default function PricingTemplatesPage({
         <article>
           <span>Active templates</span>
           <strong>{pricing.templates.filter((t) => !t.archived).length}</strong>
-          <small>At most 30</small>
+          <small>Limit {pricing.maxTemplates ?? 100} (Business Settings)</small>
         </article>
         <article>
           <span>Costs for formulas</span>
@@ -297,14 +301,25 @@ export default function PricingTemplatesPage({
                       </small>
                     </td>
                     <td>
-                      <code>{s.costing!.key}</code>
+                      {hasCost(s.costing) && <code>{s.costing!.key}</code>}
+                      {!s.private && (
+                        <small>
+                          <code>{s.costing!.key}_price</code> = {currency(s.price)} selling price
+                        </small>
+                      )}
                     </td>
                     <td className="numeric">
-                      {currency(s.costing!.amount)} for {s.costing!.per} {unit}
-                      {s.costing!.unit ? <small>bought as {s.costing!.unit}</small> : null}
+                      {hasCost(s.costing) ? (
+                        <>
+                          {currency(s.costing!.amount!)} for {s.costing!.per} {unit}
+                          {s.costing!.unit ? <small>bought as {s.costing!.unit}</small> : null}
+                        </>
+                      ) : (
+                        <small>No cost · selling price only</small>
+                      )}
                     </td>
                     <td className="numeric">
-                      ₦{canonical(costRate(s.costing!))} / {unit}
+                      {hasCost(s.costing) ? `₦${canonical(costRate(s.costing!))} / ${unit}` : '—'}
                     </td>
                   </tr>
                 );
