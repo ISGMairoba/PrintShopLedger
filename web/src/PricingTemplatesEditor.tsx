@@ -959,6 +959,14 @@ export default function TemplateEditor({
                   exclude={c.key}
                   onChange={(formula) => setComputed(i, { formula })}
                 />
+                <label className="check-label">
+                  <input
+                    type="checkbox"
+                    checked={c.clientVisible === true}
+                    onChange={(e) => setComputed(i, { clientVisible: e.target.checked })}
+                  />
+                  Show on client quote
+                </label>
                 <button
                   type="button"
                   className="text-button danger-text"

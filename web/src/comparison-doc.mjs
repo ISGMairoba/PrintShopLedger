@@ -2,7 +2,7 @@
 // client may see. Drawn by the same PDF code as quotations (A4, A5 or any page size).
 import { receiptBusiness, validLogo } from './business-branding.mjs';
 import { currency } from './receipts.mjs';
-import { valueLabel } from './pricing-templates.mjs';
+import { computedSpecs, valueLabel } from './pricing-templates.mjs';
 import { renameTerms } from './terms.mjs';
 
 const longDate = (value) =>
@@ -46,6 +46,7 @@ export function comparisonModel(template, rows, business, details = {}) {
     subtitle: template.name,
     meta: [
       ...visible.map((v) => `${v.label}: ${valueLabel(v, r.inputs[v.key])}`),
+      ...computedSpecs(template, r.outputs, true).map((s) => `${s.label}: ${s.value}`),
       `${currency(r.unit)} each`,
     ],
     details: [],

@@ -37,6 +37,7 @@ import { discountPolicy } from './discounts.mjs';
 import { PeriodDefaultsContext } from './PeriodFilter';
 import { TermsProvider } from './Words';
 import { TemplateAuditContext, TemplateDocumentContext } from './TemplateFields';
+import { canSeeTemplateCosts } from './pricing-templates.mjs';
 import { pageName, renameTerms } from './terms.mjs';
 import {
   CustomerConflictReview,
@@ -981,9 +982,7 @@ export default function App() {
     <BusinessOptionsContext.Provider value={branding.settings.options}>
       <TermsProvider value={branding.settings.terms}>
         <TemplateAuditContext.Provider
-          value={
-            demo || canAccessPage('Pricing Templates', shop?.accessLevel ?? 0, branding.settings.pageAccess)
-          }
+          value={demo || canSeeTemplateCosts(branding.settings.pricing, shop?.accessLevel ?? 0)}
         >
           <TemplateDocumentContext.Provider
             value={{

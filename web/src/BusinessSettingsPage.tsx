@@ -567,6 +567,38 @@ export default function BusinessSettingsPage({
                 so keep only the ones you use.
               </small>
             </label>
+            <fieldset className="template-option-set">
+              <legend>Who can see template costs and profit (Internal job & audit)</legend>
+              {(
+                [
+                  [1, 'Cashier'],
+                  [2, 'Admin'],
+                  [3, 'Manager'],
+                ] as const
+              ).map(([rank, label]) => {
+                const ranks = draft.pricing.auditRanks ?? [2, 3];
+                return (
+                  <label className="check-label" key={rank}>
+                    <input
+                      type="checkbox"
+                      checked={ranks.includes(rank)}
+                      onChange={(e) =>
+                        field('pricing', {
+                          ...draft.pricing,
+                          auditRanks: e.target.checked
+                            ? [...ranks, rank].sort()
+                            : ranks.filter((r) => r !== rank),
+                        })
+                      }
+                    />
+                    {label}
+                  </label>
+                );
+              })}
+              <small>
+                Developers can always see them. Everyone else sees the client and staff views only.
+              </small>
+            </fieldset>
             {sectionSave('Pricing templates', ['pricing'])}
           </fieldset>
           <fieldset hidden={tab !== 'Jobs & payments'} disabled={busy || !ready}>

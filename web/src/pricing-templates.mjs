@@ -7,7 +7,12 @@
 // operation is rounded to 12 decimal places, exactly as the server does when it checks the price.
 
 /** @returns {import('./types').PricingSettings} */
-export const pricingDefaults = () => ({ enabled: false, maxTemplates: 100, templates: [] });
+export const pricingDefaults = () => ({
+  enabled: false,
+  maxTemplates: 100,
+  auditRanks: [2, 3],
+  templates: [],
+});
 /** The most active templates a business may choose to allow. */
 export const TEMPLATE_LIMIT = 500;
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -473,7 +478,16 @@ export function validateTemplate(t) {
     } catch (cause) {
       throw Error(`${label}: ${cause.message}`);
     }
-    const out = { key, label, unit, formula, expression, stock: null };
+    // Computed values stay internal unless the owner chooses to show one on client quotes.
+    const out = {
+      key,
+      label,
+      unit,
+      formula,
+      expression,
+      stock: null,
+      clientVisible: c.clientVisible === true,
+    };
     if (c.stock) {
       if (c.stock.variable !== undefined) {
         if (!materialKeys.includes(c.stock.variable))
@@ -574,7 +588,15 @@ export function validatePricingSettings(input = pricingDefaults()) {
     if (!out.archived) names.add(out.name.toLowerCase());
     return out;
   });
-  return { enabled: input.enabled, maxTemplates, templates };
+  // Who may see costs and profit (internal audit). Developers always can.
+  const auditRanks = input.auditRanks ?? [2, 3];
+  if (
+    !Array.isArray(auditRanks) ||
+    auditRanks.some((r) => ![1, 2, 3].includes(r)) ||
+    new Set(auditRanks).size !== auditRanks.length
+  )
+    throw Error('Choose which ranks may see template costs.');
+  return { enabled: input.enabled, maxTemplates, auditRanks: [...auditRanks].sort(), templates };
 }
 
 // ---------------------------------------------------------------- service costs
@@ -903,13 +925,34 @@ export function valueLabel(v, value) {
 }
 /** Customer-safe details: only variables marked to show on the client quote. Never costs. */
 export function clientSpecs(snapshot, quantity) {
-  return snapshot.template.variables
-    .filter((v) => v.clientVisible !== false)
-    .map((v) => ({
-      label: v.label,
-      value: valueLabel(v, v.key === 'quantity' ? quantity : snapshot.inputs[v.key]),
-    }));
+  return [
+    ...snapshot.template.variables
+      .filter((v) => v.clientVisible !== false)
+      .map((v) => ({
+        label: v.label,
+        value: valueLabel(v, v.key === 'quantity' ? quantity : snapshot.inputs[v.key]),
+      })),
+    ...computedSpecs(snapshot.template, snapshot.outputs, true),
+  ];
 }
+/** Computed values as label and value; only the client-visible ones when `clientOnly`. */
+export function computedSpecs(template, outputs = [], clientOnly = false) {
+  return template.computed
+    .filter((c) => !clientOnly || c.clientVisible === true)
+    .map((c) => {
+      const o = outputs.find((x) => x.key === c.key);
+      return o
+        ? {
+            label: c.label,
+            value: `${Number(o.value).toLocaleString('en-NG', { maximumFractionDigits: 6 })} ${c.unit}`,
+          }
+        : null;
+    })
+    .filter(Boolean);
+}
+/** Whether this rank may see template costs and profit. Developers always can. */
+export const canSeeTemplateCosts = (pricing, rank) =>
+  rank >= 4 || (pricing?.auditRanks ?? [2, 3]).includes(rank);
 /** A snapshot's value for a name (for showing formulas with their numbers). */
 export function snapshotValue(snapshot, quantity, name) {
   if (name === 'quantity') return String(quantity);
@@ -1017,4 +1060,9 @@ export const templateSpecLines = (job) =>
     ? job.templateSnapshot.template.variables
         .filter((v) => v.clientVisible !== false && v.key !== 'quantity')
         .map((v) => `${v.label}: ${valueLabel(v, job.templateSnapshot.inputs[v.key])}`)
+        .concat(
+          computedSpecs(job.templateSnapshot.template, job.templateSnapshot.outputs, true).map(
+            (s) => `${s.label}: ${s.value}`,
+          ),
+        )
     : [];
