@@ -5,6 +5,7 @@ import {
   FieldError,
   canonical,
   clientSpecs,
+  computedSpecs,
   discountCeiling,
   explainFormula,
   groupRows,
@@ -147,13 +148,17 @@ export function TemplateInputs({
   );
 }
 
+/** Client, staff and (for permitted ranks) internal audit views. */
 export function ViewSelector({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const audit = useTemplateAudit();
+  const views = [
+    ['client', 'Client view'],
+    ['staff', 'Staff view'],
+    ...(audit ? [['internal', 'Internal job & audit']] : []),
+  ];
   return (
     <div className="settings-tabs template-views" role="group" aria-label="Template view">
-      {[
-        ['client', 'Staff / client view'],
-        ['internal', 'Internal job & audit'],
-      ].map(([key, label]) => (
+      {views.map(([key, label]) => (
         <button
           key={key}
           type="button"
@@ -166,6 +171,76 @@ export function ViewSelector({ value, onChange }: { value: string; onChange: (va
       ))}
     </div>
   );
+}
+
+/** What staff need: every variable and every computed value (sheets, cards…), and stock. No costs. */
+export function StaffView({
+  snapshot: s,
+  quantity,
+}: {
+  snapshot: TemplateSnapshot;
+  quantity: number | string;
+}) {
+  const computed = computedSpecs(s.template, s.outputs);
+  return (
+    <section aria-label="Staff view">
+      <dl className="template-specs">
+        {s.template.variables.map((v) => (
+          <div key={v.key}>
+            <dt>
+              {v.label}
+              {v.clientVisible === false && <small> · not on client quote</small>}
+            </dt>
+            <dd>{valueLabel(v, v.key === 'quantity' ? quantity : s.inputs[v.key])}</dd>
+          </div>
+        ))}
+      </dl>
+      {computed.length > 0 && (
+        <>
+          <h5>Production</h5>
+          <dl className="template-specs">
+            {s.template.computed.map((c) => {
+              const spec = computed.find((x: { label: string }) => x.label === c.label);
+              return spec ? (
+                <div key={c.key}>
+                  <dt>
+                    {c.label}
+                    {c.clientVisible === true && <small> · on client quote</small>}
+                  </dt>
+                  <dd>{spec.value}</dd>
+                </div>
+              ) : null;
+            })}
+          </dl>
+        </>
+      )}
+      {s.stock.length > 0 && (
+        <p className="muted">
+          Stock taken when the order is saved:{' '}
+          {s.stock.map((m) => `${m.quantity} ${m.unit} ${m.name}`).join(', ')}
+        </p>
+      )}
+    </section>
+  );
+}
+
+/** One of the three views for a priced template line. */
+export function TemplateView({
+  view,
+  snapshot,
+  quantity,
+  amount,
+}: {
+  view: string;
+  snapshot: TemplateSnapshot;
+  quantity: number | string;
+  amount?: number;
+}) {
+  const audit = useTemplateAudit();
+  if (view === 'internal' && audit)
+    return <TemplateAudit snapshot={snapshot} quantity={quantity} amount={amount} />;
+  if (view === 'client') return <ClientSpecs snapshot={snapshot} quantity={quantity} />;
+  return <StaffView snapshot={snapshot} quantity={quantity} />;
 }
 
 /** What the customer may see: the client-visible variables. Never costs. */
@@ -403,19 +478,14 @@ export function TemplateSummary({
   quantity: number | string;
   amount?: number;
 }) {
-  const audit = useTemplateAudit();
-  const [view, setView] = useState('client');
+  const [view, setView] = useState('staff');
   return (
     <div className="template-breakdown">
       <p className="muted">
         {snapshot.template.name} · Template version {snapshot.template.version}
       </p>
-      {audit && <ViewSelector value={view} onChange={setView} />}
-      {audit && view === 'internal' ? (
-        <TemplateAudit snapshot={snapshot} quantity={quantity} amount={amount} />
-      ) : (
-        <ClientSpecs snapshot={snapshot} quantity={quantity} />
-      )}
+      <ViewSelector value={view} onChange={setView} />
+      <TemplateView view={view} snapshot={snapshot} quantity={quantity} amount={amount} />
     </div>
   );
 }
@@ -440,7 +510,7 @@ export function TemplateEstimate({
   onUse: (inputs: Record<string, number | string>, quantity: string) => void;
 }) {
   const audit = useTemplateAudit();
-  const [view, setView] = useState('client');
+  const [view, setView] = useState('staff');
   const [compare, setCompare] = useState(false);
   const priced = tryTemplate(ledger, template, inputs, quantity);
   const snapshot = priced.quote?.templateSnapshot;
@@ -471,13 +541,8 @@ export function TemplateEstimate({
       ) : (
         <p className="muted">Within your pricing limits.</p>
       )}
-      {audit && <ViewSelector value={view} onChange={setView} />}
-      {snapshot &&
-        (audit && view === 'internal' ? (
-          <TemplateAudit snapshot={snapshot} quantity={quantity} amount={amount} />
-        ) : (
-          <ClientSpecs snapshot={snapshot} quantity={quantity} />
-        ))}
+      <ViewSelector value={view} onChange={setView} />
+      {snapshot && <TemplateView view={view} snapshot={snapshot} quantity={quantity} amount={amount} />}
       <label className="check-label">
         <input type="checkbox" checked={compare} onChange={(e) => setCompare(e.target.checked)} />
         Compare options
@@ -496,7 +561,13 @@ export function TemplateEstimate({
 }
 
 type OptionSet = { key: string; values: string };
-type Scenario = { inputs: Record<string, number>; amount?: number; unit?: number; error?: string };
+type Scenario = {
+  inputs: Record<string, number>;
+  amount?: number;
+  unit?: number;
+  outputs?: TemplateSnapshot['outputs'];
+  error?: string;
+};
 
 /** Costora's comparison: several quantities and option sets, each combination priced separately. */
 export function CompareOptions({
@@ -536,7 +607,12 @@ export function CompareOptions({
           const { quantity: qty, ...rest } = combo;
           const priced = tryTemplate(ledger, template, rest, qty);
           return priced.quote
-            ? { inputs: combo, amount: priced.quote.amount, unit: priced.quote.unitPrice }
+            ? {
+                inputs: combo,
+                amount: priced.quote.amount,
+                unit: priced.quote.unitPrice,
+                outputs: priced.quote.templateSnapshot.outputs,
+              }
             : { inputs: combo, error: priced.error };
         }),
       );

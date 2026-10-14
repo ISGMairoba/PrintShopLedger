@@ -6,7 +6,10 @@ import { prepareQuotation, applyQuotationEvent, quotationCheckout } from '../src
 import {
   FieldError,
   canonical,
+  canSeeTemplateCosts,
   clientSpecs,
+  computedSpecs,
+  templateSpecLines,
   discountCeiling,
   evaluate,
   expenseControls,
@@ -463,4 +466,40 @@ test('the active template limit comes from settings', () => {
     /limit is 2 active templates/,
   );
   assert.throws(() => validatePricingSettings({ enabled: true, maxTemplates: 0, templates: [] }), /1 to 500/);
+});
+
+test('computed values reach clients only when chosen; audit ranks are a setting', () => {
+  const { ledger } = fixture();
+  const t = structuredClone(ledger.pricing.templates[0]);
+  const plain = priceTemplate(
+    ledger,
+    validateTemplate(t),
+    { sheets_per_book: 25, inner_paper: 1, cover_card: 1 },
+    50,
+  );
+  assert.ok(!clientSpecs(plain, 50).some((s) => s.label === 'Paper required'));
+  t.computed[0].clientVisible = true;
+  const shown = priceTemplate(
+    ledger,
+    validateTemplate(t),
+    { sheets_per_book: 25, inner_paper: 1, cover_card: 1 },
+    50,
+  );
+  assert.deepEqual(clientSpecs(shown, 50).at(-1), { label: 'Paper required', value: '650 sheet' });
+  assert.deepEqual(
+    computedSpecs(shown.template, shown.outputs).map((s) => s.label),
+    ['Paper required', 'Cards required'],
+  );
+  assert.ok(templateSpecLines({ templateSnapshot: shown }).includes('Paper required: 650 sheet'));
+  assert.equal(validateTemplate(t).computed[1].clientVisible, false);
+  assert.deepEqual(validatePricingSettings({ enabled: true, templates: [] }).auditRanks, [2, 3]);
+  assert.deepEqual(
+    validatePricingSettings({ enabled: true, auditRanks: [3, 1], templates: [] }).auditRanks,
+    [1, 3],
+  );
+  assert.throws(() => validatePricingSettings({ enabled: true, auditRanks: [4], templates: [] }), /ranks/);
+  assert.equal(canSeeTemplateCosts({ auditRanks: [3] }, 2), false);
+  assert.equal(canSeeTemplateCosts({ auditRanks: [3] }, 3), true);
+  assert.equal(canSeeTemplateCosts({ auditRanks: [] }, 4), true);
+  assert.equal(canSeeTemplateCosts(undefined, 2), true);
 });

@@ -36,6 +36,8 @@ export type TemplateComputed = {
   expression?: FormulaTree;
   /** Take this quantity out of stock: from the selected item of a material variable, or one item. */
   stock: { variable: string } | { serviceId: string } | null;
+  /** Show this value on client quotes and documents (off unless chosen). */
+  clientVisible?: boolean;
 };
 export type ExpenseCalculation = { method: string; rate: string; input: string; capacity: string };
 export type TemplateExpense = {
@@ -64,7 +66,13 @@ export type PricingTemplate = {
   expenses: TemplateExpense[];
   pricing: TemplatePricing;
 };
-export type PricingSettings = { enabled: boolean; maxTemplates?: number; templates: PricingTemplate[] };
+export type PricingSettings = {
+  enabled: boolean;
+  maxTemplates?: number;
+  /** Ranks that may see costs and profit (Developers always can). */
+  auditRanks?: number[];
+  templates: PricingTemplate[];
+};
 export type TemplateReference = {
   serviceId: string;
   key: string;
