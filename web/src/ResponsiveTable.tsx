@@ -131,7 +131,7 @@ export default function ResponsiveTable({
           </button>
         </div>
       )}
-      <table className="mobile-list">
+      <table className="mobile-list mobile-cards">
         <thead>
           <tr>
             {columns.slice(0, 3).map((column) => (
@@ -150,7 +150,16 @@ export default function ResponsiveTable({
                   const index = resolve(column.index);
                   const details = [...(column.details ?? []).map(resolve), ...(position === 0 ? extra : [])];
                   return (
-                    <td key={column.index}>
+                    <td
+                      key={column.index}
+                      className={
+                        column.actions
+                          ? 'mobile-cell-actions'
+                          : position === 0
+                            ? 'mobile-cell-main'
+                            : 'mobile-cell-side'
+                      }
+                    >
                       {column.actions ? (
                         <MobileActions>{cells[index]?.props.children}</MobileActions>
                       ) : (

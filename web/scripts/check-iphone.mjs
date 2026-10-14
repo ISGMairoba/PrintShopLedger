@@ -2,6 +2,13 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { webkit, devices } from 'playwright';
+const openMore = async (scope) => {
+  const toggle = scope.locator('.toolbar-actions .more-menu > button').first();
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+  await scope.locator('.more-menu-panel').first().waitFor();
+  return scope;
+};
+
 const server = spawn(
   process.execPath,
   ['node_modules/vite/bin/vite.js', 'preview', '--host', '127.0.0.1', '--port', '4173', '--strictPort'],
@@ -108,7 +115,7 @@ try {
   await fits('Stock editor');
   await dialog.getByRole('button', { name: 'Add to stock', exact: true }).click();
   await dialog.waitFor({ state: 'detached' });
-  await page.getByRole('button', { name: 'Audit view', exact: true }).click();
+  await (await openMore(page)).getByRole('button', { name: 'Audit view', exact: true }).click();
   await fits('Materials audit');
   await navigate('Services');
   await page.getByRole('button', { name: 'Add service', exact: true }).click();
@@ -130,7 +137,7 @@ try {
   await fits('Customer editor');
   await dialog.getByRole('button', { name: 'Save customer', exact: true }).click();
   await dialog.waitFor({ state: 'detached' });
-  await page.getByRole('button', { name: 'Audit view', exact: true }).click();
+  await (await openMore(page)).getByRole('button', { name: 'Audit view', exact: true }).click();
   await fits('Customers audit');
   await navigate('Jobs');
   await page.getByRole('button', { name: 'New job', exact: true }).click();

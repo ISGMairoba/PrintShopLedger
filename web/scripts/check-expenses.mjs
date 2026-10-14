@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
+const openMore = async (scope) => {
+  const toggle = scope.locator('.toolbar-actions .more-menu > button').first();
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+  await scope.locator('.more-menu-panel').first().waitFor();
+  return scope;
+};
+
 const { chromium, webkit } = await import(process.env.PLAYWRIGHT_MODULE ?? 'playwright');
 const server = spawn(
   process.execPath,
@@ -128,7 +135,7 @@ try {
   saved = await state();
   assert.equal(saved.ledger.expenses[0].payments.length, 2);
   assert.equal(saved.ledger.materials[0].available, 120);
-  await page.getByRole('button', { name: 'Audit view', exact: true }).click();
+  await (await openMore(page)).getByRole('button', { name: 'Audit view', exact: true }).click();
   assert.ok(await page.getByRole('columnheader', { name: 'Created by', exact: true }).count());
   await page.getByRole('button', { name: 'Amount', exact: true }).click();
   await page.getByLabel('Search expenses').fill('Paper Seller');
@@ -212,7 +219,7 @@ try {
     .click();
   assert.equal(await mobile.locator('.mobile-list thead th').count(), 3);
   await mobile.getByLabel('Expense status').selectOption('all');
-  await mobile.getByRole('button', { name: 'Audit view', exact: true }).click();
+  await (await openMore(mobile)).getByRole('button', { name: 'Audit view', exact: true }).click();
   assert.ok(
     await mobile.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
     'Mobile page fits viewport',

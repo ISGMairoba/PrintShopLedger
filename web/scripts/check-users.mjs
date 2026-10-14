@@ -2,6 +2,12 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from 'playwright';
+const openMore = async (scope) => {
+  const toggle = scope.locator('.toolbar-actions .more-menu > button').first();
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+  await scope.locator('.more-menu-panel').first().waitFor();
+  return scope;
+};
 
 const server = spawn(
   process.execPath,
@@ -378,7 +384,7 @@ try {
   );
   await dialog.getByRole('button', { name: 'Save user', exact: true }).click();
   await dialog.waitFor({ state: 'detached' });
-  await page.getByRole('button', { name: 'Audit view', exact: true }).click();
+  await (await openMore(page)).getByRole('button', { name: 'Audit view', exact: true }).click();
   await page.getByRole('button', { name: 'Created by', exact: true }).waitFor();
   await page.getByLabel('Search users').fill('amina.print');
   let row = page.locator('tbody tr').filter({ hasText: 'amina.print' });
@@ -393,7 +399,7 @@ try {
     'Editing another user preserves the list search',
   );
   assert.equal(
-    await page.getByRole('button', { name: 'Normal view', exact: true }).count(),
+    await page.getByRole('button', { name: 'Created by', exact: true }).count(),
     1,
     'Editing another user preserves audit view',
   );

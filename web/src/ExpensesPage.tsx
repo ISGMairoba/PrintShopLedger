@@ -5,6 +5,7 @@ import { useState } from 'react';
 import ExpenseEditor from './ExpenseEditor';
 import Modal from './Modal';
 import Icon from './Icon';
+import ToolbarActions, { MenuToggle } from './ToolbarActions';
 import { useDateFilter } from './PeriodFilter';
 import ResponsiveTable from './ResponsiveTable';
 import { SortHeader, useTableSort } from './TableSort';
@@ -188,14 +189,18 @@ export default function ExpensesPage({
           <button className="secondary history-filter-reset" onClick={reset}>
             Reset filters
           </button>
-          <button className="secondary" aria-pressed={audit} onClick={() => setAudit(!audit)}>
-            <Icon name={audit ? 'table' : 'audit'} />
-            {audit ? 'Normal view' : 'Audit view'}
-          </button>
-          <button disabled={!ready || busy} onClick={() => setEditor('new')}>
-            <Icon name="add" />
-            Add expense
-          </button>
+          <ToolbarActions
+            more={
+              <MenuToggle pressed={audit} icon="audit" onClick={() => setAudit(!audit)}>
+                Audit view
+              </MenuToggle>
+            }
+          >
+            <button disabled={!ready || busy} onClick={() => setEditor('new')}>
+              <Icon name="add" />
+              Add expense
+            </button>
+          </ToolbarActions>
         </div>
         {dates.panel}
         {!ready ? (

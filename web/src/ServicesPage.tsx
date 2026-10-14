@@ -2,6 +2,7 @@ import { useFeedbackMessage } from './Feedback';
 import CurrencyInput from './CurrencyInput';
 import ResponsiveTable from './ResponsiveTable';
 import Icon from './Icon';
+import ToolbarActions, { MenuToggle } from './ToolbarActions';
 import { useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import { shortLabel } from './material-display.mjs';
@@ -231,37 +232,44 @@ export default function ServicesPage({
             <option value="archived">Archived</option>
             <option value="all">{w('All services')}</option>
           </select>
-          <button className="secondary" aria-pressed={audit} onClick={() => setAudit(!audit)}>
-            <Icon name={audit ? 'table' : 'audit'} /> {audit ? 'Normal view' : 'Audit view'}
-          </button>
-          <button
-            disabled={!ready || busy}
-            onClick={() => {
-              openEditor('new');
-              setConfirmation(null);
-              setError('');
-            }}
+          <ToolbarActions
+            more={
+              <>
+                <MenuToggle pressed={audit} icon="audit" onClick={() => setAudit(!audit)}>
+                  Audit view
+                </MenuToggle>
+                {onEditProduct && (
+                  <button className="secondary" disabled={!ready || busy} onClick={() => onEditProduct('')}>
+                    <Icon name="edit" /> {w('Edit product')}
+                  </button>
+                )}
+              </>
+            }
           >
-            <Icon name="add" /> {w('Add service')}
-          </button>
-          <button
-            className="secondary"
-            disabled={!ready || busy}
-            title="Creates the stock item and its shelf item together"
-            onClick={() => {
-              setProduct(true);
-              setEditor(null);
-              setConfirmation(null);
-              setError('');
-            }}
-          >
-            <Icon name="add" /> Add product
-          </button>
-          {onEditProduct && (
-            <button className="secondary" disabled={!ready || busy} onClick={() => onEditProduct('')}>
-              <Icon name="edit" /> {w('Edit product')}
+            <button
+              className="secondary"
+              disabled={!ready || busy}
+              title="Creates the stock item and its shelf item together"
+              onClick={() => {
+                setProduct(true);
+                setEditor(null);
+                setConfirmation(null);
+                setError('');
+              }}
+            >
+              <Icon name="add" /> Add product
             </button>
-          )}
+            <button
+              disabled={!ready || busy}
+              onClick={() => {
+                openEditor('new');
+                setConfirmation(null);
+                setError('');
+              }}
+            >
+              <Icon name="add" /> {w('Add service')}
+            </button>
+          </ToolbarActions>
         </div>
         {!ready ? (
           <div className="empty">{w('Loading services.')}</div>

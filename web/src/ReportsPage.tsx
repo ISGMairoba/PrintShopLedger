@@ -490,7 +490,10 @@ function StatementTab({
           Choose valid From and To dates, in order, spanning no more than ten years.
         </div>
       ) : !statement || !t ? (
-        <section className="panel empty">Choose a customer to see their statement.</section>
+        <section className="panel empty">
+          <h2>No customer chosen</h2>
+          <p>Choose a customer above to see their statement.</p>
+        </section>
       ) : (
         <>
           <section className="panel report-header">

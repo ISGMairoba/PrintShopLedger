@@ -2,6 +2,7 @@ import { useFeedbackMessage } from './Feedback';
 import { paymentName } from './business-options.mjs';
 import { useState } from 'react';
 import Icon from './Icon';
+import ToolbarActions from './ToolbarActions';
 import Modal from './Modal';
 import CurrencyInput from './CurrencyInput';
 import ResponsiveTable from './ResponsiveTable';
@@ -154,19 +155,21 @@ export default function MySalesPage({
             <option value="closed">Closed</option>
             <option value="all">All transactions</option>
           </select>
-          <button className="secondary" onClick={() => setHistory((v) => !v)}>
-            <Icon name="history" /> {history ? 'Transactions' : 'Drawer history'}
-          </button>
-          <button
-            disabled={!ready || busy || !online || demo}
-            onClick={() => {
-              setClosing(crypto.randomUUID());
-              setCount('');
-              setError('');
-            }}
-          >
-            <Icon name="drawer" /> Close drawer
-          </button>
+          <ToolbarActions>
+            <button className="secondary" onClick={() => setHistory((v) => !v)}>
+              <Icon name="history" /> {history ? 'Transactions' : 'Drawer history'}
+            </button>
+            <button
+              disabled={!ready || busy || !online || demo}
+              onClick={() => {
+                setClosing(crypto.randomUUID());
+                setCount('');
+                setError('');
+              }}
+            >
+              <Icon name="drawer" /> Close drawer
+            </button>
+          </ToolbarActions>
         </div>
         {demo && (
           <p className="drawer-info">
@@ -250,7 +253,12 @@ export default function MySalesPage({
                 </tbody>
               </table>
             </ResponsiveTable>
-            {!drawers.length && <p className="empty">No matching drawer handovers.</p>}
+            {!drawers.length && (
+              <div className="empty">
+                <h2>No drawer handovers</h2>
+                <p>Closed drawers appear here.</p>
+              </div>
+            )}
           </div>
         ) : (
           <div className="table-wrap">
@@ -314,7 +322,12 @@ export default function MySalesPage({
                 </tbody>
               </table>
             </ResponsiveTable>
-            {!records.length && <p className="empty">No matching transactions for your account.</p>}
+            {!records.length && (
+              <div className="empty">
+                <h2>No transactions</h2>
+                <p>No matching transactions for your account.</p>
+              </div>
+            )}
           </div>
         )}
       </section>

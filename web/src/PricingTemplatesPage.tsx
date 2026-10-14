@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import TemplateEditor from './PricingTemplatesEditor';
 import Modal from './Modal';
 import Icon from './Icon';
+import ToolbarActions from './ToolbarActions';
 import { TemplateCalculator, useTemplateAudit, type TemplateStart } from './TemplateFields';
 import CurrencyInput from './CurrencyInput';
 import type { Ledger, PricingTemplate, ServiceEvent } from './types';
@@ -186,13 +187,6 @@ export default function PricingTemplatesPage({
             </article>
           </section>
           <div className="toolbar">
-            <button
-              type="button"
-              disabled={!canSave}
-              onClick={() => setEditing(newTemplate() as PricingTemplate)}
-            >
-              <Icon name="add" /> New template
-            </button>
             <label className="check-label">
               <input
                 type="checkbox"
@@ -201,16 +195,30 @@ export default function PricingTemplatesPage({
               />
               Show archived
             </label>
-            <button
-              type="button"
-              className="secondary"
-              disabled={busy}
-              onClick={() =>
-                void onReload().catch((e) => setMessage(e instanceof Error ? e.message : String(e), 'error'))
+            <ToolbarActions
+              more={
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={busy}
+                  onClick={() =>
+                    void onReload().catch((e) =>
+                      setMessage(e instanceof Error ? e.message : String(e), 'error'),
+                    )
+                  }
+                >
+                  <Icon name="sync" /> Reload saved templates
+                </button>
               }
             >
-              Reload saved templates
-            </button>
+              <button
+                type="button"
+                disabled={!canSave}
+                onClick={() => setEditing(newTemplate() as PricingTemplate)}
+              >
+                <Icon name="add" /> New template
+              </button>
+            </ToolbarActions>
           </div>
           {!visible.length ? (
             <div className="empty">
@@ -309,17 +317,18 @@ export default function PricingTemplatesPage({
           </section>
           {canEditCosts && (
             <div className="toolbar">
-              <button
-                type="button"
-                className="secondary"
-                disabled={!ready || busy}
-                onClick={() => {
-                  setAdding(true);
-                  setCostKey('');
-                }}
-              >
-                <Icon name="add" /> Add private cost
-              </button>
+              <ToolbarActions>
+                <button
+                  type="button"
+                  disabled={!ready || busy}
+                  onClick={() => {
+                    setAdding(true);
+                    setCostKey('');
+                  }}
+                >
+                  <Icon name="add" /> Add private cost
+                </button>
+              </ToolbarActions>
             </div>
           )}
           <h3>Costs used in formulas</h3>

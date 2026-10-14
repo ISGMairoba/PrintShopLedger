@@ -1,4 +1,5 @@
 import JobViewControls from './JobViewControls';
+import ToolbarActions from './ToolbarActions';
 import Icon from './Icon';
 import JobTable from './JobTable';
 import ResponsiveTable from './ResponsiveTable';
@@ -160,6 +161,13 @@ export default function JobsPaymentsPage({
       )}
       <section className="panel">
         <div className="toolbar job-list-toolbar">
+          <input
+            aria-label={`Search ${page.toLowerCase()}`}
+            placeholder={`Search ${page.toLowerCase()}.`}
+            value={query}
+            onChange={(e) => onQuery(e.target.value)}
+          />
+          {dates.button}
           <label className="list-sort-select">
             Sort by
             <select
@@ -207,31 +215,27 @@ export default function JobsPaymentsPage({
               ? 'Ascending ↑'
               : 'Descending ↓'}
           </button>
-          <input
-            aria-label={`Search ${page.toLowerCase()}`}
-            placeholder={`Search ${page.toLowerCase()}.`}
-            value={query}
-            onChange={(e) => onQuery(e.target.value)}
-          />
-          {dates.button}
-          {page === 'Jobs' && (
-            <>
-              <JobViewControls
-                audit={audit}
-                onAudit={() => setAudit((value) => !value)}
-                grouped={grouped}
-                selecting={selecting}
-                onGroup={() => setGrouped((value) => !value)}
-                onSelect={() => setSelecting((value) => !value)}
-              />
-            </>
-          )}
-          <button
-            disabled={!ready || busy || legacyConflict || (page === 'Payments' && !ledger.customers.length)}
-            onClick={onCreate}
+          <ToolbarActions
+            more={
+              page === 'Jobs' ? (
+                <JobViewControls
+                  audit={audit}
+                  onAudit={() => setAudit((value) => !value)}
+                  grouped={grouped}
+                  selecting={selecting}
+                  onGroup={() => setGrouped((value) => !value)}
+                  onSelect={() => setSelecting((value) => !value)}
+                />
+              ) : undefined
+            }
           >
-            <Icon name="add" /> {page === 'Jobs' ? w('New job') : 'Record payment'}
-          </button>
+            <button
+              disabled={!ready || busy || legacyConflict || (page === 'Payments' && !ledger.customers.length)}
+              onClick={onCreate}
+            >
+              <Icon name="add" /> {page === 'Jobs' ? w('New job') : 'Record payment'}
+            </button>
+          </ToolbarActions>
         </div>
         {dates.panel}
         {!ready ? (
