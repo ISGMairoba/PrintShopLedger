@@ -13,7 +13,7 @@ import { BusinessOptionsContext } from './BusinessOptionsContext';
 import useBusinessBranding from './useBusinessBranding';
 import BusinessSettingsPage from './BusinessSettingsPage';
 import AccountPage from './AccountPage';
-import { allowedSettingsTabs, canAccessPage, pages, navigationPages } from './page-access.mjs';
+import { allowedSettingsTabs, canAccessPage, pageGroup, pages, navigationPages } from './page-access.mjs';
 import ExpensesPage from './ExpensesPage';
 import type { ProgressMode } from './JobActions';
 import JobProgressDialog from './JobProgressDialog';
@@ -29,7 +29,7 @@ import { isTransientSyncError } from './auto-sync.mjs';
 import Sidebar from './Sidebar';
 import Icon from './Icon';
 import PrintSettingsPage from './PrintSettingsPage';
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { Fragment, lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import JobsPaymentsPage from './JobsPaymentsPage';
 import JobDetails from './JobDetails';
@@ -1098,24 +1098,30 @@ export default function App() {
                           !(item === 'Material Waste' && allowed('Materials')) &&
                           (allowed(item) || (item === 'Conflict Inbox' && !!supervisor)),
                       )
-                      .map((item) => (
-                        <button
-                          key={item}
-                          className={
-                            page === item || (item === 'Materials' && page === 'Material Waste')
-                              ? 'active'
-                              : ''
-                          }
-                          onClick={() => {
-                            setPage(item);
-                            setSelectedJob(null);
-                            setForm(null);
-                            setQuery('');
-                          }}
-                        >
-                          <Icon name={pageIcons[item]} />
-                          {pageName(item, branding.settings.terms)}
-                        </button>
+                      .map((item, index, shown) => (
+                        <Fragment key={item}>
+                          {pageGroup(item) !== pageGroup(shown[index - 1]) && (
+                            <p className="nav-group" aria-hidden="true">
+                              {pageGroup(item)}
+                            </p>
+                          )}
+                          <button
+                            className={
+                              page === item || (item === 'Materials' && page === 'Material Waste')
+                                ? 'active'
+                                : ''
+                            }
+                            onClick={() => {
+                              setPage(item);
+                              setSelectedJob(null);
+                              setForm(null);
+                              setQuery('');
+                            }}
+                          >
+                            <Icon name={pageIcons[item]} />
+                            {pageName(item, branding.settings.terms)}
+                          </button>
+                        </Fragment>
                       ))}
                   </nav>
                 </Sidebar>

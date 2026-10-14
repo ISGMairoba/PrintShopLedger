@@ -595,7 +595,9 @@ export function TemplateCalculator({
           >
             {active.map((t) => (
               <option key={t.id} value={t.id}>
-                {t.category ? `${t.category} · ${t.name}` : t.name}
+                {t.category && t.category.toLowerCase() !== t.name.toLowerCase()
+                  ? `${t.category} · ${t.name}`
+                  : t.name}
               </option>
             ))}
           </select>
@@ -637,7 +639,7 @@ export function TemplateCalculator({
             {priced.error}
           </p>
         )}
-        <div className="toolbar">
+        <div className="action-row">
           {onCheckout && (
             <button type="button" disabled={!priced.quote} onClick={() => onCheckout(start)}>
               <Icon name="payments" /> Start checkout
