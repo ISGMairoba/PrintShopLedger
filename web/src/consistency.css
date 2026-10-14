@@ -132,3 +132,8 @@ label small,
     margin-left: 0;
   }
 }
+
+/* Sign-in: stacked secondary buttons get the same gap as everything else. */
+.auth-card > .secondary + .secondary {
+  margin-top: 10px;
+}
