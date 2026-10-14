@@ -124,8 +124,13 @@ label small,
 @media (max-width: 740px) {
   .access-matrix th:not(:first-child),
   .access-matrix td:not(:first-child) {
-    width: 64px;
-    padding: 8px 4px;
+    width: 72px;
+    padding: 8px 2px;
+  }
+  .access-matrix th {
+    white-space: nowrap;
+    letter-spacing: 0;
+    font-size: 11px;
   }
   .access-matrix td small {
     display: block;
