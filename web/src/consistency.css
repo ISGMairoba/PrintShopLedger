@@ -266,7 +266,6 @@ label small,
     flex: 1 1 auto;
   }
   .toolbar-actions > button:last-child:not(.secondary) {
-    flex-basis: 100%;
     order: 10;
   }
   .more-menu > button {
@@ -412,16 +411,16 @@ p.empty {
   padding-right: 14px;
 }
 .toolbar > input:not([type="checkbox"]) {
-  flex: 1 1 260px;
+  flex: 1 1 200px;
   max-width: none;
-  min-width: 180px;
+  min-width: 160px;
   width: auto;
 }
 .toolbar select {
   flex: 0 1 auto;
   width: auto;
-  min-width: 140px;
-  max-width: 240px;
+  min-width: 130px;
+  max-width: 200px;
 }
 /* A field name may sit above its control; the control itself lines up with its neighbours
    along the bottom edge, at the same height. */
