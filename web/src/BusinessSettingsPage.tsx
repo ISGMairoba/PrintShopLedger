@@ -154,7 +154,6 @@ export default function BusinessSettingsPage({
     field(receiptKey, { ...opts, [key]: value });
   return (
     <section className="panel editor business-settings" aria-label="Business settings">
-      <h2>Business settings</h2>
       <p>Shared across your business. Printer selection remains specific to each device.</p>
       {!online && !demo && (
         <p className="notice">You can view saved settings offline. Connect before saving changes.</p>
@@ -827,72 +826,101 @@ export default function BusinessSettingsPage({
               is always available. Seeing a page does not by itself allow approving corrections, resolving
               conflicts or managing users. Only Developer can open this Page access tab.
             </p>
-            <div className="page-access-grid">
-              {([1, 2, 3] as const).map((rank) => (
-                <section key={rank}>
-                  <h3>{roleNames[rank]}</h3>
-                  {pages.map((page) => {
-                    const locked = page === 'My Account' || minimumPageAccess(page) > rank;
-                    return (
-                      <label className="check-label" key={page}>
-                        <input
-                          type="checkbox"
-                          aria-label={`${roleNames[rank]} access to ${page}`}
-                          disabled={locked}
-                          checked={draft.pageAccess[String(rank)].includes(page)}
-                          onChange={(event) =>
-                            field('pageAccess', {
-                              ...draft.pageAccess,
-                              [String(rank)]: event.target.checked
-                                ? [...draft.pageAccess[String(rank)], page]
-                                : draft.pageAccess[String(rank)].filter((item: string) => item !== page),
-                            })
-                          }
-                        />
-                        {page}
-                        {minimumPageAccess(page) > rank && (
-                          <small>Requires {roleNames[minimumPageAccess(page)]}+</small>
-                        )}
+            <div className="table-wrap">
+              <table className="access-matrix" aria-label="Page access by rank">
+                <thead>
+                  <tr>
+                    <th>Page</th>
+                    {([1, 2, 3] as const).map((rank) => (
+                      <th key={rank}>{roleNames[rank]}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {pages.map((page) => (
+                    <tr key={page}>
+                      <td>
+                        {w(page)}
                         {page === 'My Account' && <small>Always available</small>}
-                      </label>
-                    );
-                  })}
-                </section>
-              ))}
+                        {minimumPageAccess(page) > 1 && <small>Admin and above</small>}
+                      </td>
+                      {([1, 2, 3] as const).map((rank) => {
+                        const locked = page === 'My Account' || minimumPageAccess(page) > rank;
+                        return (
+                          <td key={rank}>
+                            <input
+                              type="checkbox"
+                              aria-label={`${roleNames[rank]} access to ${page}`}
+                              title={
+                                minimumPageAccess(page) > rank
+                                  ? `Requires ${roleNames[minimumPageAccess(page)]}+`
+                                  : undefined
+                              }
+                              disabled={locked}
+                              checked={draft.pageAccess[String(rank)].includes(page)}
+                              onChange={(event) =>
+                                field('pageAccess', {
+                                  ...draft.pageAccess,
+                                  [String(rank)]: event.target.checked
+                                    ? [...draft.pageAccess[String(rank)], page]
+                                    : draft.pageAccess[String(rank)].filter((item: string) => item !== page),
+                                })
+                              }
+                            />
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
             <h3>Business Settings tabs</h3>
             <p>
               When Admin or Manager can open Business Settings, choose which tabs they can see and change.
               They cannot change anything on tabs they do not have.
             </p>
-            <div className="page-access-grid">
-              {([2, 3] as const).map((rank) => (
-                <section key={rank}>
-                  <h3>{roleNames[rank]}</h3>
-                  {!draft.pageAccess[String(rank)].includes('Business Settings') && (
-                    <small>Business Settings is off for {roleNames[rank]}.</small>
-                  )}
+            <div className="table-wrap">
+              <table className="access-matrix" aria-label="Business Settings tabs by rank">
+                <thead>
+                  <tr>
+                    <th>Tab</th>
+                    {([2, 3] as const).map((rank) => (
+                      <th key={rank}>
+                        {roleNames[rank]}
+                        {!draft.pageAccess[String(rank)].includes('Business Settings') && (
+                          <small>Page is off</small>
+                        )}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
                   {settingsTabs.map((name) => (
-                    <label className="check-label" key={name}>
-                      <input
-                        type="checkbox"
-                        aria-label={`${roleNames[rank]} access to the ${name} tab`}
-                        checked={draft.settingsTabs[String(rank) as '2' | '3'].includes(name)}
-                        onChange={(event) => {
-                          const current = draft.settingsTabs[String(rank) as '2' | '3'];
-                          field('settingsTabs', {
-                            ...draft.settingsTabs,
-                            [String(rank)]: event.target.checked
-                              ? settingsTabs.filter((t) => t === name || current.includes(t))
-                              : current.filter((t: string) => t !== name),
-                          });
-                        }}
-                      />
-                      {w(name)}
-                    </label>
+                    <tr key={name}>
+                      <td>{w(name)}</td>
+                      {([2, 3] as const).map((rank) => (
+                        <td key={rank}>
+                          <input
+                            type="checkbox"
+                            aria-label={`${roleNames[rank]} access to the ${name} tab`}
+                            checked={draft.settingsTabs[String(rank) as '2' | '3'].includes(name)}
+                            onChange={(event) => {
+                              const current = draft.settingsTabs[String(rank) as '2' | '3'];
+                              field('settingsTabs', {
+                                ...draft.settingsTabs,
+                                [String(rank)]: event.target.checked
+                                  ? settingsTabs.filter((t) => t === name || current.includes(t))
+                                  : current.filter((t: string) => t !== name),
+                              });
+                            }}
+                          />
+                        </td>
+                      ))}
+                    </tr>
                   ))}
-                </section>
-              ))}
+                </tbody>
+              </table>
             </div>
             {sectionSave('Page access', ['pageAccess', 'settingsTabs'])}
           </fieldset>

@@ -24,6 +24,17 @@ export const pages = [
   'Material Waste',
 ];
 export const navigationPages = pages;
+/** Menu sections: each page's group heading. */
+export const pageGroups = [
+  ['Selling', ['Dashboard', 'Reports', 'Point of Service', 'Quotations', 'Pricing Templates', 'My Sales']],
+  ['Jobs & money', ['Jobs', 'Customers', 'Payment Reminders', 'Payments', 'Expenses']],
+  ['Stock & catalogue', ['Materials', 'Material Waste', 'Services', 'Edit Products', 'Stock History']],
+  [
+    'Settings & control',
+    ['Print Settings', 'Users', 'My Account', 'Business Settings', 'Conflict Inbox', 'Sale Adjustments'],
+  ],
+];
+export const pageGroup = (page) => pageGroups.find(([, list]) => list.includes(page))?.[0] ?? '';
 // Before every page could be set separately, these pages followed another page. Settings saved
 // then (pageAccessVersion missing) are upgraded once by giving each one its old page's access.
 export const formerParents = {

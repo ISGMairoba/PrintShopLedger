@@ -4,6 +4,7 @@ import App from './App';
 import './styles.css';
 import './branding.css';
 import './feedback.css';
+import './consistency.css';
 import { FeedbackProvider } from './Feedback';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
