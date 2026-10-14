@@ -36,7 +36,8 @@ export const pageDescriptions: Record<Page, string> = {
   'Sale Adjustments': 'Approve and review changes to sales and customer credit.',
   'Material Waste': 'Track extra material use, damage and reprints.',
   'Business Settings': '',
-  'Pricing Templates': 'Build and manage reusable prices from existing items and services.',
+  'Pricing Templates':
+    'Price jobs from templates, compare options for clients, and manage templates and costs.',
   'Edit Products': 'Rename a product and its stock item together, change its price and update its stock.',
   'Conflict Inbox': 'Review pending work from connected staff devices.',
   'My Account': 'Manage your username and password.',

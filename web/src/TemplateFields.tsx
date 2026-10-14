@@ -12,6 +12,7 @@ import {
   quoteTemplate,
   scenarioInputs,
   snapshotValue,
+  templateDefaults,
   valueLabel,
 } from './pricing-templates.mjs';
 import { currency } from './receipts.mjs';
@@ -468,7 +469,7 @@ export function TemplateAudit({
   );
 }
 
-/** A saved template line (order details, quotations): client specs, and the audit view if allowed. */
+/** A saved template line (order details, quotations): what staff need, and the calculation if allowed. */
 export function TemplateSummary({
   snapshot,
   quantity,
@@ -478,19 +479,24 @@ export function TemplateSummary({
   quantity: number | string;
   amount?: number;
 }) {
-  const [view, setView] = useState('staff');
+  const audit = useTemplateAudit();
   return (
     <div className="template-breakdown">
       <p className="muted">
         {snapshot.template.name} · Template version {snapshot.template.version}
       </p>
-      <ViewSelector value={view} onChange={setView} />
-      <TemplateView view={view} snapshot={snapshot} quantity={quantity} amount={amount} />
+      <StaffView snapshot={snapshot} quantity={quantity} />
+      {audit && (
+        <details className="template-calculation">
+          <summary>View calculation</summary>
+          <TemplateAudit snapshot={snapshot} quantity={quantity} amount={amount} />
+        </details>
+      )}
     </div>
   );
 }
 
-/** Live estimate for a template line being entered, with views and option comparison. */
+/** The price of a template line being entered. Views and comparisons live on the Pricing Templates page. */
 export function TemplateEstimate({
   ledger,
   template,
@@ -498,7 +504,6 @@ export function TemplateEstimate({
   quantity,
   amount,
   error,
-  onUse,
 }: {
   ledger: Ledger;
   template: PricingTemplate;
@@ -507,14 +512,10 @@ export function TemplateEstimate({
   /** Price after this line's discounts, when known. */
   amount?: number;
   error: string;
-  onUse: (inputs: Record<string, number | string>, quantity: string) => void;
 }) {
-  const audit = useTemplateAudit();
-  const [view, setView] = useState('staff');
-  const [compare, setCompare] = useState(false);
   const priced = tryTemplate(ledger, template, inputs, quantity);
-  const snapshot = priced.quote?.templateSnapshot;
   const q = template.variables.find((v) => v.key === 'quantity');
+  const problem = error || priced.error;
   return (
     <div className="template-breakdown">
       <div className="row-between">
@@ -527,36 +528,148 @@ export function TemplateEstimate({
             </small>
           )}
         </span>
-        <small>
-          Discount up to {discountCeiling(template.pricing)}%
-          {discountCeiling(template.pricing) < template.pricing.maxDiscount
-            ? ` (keeps the minimum ${template.pricing.floor}% ${template.pricing.method})`
-            : ''}
-        </small>
+        <small>Discount up to {discountCeiling(template.pricing)}%</small>
       </div>
-      {error || priced.error ? (
+      {problem && (
         <p className="danger-text" role="alert">
-          {error || priced.error}
+          {problem}
         </p>
-      ) : (
-        <p className="muted">Within your pricing limits.</p>
-      )}
-      <ViewSelector value={view} onChange={setView} />
-      {snapshot && <TemplateView view={view} snapshot={snapshot} quantity={quantity} amount={amount} />}
-      <label className="check-label">
-        <input type="checkbox" checked={compare} onChange={(e) => setCompare(e.target.checked)} />
-        Compare options
-      </label>
-      {compare && (
-        <CompareOptions
-          ledger={ledger}
-          template={template}
-          inputs={inputs}
-          quantity={quantity}
-          onUse={onUse}
-        />
       )}
     </div>
+  );
+}
+
+export type TemplateStart = {
+  templateId: string;
+  inputs: Record<string, number | string>;
+  quantity: string;
+};
+
+/** Price & compare: try a template, see the views, compare options, then start a sale or quotation. */
+export function TemplateCalculator({
+  ledger,
+  templates,
+  onCheckout,
+  onQuotation,
+}: {
+  ledger: Ledger;
+  templates: PricingTemplate[];
+  onCheckout?: (start: TemplateStart) => void;
+  onQuotation?: (start: TemplateStart) => void;
+}) {
+  const active = templates.filter((t) => !t.archived);
+  const [id, setId] = useState(active[0]?.id ?? '');
+  const template = active.find((t) => t.id === id);
+  const startQuantity = (t?: PricingTemplate) =>
+    String(t?.variables.find((v) => v.key === 'quantity')?.default ?? 1);
+  const [inputs, setInputs] = useState<Record<string, number | string>>(() =>
+    template ? templateDefaults(template) : {},
+  );
+  const [quantity, setQuantity] = useState(() => startQuantity(template));
+  const [view, setView] = useState('staff');
+  if (!template)
+    return (
+      <div className="empty">
+        <h2>No templates to price with</h2>
+        <p>Ask a manager to add a pricing template.</p>
+      </div>
+    );
+  const priced = tryTemplate(ledger, template, inputs, quantity);
+  const snapshot = priced.quote?.templateSnapshot;
+  const q = template.variables.find((v) => v.key === 'quantity');
+  const start = { templateId: template.id, inputs, quantity };
+  return (
+    <section className="template-calculator" aria-label="Price and compare">
+      <div className="form-grid">
+        <label>
+          Template
+          <select
+            aria-label="Template"
+            value={template.id}
+            onChange={(e) => {
+              const next = active.find((t) => t.id === e.target.value)!;
+              setId(next.id);
+              setInputs(templateDefaults(next));
+              setQuantity(startQuantity(next));
+            }}
+          >
+            {active.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.category ? `${t.category} · ${t.name}` : t.name}
+              </option>
+            ))}
+          </select>
+          {template.description && <small>{template.description}</small>}
+        </label>
+        <label className={priced.field === 'quantity' ? 'has-error' : undefined}>
+          {q?.label || 'Quantity'}
+          <input
+            aria-label="Quantity"
+            inputMode="numeric"
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+          />
+          {q?.unit && <small>{q.unit}</small>}
+        </label>
+        <TemplateInputs
+          template={template}
+          value={inputs}
+          errorField={priced.field}
+          error={priced.error}
+          onChange={setInputs}
+        />
+      </div>
+      <div className="template-breakdown">
+        <div className="row-between">
+          <span>
+            <strong>{priced.quote ? currency(priced.quote.amount) : '—'}</strong>
+            {priced.quote && (
+              <small>
+                {' '}
+                {currency(priced.quote.unitPrice)} per {q?.unit || 'item'}
+              </small>
+            )}
+          </span>
+          <small>Discount up to {discountCeiling(template.pricing)}%</small>
+        </div>
+        {priced.error && !priced.field && (
+          <p className="danger-text" role="alert">
+            {priced.error}
+          </p>
+        )}
+        <div className="toolbar">
+          {onCheckout && (
+            <button type="button" disabled={!priced.quote} onClick={() => onCheckout(start)}>
+              <Icon name="payments" /> Start checkout
+            </button>
+          )}
+          {onQuotation && (
+            <button
+              type="button"
+              className="secondary"
+              disabled={!priced.quote}
+              onClick={() => onQuotation(start)}
+            >
+              <Icon name="quote" /> Start quotation
+            </button>
+          )}
+        </div>
+        <ViewSelector value={view} onChange={setView} />
+        {snapshot && <TemplateView view={view} snapshot={snapshot} quantity={quantity} />}
+      </div>
+      <h3>Compare options</h3>
+      <CompareOptions
+        key={template.id}
+        ledger={ledger}
+        template={template}
+        inputs={inputs}
+        quantity={quantity}
+        onUse={(next, nextQuantity) => {
+          setInputs(next);
+          setQuantity(nextQuantity);
+        }}
+      />
+    </section>
   );
 }
 

@@ -1,4 +1,10 @@
-import { TemplateInputs, TemplateEstimate, TemplateSummary, tryTemplate } from './TemplateFields';
+import {
+  TemplateInputs,
+  TemplateEstimate,
+  TemplateSummary,
+  tryTemplate,
+  type TemplateStart,
+} from './TemplateFields';
 import { templateDefaults } from './pricing-templates.mjs';
 import type { TemplateSnapshot } from './types';
 import { lineWithDescription } from './job-batches.mjs';
@@ -40,6 +46,8 @@ type Props = {
   discountPolicy: { maxPercent: number; canFlat: boolean };
   onSave: (event: QuotationEvent) => Promise<void>;
   onCreateOrder: (quote: Quotation) => void;
+  /** Open a new quotation with one template line (from the Pricing Templates page). */
+  start?: TemplateStart | null;
 };
 type Line = {
   templateInputs?: Record<string, number | string>;
@@ -80,6 +88,7 @@ export default function QuotationsPage({
   discountPolicy,
   onSave,
   onCreateOrder,
+  start = null,
 }: Props) {
   // Load the PDF and share code now: phones only open the share sheet straight after the tap.
   useEffect(() => {
@@ -89,7 +98,9 @@ export default function QuotationsPage({
   const { w } = useWords();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('current');
-  const [editor, setEditor] = useState<Quotation | 'new' | null>(null);
+  const [editor, setEditor] = useState<Quotation | 'new' | null>(start ? 'new' : null);
+  // The template line is only for the first new quotation opened from Pricing Templates.
+  const [pendingStart, setPendingStart] = useState(start);
   const [viewing, setViewing] = useState<Quotation | null>(null);
   const [error, setError] = useFeedbackMessage('error');
   const notify = useFeedback();
@@ -363,13 +374,18 @@ export default function QuotationsPage({
           descriptionMode={branding.jobs.descriptionMode}
           ledger={ledger}
           quote={editor === 'new' ? null : editor}
+          start={editor === 'new' ? pendingStart : null}
           busy={busy}
           actor={actor}
           discountPolicy={discountPolicy}
-          onClose={() => setEditor(null)}
+          onClose={() => {
+            setEditor(null);
+            setPendingStart(null);
+          }}
           onSave={async (event) => {
             await onSave(event);
             setEditor(null);
+            setPendingStart(null);
             setViewing(null);
           }}
         />
@@ -450,10 +466,12 @@ function QuotationEditor({
   discountPolicy,
   onClose,
   onSave,
+  start,
 }: {
   ledger: Ledger;
   descriptionMode: string;
   quote: Quotation | null;
+  start: TemplateStart | null;
   busy: boolean;
   actor: { id: string; label: string };
   discountPolicy: { maxPercent: number; canFlat: boolean };
@@ -482,7 +500,17 @@ function QuotationEditor({
           height: l.height == null ? '' : String(l.height),
           discountDraft: discountDraft(l.discount),
         }))
-      : [newLine()],
+      : start
+        ? [
+            {
+              ...newLine(),
+              serviceId: start.templateId,
+              templateInputs: start.inputs,
+              description: ledger.pricing?.templates.find((t) => t.id === start.templateId)?.name ?? '',
+              quantity: start.quantity,
+            },
+          ]
+        : [newLine()],
   );
   const [orderDiscount, setOrderDiscount] = useState<DiscountDraft>(() =>
     discountDraft(quote?.orderDiscount),
@@ -755,7 +783,6 @@ function QuotationEditor({
                     quantity={item.quantity}
                     amount={line?.amount}
                     error=""
-                    onUse={(inputs, quantity) => edit(item.id, { templateInputs: inputs, quantity })}
                   />
                 )}
               </section>

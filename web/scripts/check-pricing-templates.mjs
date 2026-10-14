@@ -90,10 +90,13 @@ try {
     );
     await nav('Pricing Templates');
     assert.equal(await page.getByLabel('Enable pricing templates').count(), 0);
+    assert.match(await page.locator('body').innerText(), /No templates to price with/);
+    await page.getByRole('tab', { name: 'Costs', exact: true }).click();
     assert.match(
       await page.getByRole('table', { name: 'Costs used in formulas' }).innerText(),
       /paper_70[\s\S]*₦10 \/ sheet/,
     );
+    await page.getByRole('tab', { name: 'Templates', exact: true }).click();
     await page.getByRole('button', { name: 'New template', exact: true }).click();
     const d0 = page.getByRole('dialog', { name: 'New pricing template' });
     await d0.getByLabel('Template name', { exact: true }).fill('Books');
@@ -181,53 +184,60 @@ try {
     assert.equal(state.ledger.jobs.length, 0);
     assert.equal(state.ledger.materials[0].available, 2000);
     assert.equal(state.ledger.quotations[0].lines[0].amount, 1500000);
-    await nav('Point of Service');
-    await page.getByRole('button', { name: 'Add job', exact: true }).click();
-    d = page.getByRole('dialog', { name: 'New checkout' });
-    await d.getByLabel('Service', { exact: true }).selectOption({ label: 'Books — Template' });
-    await d.getByLabel('Quantity', { exact: true }).fill('50');
-    await d.getByLabel('Inner paper', { exact: true }).selectOption({ label: 'Paper 80gsm' });
+    // Price & compare: views, comparison and PDFs live on the Pricing Templates page.
+    await nav('Pricing Templates');
+    const c = page.getByRole('region', { name: 'Price and compare' });
+    await c.getByLabel('Quantity', { exact: true }).fill('50');
+    await c.getByLabel('Inner paper', { exact: true }).selectOption({ label: 'Paper 80gsm' });
     // 650 × ₦13 + ₦5,000 = ₦13,450 → ₦17,485 → ₦17,500.
-    await d.getByText('₦17,500.00').first().waitFor();
+    await c.getByText('₦17,500.00').first().waitFor();
     assert.match(
-      await d.locator('.template-specs').first().innerText(),
+      await c.locator('.template-specs').first().innerText(),
       /Sheets per book[\s\S]*25[\s\S]*Inner paper[\s\S]*Paper 80gsm/,
     );
-    await d.getByRole('button', { name: 'Internal job & audit', exact: true }).click();
+    await c.getByRole('button', { name: 'Internal job & audit', exact: true }).click();
     assert.match(
-      await d.locator('.template-audit').innerText(),
+      await c.locator('.template-audit').innerText(),
       /Paper required[\s\S]*650 sheet[\s\S]*Stock taken at checkout[\s\S]*Paper 80gsm[\s\S]*650 sheet/i,
     );
-    await d.getByLabel('Compare options', { exact: true }).check();
-    await d.getByLabel('Quantities', { exact: true }).fill('50, 100');
-    await d.getByRole('button', { name: 'Compare prices', exact: true }).click();
+    await c.getByLabel('Quantities', { exact: true }).fill('50, 100');
+    await c.getByRole('button', { name: 'Compare prices', exact: true }).click();
     assert.match(
-      await d.getByRole('table', { name: 'Compared options' }).innerText(),
+      await c.getByRole('table', { name: 'Compared options' }).innerText(),
       /50[\s\S]*₦17,500\.00[\s\S]*100[\s\S]*₦35,000\.00/,
     );
     // The comparison downloads as an A4 or A5 PDF; nothing is printed from the page.
-    await d.getByLabel('Customer name for the comparison', { exact: true }).fill('Book customer');
+    await c.getByLabel('Customer name for the comparison', { exact: true }).fill('Book customer');
     for (const [button, name] of [
       ['A4 PDF', 'Books-options.pdf'],
       ['A5 PDF', 'Books-options-A5.pdf'],
     ]) {
       const download = page.waitForEvent('download');
-      await d.getByRole('button', { name: button, exact: true }).click();
+      await c.getByRole('button', { name: button, exact: true }).click();
       const file = await download;
       assert.equal(file.suggestedFilename(), name);
       assert.ok((await file.path()) && (await import('node:fs')).statSync(await file.path()).size > 2000);
     }
     // The other buttons still work afterwards.
-    await d.getByRole('button', { name: 'Use option', exact: true }).last().click();
-    assert.equal(await d.getByLabel('Quantity', { exact: true }).inputValue(), '100');
-    await d.getByLabel('Quantity', { exact: true }).fill('50');
+    await c.getByRole('button', { name: 'Use option', exact: true }).last().click();
+    assert.equal(await c.getByLabel('Quantity', { exact: true }).inputValue(), '100');
+    await c.getByLabel('Quantity', { exact: true }).fill('50');
+    await c.getByText('₦17,500.00').first().waitFor();
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await page.screenshot({
+      path: `/tmp/pricing-templates-${mobile ? 'mobile' : 'desktop'}.png`,
+      fullPage: true,
+    });
+    // Start checkout carries the priced line; checkout shows only the variables and the price.
+    await c.getByRole('button', { name: 'Start checkout', exact: true }).click();
+    d = page.getByRole('dialog', { name: 'New checkout' });
+    assert.equal(await d.getByLabel('Quantity', { exact: true }).inputValue(), '50');
     await d.getByText('₦17,500.00').first().waitFor();
+    assert.equal(await d.getByRole('button', { name: 'Internal job & audit', exact: true }).count(), 0);
+    assert.equal(await d.getByLabel('Compare options', { exact: true }).count(), 0);
     await d.getByLabel('Customer name or phone', { exact: true }).fill('Book');
     await d.getByRole('option', { name: /Book customer/ }).click();
     await d.getByLabel('Money received (₦)', { exact: true }).fill('5000');
-    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
-    await d.locator('.template-audit').scrollIntoViewIfNeeded();
-    await d.screenshot({ path: `/tmp/pricing-templates-${mobile ? 'mobile' : 'desktop'}.png` });
     await d.getByRole('button', { name: 'Complete checkout', exact: true }).click();
     await d.waitFor({ state: 'detached' });
     const receipt = page.getByRole('dialog');
@@ -241,6 +251,17 @@ try {
       [2000, 1350, 100],
     );
     assert.equal(state.ledger.materialHistory.length, 1);
+    // Start quotation opens a new quotation with the template line.
+    await nav('Pricing Templates');
+    await page
+      .getByRole('region', { name: 'Price and compare' })
+      .getByLabel('Quantity', { exact: true })
+      .fill('20');
+    await page.getByRole('button', { name: 'Start quotation', exact: true }).click();
+    d = page.getByRole('dialog', { name: 'New quotation' });
+    assert.equal(await d.getByLabel('Quantity', { exact: true }).inputValue(), '20');
+    await d.getByRole('button', { name: 'Close', exact: true }).first().click();
+    await d.waitFor({ state: 'detached' });
     await nav('Business Settings');
     await page.getByRole('tab', { name: 'Pricing templates', exact: true }).click();
     await page.getByLabel('Enable pricing templates').uncheck();
