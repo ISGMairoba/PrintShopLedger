@@ -579,7 +579,8 @@ try {
   await page.getByLabel('Search my sales').fill('POS');
   assert.equal(await page.locator('tbody tr').count(), 1);
   await page.getByLabel('Search my sales').fill('');
-  await page.getByRole('button', { name: 'All dates', exact: true }).click();
+  await page.getByRole('button', { name: /^Dates:/ }).click();
+  await page.getByLabel('Period', { exact: true }).selectOption('all');
   assert.equal(await page.locator('tbody tr').count(), 3, 'Overnight unclosed receipts remain accessible');
   await page.getByRole('button', { name: 'Date', exact: true }).click();
   assert.equal(await page.locator('th[aria-sort="ascending"]').count(), 1);
@@ -666,7 +667,8 @@ try {
   await page.locator('.sidebar-user').getByText('Test Manager (manager)', { exact: true }).waitFor();
   await page.getByRole('button', { name: 'My Sales', exact: true }).click();
   await page.getByLabel('My sales status').selectOption('closed');
-  await page.getByRole('button', { name: 'All dates', exact: true }).click();
+  await page.getByRole('button', { name: /^Dates:/ }).click();
+  await page.getByLabel('Period', { exact: true }).selectOption('all');
   await page.locator('tbody tr').filter({ hasText: 'Manager print' }).waitFor();
   assert.equal(await page.locator('tbody tr').count(), 3, 'Closed receipts remain viewable');
   await page.getByRole('button', { name: 'Sign out business', exact: true }).click();
