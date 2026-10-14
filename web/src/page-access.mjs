@@ -1,13 +1,19 @@
+// Every page, in menu order. Each one is set separately in Business Settings → Page access.
 export const pages = [
   'Dashboard',
+  'Reports',
   'Point of Service',
+  'Quotations',
+  'Pricing Templates',
   'My Sales',
   'Jobs',
   'Customers',
+  'Payment Reminders',
   'Payments',
   'Expenses',
   'Materials',
   'Services',
+  'Edit Products',
   'Stock History',
   'Print Settings',
   'Users',
@@ -17,38 +23,80 @@ export const pages = [
   'Sale Adjustments',
   'Material Waste',
 ];
-// Pages shown in the menu. Derived pages are not configured separately: their access
-// follows another page (Reports follows Dashboard), so saved settings need no change.
-export const derivedPages = {
+export const navigationPages = pages;
+// Before every page could be set separately, these pages followed another page. Settings saved
+// then (pageAccessVersion missing) are upgraded once by giving each one its old page's access.
+export const formerParents = {
   Reports: 'Dashboard',
   Quotations: 'Point of Service',
-  'Payment Reminders': 'Customers',
   'Pricing Templates': 'Point of Service',
+  'Payment Reminders': 'Customers',
   'Edit Products': 'Services',
 };
-export const navigationPages = [
-  'Dashboard',
-  'Reports',
-  'Point of Service',
-  'Quotations',
-  'Pricing Templates',
-  ...pages
-    .slice(2)
-    .flatMap((page) =>
-      page === 'Customers'
-        ? [page, 'Payment Reminders']
-        : page === 'Services'
-          ? [page, 'Edit Products']
-          : [page],
-    ),
+export const PAGE_ACCESS_VERSION = 2;
+/** The Business Settings tabs. Page access is always Developer only. */
+export const settingsTabs = [
+  'Profile & logo',
+  'Appearance',
+  'Receipts',
+  'Dropdowns & workflow',
+  'Jobs & payments',
+  'Pricing templates',
+  'Corrections',
 ];
+/** The saved settings each tab changes (the server uses the same list). */
+export const settingsTabKeys = {
+  'Profile & logo': ['businessName', 'address', 'phones', 'email', 'website', 'socials', 'logo'],
+  Appearance: ['primary', 'accent', 'theme', 'backgrounds'],
+  Receipts: ['receipt', 'receiptPage', 'documents'],
+  'Dropdowns & workflow': ['options'],
+  'Jobs & payments': ['jobs', 'terms', 'discounts', 'periods'],
+  'Pricing templates': ['pricing'],
+  Corrections: ['corrections'],
+};
+export const defaultSettingsTabs = () => ({ 2: [...settingsTabs], 3: [...settingsTabs] });
+export function validateSettingsTabs(input) {
+  const value = input === undefined ? defaultSettingsTabs() : structuredClone(input);
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    Array.isArray(value) ||
+    Object.keys(value).some((key) => !['2', '3'].includes(key))
+  )
+    throw Error('Invalid Business Settings tab access.');
+  for (const rank of ['2', '3']) {
+    value[rank] ??= [...settingsTabs];
+    const tabs = value[rank];
+    if (
+      !Array.isArray(tabs) ||
+      new Set(tabs).size !== tabs.length ||
+      tabs.some((t) => !settingsTabs.includes(t))
+    )
+      throw Error('Invalid Business Settings tab access.');
+    value[rank] = settingsTabs.filter((t) => tabs.includes(t));
+  }
+  return value;
+}
+/** Business Settings tabs this rank may open (Page access only for Developer). */
+export function allowedSettingsTabs(access, settings) {
+  if (access === 4) return [...settingsTabs, 'Page access'];
+  if (!canAccessPage('Business Settings', access, settings?.pageAccess)) return [];
+  return settings?.settingsTabs?.[String(access)] ?? defaultSettingsTabs()[String(access)] ?? [];
+}
 export const roleNames = { 1: 'Cashier', 2: 'Admin', 3: 'Manager', 4: 'Developer' };
 export const minimumPageAccess = (page) =>
-  page === 'Business Settings'
-    ? 4
-    : ['Dashboard', 'Users', 'Conflict Inbox', 'Sale Adjustments', 'Material Waste'].includes(page)
-      ? 2
-      : 1;
+  [
+    'Dashboard',
+    'Reports',
+    'Edit Products',
+    'Users',
+    'Business Settings',
+    'Conflict Inbox',
+    'Sale Adjustments',
+    'Material Waste',
+  ].includes(page)
+    ? 2
+    : 1;
 export const defaultPageAccess = () =>
   Object.fromEntries(
     [1, 2, 3].map((rank) => [
@@ -56,10 +104,32 @@ export const defaultPageAccess = () =>
       pages.filter((page) =>
         rank >= 2
           ? page !== 'Business Settings'
-          : ['Point of Service', 'My Sales', 'Print Settings', 'My Account'].includes(page),
+          : [
+              'Point of Service',
+              'Quotations',
+              'Pricing Templates',
+              'My Sales',
+              'Print Settings',
+              'My Account',
+            ].includes(page),
       ),
     ]),
   );
+/** Settings saved before every page was set separately: give each new page its old page's access. */
+export function upgradePageAccess(input) {
+  if (!input || typeof input !== 'object') return input;
+  const value = structuredClone(input);
+  for (const rank of ['1', '2', '3'])
+    if (Array.isArray(value[rank]))
+      for (const [page, parent] of Object.entries(formerParents))
+        if (
+          value[rank].includes(parent) &&
+          !value[rank].includes(page) &&
+          minimumPageAccess(page) <= Number(rank)
+        )
+          value[rank].push(page);
+  return value;
+}
 export function validatePageAccess(input) {
   const value = input === undefined ? defaultPageAccess() : structuredClone(input);
   if (
@@ -85,7 +155,6 @@ export function validatePageAccess(input) {
   return value;
 }
 export function canAccessPage(page, access, configured) {
-  if (Object.hasOwn(derivedPages, page)) return canAccessPage(derivedPages[page], access, configured);
   if (
     !pages.includes(page) ||
     !Number.isInteger(access) ||

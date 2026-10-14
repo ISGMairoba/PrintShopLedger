@@ -89,7 +89,7 @@ test('The reminder message is short and polite', () => {
   );
 });
 
-test('Payment Reminders follow Customers access and sit after Customers', () => {
+test('Payment Reminders sit after Customers and have the same default access', () => {
   assert.equal(navigationPages[navigationPages.indexOf('Customers') + 1], 'Payment Reminders');
   assert.equal(canAccessPage('Payment Reminders', 2), canAccessPage('Customers', 2));
   assert.equal(

@@ -120,9 +120,13 @@ try {
       true,
     );
     assert.equal(
-      await page.getByLabel('Manager access to Business Settings', { exact: true }).isDisabled(),
+      await page.getByLabel('Cashier access to Business Settings', { exact: true }).isDisabled(),
       true,
     );
+    // Every page is listed, and Business Settings can be given to Manager with chosen tabs.
+    await page.getByLabel('Admin access to Quotations', { exact: true }).uncheck();
+    await page.getByLabel('Manager access to Business Settings', { exact: true }).check();
+    await page.getByLabel('Manager access to the Receipts tab', { exact: true }).uncheck();
     await page.getByLabel('Manager access to Jobs', { exact: true }).uncheck();
     assert.equal(await page.getByLabel('Cashier access to My Account', { exact: true }).isDisabled(), true);
     await page.getByLabel('Cashier access to Jobs', { exact: true }).check();
@@ -138,6 +142,19 @@ try {
     assert.equal(await page.getByLabel('Cashier access to Jobs', { exact: true }).isChecked(), true);
     assert.equal(await page.getByLabel('Admin access to Payments', { exact: true }).isChecked(), false);
     assert.equal(await page.getByLabel('Manager access to Jobs', { exact: true }).isChecked(), false);
+    assert.equal(await page.getByLabel('Admin access to Quotations', { exact: true }).isChecked(), false);
+    assert.equal(
+      await page.getByLabel('Manager access to Business Settings', { exact: true }).isChecked(),
+      true,
+    );
+    assert.equal(
+      await page.getByLabel('Manager access to the Receipts tab', { exact: true }).isChecked(),
+      false,
+    );
+    assert.equal(
+      await page.getByLabel('Manager access to the Appearance tab', { exact: true }).isChecked(),
+      true,
+    );
     await nav('My Account');
     await page.getByLabel('Appearance on this device', { exact: true }).selectOption('light');
     assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'light');

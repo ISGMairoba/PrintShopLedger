@@ -188,8 +188,9 @@ try {
         pageAccess: {
           1: ['Point of Service', 'Jobs', 'My Account'],
           2: ['Point of Service', 'My Account', 'Sale Adjustments'],
-          3: ['Point of Service', 'My Account', 'My Sales'],
+          3: ['Point of Service', 'My Account', 'My Sales', 'Business Settings'],
         },
+        settingsTabs: { 2: ['Profile & logo'], 3: ['Receipts'] },
       };
       await page.reload();
       await page.getByRole('heading', { name: 'Point of Service', exact: true }).waitFor();
@@ -208,6 +209,15 @@ try {
         await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
         'Layout fits screen',
       );
+      if (rank === 3) {
+        // Manager given Business Settings sees only the tabs chosen for Manager, never Page access.
+        await nav.getByRole('button', { name: 'Business Settings', exact: true }).click();
+        const tabs = page.getByRole('tablist', { name: 'Business settings sections' }).getByRole('tab');
+        assert.deepEqual(
+          (await tabs.allTextContents()).map((t) => t.trim()),
+          ['Receipts'],
+        );
+      }
       await context.close();
     }
   console.log('Page access and account checks passed on desktop and mobile for all ranks.');

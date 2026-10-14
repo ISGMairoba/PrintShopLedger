@@ -4,7 +4,14 @@ import { receiptHtml } from './receipts.mjs';
 import { sampleReceipt } from './receipt-sample.mjs';
 import BusinessOptionsEditor from './BusinessOptionsEditor';
 import ThemeBackgroundEditor from './ThemeBackgroundEditor';
-import { pages, roleNames, minimumPageAccess } from './page-access.mjs';
+import {
+  allowedSettingsTabs,
+  minimumPageAccess,
+  pages,
+  roleNames,
+  settingsTabKeys,
+  settingsTabs,
+} from './page-access.mjs';
 import { useEffect, useState } from 'react';
 import { defaultBranding, validateBranding, suggestedPalette, contrastText } from './business-branding.mjs';
 import type { Branding } from './useBusinessBranding';
@@ -17,6 +24,7 @@ export default function BusinessSettingsPage({
   online,
   demo,
   modifiedAt,
+  accessLevel,
   onSave,
   onReload,
 }: {
@@ -26,6 +34,8 @@ export default function BusinessSettingsPage({
   online: boolean;
   demo: boolean;
   modifiedAt?: string;
+  /** The person's rank: Developer (4) sees every tab; others only the tabs given to their rank. */
+  accessLevel: number;
   onSave: (settings: Branding, version: number) => Promise<unknown>;
   onReload: () => Promise<void>;
 }) {
@@ -36,16 +46,11 @@ export default function BusinessSettingsPage({
     [busy, setBusy] = useState(false),
     [message, setMessage, messageTone] = useFeedbackMessage('success'),
     [palette, setPalette] = useState<string[]>([]);
-  const tabs = [
-    'Profile & logo',
-    'Appearance',
-    'Receipts',
-    'Dropdowns & workflow',
-    'Jobs & payments',
-    'Pricing templates',
-    'Corrections',
-    'Page access',
-  ];
+  const tabs: string[] = allowedSettingsTabs(accessLevel, settings);
+  const tabKeys = (name: string) =>
+    (name === 'Page access'
+      ? ['pageAccess', 'settingsTabs']
+      : settingsTabKeys[name as keyof typeof settingsTabKeys]) as (keyof Branding)[];
   const [tab, setTab] = useState(tabs[0]);
   const dirty = dirtyKeys.length > 0;
   useEffect(() => {
@@ -187,20 +192,7 @@ export default function BusinessSettingsPage({
             }}
           >
             {w(name)}
-            {(name === 'Profile & logo'
-              ? ['businessName', 'address', 'phones', 'email', 'website', 'socials', 'logo']
-              : name === 'Appearance'
-                ? ['primary', 'accent', 'theme', 'backgrounds']
-                : name === 'Receipts'
-                  ? ['receipt']
-                  : name === 'Dropdowns & workflow'
-                    ? ['options']
-                    : name === 'Corrections'
-                      ? ['corrections']
-                      : ['pageAccess']
-            ).some((key) => dirtyKeys.includes(key as keyof Branding))
-              ? ' •'
-              : ''}
+            {tabKeys(name).some((key) => dirtyKeys.includes(key)) ? ' •' : ''}
           </button>
         ))}
       </div>
@@ -831,10 +823,9 @@ export default function BusinessSettingsPage({
           <fieldset hidden={tab !== 'Page access'} disabled={busy || !ready}>
             <legend>Page access by rank</legend>
             <p>
-              Business Settings is reserved for Developer maintenance. Developer can access every page;
-              Cashier, Admin and Manager page lists are configurable. My Account stays available to all users.
-              Page visibility does not grant permission to approve corrections, resolve conflicts, manage
-              users or change business settings.
+              Developer can open every page. Choose the pages Cashier, Admin and Manager can open; My Account
+              is always available. Seeing a page does not by itself allow approving corrections, resolving
+              conflicts or managing users. Only Developer can open this Page access tab.
             </p>
             <div className="page-access-grid">
               {([1, 2, 3] as const).map((rank) => (
@@ -869,7 +860,41 @@ export default function BusinessSettingsPage({
                 </section>
               ))}
             </div>
-            {sectionSave('Page access', ['pageAccess'])}
+            <h3>Business Settings tabs</h3>
+            <p>
+              When Admin or Manager can open Business Settings, choose which tabs they can see and change.
+              They cannot change anything on tabs they do not have.
+            </p>
+            <div className="page-access-grid">
+              {([2, 3] as const).map((rank) => (
+                <section key={rank}>
+                  <h3>{roleNames[rank]}</h3>
+                  {!draft.pageAccess[String(rank)].includes('Business Settings') && (
+                    <small>Business Settings is off for {roleNames[rank]}.</small>
+                  )}
+                  {settingsTabs.map((name) => (
+                    <label className="check-label" key={name}>
+                      <input
+                        type="checkbox"
+                        aria-label={`${roleNames[rank]} access to the ${name} tab`}
+                        checked={draft.settingsTabs[String(rank) as '2' | '3'].includes(name)}
+                        onChange={(event) => {
+                          const current = draft.settingsTabs[String(rank) as '2' | '3'];
+                          field('settingsTabs', {
+                            ...draft.settingsTabs,
+                            [String(rank)]: event.target.checked
+                              ? settingsTabs.filter((t) => t === name || current.includes(t))
+                              : current.filter((t: string) => t !== name),
+                          });
+                        }}
+                      />
+                      {w(name)}
+                    </label>
+                  ))}
+                </section>
+              ))}
+            </div>
+            {sectionSave('Page access', ['pageAccess', 'settingsTabs'])}
           </fieldset>
           <div className="settings-actions">
             <button disabled={busy || !ready || (!demo && !online) || version !== base || !dirty}>
