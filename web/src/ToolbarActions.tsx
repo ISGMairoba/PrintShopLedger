@@ -37,6 +37,7 @@ export function MoreMenu({ children, label = 'More' }: { children: ReactNode; la
         className="secondary"
         aria-expanded={open}
         aria-controls={id}
+        aria-label={`${label} options`}
         onClick={() => setOpen((value) => !value)}
       >
         {label} <span aria-hidden="true">▾</span>

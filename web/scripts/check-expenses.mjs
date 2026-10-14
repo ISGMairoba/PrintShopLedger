@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 const openMore = async (scope) => {
-  await scope.locator('.toolbar-actions .more-menu > button').first().click();
+  const toggle = scope.locator('.toolbar-actions .more-menu > button').first();
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+  await scope.locator('.more-menu-panel').first().waitFor();
   return scope;
 };
 
