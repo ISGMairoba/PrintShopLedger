@@ -7,6 +7,7 @@ The React + TypeScript PWA saves work locally and synchronizes with isolated Sup
 - [Features, setup and operational limits](web/README.md)
 - [Code guide](web/CODE_GUIDE.md)
 - [Pricing template import/export/share](web/docs/pricing-template-transfers.md)
-- [User manual plan](web/docs/manual-plan.md)
+- [User manual — first draft](web/docs/manual/README.md)
+- [Manual roadmap](web/docs/manual-plan.md)
 
 The application source is in `web/`. The earlier SMG-2026 desktop project remains a workflow reference, not part of this repository.
