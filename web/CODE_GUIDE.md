@@ -81,6 +81,6 @@ everything is listed in `.git-blame-ignore-revs`; run
 
 ## Documentation and manual maintenance
 
-Update `README.md` when feature behaviour or setup changes; describe deployed configuration dependencies separately from code support. See [the transfer guide](docs/pricing-template-transfers.md) for the file contract and [the manual plan](docs/manual-plan.md) for chapter ownership and verification. Manual source is planned under `docs/manual/`; it is not yet a complete user manual.
+Update `README.md` when feature behaviour or setup changes; describe deployed configuration dependencies separately from code support. See [the transfer guide](docs/pricing-template-transfers.md) for the file contract and [the manual plan](docs/manual-plan.md) for chapter ownership and verification. The first manual text drafts are under [docs/manual/](docs/manual/README.md); remaining chapters, screenshots and first-time-user verification are still pending. `tests/manual-examples.test.mjs` checks the financial examples against the application rules.
 
 For transfer changes run `node --test tests/template-transfer.test.mjs tests/pricing-templates.test.mjs`, the full `npm test`, build, and `scripts/check-pricing-templates.mjs` in an environment with browser dependencies. The browser check covers import review/save/reload, download and unsupported-share fallback alongside existing pricing and checkout flows.

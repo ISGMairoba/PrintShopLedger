@@ -6,7 +6,8 @@ PrintShopLedger manages print-shop selling, production, stock and customer balan
 
 - [Code guide](CODE_GUIDE.md): module boundaries, invariants and validation commands.
 - [Pricing template transfers](docs/pricing-template-transfers.md): import, export, sharing and file compatibility.
-- [App manual plan](docs/manual-plan.md): audiences, chapter outline and writing/verification milestones. This is a plan, not a completed user manual.
+- [User manual — first draft](docs/manual/README.md): Cashier Quick Start, owner setup checklist and glossary. Screenshots and first-time-user review are still pending.
+- [Manual roadmap](docs/manual-plan.md): remaining chapters and verification milestones.
 - [Interactive charts](CHARTS.md): chart behaviour and accessibility requirements.
 - [Registration deployment](supabase/functions/register-business/README.md) and [staff management](supabase/functions/manage-users/README.md).
 
