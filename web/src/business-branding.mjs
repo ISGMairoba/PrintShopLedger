@@ -78,6 +78,7 @@ export const defaultBranding = () => ({
   backgrounds: defaultBackgrounds(),
   options: defaultOptions(),
   corrections: { recentDays: 7 },
+  security: { autoLockMinutes: 0 },
   jobs: jobSettingsDefaults(),
   pricing: pricingDefaults(),
   periods: defaultPeriods(),
@@ -179,6 +180,15 @@ export function validateBranding(input) {
     value.corrections.recentDays > 365
   )
     throw Error('Choose a correction history window from 1 to 365 days.');
+  value.security = { autoLockMinutes: 0, ...value.security };
+  const lock = value.security.autoLockMinutes;
+  if (
+    Object.keys(value.security).some((key) => key !== 'autoLockMinutes') ||
+    !Number.isInteger(lock) ||
+    lock < 0 ||
+    lock > 240
+  )
+    throw Error('Choose an auto-lock time from 0 to 240 minutes.');
   return value;
 }
 export function contrastText(hex) {

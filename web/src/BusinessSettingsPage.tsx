@@ -850,6 +850,34 @@ export default function BusinessSettingsPage({
             </p>
             {sectionSave('Correction settings', ['corrections'])}
           </fieldset>
+          <fieldset hidden={tab !== 'Security'} disabled={busy || !ready}>
+            <legend>Auto-lock</legend>
+            <label>
+              Lock the app after
+              <select
+                aria-label="Lock the app after"
+                value={draft.security.autoLockMinutes}
+                onChange={(event) => field('security', { autoLockMinutes: Number(event.target.value) })}
+              >
+                {[...new Set([0, 1, 2, 5, 10, 15, 20, 30, 45, 60, 90, 120, draft.security.autoLockMinutes])]
+                  .sort((x, y) => x - y)
+                  .map((minutes) => (
+                    <option key={minutes} value={minutes}>
+                      {minutes === 0
+                        ? 'Never (off)'
+                        : `${minutes} minute${minutes === 1 ? '' : 's'} without use`}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <p>
+              When nobody taps, clicks or types for this long, the signed-in user is signed out and the staff
+              sign-in shows with empty fields. The business stays signed in, and unsaved work on the device is
+              kept. While the device is offline it locks only once it is back online, so nobody is locked out
+              of selling without a connection.
+            </p>
+            {sectionSave('Security settings', ['security'])}
+          </fieldset>
           <fieldset hidden={tab !== 'Page access'} disabled={busy || !ready}>
             <legend>Page access by rank</legend>
             <p>
