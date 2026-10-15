@@ -1,3 +1,5 @@
+import CostImportDialog, { type ImportedCosts } from './CostImportDialog';
+import { readCostFile, MAX_COST_FILE_BYTES } from './cost-transfer.mjs';
 import { TemplateExportDialog, TemplateImportDialog, type TemplatePackage } from './TemplateTransfer';
 import { MAX_TEMPLATE_FILE_BYTES, readTemplateFile } from './template-transfer.mjs';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
@@ -35,6 +37,7 @@ export default function PricingTemplatesPage({
   onSave,
   onReload,
   onSaveService,
+  onSaveCosts,
   canManage,
   canEditCosts,
   onStartCheckout,
@@ -50,6 +53,7 @@ export default function PricingTemplatesPage({
   onSave: (settings: Branding, version: number) => Promise<unknown>;
   onReload: () => Promise<void>;
   onSaveService: (event: ServiceEvent) => Promise<void>;
+  onSaveCosts: (events: ServiceEvent[]) => Promise<void>;
   /** May build and change templates (Business Settings access). */
   canManage: boolean;
   /** May add private costs (catalogue editing). */
@@ -59,6 +63,8 @@ export default function PricingTemplatesPage({
 }) {
   const { w } = useWords();
   const fileInput = useRef<HTMLInputElement>(null);
+  const costsInput = useRef<HTMLInputElement>(null);
+  const [costImport, setCostImport] = useState<ImportedCosts | null>(null);
   const [importing, setImporting] = useState<TemplatePackage | null>(null);
   const [exporting, setExporting] = useState<{ templates: PricingTemplate[]; share: boolean } | null>(null);
   const [editing, setEditing] = useState<PricingTemplate | null>(null);
@@ -176,6 +182,24 @@ export default function PricingTemplatesPage({
           const file = event.target.files?.[0];
           event.target.value = '';
           void readImport(file);
+        }}
+      />
+      <input
+        ref={costsInput}
+        type="file"
+        hidden
+        accept=".json,application/json"
+        aria-label="Import saved costs file"
+        onChange={async (event) => {
+          const file = event.target.files?.[0];
+          event.target.value = '';
+          if (!file || !canEditCosts) return;
+          try {
+            if (file.size > MAX_COST_FILE_BYTES) throw Error('Choose a cost JSON file no larger than 2 MB.');
+            setCostImport(readCostFile(await file.text()));
+          } catch (cause) {
+            setMessage(cause instanceof Error ? cause.message : String(cause), 'error');
+          }
         }}
       />
       <FeedbackBanner message={message} tone={tone} />
@@ -379,6 +403,14 @@ export default function PricingTemplatesPage({
               <ToolbarActions>
                 <button
                   type="button"
+                  className="secondary"
+                  disabled={!ready || busy}
+                  onClick={() => costsInput.current?.click()}
+                >
+                  <Icon name="import" /> Import costs
+                </button>
+                <button
+                  type="button"
                   disabled={!ready || busy}
                   onClick={() => {
                     setAdding(true);
@@ -454,6 +486,17 @@ export default function PricingTemplatesPage({
             </div>
           )}
         </>
+      )}
+      {costImport && canEditCosts && (
+        <CostImportDialog
+          costs={costImport}
+          ledger={ledger}
+          actor={actor}
+          canSave={ready && !busy}
+          onSave={onSaveCosts}
+          onClose={() => setCostImport(null)}
+          onDone={(text) => setMessage(text)}
+        />
       )}
       {exporting && canManage && (
         <TemplateExportDialog
