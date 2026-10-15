@@ -80,9 +80,15 @@ export function productEditEvents(ledger, serviceId, changes, actor, now = new D
     return { events, summary };
   }
   const stockName = changes.renameStock ? name : material.name;
+  const unit = changes.unit === undefined ? material.measurementUnit : String(changes.unit).trim();
+  if (!unit || unit.length > 40) throw Error('Choose a unit.');
   const minimum = changes.minimumStock ?? material.minimumStock ?? 0;
   if (!Number.isFinite(minimum) || minimum < 0) throw Error('Minimum stock must be zero or more.');
-  if (stockName !== material.name || round3(minimum) !== (material.minimumStock ?? 0)) {
+  if (
+    stockName !== material.name ||
+    unit !== material.measurementUnit ||
+    round3(minimum) !== (material.minimumStock ?? 0)
+  ) {
     const current = working.materials.find((m) => m.id === material.id);
     push({
       id: crypto.randomUUID(),
@@ -92,7 +98,7 @@ export function productEditEvents(ledger, serviceId, changes, actor, now = new D
         baseVersion: current.version,
         name: stockName,
         available: current.available,
-        measurementUnit: material.measurementUnit,
+        measurementUnit: unit,
         requireSize: material.requireSize,
         minimumStock: round3(minimum),
         ...audit,
@@ -100,6 +106,8 @@ export function productEditEvents(ledger, serviceId, changes, actor, now = new D
     });
     if (stockName !== material.name)
       summary.push(`Rename the stock item “${material.name}” to “${stockName}”`);
+    if (unit !== material.measurementUnit)
+      summary.push(`Change the unit from ${material.measurementUnit} to ${unit}`);
     if (round3(minimum) !== (material.minimumStock ?? 0))
       summary.push(`Set minimum stock to ${round3(minimum)}`);
   }
@@ -112,7 +120,6 @@ export function productEditEvents(ledger, serviceId, changes, actor, now = new D
     const reason = String(stock.reason ?? '').trim();
     if (!reason) throw Error('Give a reason for the stock change.');
     const current = working.materials.find((m) => m.id === material.id);
-    const unit = material.measurementUnit;
     if (stock.mode === 'add') {
       push({
         id: crypto.randomUUID(),

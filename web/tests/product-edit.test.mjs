@@ -108,3 +108,26 @@ test('shared stock items are flagged', () => {
     [id(77)],
   );
 });
+
+test('the unit can be changed from the product editor', () => {
+  const { ledger } = fixture();
+  const material = ledger.materials.find((m) => m.id === id(10));
+  const { events, summary } = productEditEvents(
+    ledger,
+    id(7),
+    {
+      name: ledger.services.find((s) => s.id === id(7)).description,
+      price: ledger.services.find((s) => s.id === id(7)).price,
+      renameStock: false,
+      unit: 'sheet',
+      minimumStock: material.minimumStock ?? 0,
+      stock: { mode: 'none' },
+    },
+    actor,
+  );
+  assert.deepEqual(summary, [`Change the unit from ${material.measurementUnit} to sheet`]);
+  const next = apply(ledger, events);
+  const after = next.materials.find((m) => m.id === id(10));
+  assert.equal(after.measurementUnit, 'sheet');
+  assert.equal(after.available, material.available);
+});
