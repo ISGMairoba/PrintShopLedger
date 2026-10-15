@@ -30,6 +30,10 @@ jobs:
         timeout-minutes: 5
         run: npx playwright install chromium webkit
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: node scripts/run-check.mjs node scripts/check-business-branding.mjs
+      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: node scripts/run-check.mjs node scripts/check-theme-backgrounds.mjs
+      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/run-check.mjs node scripts/check-job-batches.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/run-check.mjs node scripts/check-pricing-templates.mjs
@@ -49,10 +53,6 @@ jobs:
         run: node scripts/run-check.mjs node scripts/check-remote-review.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/run-check.mjs node scripts/check-access-account.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-business-branding.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-theme-backgrounds.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/run-check.mjs node scripts/check-checkout.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}

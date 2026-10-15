@@ -25,6 +25,7 @@ export default function LogoVariantsEditor({
       <label>
         Layout to edit
         <select
+          aria-label="Layout to edit"
           value={layout}
           onChange={(event) => setLayout(event.target.value as keyof typeof logoLayouts)}
         >
@@ -92,6 +93,7 @@ export default function LogoVariantsEditor({
           <label key={key}>
             {label}
             <select
+              aria-label={label}
               value={value.logoUsage[key]}
               onChange={(event) => onChange('logoUsage', { ...value.logoUsage, [key]: event.target.value })}
             >
