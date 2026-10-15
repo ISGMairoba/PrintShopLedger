@@ -44,9 +44,12 @@ export function inkLogo(dataUrl: string): Promise<string> {
 }
 
 /** The business details with its logo in black ink (unchanged when there is no logo). */
-export async function withInkLogo(business: string | Branding): Promise<string | Branding> {
+export async function withInkLogo(
+  business: string | Branding,
+  usage: 'roll' | 'page' = 'roll',
+): Promise<string | Branding> {
   if (typeof business === 'string') return business;
-  const logo = resolveLogo(business, 'documents', 'light');
+  const logo = resolveLogo(business, usage, 'light');
   if (!logo) return business;
   try {
     return { ...business, logo: await inkLogo(logo), logoVariants: logoVariantsDefaults() };

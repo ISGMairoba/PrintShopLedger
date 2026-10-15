@@ -5,7 +5,7 @@ import { sampleReceipt } from './receipt-sample.mjs';
 import BusinessOptionsEditor from './BusinessOptionsEditor';
 import ThemeBackgroundEditor from './ThemeBackgroundEditor';
 import LogoVariantsEditor from './LogoVariantsEditor';
-import { resolveLogo } from './logo-variants.mjs';
+import { resolveLogo, logoLayouts } from './logo-variants.mjs';
 import {
   allowedSettingsTabs,
   minimumPageAccess,
@@ -384,6 +384,27 @@ export default function BusinessSettingsPage({
             <div className="receipt-settings-grid">
               <div>
                 <h3>Header</h3>
+                <label>
+                  Logo for this document size
+                  <select
+                    aria-label="Logo for this document size"
+                    value={opts.logoLayout}
+                    onChange={(event) => receipt('logoLayout', event.target.value)}
+                  >
+                    <option value="">Use previous document logo</option>
+                    {Object.entries(logoLayouts).map(([key, label]) => (
+                      <option value={key} key={key}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <small>
+                  {previewLayout === 'narrow'
+                    ? 'Used on 80mm and 58mm receipts, including roll PDFs.'
+                    : 'Used on A4/A5 receipts, quotations, comparisons and report PDFs.'}{' '}
+                  Upload logo artwork under Profile & logo. Documents use the light-background version.
+                </small>
                 {(
                   [
                     ['showLogo', 'Show logo'],
@@ -401,9 +422,10 @@ export default function BusinessSettingsPage({
                     {label}
                   </label>
                 ))}
-                {!opts.showBusinessName && !(opts.showLogo && draft.logo) && (
-                  <small>The name still shows while there is no logo on the receipt.</small>
-                )}
+                {!opts.showBusinessName &&
+                  !(opts.showLogo && resolveLogo(draft, previewLayout === 'narrow' ? 'roll' : 'page')) && (
+                    <small>The name still shows while there is no logo on the receipt.</small>
+                  )}
                 <h3>{w('Each job')}</h3>
                 <label>
                   Highlighted line

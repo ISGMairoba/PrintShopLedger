@@ -5,8 +5,8 @@ Open **Business Settings → Profile & logo**. Access follows the existing Profi
 1. Keep the original logo as a fallback, or upload it in the original Logo field.
 2. Choose a layout: Complete logo, Stacked (label below), Horizontal (label beside), Wordmark, or Icon.
 3. Upload a version for light backgrounds and/or dark backgrounds. These are separate artwork files; the app does not recolor or rearrange a logo.
-4. Choose which layout to use for the sidebar, receipts/quotes/reports, and browser tab icon.
-5. Click **Save logo**. Preview panels show unsaved changes; the rest of the app uses saved settings.
+4. Choose the sidebar and browser tab layouts here. For documents, open **Receipts**, choose **Receipt printer (80 mm / 58 mm)** or **Full page (A4 / A5)**, then choose **Logo for this document size**. Each size saves independently; full-page selection also applies to quotes, comparisons and report PDFs.
+5. Click **Save logo** for uploads and app logo choices, and **Save receipt settings** for paper-size logo choices. Preview panels show unsaved changes; the rest of the app uses saved settings.
 
 PNG and JPEG uploads are accepted up to 5 MB. Transparent PNG is recommended. Images retain their proportions and are resized to at most 640 pixels on the longest edge. Each processed image must be at most approximately 250 KB. All settings together have a 4 MB server limit.
 

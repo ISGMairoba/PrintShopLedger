@@ -212,7 +212,7 @@ export async function printReceipt(
   // Drawn for the area the printer can reach, so roll printers do not shift or cut the right side.
   const media = (directPrintLayout(s) as { media: import('./receipt-pdf').ReceiptMedia }).media;
   // Thermal rolls and monochrome printers need a solid black logo to print it at all.
-  const brand = media.layout === 'roll' || !media.color ? await ink(business) : business;
+  const brand = media.layout === 'roll' || !media.color ? await ink(business, media.layout) : business;
   const doc = createReceiptPdf(record, brand, pending, adjustments, media);
   const base64 = (doc.output('datauristring') as string).split(',')[1];
   const pageHeight = media.layout === 'roll' ? doc.internal.pageSize.getHeight() : null;

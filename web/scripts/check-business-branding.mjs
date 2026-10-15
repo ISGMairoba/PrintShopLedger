@@ -102,8 +102,12 @@ try {
       });
       await page.getByAltText('Horizontal · label beside for ' + mode + ' backgrounds').waitFor();
     }
-    await page.getByLabel('Receipts, quotes & reports', { exact: true }).selectOption('horizontal');
     await page.getByLabel('Browser tab icon', { exact: true }).selectOption('horizontal');
+    await page.getByRole('tab', { name: /Receipts/ }).click();
+    await page.getByRole('button', { name: 'Receipt printer (80 mm / 58 mm)', exact: true }).click();
+    await page.getByLabel('Logo for this document size', { exact: true }).selectOption('complete');
+    await page.getByRole('button', { name: 'Full page (A4 / A5)', exact: true }).click();
+    await page.getByLabel('Logo for this document size', { exact: true }).selectOption('horizontal');
     await page.getByRole('tab', { name: /Dropdowns & workflow/ }).click();
     await page.getByLabel('New payment method', { exact: true }).fill('Opay');
     await page.getByLabel('New payment accounting type', { exact: true }).selectOption('Transfer');
@@ -151,8 +155,14 @@ try {
       await page.getByAltText('Horizontal · label beside for dark backgrounds').getAttribute('src'),
       darkPng,
     );
+    await page.getByRole('tab', { name: /Receipts/ }).click();
     assert.equal(
-      await page.getByLabel('Receipts, quotes & reports', { exact: true }).inputValue(),
+      await page.getByLabel('Logo for this document size', { exact: true }).inputValue(),
+      'complete',
+    );
+    await page.getByRole('button', { name: 'Full page (A4 / A5)', exact: true }).click();
+    assert.equal(
+      await page.getByLabel('Logo for this document size', { exact: true }).inputValue(),
       'horizontal',
     );
     assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'dark');

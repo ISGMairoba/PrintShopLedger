@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Branding } from './useBusinessBranding';
-import { logoLayouts, resolveLogo } from './logo-variants.mjs';
+import { logoLayouts } from './logo-variants.mjs';
 import './logo-variants.css';
 
 export default function LogoVariantsEditor({
@@ -86,7 +86,6 @@ export default function LogoVariantsEditor({
         {(
           [
             ['sidebar', 'Sidebar'],
-            ['documents', 'Receipts, quotes & reports'],
             ['favicon', 'Browser tab icon'],
           ] as const
         ).map(([key, label]) => (
@@ -107,18 +106,10 @@ export default function LogoVariantsEditor({
         ))}
       </div>
       <small>
-        Missing versions fall back to another uploaded logo or your original logo. Documents use a light
-        background. The browser icon changes for this business on this device; installed app icons keep the
-        app icon.
+        Missing versions fall back to another uploaded logo or your original logo. Choose document logos
+        separately under Receipts for each paper size. The browser icon changes for this business on this
+        device; installed app icons keep the app icon.
       </small>
-      <h3>Document logo preview</h3>
-      <div className="logo-variant-preview logo-variant-preview-light">
-        {resolveLogo(value) ? (
-          <img src={resolveLogo(value)} alt="Selected document logo" />
-        ) : (
-          <span>No logo available</span>
-        )}
-      </div>
     </>
   );
 }

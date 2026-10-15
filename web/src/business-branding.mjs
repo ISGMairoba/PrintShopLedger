@@ -92,9 +92,11 @@ export const defaultBranding = () => ({
     showAddress: true,
     showContacts: true,
     footer: 'Thank you for your business.',
+    logoLayout: '',
     ...receiptContentDefaults(),
   },
   receiptPage: {
+    logoLayout: '',
     showLogo: true,
     showBusinessName: true,
     showAddress: true,
@@ -334,6 +336,9 @@ export function validateJobSettings(input) {
 export function validateReceiptOptions(input) {
   if (!input || typeof input !== 'object') throw Error('Invalid receipt options.');
   const value = { ...input };
+  value.logoLayout ??= '';
+  if (!['', 'complete', 'stacked', 'horizontal', 'wordmark', 'icon'].includes(value.logoLayout))
+    throw Error('Choose a valid receipt logo layout.');
   value.showBusinessName ??= true;
   for (const key of ['showLogo', 'showBusinessName', 'showAddress', 'showContacts'])
     if (typeof value[key] !== 'boolean') throw Error('Invalid receipt options.');
@@ -349,12 +354,12 @@ export function validateReceiptOptions(input) {
   }
   return value;
 }
-export function receiptBusiness(input) {
+export function receiptBusiness(input, usage = 'documents') {
   if (typeof input === 'string') return { ...defaultBranding(), businessName: input };
   return {
     ...defaultBranding(),
     ...input,
-    logo: resolveLogo(input, 'documents', 'light'),
+    logo: resolveLogo(input, usage, 'light'),
     receipt: { ...defaultBranding().receipt, ...input?.receipt },
     receiptPage: { ...defaultBranding().receiptPage, ...(input?.receiptPage ?? input?.receipt) },
     documents: { ...defaultBranding().documents, ...input?.documents },

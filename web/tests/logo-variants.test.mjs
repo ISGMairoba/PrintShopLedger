@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { receiptModel } from '../src/receipts.mjs';
+import { sampleReceipt } from '../src/receipt-sample.mjs';
 import { defaultBranding, validateBranding, receiptBusiness } from '../src/business-branding.mjs';
 import {
   logoVariantsDefaults,
@@ -9,6 +11,25 @@ import {
 } from '../src/logo-variants.mjs';
 const image = 'data:image/png;base64,YQ==';
 const second = 'data:image/png;base64,Yg==';
+
+test('roll and full-page documents independently select logos and preserve old choices', () => {
+  const settings = { ...defaultBranding(), businessName: 'Shop' };
+  settings.logoVariants.icon.light = image;
+  settings.logoVariants.horizontal.light = second;
+  settings.receipt.logoLayout = 'icon';
+  settings.receiptPage.logoLayout = 'horizontal';
+  assert.equal(receiptModel(sampleReceipt(), settings, false, [], 'roll').business.logo, image);
+  assert.equal(receiptModel(sampleReceipt(), settings, false, [], 'page').business.logo, second);
+  assert.equal(receiptBusiness(settings).logo, second, 'reports use full-page selection');
+  assert.equal(validateBranding(settings).receipt.logoLayout, 'icon');
+  settings.receipt.logoLayout = 'invalid';
+  assert.throws(() => validateBranding(settings), /logo layout/);
+  delete settings.receipt.logoLayout;
+  delete settings.receiptPage.logoLayout;
+  settings.logoUsage.documents = 'horizontal';
+  assert.equal(resolveLogo(settings, 'roll'), second);
+  assert.equal(resolveLogo(settings, 'page'), second);
+});
 
 test('older business settings retain their original logo and gain empty variants', () => {
   const legacy = { ...defaultBranding(), businessName: 'Studio', logo: image };

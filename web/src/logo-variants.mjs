@@ -58,7 +58,18 @@ export function resolveLogo(settings, usage = 'documents', background = 'light')
   if (!settings || typeof settings === 'string') return '';
   const mode = background === 'dark' ? 'dark' : 'light';
   const opposite = mode === 'dark' ? 'light' : 'dark';
-  const layout = settings.logoUsage?.[usage] ?? logoUsageDefaults()[usage] ?? 'complete';
+  const documentLayout =
+    usage === 'roll'
+      ? settings.receipt?.logoLayout
+      : ['page', 'documents'].includes(usage)
+        ? settings.receiptPage?.logoLayout
+        : '';
+  const layout =
+    documentLayout ||
+    settings.logoUsage?.[usage] ||
+    (['roll', 'page'].includes(usage) ? settings.logoUsage?.documents : '') ||
+    logoUsageDefaults()[usage] ||
+    'complete';
   const variants = settings.logoVariants ?? {};
   const order = [...new Set([layout, 'complete', ...Object.keys(logoLayouts)])];
   for (const key of order) if (variants[key]?.[mode]) return variants[key][mode];
