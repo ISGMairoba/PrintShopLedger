@@ -1,6 +1,7 @@
 import { normalizeLedger } from './materials.mjs';
 import { materialCode } from './material-display.mjs';
 import { hasCost, validCosting } from './pricing-templates.mjs';
+import { validPackPrices } from './pack-prices.mjs';
 export const serviceCode = (id, services = []) => materialCode(id, services).replace('MAT-', 'SVC-');
 export const servicePrice = (price) =>
   new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(price / 100);
@@ -36,6 +37,7 @@ export function validateService(data, ledger, existing) {
     throw new Error('Choose whether this is sold off the shelf.');
   if (data.private !== undefined && typeof data.private !== 'boolean')
     throw new Error('Choose whether this is used in templates only.');
+  const packs = validPackPrices(data.packPrices);
   const costing = validCosting(data.costing);
   if (data.private && !hasCost(costing)) throw new Error('A templates-only item needs a template cost.');
   if (
@@ -46,6 +48,8 @@ export function validateService(data, ledger, existing) {
   if (data.materialId === null) return;
   const material = ledger.materials.find((item) => item.id === data.materialId);
   if (!material) throw new Error('Choose a base material from this workspace.');
+  if (material.requireSize && (data.packPrices === undefined ? existing?.packPrices?.length : packs.length))
+    throw new Error('Pack prices are for items sold by count, not by size.');
   if (material.archived && existing?.materialId !== material.id)
     throw new Error('Choose an active base material.');
 }
@@ -79,6 +83,7 @@ export function applyServiceEvent(input, event) {
       shelfItem: data.shelfItem ?? false,
       private: data.private ?? false,
       costing: validCosting(data.costing),
+      packPrices: validPackPrices(data.packPrices),
       archived: false,
       version: 1,
       createdBy: data.modifiedBy,
@@ -103,6 +108,8 @@ export function applyServiceEvent(input, event) {
       shelfItem: data.shelfItem ?? existing.shelfItem ?? false,
       private: data.private ?? existing.private ?? false,
       costing: data.costing === undefined ? (existing.costing ?? null) : validCosting(data.costing),
+      packPrices:
+        data.packPrices === undefined ? (existing.packPrices ?? []) : validPackPrices(data.packPrices),
       ...audit,
       version: existing.version + 1,
     };

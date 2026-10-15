@@ -26,6 +26,7 @@ import type { Ledger, CustomerEvent, CheckoutEvent, CheckoutRecord } from './typ
 import { defaultDueAt, durationLabel, fromLocalInput, toLocalInput } from './job-deadlines.mjs';
 import { jobSettingsDefaults } from './business-branding.mjs';
 import { applyOrderDiscount } from './discounts.mjs';
+import { packList, packSummary } from './pack-prices.mjs';
 import { useWords } from './Words';
 type JobSettings = ReturnType<typeof jobSettingsDefaults>;
 type Props = {
@@ -713,6 +714,7 @@ export default function CheckoutEditor({
                               .map((s) => (
                                 <option key={s.id} value={s.id}>
                                   {s.description} — {currency(s.price)}
+                                  {s.packPrices?.length ? ` · ${packList(s.packPrices)}` : ''}
                                 </option>
                               ))}
                           </select>
@@ -854,6 +856,12 @@ export default function CheckoutEditor({
                               (price {currency(quote.grossAmount)}, discount −{currency(quote.lineDiscount)})
                             </small>
                           )}
+                          {service?.packPrices?.length && !quote.requireSize ? (
+                            <small>
+                              {packSummary(service.price, service.packPrices, quote.quantity) ||
+                                `Pack prices: ${packList(service.packPrices)}`}
+                            </small>
+                          ) : null}
                         </p>
                       )}
                       {template && (

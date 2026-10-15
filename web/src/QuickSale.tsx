@@ -9,6 +9,7 @@ import { useWords } from './Words';
 import { currency } from './receipts.mjs';
 import { money } from './domain.mjs';
 import { prepareCheckout } from './checkout.mjs';
+import { packList, packSummary, packTotal } from './pack-prices.mjs';
 import { DiscountFields, discountSpec, noDiscount, type DiscountDraft } from './CheckoutEditor';
 import {
   WALK_IN_NAME,
@@ -145,6 +146,7 @@ export default function QuickSale({
                 >
                   <strong>{p.name}</strong>
                   <span>{currency(p.price)}</span>
+                  {p.packPrices.length > 0 && <small>{packList(p.packPrices)}</small>}
                   <small>
                     {p.stock === null
                       ? 'Not stock-tracked'
@@ -224,7 +226,12 @@ export default function QuickSale({
                         </button>
                       </div>
                     </td>
-                    <td className="numeric">{currency(Math.round((p?.price ?? 0) * line.quantity))}</td>
+                    <td className="numeric">
+                      {currency(packTotal(p?.price ?? 0, p?.packPrices, line.quantity))}
+                      {p && packSummary(p.price, p.packPrices, line.quantity) && (
+                        <small>{packSummary(p.price, p.packPrices, line.quantity)}</small>
+                      )}
+                    </td>
                     <td>
                       <button
                         type="button"

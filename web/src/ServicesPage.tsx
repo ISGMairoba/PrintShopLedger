@@ -2,6 +2,8 @@ import { useFeedbackMessage } from './Feedback';
 import CurrencyInput from './CurrencyInput';
 import ResponsiveTable from './ResponsiveTable';
 import Icon from './Icon';
+import { packList } from './pack-prices.mjs';
+import PackPricesField, { packDraft, packPricesFrom, type PackDraft } from './PackPricesField';
 import ToolbarActions, { MenuToggle } from './ToolbarActions';
 import { useState, type FormEvent } from 'react';
 import Modal from './Modal';
@@ -50,8 +52,19 @@ export default function ServicesPage({
   const [costed, setCosted] = useState(false);
   const [privateItem, setPrivateItem] = useState(false);
   const [costKey, setCostKey] = useState('');
+  const [packs, setPacks] = useState<PackDraft>([]);
+  const [priceText, setPriceText] = useState('');
+  const kobo = (text: string) => {
+    try {
+      return money(text || '0');
+    } catch {
+      return null;
+    }
+  };
   const openEditor = (target: Service | 'new') => {
     const s = target === 'new' ? null : target;
+    setPacks(packDraft(s?.packPrices));
+    setPriceText(s ? (s.price / 100).toFixed(2) : '');
     setCosted(!!s?.costing);
     setPrivateItem(!!s?.private);
     setCostKey(s?.costing?.key ?? '');
@@ -136,6 +149,7 @@ export default function ServicesPage({
         shelfItem: !privateItem && data.get('shelfItem') === 'on',
         private: privateItem,
         costing,
+        packPrices: privateItem ? [] : packPricesFrom(packs),
       });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Enter a valid price.');
@@ -174,7 +188,15 @@ export default function ServicesPage({
         {
           id: crypto.randomUUID(),
           kind: 'service.created',
-          data: { id: crypto.randomUUID(), description: name, materialId, price, shelfItem: true, ...audit },
+          data: {
+            id: crypto.randomUUID(),
+            description: name,
+            materialId,
+            price,
+            shelfItem: true,
+            packPrices: packPricesFrom(packs),
+            ...audit,
+          },
         },
       ]);
       setProduct(false);
@@ -251,6 +273,8 @@ export default function ServicesPage({
               disabled={!ready || busy}
               title="Creates the stock item and its shelf item together"
               onClick={() => {
+                setPacks([]);
+                setPriceText('');
                 setProduct(true);
                 setEditor(null);
                 setConfirmation(null);
@@ -339,6 +363,9 @@ export default function ServicesPage({
                               <span className="badge partial">Private</span> Used in templates only
                             </small>
                           )}
+                          {service.packPrices?.length ? (
+                            <small>Packs: {packList(service.packPrices)}</small>
+                          ) : null}
                           {service.costing && (
                             <small>
                               In templates as <code>{service.costing.key}</code>
@@ -515,6 +542,7 @@ export default function ServicesPage({
                     <CurrencyInput
                       name="price"
                       defaultValue={editing ? (editing.price / 100).toFixed(2) : ''}
+                      onValueChange={setPriceText}
                       required
                     />
                   </label>
@@ -536,6 +564,9 @@ export default function ServicesPage({
                   <input type="checkbox" name="shelfItem" defaultChecked={editing?.shelfItem ?? false} />
                   Sold off the shelf
                 </label>
+              )}
+              {!privateItem && (
+                <PackPricesField value={packs} onChange={setPacks} unitPrice={kobo(priceText)} />
               )}
               <label className="checkbox">
                 <input
@@ -661,7 +692,7 @@ export default function ServicesPage({
                 </label>
                 <label>
                   Price (₦)
-                  <CurrencyInput name="price" required />
+                  <CurrencyInput name="price" required onValueChange={setPriceText} />
                 </label>
                 <label>
                   Opening stock
@@ -673,6 +704,7 @@ export default function ServicesPage({
                   <small>Shows a low-stock warning at or below this.</small>
                 </label>
               </div>
+              <PackPricesField value={packs} onChange={setPacks} unitPrice={kobo(priceText)} />
               <button type="submit">
                 <Icon name="save" /> {busy ? 'Saving...' : 'Save product'}
               </button>
