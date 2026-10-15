@@ -1491,6 +1491,7 @@ export default function App() {
                           onSave={branding.save}
                           onReload={branding.reload}
                           onSaveService={saveCatalogue}
+                          onSaveCosts={saveCatalogueMany}
                           canManage={
                             demo ||
                             allowedSettingsTabs(shop?.accessLevel ?? 0, branding.settings).includes(

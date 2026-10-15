@@ -264,6 +264,62 @@ try {
     assert.equal(await d.getByLabel('Quantity', { exact: true }).inputValue(), '20');
     await d.getByRole('button', { name: 'Close', exact: true }).first().click();
     await d.waitFor({ state: 'detached' });
+    // Saved costs can be imported once, then reused without overwriting current amounts.
+    await nav('Pricing Templates');
+    await page.getByRole('tab', { name: 'Costs', exact: true }).click();
+    const importCosts = async (amount) => {
+      const chooser = page.waitForEvent('filechooser');
+      await page.getByRole('button', { name: 'Import costs', exact: true }).click();
+      await (await chooser).setFiles({
+        name: 'costs.json',
+        mimeType: 'application/json',
+        buffer: Buffer.from(
+          JSON.stringify({
+            format: 'printshopledger.pricing-costs',
+            version: 1,
+            costs: [
+              {
+                description: 'Imported training cost',
+                costing: { key: 'training_imported', amount, per: 1, unit: 'item' },
+              },
+              {
+                description: 'Customer supplied',
+                costing: { key: 'training_supplied', amount: 0, per: 1, unit: 'item' },
+              },
+            ],
+          }),
+        ),
+      });
+    };
+    const beforeCosts = await readState();
+    await importCosts(5000);
+    let costDialog = page.getByRole('dialog', { name: 'Import saved costs', exact: true });
+    await costDialog.getByText(/Create 2 private costs and keep 0/).waitFor();
+    await costDialog.getByRole('button', { name: 'Save imported costs', exact: true }).click();
+    await costDialog.waitFor({ state: 'detached' });
+    let withCosts = await readState();
+    assert.equal(
+      withCosts.ledger.services.find((s) => s.costing?.key === 'training_imported').costing.amount,
+      5000,
+    );
+    assert.equal(withCosts.ledger.services.find((s) => s.costing?.key === 'training_supplied').private, true);
+    assert.deepEqual(withCosts.ledger.materials, beforeCosts.ledger.materials);
+    assert.deepEqual(withCosts.ledger.payments, beforeCosts.ledger.payments);
+    await importCosts(9000);
+    costDialog = page.getByRole('dialog', { name: 'Import saved costs', exact: true });
+    await costDialog.getByText(/Create 0 private costs and keep 2/).waitFor();
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await costDialog.screenshot({
+      path: `/tmp/pricing-templates-costs-${mobile ? 'mobile' : 'desktop'}.png`,
+    });
+    await costDialog.getByRole('button', { name: 'Save imported costs', exact: true }).click();
+    await costDialog.waitFor({ state: 'detached' });
+    withCosts = await readState();
+    assert.equal(
+      withCosts.ledger.services.find((s) => s.costing?.key === 'training_imported').costing.amount,
+      5000,
+    );
+    assert.equal(withCosts.ledger.services.length, beforeCosts.ledger.services.length + 2);
     // File transfer is reviewed first, keeps existing jobs/stock intact, and survives reload.
     await nav('Pricing Templates');
     await page.getByRole('tab', { name: 'Templates', exact: true }).click();
