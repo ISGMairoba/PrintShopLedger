@@ -203,7 +203,7 @@ export default function QuickSale({
       )}
       {cart.length > 0 && (
         <div className="table-wrap">
-          <table aria-label="Cart">
+          <table aria-label="Cart" className="quick-cart">
             <thead>
               <tr>
                 <th>Product</th>

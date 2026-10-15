@@ -689,3 +689,31 @@ button:not(
     grid-column: 1 / -1;
   }
 }
+.notice .variant-chips button {
+  margin-left: 0;
+}
+/* Quick sale cart on phones: name on its own line, then quantity, amount and Remove. */
+@media (max-width: 560px) {
+  .quick-cart thead {
+    display: none;
+  }
+  .quick-cart tr {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .quick-cart td {
+    display: block;
+    padding: 0;
+    border: 0;
+  }
+  .quick-cart td:first-child {
+    grid-column: 1 / -1;
+  }
+  .quick-cart td.numeric {
+    text-align: left;
+  }
+}
