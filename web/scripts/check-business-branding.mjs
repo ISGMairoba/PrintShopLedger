@@ -80,6 +80,30 @@ try {
       .evaluate((img) => img.naturalWidth / img.naturalHeight);
     assert.equal(ratio, 2.5, 'Logo proportions preserved');
     assert.ok((await page.locator('.logo-palette button').count()) > 0);
+    // Exercise independent artwork, usage selection, and persistence on both viewport sizes.
+    const darkPng = await page.evaluate(() => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 300;
+      canvas.height = 120;
+      const context = canvas.getContext('2d');
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, 300, 120);
+      return canvas.toDataURL('image/png');
+    });
+    await page.getByLabel('Layout to edit', { exact: true }).selectOption('horizontal');
+    for (const [mode, data] of [
+      ['light', png],
+      ['dark', darkPng],
+    ]) {
+      await page.getByLabel('Upload ' + mode + ' background version', { exact: true }).setInputFiles({
+        name: mode + '.png',
+        mimeType: 'image/png',
+        buffer: Buffer.from(data.split(',')[1], 'base64'),
+      });
+      await page.getByAltText('Horizontal · label beside for ' + mode + ' backgrounds').waitFor();
+    }
+    await page.getByLabel('Receipts, quotes & reports', { exact: true }).selectOption('horizontal');
+    await page.getByLabel('Browser tab icon', { exact: true }).selectOption('horizontal');
     await page.getByRole('tab', { name: /Dropdowns & workflow/ }).click();
     await page.getByLabel('New payment method', { exact: true }).fill('Opay');
     await page.getByLabel('New payment accounting type', { exact: true }).selectOption('Transfer');
@@ -111,13 +135,26 @@ try {
       'rgb(0, 0, 0)',
       'Light brand color has readable dark button text',
     );
-    if (!mobile) assert.equal(await page.locator('.sidebar-business-logo').count(), 1);
+    if (!mobile) {
+      assert.equal(await page.locator('.sidebar-business-logo').count(), 1);
+      assert.equal(await page.locator('.sidebar-business-logo').getAttribute('src'), darkPng);
+    }
+    assert.equal(await page.locator('link[rel="icon"]').getAttribute('href'), darkPng);
     await page.reload();
     await page.getByRole('button', { name: 'Try locally on this device' }).click();
     await nav('Business Settings');
     assert.equal(await page.getByLabel('Business name', { exact: true }).inputValue(), 'Mairoba Studio');
     assert.equal(await page.getByLabel('Address', { exact: true }).inputValue(), 'Kano, Nigeria');
     assert.equal(await page.getByAltText('Business logo preview').count(), 1);
+    await page.getByLabel('Layout to edit', { exact: true }).selectOption('horizontal');
+    assert.equal(
+      await page.getByAltText('Horizontal · label beside for dark backgrounds').getAttribute('src'),
+      darkPng,
+    );
+    assert.equal(
+      await page.getByLabel('Receipts, quotes & reports', { exact: true }).inputValue(),
+      'horizontal',
+    );
     assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'dark');
     await page.getByRole('tab', { name: /Corrections/ }).click();
     await page.getByLabel('Recent jobs window (days)').fill('14');
@@ -167,6 +204,7 @@ try {
     await nav('My Account');
     await page.getByLabel('Appearance on this device', { exact: true }).selectOption('light');
     assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'light');
+    assert.equal(await page.locator('link[rel="icon"]').getAttribute('href'), png);
     await page.reload();
     await page.getByRole('button', { name: 'Try locally on this device' }).click();
     await nav('My Account');
@@ -202,6 +240,7 @@ try {
     assert.ok((await receipt.innerText()).includes('Paid now (Opay)'));
     assert.ok((await receipt.innerText()).includes('Instagram DM'));
     assert.equal(await receipt.getByAltText('Business logo', { exact: true }).count(), 1);
+    assert.equal(await receipt.getByAltText('Business logo', { exact: true }).getAttribute('src'), png);
     assert.equal(
       await receipt.locator('.receipt-sheet').evaluate((el) => getComputedStyle(el).backgroundColor),
       'rgb(255, 255, 255)',
