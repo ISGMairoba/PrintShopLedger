@@ -18,7 +18,7 @@ Sharing sends a file; it does not publish the template or create a public link. 
 
 1. Use **Import** and select a PrintShopLedger template `.json` file (up to 2 MB).
 2. Review the proposed template names. Existing names receive an ` (import N)` suffix; names remain editable. Saved templates are always new active copies at version 1, including templates archived in the source file.
-3. Match every source item to a local item. Suggestions require a unique compatible formula name (or name for stock-only references). Inspect them before confirming. Options must have the same consumption unit and the required cost/selling-price information. Create missing local items through the normal catalogue workflow, then return to import.
+3. Match every source item to a local item. Suggestions require a unique compatible formula name (or name for stock-only references). Inspect them before confirming. Options must have the same consumption unit and the required cost/selling-price information. References used for stock must also retain their stock-tracking behaviour. Create missing local items through the normal catalogue workflow, then return to import.
 4. Resolve every reported error. The app rewrites item IDs and formula references, validates the definitions and tests calculations with default inputs against current local costs. All templates are saved together through the existing settings operation; an invalid template blocks that import.
 5. Select **Import N templates**. Check the imported definitions, normal/boundary inputs, prices and stock quantities before staff use.
 
@@ -30,7 +30,7 @@ Imports are additive: importing the same file twice creates two copies. Archive 
 
 The versioned envelope is `{ format, version, templates, items }`. `format` is `printshopledger.pricing-templates`; `version` is `1`. At most 500 template definitions and 1,000 referenced items are accepted, subject to the destination's active/total limits. UTF-8 input and output are limited to 2 MB. Unknown format versions are rejected, never guessed.
 
-`templates` contains canonical definitions, not trusted serialized expression trees. All formula text is parsed again. `items` contains reference identity, display name, formula key, consumption unit and required uses (`cost`, `price`, `stock`). The app derives and checks the dependency manifest, including unused material options and conditional branches. No imported object is executed as JavaScript.
+`templates` contains canonical definitions, not trusted serialized expression trees. All formula text is parsed again. `items` contains reference identity, display name, formula key, consumption unit, whether it tracks stock, and required uses (`cost`, `price`, `stock`). The app derives and checks the dependency manifest, including unused material options and conditional branches. No imported object is executed as JavaScript.
 
 - `src/pricing-formulas.mjs`: grammar, name traversal and exact-decimal arithmetic.
 - `src/pricing-templates.mjs`: definition validation, pricing and stock calculation.

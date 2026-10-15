@@ -12,7 +12,7 @@ import {
 
 export type TemplatePackage = {
   templates: PricingTemplate[];
-  items: { id: string; name: string; key: string; unit: string; uses: string[] }[];
+  items: { id: string; name: string; key: string; unit: string; stock: boolean; uses: string[] }[];
 };
 
 function download(file: File) {

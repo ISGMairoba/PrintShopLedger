@@ -33,7 +33,11 @@ function dependencies(templates, items) {
   for (const t of templates) {
     const locals = localNames(t);
     for (const v of t.variables)
-      if (v.kind === 'material') for (const option of v.options) add(option.serviceId, 'cost');
+      if (v.kind === 'material')
+        for (const option of v.options) {
+          add(option.serviceId, 'cost');
+          if (t.computed.some((c) => c.stock?.variable === v.key)) add(option.serviceId, 'stock');
+        }
     for (const c of t.computed) if (c.stock?.serviceId) add(c.stock.serviceId, 'stock');
     for (const f of [...t.computed, ...t.expenses])
       for (const name of formulaNames(parseFormula(f.formula))) {
@@ -58,6 +62,7 @@ export function exportTemplateFile(templates, ledger) {
     name: item.description,
     key: item.costing?.key ?? '',
     unit: consumptionUnit(item, ledger.materials),
+    stock: item.materialId !== null,
     uses: [...uses].sort(),
   }));
   if (items.length > 1000)
@@ -114,6 +119,7 @@ export function readTemplateFile(text) {
       typeof s.key !== 'string' ||
       (s.key && !/^[a-z][a-z0-9_]{0,39}$/.test(s.key)) ||
       (s.key && keys.has(s.key)) ||
+      typeof s.stock !== 'boolean' ||
       typeof s.unit !== 'string' ||
       s.unit.length > 80 ||
       !Array.isArray(s.uses) ||
@@ -123,7 +129,7 @@ export function readTemplateFile(text) {
       throw Error('Invalid catalogue references in template file.');
     ids.add(s.id);
     if (s.key) keys.add(s.key);
-    return { id: s.id, name: s.name, key: s.key, unit: s.unit, uses: [...new Set(s.uses)] };
+    return { id: s.id, name: s.name, key: s.key, unit: s.unit, stock: s.stock, uses: [...new Set(s.uses)] };
   });
   // Derive dependencies again: reject omitted and forged manifests before displaying a review.
   const actual = dependencies(
@@ -147,6 +153,7 @@ export function compatibleTemplateItem(source, target, materials) {
     !target.archived &&
     (target.materialId === null || materials.some((m) => m.id === target.materialId && !m.archived)) &&
     consumptionUnit(target, materials) === source.unit &&
+    (!source.uses.includes('stock') || source.stock === (target.materialId !== null)) &&
     (!source.uses.includes('cost') || hasCost(target.costing)) &&
     (!source.uses.includes('price') || (!!target.costing?.key && !target.private))
   );

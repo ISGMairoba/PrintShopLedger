@@ -186,3 +186,16 @@ test('fixed-only templates transfer without a catalogue', () => {
     1,
   );
 });
+
+test('stock references cannot silently become materialless costs with the same unit', () => {
+  const { ledger } = setup();
+  ledger.materials[0].measurementUnit = 'item';
+  const t = ledger.pricing.templates[0];
+  const file = readTemplateFile(exportTemplateFile([t], ledger));
+  const mapping = suggestTemplateMappings(file, ledger);
+  mapping[ledger.services[0].id] = ledger.services[3].id;
+  assert.throws(
+    () => importTemplateFile(file, ledger, ledger.pricing, mapping, ['Imported'], () => id(108)),
+    /compatible/,
+  );
+});
