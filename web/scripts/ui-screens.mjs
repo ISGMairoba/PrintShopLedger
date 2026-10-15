@@ -236,7 +236,7 @@ try {
       await page.getByRole('button', { name: 'Add product', exact: true }).click();
       const d = page.getByRole('dialog', { name: 'Add product' });
       await d.locator('input[name=name]').fill('Envelope');
-      await d.locator('input[name=price]').fill('100');
+      await d.getByRole('textbox', { name: 'Price (₦)' }).fill('100');
       await d.getByRole('checkbox', { name: /Comes in variants/ }).check();
       for (const [i, name, stock] of [
         [1, 'Pink', '400'],
