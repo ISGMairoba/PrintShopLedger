@@ -1,3 +1,4 @@
+import useSyncConflicts from './app/useSyncConflicts';
 import BatchJobProgressDialog from './BatchJobProgressDialog';
 import PricingTemplatesPage from './PricingTemplatesPage';
 import { batchProgressEvents } from './job-batches.mjs';
@@ -57,21 +58,17 @@ import {
 } from './app/AuthScreens';
 import { currency, dateLabel, errorMessage, shortId, type Page, type Shop } from './app/shared';
 import { pageDescriptions, pageIcons } from './app/pageInfo';
-import { useRegisterSW } from 'virtual:pwa-register/react';
+import useAppUpdates from './app/useAppUpdates';
 import { customerBalance, emptyLedger } from './domain.mjs';
 import {
   ExpenseSyncConflict,
-  resolveCloudExpense,
   supabase,
   businessAuth,
   passwordRecoveryLink,
   syncLedger,
   MaterialSyncConflict,
-  resolveCloudMaterial,
   ServiceSyncConflict,
-  resolveCloudService,
   CustomerSyncConflict,
-  resolveCloudCustomer,
   CheckoutSyncConflict,
   JobSyncConflict,
   resolvePendingWork,
@@ -166,12 +163,6 @@ export default function App() {
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
   const [paymentCustomer, setPaymentCustomer] = useState('');
   const [busy, setBusy] = useState(false);
-  const [expenseConflict, setExpenseConflict] = useState<ExpenseSyncConflict | null>(null);
-  const [checkoutConflict, setCheckoutConflict] = useState<CheckoutSyncConflict | null>(null);
-  const [jobConflict, setJobConflict] = useState<JobSyncConflict | null>(null);
-  const [customerConflict, setCustomerConflict] = useState<CustomerSyncConflict | null>(null);
-  const [serviceConflict, setServiceConflict] = useState<ServiceSyncConflict | null>(null);
-  const [conflict, setConflict] = useState<MaterialSyncConflict | null>(null);
 
   const [supervisorLogin, setSupervisorLogin] = useState(false);
   const [conflictReviewHidden, setConflictReviewHidden] = useState(false);
@@ -247,25 +238,25 @@ export default function App() {
   activeScope.current = scope;
   const channel = useRef<BroadcastChannel | null>(null);
   const {
-    needRefresh: [needRefresh],
-    updateServiceWorker,
-  } = useRegisterSW({
-    // Look for a new version every 30 minutes, not only when the app is opened.
-    onRegisteredSW: (_url: string, registration: ServiceWorkerRegistration | undefined) => {
-      if (registration) setInterval(() => void registration.update(), 30 * 60 * 1000);
-    },
-  });
-  // Apply an update by itself once nothing is in progress: no open window or form, nothing
-  // saving. Saved and pending work stay on this device, so reloading loses nothing.
-  useEffect(() => {
-    if (!needRefresh) return;
-    const tryUpdate = () => {
-      if (!busy && !document.querySelector('dialog[open]')) void updateServiceWorker(true);
-    };
-    tryUpdate();
-    const timer = setInterval(tryUpdate, 15000);
-    return () => clearInterval(timer);
-  }, [needRefresh, busy, updateServiceWorker]);
+    expenseConflict,
+    checkoutConflict,
+    jobConflict,
+    customerConflict,
+    serviceConflict,
+    conflict,
+    setExpenseConflict,
+    setCheckoutConflict,
+    setJobConflict,
+    setCustomerConflict,
+    setServiceConflict,
+    setConflict,
+    resolveConflict,
+    resolveServiceConflict,
+    resolveExpenseConflict,
+    resolveJobConflict,
+    resolveCustomerConflict,
+  } = useSyncConflicts({ scope, shop, busy, setBusy, activeScope, channel, setState, setMessage });
+  const { needRefresh, updateServiceWorker } = useAppUpdates(busy);
   const ledger = useMemo(
     () => ({ ...state.ledger, pricing: branding.settings.pricing }),
     [state.ledger, branding.settings.pricing],
@@ -644,141 +635,6 @@ export default function App() {
               : state.lastSynced
                 ? 'Saved'
                 : 'Connecting…';
-  async function resolveConflict(choice: 'local' | 'cloud') {
-    if (!conflict || !shop || busy) return;
-    const target = scope;
-    setBusy(true);
-    try {
-      const next = await resolveCloudMaterial(
-        target,
-        shop.id,
-        conflict.local.id,
-        choice,
-        conflict.local.lastEventId,
-        conflict.remote.lastEventId,
-      );
-      if (activeScope.current === target) {
-        setState(next);
-        setConflict(null);
-        channel.current?.postMessage('changed');
-        setMessage('Choice saved. Remaining changes will sync automatically.');
-      }
-    } catch (error) {
-      if (activeScope.current === target) {
-        setMessage(errorMessage(error), 'error');
-        if (error instanceof MaterialSyncConflict) setConflict(error);
-      }
-    } finally {
-      setBusy(false);
-    }
-  }
-  async function resolveServiceConflict(choice: 'local' | 'cloud', materialId: string | null) {
-    if (!serviceConflict || !shop || busy) return;
-    const target = scope;
-    setBusy(true);
-    try {
-      const next = await resolveCloudService(
-        target,
-        shop.id,
-        serviceConflict.local.id,
-        choice,
-        serviceConflict.local.lastEventId,
-        serviceConflict.remote?.lastEventId ?? null,
-        materialId,
-      );
-      if (activeScope.current === target) {
-        setState(next);
-        setServiceConflict(null);
-        channel.current?.postMessage('changed');
-        setMessage('Choice saved. Remaining changes will sync automatically.');
-      }
-    } catch (error) {
-      if (activeScope.current === target) {
-        setMessage(errorMessage(error), 'error');
-        if (error instanceof ServiceSyncConflict) setServiceConflict(error);
-        if (error instanceof CustomerSyncConflict) setCustomerConflict(error);
-      }
-    } finally {
-      setBusy(false);
-    }
-  }
-  async function resolveExpenseConflict(choice: 'local' | 'cloud') {
-    if (!expenseConflict || !shop || busy) return;
-    setBusy(true);
-    const target = scope;
-    try {
-      const next = await resolveCloudExpense(
-        target,
-        shop.id,
-        expenseConflict.local.id,
-        choice,
-        expenseConflict.local.lastEventId,
-        expenseConflict.remote?.lastEventId ?? null,
-      );
-      if (activeScope.current === target) {
-        setState(next);
-        setExpenseConflict(null);
-        channel.current?.postMessage('changed');
-        setMessage('Expense review saved. Sync will resume automatically.');
-      }
-    } catch (error) {
-      setMessage(errorMessage(error), 'error');
-      if (error instanceof ExpenseSyncConflict) setExpenseConflict(error);
-    } finally {
-      setBusy(false);
-    }
-  }
-  async function resolveJobConflict() {
-    if (!jobConflict || !shop || busy) return;
-    setBusy(true);
-    const target = scope;
-    try {
-      const next = await resolvePendingWork(
-        target,
-        shop.id,
-        jobConflict.event.id,
-        null,
-        jobConflict.event.data.id,
-      );
-      if (activeScope.current === target) {
-        setState(next);
-        setJobConflict(null);
-        channel.current?.postMessage('changed');
-      }
-    } catch (error) {
-      setMessage(errorMessage(error), 'error');
-    } finally {
-      setBusy(false);
-    }
-  }
-  async function resolveCustomerConflict(choice: 'local' | 'cloud') {
-    if (!customerConflict || !shop || busy) return;
-    const target = scope;
-    setBusy(true);
-    try {
-      const next = await resolveCloudCustomer(
-        target,
-        shop.id,
-        customerConflict.local.id,
-        choice,
-        customerConflict.local.lastEventId,
-        customerConflict.remote?.lastEventId ?? null,
-      );
-      if (activeScope.current === target) {
-        setState(next);
-        setCustomerConflict(null);
-        channel.current?.postMessage('changed');
-        setMessage('Choice saved. Remaining changes will sync automatically.');
-      }
-    } catch (error) {
-      if (activeScope.current === target) {
-        setMessage(errorMessage(error), 'error');
-        if (error instanceof CustomerSyncConflict) setCustomerConflict(error);
-      }
-    } finally {
-      setBusy(false);
-    }
-  }
   function openPayment(customerId = '') {
     setSelectedJob(null);
     setPaymentCustomer(customerId);
@@ -968,6 +824,16 @@ export default function App() {
       setBusy(false);
     }
   }
+  const salesActor = {
+    id: demo ? 'local-trial' : (session?.user.id ?? ''),
+    label: demo ? 'Local trial user' : shop?.staffName || session?.user.email || session?.user.id || '',
+  };
+  const catalogueActor = {
+    ...salesActor,
+    label: demo
+      ? 'Local trial user'
+      : shop?.staffName || session?.user.user_metadata.full_name || salesActor.label,
+  };
   const currentJob = ledger.jobs.find((job) => job.id === selectedJob);
 
   if (validActivationToken(activationToken))
@@ -1561,12 +1427,7 @@ export default function App() {
                             ready={ready}
                             busy={busy || hasConflict}
                             canSave={demo || online}
-                            actor={{
-                              id: demo ? 'local-trial' : session!.user.id,
-                              label: demo
-                                ? 'Local trial user'
-                                : shop?.staffName || session!.user.email || session!.user.id,
-                            }}
+                            actor={salesActor}
                             onSave={approveOperation}
                           />
                         </>
@@ -1623,15 +1484,10 @@ export default function App() {
                           settings={branding.settings}
                           version={branding.version}
                           ledger={ledger}
-                          ready={branding.ready}
+                          ready={branding.ready && ready}
                           online={online}
                           demo={demo}
-                          actor={{
-                            id: demo ? 'local-trial' : session!.user.id,
-                            label: demo
-                              ? 'Local trial user'
-                              : shop?.staffName || session!.user.email || session!.user.id,
-                          }}
+                          actor={salesActor}
                           onSave={branding.save}
                           onReload={branding.reload}
                           onSaveService={saveCatalogue}
@@ -1672,12 +1528,7 @@ export default function App() {
                           ledger={ledger}
                           ready={ready}
                           busy={(!demo && (shop?.accessLevel ?? 0) < 2) || busy || hasConflict}
-                          actor={{
-                            id: demo ? 'local-trial' : session!.user.id,
-                            label: demo
-                              ? 'Local trial user'
-                              : shop?.staffName || session!.user.email || session!.user.id,
-                          }}
+                          actor={salesActor}
                           pending={state.pending}
                           onSave={saveCatalogue}
                         />
@@ -1703,12 +1554,7 @@ export default function App() {
                           ready={ready}
                           busy={busy || legacyConflict}
                           branding={branding.settings}
-                          actor={{
-                            id: demo ? 'local-trial' : session!.user.id,
-                            label: demo
-                              ? 'Local trial user'
-                              : shop?.staffName || session!.user.email || session!.user.id,
-                          }}
+                          actor={salesActor}
                           onSave={saveCatalogue}
                         />
                       ) : page === 'Quotations' ? (
@@ -1718,12 +1564,7 @@ export default function App() {
                           ready={ready}
                           busy={busy || legacyConflict}
                           branding={branding.settings}
-                          actor={{
-                            id: demo ? 'local-trial' : session!.user.id,
-                            label: demo
-                              ? 'Local trial user'
-                              : shop?.staffName || session!.user.email || session!.user.id,
-                          }}
+                          actor={salesActor}
                           discountPolicy={discountPolicy(
                             branding.settings.discounts,
                             demo ? 4 : (shop?.accessLevel ?? 0),
@@ -1790,15 +1631,7 @@ export default function App() {
                           ledger={ledger}
                           ready={ready}
                           busy={busy || hasConflict}
-                          actor={{
-                            id: demo ? 'local-trial' : session!.user.id,
-                            label: demo
-                              ? 'Local trial user'
-                              : shop?.staffName ||
-                                session!.user.user_metadata.full_name ||
-                                session!.user.email ||
-                                session!.user.id,
-                          }}
+                          actor={catalogueActor}
                           onSave={saveCatalogue}
                           onRecordPayment={(id) => openPayment(id)}
                         />
@@ -1811,15 +1644,7 @@ export default function App() {
                             history={ledger.materialHistory}
                             ready={ready}
                             busy={(!demo && shop?.role === 'cashier') || busy || hasConflict}
-                            actor={{
-                              id: demo ? 'local-trial' : session!.user.id,
-                              label: demo
-                                ? 'Local trial user'
-                                : shop?.staffName ||
-                                  session!.user.user_metadata.full_name ||
-                                  session!.user.email ||
-                                  session!.user.id,
-                            }}
+                            actor={catalogueActor}
                             onSave={saveCatalogue}
                             expenses={ledger.expenses}
                             businessName={businessName}
@@ -1834,15 +1659,7 @@ export default function App() {
                           materials={ledger.materials}
                           ready={ready}
                           busy={(!demo && shop?.role === 'cashier') || busy || hasConflict}
-                          actor={{
-                            id: demo ? 'local-trial' : session!.user.id,
-                            label: demo
-                              ? 'Local trial user'
-                              : shop?.staffName ||
-                                session!.user.user_metadata.full_name ||
-                                session!.user.email ||
-                                session!.user.id,
-                          }}
+                          actor={catalogueActor}
                           onSave={saveCatalogue}
                           onSaveMany={saveCatalogueMany}
                           onEditProduct={canEditCatalogue ? (id) => setProductEdit(id) : undefined}
@@ -1916,15 +1733,7 @@ export default function App() {
                     <CustomerEditor
                       customers={ledger.customers}
                       busy={busy}
-                      actor={{
-                        id: demo ? 'local-trial' : session!.user.id,
-                        label: demo
-                          ? 'Local trial user'
-                          : shop?.staffName ||
-                            session!.user.user_metadata.full_name ||
-                            session!.user.email ||
-                            session!.user.id,
-                      }}
+                      actor={catalogueActor}
                       onSave={saveCatalogue}
                       onClose={() => setForm(null)}
                     />
@@ -1932,12 +1741,7 @@ export default function App() {
                   {form && form !== 'customer' && (
                     <CheckoutEditor
                       ledger={ledger}
-                      actor={{
-                        id: demo ? 'local-trial' : session!.user.id,
-                        label: demo
-                          ? 'Local trial user'
-                          : shop?.staffName || session!.user.email || session!.user.id,
-                      }}
+                      actor={salesActor}
                       busy={busy}
                       paymentOnly={form === 'payment'}
                       initialCustomer={form === 'payment' ? paymentCustomer : ''}
@@ -1957,12 +1761,7 @@ export default function App() {
                       key={productEdit}
                       ledger={ledger}
                       initialServiceId={productEdit}
-                      actor={{
-                        id: demo ? 'local-trial' : session!.user.id,
-                        label: demo
-                          ? 'Local trial user'
-                          : shop?.staffName || session!.user.email || session!.user.id,
-                      }}
+                      actor={salesActor}
                       busy={busy || hasConflict}
                       onSave={saveCatalogueMany}
                       onClose={() => setProductEdit(null)}
@@ -1971,12 +1770,7 @@ export default function App() {
                   {quickSale && (
                     <QuickSale
                       ledger={ledger}
-                      actor={{
-                        id: demo ? 'local-trial' : session!.user.id,
-                        label: demo
-                          ? 'Local trial user'
-                          : shop?.staffName || session!.user.email || session!.user.id,
-                      }}
+                      actor={salesActor}
                       busy={busy}
                       onSave={completeCheckout}
                       onClose={() => setQuickSale(false)}
@@ -1995,12 +1789,7 @@ export default function App() {
                         <CheckoutEditor
                           key={quoteOrder.id}
                           ledger={ledger}
-                          actor={{
-                            id: demo ? 'local-trial' : session!.user.id,
-                            label: demo
-                              ? 'Local trial user'
-                              : shop?.staffName || session!.user.email || session!.user.id,
-                          }}
+                          actor={salesActor}
                           busy={busy}
                           fromQuotation={{
                             reference: quotationRef(quoteOrder.id),
@@ -2061,12 +1850,7 @@ export default function App() {
                       ledger={ledger}
                       job={adjustingJob}
                       busy={busy}
-                      actor={{
-                        id: demo ? 'local-trial' : session!.user.id,
-                        label: demo
-                          ? 'Local trial user'
-                          : shop?.staffName || session!.user.email || session!.user.id,
-                      }}
+                      actor={salesActor}
                       onClose={() => setAdjustingJob(null)}
                       onSave={approveOperation}
                     />

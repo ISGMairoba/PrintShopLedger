@@ -1,5 +1,7 @@
 import {
   faCalendarDays,
+  faFileImport,
+  faFileExport,
   faFileInvoice,
   faShareNodes,
   faReceipt,
@@ -40,6 +42,8 @@ import {
   faScaleBalanced,
 } from '@fortawesome/free-solid-svg-icons';
 const icons = {
+  import: faFileImport,
+  export: faFileExport,
   expenses: faReceipt,
   next: faArrowRight,
   complete: faCircleCheck,

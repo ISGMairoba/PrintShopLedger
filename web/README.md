@@ -1,136 +1,102 @@
 # PrintShopLedger
 
-A React + TypeScript app for businesses that manage materials, services, customers, jobs and payments. Every payment allocation belongs to a job; customer accounts combine their job records and wallet movements.
+PrintShopLedger manages print-shop selling, production, stock and customer balances. It is a React + TypeScript PWA backed by Supabase, with IndexedDB storage for offline work. Currency is NGN; financial records store whole integer kobo. Business dates use Africa/Lagos time.
 
-## Included
+## Documentation
 
-- Material, service and customer catalogues with editing, archiving, audit fields, search and sorting.
-- Stock adjustments and per-job material usage history; negative stock is allowed.
-- Point of Service with a simple cart, size-based pricing, customer name/phone suggestions and customer creation at checkout.
-- Cash/POS/transfer payments allocated oldest unpaid job first, with manual override across multiple jobs.
-- Excess payment becomes wallet credit, usable on later jobs. Credit limits warn without blocking orders.
-- Atomic checkout saves jobs, allocations, wallet, stock and audit records together. Retrying the same checkout never duplicates records.
-- My Sales shows the signed-in user’s checkout/payment transactions, sortable/searchable with date and closed-status filters, saved receipts and drawer history.
-- Online drawer handover verifies both staff passwords and active business access. It atomically closes all the current user’s unclosed transactions (including overnight), records actual cash, counted cash and any discrepancy, then signs in the receiving user while preserving business sign-in. Incoming counted cash becomes the receiver’s opening cash. POS/transfer/wallet usage are reported separately.
-- Production workflow: Added → In Queue → Printing → Completed → Collected. Next Action, Set Action and Mark as Complete record every intervening stage in order; completion remains separate from collection.
-- Point of Service and Jobs share service-first job details, customer phone numbers, payment breakdowns, stage progress and dates. Mobile lists retain three primary columns.
-- Receipts retain their original per-job payment snapshots. Inconsistent job amounts or totals are flagged, hidden and blocked from printing until verified.
-- Receipts use saved QZ Tray printer settings. Printing failure leaves the saved checkout intact and supports manual retry.
-- IndexedDB offline saves and automatic cloud sync on reconnection. Concurrent price, account or workflow changes require review before confirmation.
-- Supabase staff sign-in, business workspaces, ranks, access controls and isolated business records.
-- Responsive modal editors, sortable lists, installable PWA and a separate local trial.
+- [Code guide](CODE_GUIDE.md): module boundaries, invariants and validation commands.
+- [Pricing template transfers](docs/pricing-template-transfers.md): import, export, sharing and file compatibility.
+- [App manual plan](docs/manual-plan.md): audiences, chapter outline and writing/verification milestones. This is a plan, not a completed user manual.
+- [Interactive charts](CHARTS.md): chart behaviour and accessibility requirements.
+- [Registration deployment](supabase/functions/register-business/README.md) and [staff management](supabase/functions/manage-users/README.md).
 
-Currency is NGN and financial amounts are stored as integer kobo. Refunds and payment corrections are not implemented yet.
+## Current features
 
-## Run locally
+| Area | Included behaviour |
+| --- | --- |
+| Selling | Point of Service, quick sale, retail items, material-linked and materialless services, customer creation at checkout, discounts and receipts. |
+| Jobs | Individual job balances, production stages, collected/completed separation, batch actions and checkout grouping. |
+| Payments | Cash/POS/transfer, manual or oldest-first allocations, excess payment as customer wallet credit, customer statements and payment reminders. |
+| Stock | Materials, units, size-based usage, minimum levels, stock history, purchases, physical-count reviews, waste and reprints. Negative stock is allowed and highlighted. |
+| Quotations | Save/share quotations without moving stock or money; convert to checkout with current-price review. |
+| Pricing templates | Editable variables, material choices, computed quantities, cost and selling-price formulas, private costs, markup/margin, profit floors, rounding and option comparison. Import/export/share reusable templates. |
+| Corrections | Audited job/payment corrections, cancellations, credit and refunds; original checkout snapshots remain intact. |
+| Expenses | Purchases, partial payments, corrections and voids; purchase lines adjust stock atomically. |
+| Reporting | Dashboard and Reports with interactive Recharts, date filters and PDF/CSV outputs where provided. |
+| Operations | Staff access, business branding/theme/terminology, printer defaults, drawer handover and conflict review. |
 
-Use Node 22.12+ (or a supported newer release):
+## Run and check locally
+
+Use Node 22.12+ or a supported newer release:
 
 ```sh
 cd web
-npm install
+npm ci
 npm test
 npm run build
 npm run dev
 ```
 
-Development without Supabase variables opens in a local trial. Production builds use the configured public Supabase URL and publishable key in `.env.production`. These browser-visible values are not database secrets. Override them with `.env.production.local` when testing a different backend. For offline app-shell testing, use the production build (`npm run preview`) over localhost, load once online, then disconnect and reload. IndexedDB contents are stored in this browser profile; clearing site data removes local records and pending work. Keep unsynced business work until it has synced successfully.
+Without Supabase variables the app opens in the separate local trial. Production uses the public URL and publishable key in `.env.production`; these values are browser-visible, not database secrets. Use `.env.production.local` to target a different backend. Never put a service-role key in a `VITE_` variable.
 
-## Connect Supabase
+The production build and local trial are useful for UI checks, but do not prove that the deployed database and Edge Functions match the source. GitHub Actions separately runs formatting, unit tests, build, backend checks and desktop/mobile browser workflows. Browser checks use scripts under `scripts/`; see the workflow for the complete list. SQL integration checks under `supabase/tests/` are rollback-only fixtures and should run against a disposable database with all migrations applied.
 
-1. Create a Supabase project.
-2. Apply the SQL files in `supabase/migrations` in filename order to a fresh database. Existing deployments must apply any migrations they have not already applied.
-3. Create tester accounts through Supabase Authentication. Disable public signup if testers should be invitation-only.
-4. Copy `.env.example` to `.env` and set the project URL and **publishable** key. Never place a service-role or secret key in a Vite environment variable.
-5. Sign in to the business, create a workspace, then use its default Manager staff account. Manage additional staff through the Users page.
-6. Add staff from the Users page; access is isolated by business and validated on the server.
+## Supabase setup
 
-For independent businesses, each tester creates their own workspace. Server membership checks prevent cross-business reads/writes. All three roles currently have the same customer/job/payment permissions; finer role restrictions are not implemented yet. Clients cannot modify memberships or roles.
+1. Configure the project URL and publishable key from `.env.example`.
+2. Apply every migration in `supabase/migrations/` in filename order. On an existing database, apply only unapplied migrations; never edit a migration that has run.
+3. Deploy the Edge Functions required by the installed features: registration and its mail worker, Developer activation, staff login/user management, credentials, drawer closing and print signing. Follow each function's deployment instructions and keep private keys/secrets on the server.
+4. Configure email confirmation, approved app redirect URLs and SMTP. Public self-registration needs signup enabled; invitation-only deployments can restrict signup intentionally. Configure the registration sender before expecting maintenance notifications.
+5. Register/confirm a business email, sign in and complete workspace setup. The first staff membership is Manager; staff subsequently use username/password after business sign-in.
 
-## Offline and synchronization behavior
+A separate Developer maintenance account is provisioned per business. When `DEVELOPER_DEFAULT_PASSWORD` is configured with at least 12 characters, registration attempts immediate activation using that server secret; otherwise the account remains disabled until the emailed single-use activation link sets its password. No business password is forwarded. See the registration guide for delivery retries and expiry. Actual availability depends on deployed configuration.
 
-Sign in and sync while online before working offline. Offline access uses the previously cached session and workspace list; first-time sign-in needs internet. This is a convenience cache, not independent offline authentication. Use a trusted device/browser profile. Membership revocation takes effect on the next server call; cached records are not remotely erased.
+## Access and staff accounts
 
-Every local write validates and updates the ledger and outbox in one IndexedDB transaction. Sync sends commands with stable UUIDs. Supabase applies each command atomically and deduplicates retries. Payments and their allocations are written together; server serialization prevents concurrent payments from overpaying a job. Sync then downloads a consistent ledger snapshot and replays any newly queued work.
+Ranks are Cashier (1), Admin (2), Manager (3), Developer (4). Access 0 disables access. Business email/password sign-in and staff username/password sign-in use separate sessions; switching staff preserves the business session.
 
-Sync runs automatically when connected. The status and pending count remain visible; there is no manual sync button. When a price, customer account or job status changed elsewhere, the pending transaction stays saved locally and the app opens a review dialog. Confirm revised allocations without collecting the same money again. Offline receipts are marked pending until cloud confirmation.
+Pages have defaults, configurable rank access, and minimum ranks enforced in both client and server. Developer has full page access and controls Page access. Business Settings is Developer-only by default, but selected Admin/Manager access and settings tabs can be enabled. Do not infer permission from rank alone: use `page-access.mjs` and server checks. Template management follows Business Settings access; cost visibility additionally follows pricing audit settings.
 
-## Validation
+Higher ranks can manage lower ranks, users can manage their own allowed profile fields, and Developers can manage everyone; Manager peers remain protected. Password reset permissions are checked on the server and Supabase Auth hashes passwords. The default Manager can share the business account identity, so changing that credential can also affect business sign-in. See the staff management guide.
 
-`npm test` exercises job-specific payments, split allocations, exact amounts, overpayment, customer isolation and retry deduplication. `supabase/tests/ledger.sql` covers server isolation and write invariants; run it against a disposable Supabase database after applying the migration. The GitHub workflow runs domain tests and a production build.
+## Saving, offline work and synchronization
 
-Do not import the old Access database yet: its account-based balances must first be reconciled and assigned to individual jobs.
+Every local ledger write saves the event and pending queue in one IndexedDB transaction. Stable event IDs and atomic database handlers prevent duplicate application on retry. Sync runs automatically; the status and pending count remain visible. There is no manual Sync button.
 
-## Printer defaults
+Sign in and sync online before going offline. First-time authentication, online-only supervisor actions and settings saves require a connection. Cached offline access is a convenience on a trusted device; revocation is enforced on the next server call and does not remotely erase downloaded records. Clearing site data removes local records and pending work. Do not clear pending business work.
 
-Print Settings saves printer, paper, font, margins, copies and an automatic-printing preference per signed-in user/business on the current device. Install QZ Tray on the printing computer, connect printers, save defaults and send a test print. Settings and the QZ client are available offline after the PWA has loaded.
+Sync downloads a consistent ledger snapshot and replays newly queued events. Conflicting catalogue prices, account balances, stock counts or job stages require review; the pending work remains saved. Confirm revised allocations without collecting the same payment again. Offline receipts remain pending until cloud confirmation. Batch production actions save together locally, but sync as individual guarded events rather than one cloud-wide batch transaction.
 
-QZ submits HTML directly without a browser print preview. Unsigned requests still show QZ security prompts. Trusted signing is not configured yet; see https://qz.io/docs/signing. Native printer properties and custom driver paper forms must be managed in the operating system. A selected font/tray must exist in the printer computer's driver.
+## Orders, stock, expenses and corrections
 
-`src/printing.ts` prints only after checkout is durably saved. Sync, refresh and event replay do not trigger another print. Printing errors are separate from checkout persistence, and a submitted spool job is not proof of physical output. Use the receipt dialog to retry a failed print.
+- Checkout atomically saves jobs, payments, allocations, wallet movements, stock use and audit records. Materialless services use quantity × price. Size-based services use their material's measurement rules.
+- A template order saves one parent job and its immutable inputs, formulas, prices and stock breakdown. Each computed stock contribution is deducted once. Material choices, private costs and service selling prices can participate in pricing. Quotations post neither stock nor payments.
+- Editing a template does not rewrite saved orders. To change a saved template order's component quantities, cancel and replace it; record returned component materials separately with the stock tools. Supported charge/description/payment corrections remain available.
+- Corrections require the appropriate page access and an online, fully synced workspace. They save approver, reason and before/after audit. Cancelling a charge does not automatically return material or refund money. Returned material cannot exceed eligible recorded consumption.
+- Reducing a paid charge can move excess allocation to customer credit. Refunds record money already returned and consume available credit. Cash refunds reduce expected drawer cash. Receipts retain original totals with labelled adjustment information.
+- Expense purchases apply stock changes in the same guarded operation. Edits apply quantity differences; voids reverse purchase contributions while retaining payment history. An expense void is not a refund.
+- Sales less incurred expenses is a period cost measure: unused purchased stock still counts as expense. It is not inventory-based net profit. Expense payments are separate from cashier drawer handover.
 
-### Responsive list pages
+## Pricing templates
 
-Use `src/ResponsiveTable.tsx` for every new list page. Pass the desktop table as its child and declare up to three mobile `columns`: each identifies its source cell index, heading, related `details` cell indices, and whether it contains `actions`. Use `-1` for the last cell (actions), so toggling audit fields does not move the action mapping. Unassigned fields automatically appear as prefixed details below the first main value, including audit fields. `labels` can shorten prefixes such as ID and Unit. SortHeader controls become one mobile sort dropdown and direction button; `extraSortOptions` adds fields absent from the desktop headers. Keep all handlers and permission checks in the original cells. The shared component displays one table at a time and uses the 740px sidebar breakpoint (1024px for touch devices, including iPhone landscape). The Sidebar component provides the mobile menu drawer with keyboard focus handling, Escape and scroll locking.
+Enable Pricing templates in Business Settings, then open its separate menu page. Price & compare is for calculations; Templates manages definitions; Costs lists available formula sources according to permission. Owners can set which ranks see internal costs/profit.
 
+Templates support number/options/material/yes-no inputs, computed formulas, expenses and markup or margin. Formula evaluation uses a restricted arithmetic grammar and exact-decimal calculations with 12-place intermediate rounding. Supported functions are `CEILING`, `FLOOR`, `ROUNDUP`, `ROUND`, `SUM`, `ABS`, `MIN`, `MAX` and `IF`. Formula names refer to local item costs; `<name>_price` uses an item's selling price. Preview default inputs and representative order sizes before making a template available to staff.
 
-## Checkout validation
+Use **Templates → Import** for a `.json` transfer, **Export active/all** for the displayed collection, or **Export / Share** on a card for one template. Transfers create new active version-1 copies, preserve the receiving shop's catalogue and require compatible item matching. They do not copy catalogue prices or stock balances. Fixed amounts inside formulas and profit rules are included; review the export dialog before sharing. [Full transfer guide](docs/pricing-template-transfers.md).
 
-`npm test` checks calculation precision, allocation, wallet, stock, retries and conflict review. Browser checks include `node scripts/check-checkout.mjs`, existing modal checks, user switching and iPhone layouts. `supabase/tests/checkout.sql` uses fixtures inside a rollback-only transaction to test the real database RPCs without leaving records behind.
+## Printing and sharing
 
-## Expenses and purchases
+Print Settings stores printer, paper, font, margins, copies and automatic-print preference per user/business on the current device. QZ Tray must be installed and connected on the printing computer. Receipts are generated as PDFs for the selected paper; checkout is saved before printing, and sync/replay does not trigger another print. A failed print can be retried without recreating the sale. Spool submission does not prove physical output.
 
-Expenses remain independent of jobs. Add/edit expenses, record partial or full payments, void with a reason, search/filter/sort and inspect full audit/change history. Admins and higher manage records; cashiers can view them. Money is integer kobo. The optional material purchase lines update stock and expense in one local IndexedDB transaction and one guarded database RPC. Editing applies quantity differences; voiding reverses only purchase contributions, allowing negative stock and preserving job consumption. Each stock change links to its expense. Retries are idempotent, and concurrent expense edits require review. Material unit changes block quantity corrections until the original unit is restored.
+Trusted signing is implemented through the `print-signing` Edge Function and per-business keys; the private key stays on the server. The business certificate must be installed as QZ Tray's trusted override on the printing computer. Without correct trust/signing setup, QZ approval prompts may remain. Do not promise silent offline signing: server signing requires connectivity. Native printer properties and custom paper forms are managed in the operating system.
 
-The summary shows sales less expenses by incurred date, paid out by payment date, and remaining expense balances. Bulk purchases count as period expenses, including unused stock; this is not inventory-based net profit. Voiding excludes the expense from costs and reverses stock, but retains actual payments in paid-out totals; it does not record a refund. Payment source records where money came from. Expense payments are independent of cashier drawer handover calculations.
+Customer documents can use device file sharing when supported, with download/attachment fallbacks. Template sharing uses a JSON file and does not create a public template link.
 
-Receipt/invoice references and notes are supported; receipt-file uploads and refunds are not included in this first version. `tests/expenses.test.mjs`, `supabase/tests/expenses.sql` and `scripts/check-expenses.mjs` cover stock correction, retry, payment, void, business isolation, offline saving and desktop/mobile forms. The SQL fixtures roll back all changes.
+## Current limits
 
-## Services without materials
-
-Select **No material — service only** in the service editor for customer-supplied pressing, binding or other work without shop stock. Price is quantity × service price; size inputs and stock deductions do not apply. A checkout can mix these services with material-linked services. Existing service links can be added or removed; previous job snapshots stay unchanged. A service can also be created before any materials exist. Explicit null represents the optional link; invalid or missing material IDs remain errors.
-
-The optional-service-material migration updates the service and checkout RPCs together. Unit tests, `scripts/check-materialless-services.mjs` (desktop and mobile WebKit), and rollback-only `supabase/tests/materialless_services.sql` cover setup, linking/unlinking, mixed checkouts, payments, stock isolation and retries.
-
-## Amount entry and payment summaries
-
-The shared CurrencyInput groups digits during entry, strips redundant leading zeros on blur and displays two decimal places for completed valid amounts. Invalid signs, text, exponent notation, extra decimal places and excessive amounts are blocked during entry, preserving the previous valid amount. Values invalidated by a changed limit reset to zero on blur. Pasted commas must form valid thousands groups; malformed pasted amounts are not silently converted. Money parsing normalizes valid incomplete decimal endings before exact integer-kobo conversion.
-
-Expense payments default to total cost (or the outstanding balance for a later payment). Total changes update this suggestion until the cashier enters a partial amount. Re-enabling Record money paid now restores the suggestion; payments above the expense balance are invalid. Checkout allocation rows show service, outstanding balance, an ellipsized description with the full text available on hover, and job ID. Manual allocation labels include all three job identifiers. Browser checks cover these behaviors, including identical descriptions across different services.
-
-Customer search and Add new customer are always visible at the top of the checkout Payment section, after jobs and their total. Suggestions appear only while typing; selecting a customer keeps the search field visible and shows phone/wallet details.
-
-### Sales adjustments and extra material use
-
-Admin (access 2), Manager (3) and Developer (4) can use **Sale Adjustments** and **Material Waste**. These operations require an online, fully synced workspace. Cashiers continue using POS and their own sales; they cannot approve adjustments or waste.
-
-- Charge/description corrections and cancellations revise the current job, increment its version and save an immutable reason/approver/before/after audit. Original checkout receipts and original cash amounts remain unchanged. Excess allocations move into customer credit; each changed payment allocation and wallet addition has a before/after snapshot.
-- Cancelling sets the charge to zero and stops production. Stock stays consumed unless the supervisor explicitly returns unused, reusable material. The return cannot exceed the actual stock deduction recorded for that job (including physical-count review decisions).
-- Refunds record money already returned, dated today, consuming available customer credit. Reducing/cancelling a paid charge and refunding are separate actions. A refund uses the configured payment methods, is clearly marked in account history, and belongs to the approving user's drawer. Cash refunds reduce expected cash. Handover verifies the exact refund IDs as well as checkout IDs and opening cash, so stale totals cannot silently close a drawer.
-- Waste, damage and reprints deduct **additional** material usage, optionally linked to a job. They leave jobs, customer payments and original checkout usage unchanged. Negative stock is allowed with a red warning.
-- Supervisor writes use `apply_supervised_event`, an invoker API wrapper around an explicitly authorized private database transaction. A business lock, job/account/material version checks and event IDs protect concurrent changes and retries. Audit tables are read-only to staff and isolated by business RLS.
-- Original receipt printouts/PDFs include subsequent adjustments as a labelled appendix without rewriting the original totals.
-
-Validation: `npm test`, `npm run build`, rollback-only `supabase/tests/sale_adjustments.sql`, and `node scripts/check-sale-adjustments.mjs` (Chromium/WebKit, desktop/mobile; run in CI with the other UI checks). The close-drawer Edge Function must be deployed with the refund-aware migration.
-
-
-## Batch progress and checkout groups
-
-Point of Service and Jobs allow selecting multiple visible items and applying Next Action, Set Action or Mark as Complete. The confirmation previews the forward stages for each item and explains skipped items (cancelled, finished or incompatible workflows). Local save writes the entire event batch in one IndexedDB transaction; cloud synchronization retains per-item events, permissions, version checks and conflict review. Cloud sync is not one atomic transaction across the entire batch. Completed remains separate from Collected.
-
-Group by checkout adds a second view using the recorded checkout ID. Each group shows customer, totals and current items with group actions. Filters still apply: hidden items are not selected or changed, and a partial group shows its visible/total count. Older items without a checkout ID remain individual.
-
-Business Settings → Jobs & payments → Job description entry supports Required (existing default), Optional or Hidden. Checkout and quotations use the service name when an optional/hidden description is blank. Existing descriptions are retained. The generated description preserves compatibility with stored records, receipts and server validation.
-
-Validation: `tests/job-batches.test.mjs` and `scripts/check-job-batches.mjs` cover grouping, mixed stages, skipped items, stale versions, description modes, settings persistence and desktop/iPhone layouts.
-
-
-### Pricing templates
-
-Developer maintenance users can enable **Business Settings → Pricing templates**, then open the **Pricing Templates** menu page to create a template or start with the editable Book preset. Link each component to an existing retail item or service, define numeric inputs (or named options with numeric values), and use quantity formulas with optional reusable calculations. The formula editor inserts variables, arithmetic and `ceil`, `floor`, `round`, `min`, `max`; preview the result before saving. Quantity is the order quantity and is never multiplied twice. Component formulas round to three decimal places; intermediate arithmetic uses twelve decimal places on both client and server. A zero component quantity is optional and posts no charge or stock use.
-
-Templates appear in the existing service picker in Quotations and Checkout. They add existing selling prices; they do not apply an additional profit percentage. A quotation posts no stock or payments. Checkout saves one parent job, one payment balance and an immutable version/input/component-price snapshot; each linked material is deducted once per component in the same server transaction. Materialless components deduct no stock. The component breakdown is expandable in checkout, quotations and job details; customer receipts retain the one parent item. Archived/disabled templates cannot be used for new sales, and existing job snapshots are retained.
-
-Apply `supabase/migrations/20261013074911_pricing_templates.sql` before deploying this feature. `supabase/tests/pricing_templates.sql` is a rollback-only authenticated integration check, and `scripts/check-pricing-templates.mjs` checks desktop/light and phone/dark flows. Template definitions are saved with the existing versioned, Developer-only business settings RPC. Catalogue changes and intervening stock counts require review before an offline template checkout can sync.
-
-The first version uses catalogue selling prices. Cost-based expenses, additional profit rules and Compare Options are later extensions. To change a saved template order's component quantities, cancel it and create a replacement; any returned component materials are recorded separately using the existing stock-adjustment tools. Charge, description and payment corrections remain available.
+- No legacy Access database import until balances have been reconciled and assigned to jobs.
+- No receipt-file uploads in the expense workflow.
+- Template transfer files support format version 1 and a 2 MB maximum. They are definitions, not business backups; no quotes, receipts, payments, historical snapshots or catalogue records are transferred.
+- Default-input checks do not prove that every possible input combination is valid. Test normal and boundary cases before staff use.
+- Printer trust, email delivery, database migrations and Edge Functions need deployment configuration beyond the frontend build.
