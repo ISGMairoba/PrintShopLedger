@@ -180,7 +180,7 @@ export function addVariantEvents(ledger, groupId, input, actor, now = new Date()
 export function syncVariantEvents(
   ledger,
   groupId,
-  { name, price, packPrices },
+  { name, price, packPrices, unit },
   actor,
   now = new Date().toISOString(),
 ) {
@@ -188,6 +188,8 @@ export function syncVariantEvents(
   if (!group) throw Error('Choose a product with variants.');
   const product = cleanName(name, 'a name');
   const packs = validPackPrices(packPrices);
+  const newUnit = unit === undefined ? null : String(unit).trim();
+  if (newUnit !== null && (!newUnit || newUnit.length > 40)) throw Error('Choose a unit.');
   const audit = { modifiedBy: actor.id, modifiedByLabel: actor.label, modifiedAt: now };
   /** @type {ProductEvents} */
   const events = [];
@@ -213,16 +215,18 @@ export function syncVariantEvents(
           ...audit,
         },
       });
-    if (material && material.name === service.description && material.name !== title)
+    const rename = material && material.name === service.description && material.name !== title;
+    const reunit = material && newUnit !== null && material.measurementUnit !== newUnit;
+    if (rename || reunit)
       events.push({
         id: crypto.randomUUID(),
         kind: 'material.updated',
         data: {
           id: material.id,
           baseVersion: material.version,
-          name: title,
+          name: rename ? title : material.name,
           available: material.available,
-          measurementUnit: material.measurementUnit,
+          measurementUnit: reunit ? newUnit : material.measurementUnit,
           requireSize: material.requireSize,
           minimumStock: material.minimumStock ?? 0,
           ...audit,
@@ -235,6 +239,9 @@ export function syncVariantEvents(
       ? [`Rename “${group.name}” to “${product}” (all ${group.members.length} variants)`]
       : []),
     ...(price !== first.price ? [`Change the price of all ${group.members.length} variants`] : []),
+    ...(newUnit !== null && group.members.some((m) => m.material && m.material.measurementUnit !== newUnit)
+      ? [`Change the unit of all ${group.members.length} variants to ${newUnit}`]
+      : []),
     ...(JSON.stringify(validPackPrices(first.packPrices ?? [])) !== JSON.stringify(packs)
       ? [`Change the pack prices of all ${group.members.length} variants`]
       : []),

@@ -170,3 +170,34 @@ test('Quick sale shows a product with variants as one tile with a button per var
     ['Pink'],
   );
 });
+
+test('Changing the unit of a product with variants changes every variant', () => {
+  let ledger = build();
+  const blue = variantGroups(ledger)[0].members[0];
+  const { events, summary } = variantEditEvents(
+    ledger,
+    blue.service.id,
+    {
+      name: 'Envelope',
+      price: 10000,
+      packPrices: packs,
+      unit: 'pack',
+      minimumStock: 50,
+      stock: { mode: 'none' },
+    },
+    actor,
+  );
+  for (const e of events) ledger = applyEvent(ledger, e);
+  assert.deepEqual(
+    variantGroups(ledger)[0].members.map((m) => [
+      m.material.name,
+      m.material.measurementUnit,
+      m.material.available,
+    ]),
+    [
+      ['Envelope — Blue', 'pack', 600],
+      ['Envelope — Pink', 'pack', 400],
+    ],
+  );
+  assert.deepEqual(summary, ['Change the unit of all 2 variants to pack']);
+});

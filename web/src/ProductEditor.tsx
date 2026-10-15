@@ -32,7 +32,7 @@ export default function ProductEditor({
   onClose: () => void;
 }) {
   const { w } = useWords();
-  const { stockReasons } = useBusinessOptions();
+  const { stockReasons, materialUnits } = useBusinessOptions();
   const products = useMemo(() => editableProducts(ledger), [ledger]);
   const [query, setQuery] = useState('');
   type Fields = {
@@ -40,6 +40,7 @@ export default function ProductEditor({
     name: string;
     price: string;
     renameStock: boolean;
+    unit: string;
     minimum: string;
     mode: 'none' | 'add' | 'set';
     quantity: string;
@@ -55,6 +56,7 @@ export default function ProductEditor({
       price: p ? (p.service.price / 100).toFixed(2) : '',
       // Rename the stock item along with it when they share a name and nothing else uses it.
       renameStock: !!p?.material && p.material.name === p.service.description && !p.sharedWith.length,
+      unit: p?.material?.measurementUnit ?? '',
       minimum: String(p?.material?.minimumStock ?? 0),
       mode: 'none',
       quantity: '',
@@ -66,7 +68,7 @@ export default function ProductEditor({
   const [error, setError] = useFeedbackMessage('error');
   const [done, setDone] = useState('');
   const set = (patch: Partial<Fields>) => setF((x) => ({ ...x, ...patch }));
-  const { serviceId, name, price, renameStock, minimum, mode, quantity, reason, packs } = f;
+  const { serviceId, name, price, renameStock, unit, minimum, mode, quantity, reason, packs } = f;
   const chosen = products.find((p) => p.service.id === serviceId) ?? null;
   const group = chosen ? variantGroupOf(ledger, chosen.service) : null;
   const [newVariant, setNewVariant] = useState<{ name: string; stock: string; minimum: string } | null>(null);
@@ -83,6 +85,7 @@ export default function ProductEditor({
     name,
     price: money(price || '0'),
     renameStock,
+    ...(unit ? { unit } : {}),
     minimumStock: minimum === '' ? 0 : Number(minimum),
     stock: { mode, quantity: Number(quantity || 0), reason },
     packPrices: packPricesFrom(packs),
@@ -189,7 +192,7 @@ export default function ProductEditor({
               <strong>
                 {group.name} comes in {group.members.length} variants.
               </strong>{' '}
-              Name, price and pack prices apply to all of them; stock is kept for each one.
+              Name, unit, price and pack prices apply to all of them; stock is kept for each one.
               <div className="variant-chips" role="group" aria-label="Variants">
                 {group.members.map(({ service, material }) => (
                   <button
@@ -283,6 +286,19 @@ export default function ProductEditor({
                     />
                   </label>
                 )}
+                {chosen.material && (
+                  <label>
+                    {group ? 'Unit (all variants)' : 'Unit'}
+                    <select aria-label="Unit" value={unit} onChange={(e) => set({ unit: e.target.value })}>
+                      {[...new Set([chosen.material.measurementUnit, ...materialUnits])].map((u) => (
+                        <option key={u}>{u}</option>
+                      ))}
+                    </select>
+                    {!group && chosen.sharedWith.length > 0 && unit !== chosen.material.measurementUnit && (
+                      <small>Also changes the unit for the other items using this stock item.</small>
+                    )}
+                  </label>
+                )}
               </div>
               {!chosen.service.private && !chosen.material?.requireSize && (
                 <PackPricesField
@@ -295,7 +311,7 @@ export default function ProductEditor({
                       return null;
                     }
                   })()}
-                  unit={chosen.material?.measurementUnit ?? 'piece'}
+                  unit={unit || 'piece'}
                 />
               )}
               {m ? (
