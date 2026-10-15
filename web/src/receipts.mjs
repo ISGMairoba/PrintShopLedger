@@ -80,7 +80,7 @@ export function receiptModel(record, business, pending = false, adjustments = []
   const balances = record.jobBalances ?? [];
   const allBalanced = balances.every(balancedReceiptJob);
   const show = { paidNow: o.showPaidNow, balance: o.showItemBalance, paidBefore: o.showPaidBefore };
-  const items = balances.map((j) => {
+  const rawItems = balances.map((j) => {
     const item = (record.jobs ?? []).find((n) => n.id === j.id);
     const ok = balancedReceiptJob(j);
     const [title, other] = o.headline === 'service' ? [j.service, j.description] : [j.description, j.service];
@@ -109,8 +109,24 @@ export function receiptModel(record, business, pending = false, adjustments = []
       paidNow: show.paidNow ? currency(j.paidThisCheckout) : '',
       balance: show.balance ? currency(j.outstandingAfter) : '',
       ok,
+      earlier: !item,
     };
   });
+  // Money can also go to the customer's older unpaid jobs (oldest first). When it does, this
+  // order's jobs come first and the older ones follow under their own heading.
+  const current = rawItems.filter((i) => !i.earlier),
+    earlier = rawItems.filter((i) => i.earlier);
+  const items =
+    current.length && earlier.length
+      ? [
+          ...current.map((i, n) => (n === 0 ? { ...i, heading: 'This sale' } : i)),
+          ...earlier.map((i, n) =>
+            n === 0 ? { ...i, heading: 'Earlier balances paid with this payment' } : i,
+          ),
+        ]
+      : earlier.length && !(record.jobs ?? []).length
+        ? earlier.map((i, n) => (n === 0 ? { ...i, heading: 'Earlier balances paid' } : i))
+        : rawItems;
   const totals = [];
   // With discounts: price before discounts, the discount, then what the new jobs cost.
   if (record.discountTotal > 0 && balancedTotal) {
@@ -235,16 +251,16 @@ export function receiptHtml(record, business, pending = false, adjustments = [],
     )
     .join('');
   if (layout === 'narrow') {
-    const css = `.psl-r{font-size:1em;line-height:1.35;color:#000;width:100%;overflow-wrap:anywhere}.psl-r *{box-sizing:border-box}.psl-r .r{text-align:right;white-space:nowrap;padding-left:6px}.psl-r .logo{display:block;margin:0 auto 4px;max-width:64%;max-height:22mm}.psl-r h1{font-size:1.35em;margin:2px 0;text-align:center;text-transform:uppercase;letter-spacing:.5px}.psl-r .contact{font-size:.82em;text-align:center;margin:0 0 4px}.psl-r .title{text-align:center;font-weight:bold;font-size:1.1em;letter-spacing:2px;border-top:2px solid #000;border-bottom:2px solid #000;padding:3px 0;margin:6px 0}.psl-r table{width:100%;border-collapse:collapse}.psl-r td{padding:1px 0;vertical-align:top;border:0}.psl-r .meta td{font-size:.9em}.psl-r .rule{border-top:1px dashed #000;margin:5px 0}.psl-r .item-name{font-weight:bold;padding-top:4px}.psl-r .item-sub{font-size:.82em}.psl-r .amt td{font-size:.92em}.psl-r .strong td{font-weight:bold}.psl-r .total td{font-weight:bold;font-size:1.15em;border-top:2px solid #000;padding-top:3px}.psl-r .notice{border:1px solid #000;padding:3px;text-align:center;font-size:.85em;margin:4px 0}.psl-r h3{font-size:.95em;margin:6px 0 2px;text-transform:uppercase}.psl-r .adj{font-size:.8em;margin:3px 0}.psl-r .foot{text-align:center;margin-top:8px;font-size:.9em}`;
+    const css = `.psl-r{font-size:1em;line-height:1.35;color:#000;width:100%;overflow-wrap:anywhere}.psl-r *{box-sizing:border-box}.psl-r .r{text-align:right;white-space:nowrap;padding-left:6px}.psl-r .logo{display:block;margin:0 auto 4px;max-width:64%;max-height:22mm}.psl-r h1{font-size:1.35em;margin:2px 0;text-align:center;text-transform:uppercase;letter-spacing:.5px}.psl-r .contact{font-size:.82em;text-align:center;margin:0 0 4px}.psl-r .title{text-align:center;font-weight:bold;font-size:1.1em;letter-spacing:2px;border-top:2px solid #000;border-bottom:2px solid #000;padding:3px 0;margin:6px 0}.psl-r table{width:100%;border-collapse:collapse}.psl-r td{padding:1px 0;vertical-align:top;border:0}.psl-r .meta td{font-size:.9em}.psl-r .rule{border-top:1px dashed #000;margin:5px 0}.psl-r .item-name{font-weight:bold;padding-top:4px}.psl-r .item-sub{font-size:.82em}.psl-r .amt td{font-size:.92em}.psl-r .strong td{font-weight:bold}.psl-r .total td{font-weight:bold;font-size:1.15em;border-top:2px solid #000;padding-top:3px}.psl-r .notice{border:1px solid #000;padding:3px;text-align:center;font-size:.85em;margin:4px 0}.psl-r h3{font-size:.95em;margin:6px 0 2px;text-transform:uppercase}.psl-r .adj{font-size:.8em;margin:3px 0}.psl-r .foot{text-align:center;margin-top:8px;font-size:.9em}.psl-r .group{font-weight:bold;text-transform:uppercase;font-size:.82em;border-bottom:1px solid #000;padding-top:6px}`;
     const items = m.items
       .map(
         (i) =>
-          `<tr><td colspan="2" class="item-name">${e(i.title)}</td></tr>${sub(i) ? `<tr><td colspan="2" class="item-sub">${sub(i)}</td></tr>` : ''}${row('Amount', i.amount, 'amt')}${i.paidBefore ? row('Paid before', i.paidBefore, 'amt') : ''}${i.paidNow ? row('Paid now', i.paidNow, 'amt') : ''}${i.balance ? row('Balance', i.balance, 'amt strong') : ''}`,
+          `${i.heading ? `<tr><td colspan="2" class="group">${e(i.heading)}</td></tr>` : ''}<tr><td colspan="2" class="item-name">${e(i.title)}</td></tr>${sub(i) ? `<tr><td colspan="2" class="item-sub">${sub(i)}</td></tr>` : ''}${row('Amount', i.amount, 'amt')}${i.paidBefore ? row('Paid before', i.paidBefore, 'amt') : ''}${i.paidNow ? row('Paid now', i.paidNow, 'amt') : ''}${i.balance ? row('Balance', i.balance, 'amt strong') : ''}`,
       )
       .join('');
     return `<style>${css}</style><div class="psl-r">${logo}${m.business.name ? `<h1>${e(m.business.name)}</h1>` : ''}${contact ? `<p class="contact">${contact}</p>` : ''}<div class="title">${e(m.title.toUpperCase())}</div>${notices}<table class="meta">${m.meta.map(([k, v]) => row(k, v)).join('')}</table><div class="rule"></div><table>${items}</table><div class="rule"></div><table>${totals}</table>${m.account.length ? `<div class="rule"></div><table class="meta">${m.account.map((a) => row(a.label, a.value)).join('')}</table>` : ''}${m.note ? `<p class="item-sub">Note: ${e(m.note)}</p>` : ''}${adjustmentsHtml}${m.footer ? `<p class="foot">${e(m.footer)}</p>` : ''}<p class="foot item-sub">${e(m.title)} ${e(m.number)}</p></div>`;
   }
-  const css = `.psl-w{color:#1d2b27;line-height:1.45;font-size:1em;overflow-wrap:anywhere}.psl-w *{box-sizing:border-box}.psl-w table{width:100%;border-collapse:collapse}.psl-w td,.psl-w th{border:0;padding:0;vertical-align:top;text-align:left}.psl-w .r{text-align:right;white-space:nowrap}.psl-w .head td{padding-bottom:10px}.psl-w h1{font-size:1.6em;margin:0 0 4px;color:${brand}}.psl-w .contact{font-size:.85em;color:#55635e;margin:0}.psl-w .logo{max-width:200px;max-height:90px}.psl-w .band{background:${brand};color:#fff;margin:6px 0 12px}.psl-w .band td{color:#fff;padding:8px 12px;vertical-align:middle}.psl-w .band .t{font-size:1.25em;font-weight:bold;letter-spacing:2px;text-transform:uppercase}.psl-w .meta td{padding:2px 12px 2px 0;font-size:.92em}.psl-w .meta .k{color:#6b7873;width:110px}.psl-w .items{margin-top:12px}.psl-w .items th{font-size:.75em;text-transform:uppercase;letter-spacing:.6px;color:#6b7873;border-bottom:2px solid ${brand};padding:6px 6px}.psl-w .items td{padding:8px 6px;border-bottom:1px solid #e3e8e5}.psl-w .items .name{font-weight:bold}.psl-w .items small{display:block;color:#6b7873;font-size:.8em;margin-top:2px}.psl-w .sum{width:55%;margin:12px 0 0 auto}.psl-w .sum td{padding:4px 6px}.psl-w .sum .strong td{font-weight:bold}.psl-w .sum .total td{font-weight:bold;font-size:1.15em;border-top:2px solid ${brand};color:${brand};padding-top:6px}.psl-w .acct{margin-top:14px;background:#f3f6f4}.psl-w .acct td{padding:4px 12px}.psl-w .notice{border-left:4px solid ${safeColour(m.business.accent)};background:#fdf7e8;padding:6px 10px;margin:6px 0}.psl-w h3{color:${brand};margin:16px 0 4px;font-size:1em}.psl-w .adj{font-size:.85em;margin:4px 0;color:#3c4a45}.psl-w .foot{text-align:center;margin-top:18px;color:#55635e;border-top:1px solid #e3e8e5;padding-top:10px}`;
+  const css = `.psl-w{color:#1d2b27;line-height:1.45;font-size:1em;overflow-wrap:anywhere}.psl-w *{box-sizing:border-box}.psl-w table{width:100%;border-collapse:collapse}.psl-w td,.psl-w th{border:0;padding:0;vertical-align:top;text-align:left}.psl-w .r{text-align:right;white-space:nowrap}.psl-w .head td{padding-bottom:10px}.psl-w h1{font-size:1.6em;margin:0 0 4px;color:${brand}}.psl-w .contact{font-size:.85em;color:#55635e;margin:0}.psl-w .logo{max-width:200px;max-height:90px}.psl-w .band{background:${brand};color:#fff;margin:6px 0 12px}.psl-w .band td{color:#fff;padding:8px 12px;vertical-align:middle}.psl-w .band .t{font-size:1.25em;font-weight:bold;letter-spacing:2px;text-transform:uppercase}.psl-w .meta td{padding:2px 12px 2px 0;font-size:.92em}.psl-w .meta .k{color:#6b7873;width:110px}.psl-w .items{margin-top:12px}.psl-w .items th{font-size:.75em;text-transform:uppercase;letter-spacing:.6px;color:#6b7873;border-bottom:2px solid ${brand};padding:6px 6px}.psl-w .items td{padding:8px 6px;border-bottom:1px solid #e3e8e5}.psl-w .items .name{font-weight:bold}.psl-w .items small{display:block;color:#6b7873;font-size:.8em;margin-top:2px}.psl-w .sum{width:55%;margin:12px 0 0 auto}.psl-w .sum td{padding:4px 6px}.psl-w .sum .strong td{font-weight:bold}.psl-w .sum .total td{font-weight:bold;font-size:1.15em;border-top:2px solid ${brand};color:${brand};padding-top:6px}.psl-w .acct{margin-top:14px;background:#f3f6f4}.psl-w .acct td{padding:4px 12px}.psl-w .notice{border-left:4px solid ${safeColour(m.business.accent)};background:#fdf7e8;padding:6px 10px;margin:6px 0}.psl-w h3{color:${brand};margin:16px 0 4px;font-size:1em}.psl-w .adj{font-size:.85em;margin:4px 0;color:#3c4a45}.psl-w .foot{text-align:center;margin-top:18px;color:#55635e;border-top:1px solid #e3e8e5;padding-top:10px}.psl-w .items .group td{background:#f0f4f2;font-weight:bold;color:${brand};font-size:.85em;letter-spacing:.3px;padding:6px}`;
   const cols = [
     ['Amount', (i) => `${e(i.amount)}${i.paidBefore ? `<small>Paid before ${e(i.paidBefore)}</small>` : ''}`],
     ...(m.show.paidNow ? [['Paid now', (i) => e(i.paidNow)]] : []),
@@ -253,7 +269,7 @@ export function receiptHtml(record, business, pending = false, adjustments = [],
   const items = m.items
     .map(
       (i) =>
-        `<tr><td><span class="name">${e(i.title)}</span>${sub(i) ? `<small>${sub(i)}</small>` : ''}</td>${cols.map(([, cell]) => `<td class="r">${cell(i)}</td>`).join('')}</tr>`,
+        `${i.heading ? `<tr class="group"><td colspan="${cols.length + 1}">${e(i.heading)}</td></tr>` : ''}<tr><td><span class="name">${e(i.title)}</span>${sub(i) ? `<small>${sub(i)}</small>` : ''}</td>${cols.map(([, cell]) => `<td class="r">${cell(i)}</td>`).join('')}</tr>`,
     )
     .join('');
   const order = ['Customer', 'Date', 'Phone', 'Payment date', 'Cashier'];

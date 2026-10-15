@@ -1,4 +1,4 @@
-import type { FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import Modal from '../Modal';
 import { FeedbackBanner, type FeedbackTone } from '../Feedback';
 import type { Shop } from './shared';
@@ -31,6 +31,7 @@ export function BusinessLogin({
   onSubmit,
   onRegister,
   onTrial,
+  onForgot,
 }: {
   feedback: Feedback;
   busy: boolean;
@@ -38,7 +39,43 @@ export function BusinessLogin({
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onRegister: () => void;
   onTrial: () => void;
+  /** Send a password-reset email to this business email. */
+  onForgot: (email: string) => Promise<void>;
 }) {
+  const [forgot, setForgot] = useState(false);
+  if (forgot)
+    return (
+      <main className="auth">
+        <div className="auth-card">
+          <div className="brand-mark">S</div>
+          <h1>Reset business password</h1>
+          <p>
+            Enter the business email. We will email a link to set a new password. Open the link on the device
+            you want to sign in on.
+          </p>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              const email = String(new FormData(event.currentTarget).get('email') ?? '').trim();
+              void onForgot(email);
+            }}
+          >
+            <label>
+              Business email
+              <input name="email" type="email" autoComplete="username" required />
+            </label>
+            <button disabled={busy || !online}>{busy ? 'Sending…' : 'Send reset link'}</button>
+          </form>
+          <button className="secondary" onClick={() => setForgot(false)}>
+            Back to sign in
+          </button>
+          <p className="muted">
+            Staff who forget their password: ask a Manager to set a new one on the Users page.
+          </p>
+          <FeedbackBanner message={feedback.message} tone={feedback.tone} login />
+        </div>
+      </main>
+    );
   return (
     <main className="auth">
       <div className="auth-card">
@@ -67,6 +104,9 @@ export function BusinessLogin({
             />
           </label>
           <button disabled={busy || !online}>Sign in</button>
+          <button type="button" className="text-button" onClick={() => setForgot(true)}>
+            Forgot password?
+          </button>
         </form>
         <button className="secondary" disabled={busy || !online} onClick={onRegister}>
           Register your business
@@ -75,6 +115,80 @@ export function BusinessLogin({
           Try locally on this device
         </button>
         <p className="muted">Local trial data stays separate from business workspaces.</p>
+        <FeedbackBanner message={feedback.message} tone={feedback.tone} login />
+      </div>
+    </main>
+  );
+}
+
+/** Opened from a password-reset email: choose the new business password. */
+export function PasswordRecovery({
+  feedback,
+  busy,
+  online,
+  ready,
+  onSubmit,
+  onCancel,
+}: {
+  feedback: Feedback;
+  busy: boolean;
+  online: boolean;
+  /** The reset link was accepted (a recovery sign-in exists). */
+  ready: boolean;
+  onSubmit: (password: string) => void;
+  onCancel: () => void;
+}) {
+  const [password, setPassword] = useState('');
+  const [again, setAgain] = useState('');
+  const mismatch = !!again && password !== again;
+  return (
+    <main className="auth">
+      <div className="auth-card">
+        <div className="brand-mark">S</div>
+        <h1>Set a new business password</h1>
+        {!ready ? (
+          <p role="alert">
+            Checking your reset link… If this stays, the link may have expired. Go back and send a new one.
+          </p>
+        ) : (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!mismatch) onSubmit(password);
+            }}
+          >
+            <label>
+              New password
+              <input
+                type="password"
+                autoComplete="new-password"
+                minLength={8}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <small>At least 8 characters.</small>
+            </label>
+            <label>
+              Type it again
+              <input
+                type="password"
+                autoComplete="new-password"
+                required
+                aria-invalid={mismatch}
+                value={again}
+                onChange={(e) => setAgain(e.target.value)}
+              />
+              {mismatch && <small className="danger-text">The passwords do not match.</small>}
+            </label>
+            <button disabled={busy || !online || mismatch || password.length < 8}>
+              {busy ? 'Saving…' : 'Save new password'}
+            </button>
+          </form>
+        )}
+        <button className="secondary" onClick={onCancel}>
+          Back to sign in
+        </button>
         <FeedbackBanner message={feedback.message} tone={feedback.tone} login />
       </div>
     </main>

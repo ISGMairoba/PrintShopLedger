@@ -48,6 +48,7 @@ import {
 import { useAuthSessions, useOnline, useWorkspaces } from './app/useSessions';
 import {
   BusinessLogin,
+  PasswordRecovery,
   StaffLoginForm,
   SupervisorLogin,
   StaffSignIn,
@@ -63,6 +64,7 @@ import {
   resolveCloudExpense,
   supabase,
   businessAuth,
+  passwordRecoveryLink,
   syncLedger,
   MaterialSyncConflict,
   resolveCloudMaterial,
@@ -783,6 +785,53 @@ export default function App() {
     setForm('payment');
     setMessage('');
   }
+  // Password reset: the email link opens the app in recovery until a new password is saved.
+  const [recovering, setRecovering] = useState(passwordRecoveryLink);
+  useEffect(() => {
+    if (!businessAuth) return;
+    const { data } = businessAuth.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') setRecovering(true);
+    });
+    return () => data.subscription.unsubscribe();
+  }, []);
+  async function sendPasswordReset(email: string) {
+    setBusy(true);
+    try {
+      const { error } = await businessAuth!.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin,
+      });
+      if (error) throw error;
+      setMessage(
+        'If that email has a business account, a reset link is on its way. Check the inbox (and spam) and open the link on this device.',
+        'success',
+      );
+    } catch (error) {
+      setMessage(errorMessage(error), 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function saveRecoveredPassword(password: string) {
+    setBusy(true);
+    try {
+      const { error } = await businessAuth!.auth.updateUser({ password });
+      if (error) throw error;
+      // Sign in again with the new password, so both the business and the till use it.
+      await Promise.all([
+        businessAuth!.auth.signOut({ scope: 'local' }),
+        supabase!.auth.signOut({ scope: 'local' }),
+      ]);
+      setBusinessSession(null);
+      setSession(null);
+      history.replaceState(null, '', window.location.pathname);
+      setRecovering(false);
+      setMessage('Password changed. Sign in with your new password.', 'success');
+    } catch (error) {
+      setMessage(errorMessage(error), 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
   async function login(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true);
@@ -926,6 +975,22 @@ export default function App() {
   const feedback = { message, tone: messageTone };
   if (!authReady)
     return <StartupScreen error={authStartupError} onRetry={() => setAuthEpoch((value) => value + 1)} />;
+  if (recovering)
+    return (
+      <PasswordRecovery
+        feedback={feedback}
+        busy={busy}
+        online={online}
+        ready={!!businessSession}
+        onSubmit={(password) => void saveRecoveredPassword(password)}
+        onCancel={() => {
+          history.replaceState(null, '', window.location.pathname);
+          setRecovering(false);
+          setMessage('');
+          void businessAuth?.auth.signOut({ scope: 'local' });
+        }}
+      />
+    );
   if (!demo && !businessSession && registering)
     return (
       <BusinessSignup
@@ -951,6 +1016,7 @@ export default function App() {
           setDemo(true);
           setMessage('');
         }}
+        onForgot={sendPasswordReset}
       />
     );
   if (
@@ -1915,6 +1981,10 @@ export default function App() {
                       onSave={completeCheckout}
                       onClose={() => setQuickSale(false)}
                       onReceipt={setReceipt}
+                      discountPolicy={discountPolicy(
+                        branding.settings.discounts,
+                        demo ? 4 : (shop?.accessLevel ?? 0),
+                      )}
                     />
                   )}
                   {quoteOrder &&

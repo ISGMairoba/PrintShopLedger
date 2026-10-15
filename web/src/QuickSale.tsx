@@ -9,12 +9,14 @@ import { useWords } from './Words';
 import { currency } from './receipts.mjs';
 import { money } from './domain.mjs';
 import { prepareCheckout } from './checkout.mjs';
+import { DiscountFields, discountSpec, noDiscount, type DiscountDraft } from './CheckoutEditor';
 import {
   WALK_IN_NAME,
   addToCart,
-  cartTotal,
+  pricedCart,
   quickSaleInput,
   setQuantity,
+  typeQuantity,
   shelfProducts,
   walkInCustomer,
 } from './quick-sale.mjs';
@@ -31,6 +33,7 @@ export default function QuickSale({
   onSave,
   onClose,
   onReceipt,
+  discountPolicy = { maxPercent: 0, canFlat: false },
 }: {
   ledger: Ledger;
   actor: { id: string; label: string };
@@ -38,6 +41,8 @@ export default function QuickSale({
   onSave: (event: CheckoutEvent) => Promise<CheckoutRecord>;
   onClose: () => void;
   onReceipt: (record: CheckoutRecord) => void;
+  /** What this user may discount: the cap per item (%) and whether whole-sale/flat is allowed. */
+  discountPolicy?: { maxPercent: number; canFlat: boolean };
 }) {
   const { w } = useWords();
   const options = useBusinessOptions();
@@ -48,16 +53,24 @@ export default function QuickSale({
   const [customerText, setCustomerText] = useState(WALK_IN_NAME);
   const [methodLabel, setMethodLabel] = useState(methods[0]?.label ?? 'Cash');
   const [received, setReceived] = useState<string | null>(null);
+  // What is typed in each quantity box, so clearing a box to retype does not drop the item.
+  const [typed, setTyped] = useState<Record<string, string>>({});
+  const [discount, setDiscount] = useState<DiscountDraft>(noDiscount());
   const [error, setError] = useFeedbackMessage('error');
   const customers = ledger.customers.filter((c) => !c.archived && c.id !== walkInCustomer(ledger)?.id);
   const customer = customers.find((c) => label(c) === customerText) ?? null;
-  const total = (() => {
-    try {
-      return cartTotal(ledger, cart);
-    } catch {
-      return 0;
-    }
-  })();
+  let priced: ReturnType<typeof pricedCart> | null = null,
+    priceError = '';
+  try {
+    priced = pricedCart(ledger, cart, {
+      discount: discountSpec(discount),
+      policy: discountPolicy,
+      source: options.jobSources[0],
+    });
+  } catch (cause) {
+    priceError = cause instanceof Error ? cause.message : String(cause);
+  }
+  const total = priced?.total ?? 0;
   // Money received follows the total until someone types an amount.
   const tendered = (() => {
     try {
@@ -86,6 +99,8 @@ export default function QuickSale({
         source: options.jobSources[0],
         actor,
         now: new Date().toISOString(),
+        discount: discountSpec(discount),
+        policy: discountPolicy,
       });
       const event = prepareCheckout(ledger, input, actor) as CheckoutEvent;
       const record = await onSave(event);
@@ -175,7 +190,10 @@ export default function QuickSale({
                           type="button"
                           className="secondary"
                           aria-label={`One less ${p?.name}`}
-                          onClick={() => setCart((c) => setQuantity(c, line.serviceId, line.quantity - 1))}
+                          onClick={() => {
+                            setTyped(({ [line.serviceId]: _done, ...rest }) => rest);
+                            setCart((c) => setQuantity(c, line.serviceId, line.quantity - 1));
+                          }}
                         >
                           −
                         </button>
@@ -183,17 +201,24 @@ export default function QuickSale({
                           type="number"
                           min="0"
                           step="1"
+                          inputMode="decimal"
                           aria-label={`Quantity of ${p?.name}`}
-                          value={line.quantity}
-                          onChange={(e) =>
-                            setCart((c) => setQuantity(c, line.serviceId, Number(e.target.value || 0)))
-                          }
+                          value={typed[line.serviceId] ?? String(line.quantity)}
+                          onChange={(e) => {
+                            const text = e.target.value;
+                            setTyped((t) => ({ ...t, [line.serviceId]: text }));
+                            setCart((c) => typeQuantity(c, line.serviceId, Number(text)));
+                          }}
+                          onBlur={() => setTyped(({ [line.serviceId]: _done, ...rest }) => rest)}
                         />
                         <button
                           type="button"
                           className="secondary"
                           aria-label={`One more ${p?.name}`}
-                          onClick={() => setCart((c) => addToCart(c, line.serviceId))}
+                          onClick={() => {
+                            setTyped(({ [line.serviceId]: _done, ...rest }) => rest);
+                            setCart((c) => addToCart(c, line.serviceId));
+                          }}
                         >
                           +
                         </button>
@@ -215,6 +240,15 @@ export default function QuickSale({
             </tbody>
           </table>
         </div>
+      )}
+      {cart.length > 0 && (discountPolicy.maxPercent > 0 || discountPolicy.canFlat) && (
+        <DiscountFields
+          label="Discount"
+          value={discount}
+          allowFlat={discountPolicy.canFlat}
+          maxPercent={discountPolicy.canFlat ? 100 : discountPolicy.maxPercent}
+          onChange={setDiscount}
+        />
       )}
       <div className="form-grid">
         <ListedCombobox
@@ -242,9 +276,19 @@ export default function QuickSale({
         </label>
       </div>
       <div className="cart-total" role="status">
+        {priced && priced.discountTotal > 0 && (
+          <small>
+            Before discount {currency(priced.gross)} · Discount −{currency(priced.discountTotal)}
+          </small>
+        )}
         <span>
           Total <strong>{currency(total)}</strong>
         </span>
+        {priceError && cart.length > 0 && (
+          <small className="danger-text" role="alert">
+            {priceError}
+          </small>
+        )}
         {change > 0 && (
           <small>
             Change to give: <strong>{currency(change)}</strong>
@@ -254,7 +298,7 @@ export default function QuickSale({
           <small>{currency(total - tendered)} will be owed on the customer's account.</small>
         )}
       </div>
-      <button type="button" disabled={busy || !cart.length} onClick={() => void complete()}>
+      <button type="button" disabled={busy || !cart.length || !priced} onClick={() => void complete()}>
         <Icon name="complete" /> {busy ? 'Saving…' : `Complete sale · ${currency(total)}`}
       </button>
     </Modal>

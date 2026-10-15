@@ -27,6 +27,17 @@ import {
   faEye,
   faSliders,
   faCopy,
+  faChartPie,
+  faChartColumn,
+  faHandHoldingDollar,
+  faCalculator,
+  faBell,
+  faTrashCan,
+  faGear,
+  faUserShield,
+  faCircleUser,
+  faInbox,
+  faScaleBalanced,
 } from '@fortawesome/free-solid-svg-icons';
 const icons = {
   expenses: faReceipt,
@@ -57,6 +68,17 @@ const icons = {
   quote: faFileInvoice,
   share: faShareNodes,
   copy: faCopy,
+  dashboard: faChartPie,
+  reports: faChartColumn,
+  sales: faHandHoldingDollar,
+  calculator: faCalculator,
+  reminder: faBell,
+  waste: faTrashCan,
+  settings: faGear,
+  users: faUserShield,
+  account: faCircleUser,
+  inbox: faInbox,
+  adjustments: faScaleBalanced,
 };
 export type IconName = keyof typeof icons;
 export default function Icon({ name }: { name: IconName }) {
