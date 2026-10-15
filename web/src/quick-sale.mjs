@@ -3,6 +3,7 @@
 // work exactly as for any other sale. Walk-in buyers share one "Walk-in customer" record.
 import { quoteLine } from './checkout.mjs';
 import { applyOrderDiscount, validDiscount } from './discounts.mjs';
+import { packTotal } from './pack-prices.mjs';
 
 export const WALK_IN_NAME = 'Walk-in customer';
 /** A phone value with no digits: it never clashes with a real customer's number. */
@@ -21,6 +22,7 @@ export function shelfProducts(ledger) {
         id: s.id,
         name: s.description,
         price: s.price,
+        packPrices: s.packPrices ?? [],
         material,
         stock: material ? material.available : null,
         unit: material?.measurementUnit ?? 'item',
@@ -81,7 +83,7 @@ export function cartTotal(ledger, cart) {
   for (const line of cart) {
     const service = ledger.services.find((s) => s.id === line.serviceId);
     if (!service) throw Error('A product in the cart is no longer available.');
-    total += Math.round(service.price * line.quantity);
+    total += packTotal(service.price, service.packPrices, line.quantity);
   }
   return total;
 }

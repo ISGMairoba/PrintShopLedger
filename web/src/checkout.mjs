@@ -1,5 +1,6 @@
 import { validDueAt } from './job-deadlines.mjs';
 import { applyOrderDiscount, discountKobo, validDiscount } from './discounts.mjs';
+import { packBreakdown, packTotal, usesPacks } from './pack-prices.mjs';
 import { validateWorkflow, jobWorkflow } from './business-options.mjs';
 import { applyCustomerEvent, phoneOwner } from './customers.mjs';
 import { jobBalance, customerBalance } from './domain.mjs';
@@ -77,7 +78,11 @@ export function quoteLine(ledger, line) {
     divisor = 1000000000n;
   }
   const needed = Number((raw * 1000n + divisor / 2n) / divisor) / 1000;
-  const total = Number((BigInt(service.price) * raw + divisor / 2n) / divisor);
+  // Products with pack prices are priced as packs plus loose pieces.
+  const packs = usesPacks(service, material) ? packBreakdown(service.packPrices, quantity) : [];
+  const total = usesPacks(service, material)
+    ? packTotal(service.price, service.packPrices, quantity)
+    : Number((BigInt(service.price) * raw + divisor / 2n) / divisor);
   amount(total);
   if (!Number.isFinite(needed) || needed <= 0 || needed > 1000000000000)
     throw Error('Material usage is outside the supported range.');
@@ -98,6 +103,7 @@ export function quoteLine(ledger, line) {
     lineDiscount: _line,
     orderDiscountShare: _share,
     discountAmount: _discount,
+    packBreakdown: _packs,
     ...rest
   } = line;
   // Shelf items are handed over at the till: no deadline, no production stages.
@@ -121,6 +127,7 @@ export function quoteLine(ledger, line) {
     grossAmount: total,
     lineDiscount,
     unitPrice: service.price,
+    ...(packs.length ? { packBreakdown: packs } : {}),
     service: service.description,
     materialId: material?.id ?? null,
     materialNeeded: material ? needed : 0,

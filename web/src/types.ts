@@ -154,6 +154,8 @@ export interface Job {
   createdBy?: string | null;
   createdByLabel?: string | null;
   unitPrice?: number;
+  /** Packs this job was sold as (pack-priced products): [{ quantity, price, count }]. */
+  packBreakdown?: { quantity: number; price: number; count: number }[];
   materialNeeded?: number;
   measurementUnit?: string;
   requireSize?: boolean;
@@ -270,6 +272,8 @@ export interface Service {
   private?: boolean;
   /** Template cost: amount (kobo) for `per` consumption units, bought as `unit`; `key` names it in formulas. */
   costing?: ServiceCosting | null;
+  /** Prices for packs of this product (kobo for `quantity` pieces); sold as packs plus loose pieces. */
+  packPrices?: PackPrice[];
   archived: boolean;
   version: number;
   createdBy: string;
@@ -282,7 +286,12 @@ export interface Service {
 }
 /** Template use: a formula name, and optionally a cost (amount in kobo for `per` units). */
 export type ServiceCosting = { key: string; amount?: number; per?: number; unit?: string };
+export interface PackPrice {
+  quantity: number;
+  price: number;
+}
 export interface ServiceCommand {
+  packPrices?: PackPrice[];
   shelfItem?: boolean;
   private?: boolean;
   costing?: ServiceCosting | null;

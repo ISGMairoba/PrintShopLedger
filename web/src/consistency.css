@@ -588,3 +588,30 @@ button:not(
 .listed-combobox-list {
   z-index: 40;
 }
+
+/* Pack prices: pack size and price side by side, with a remove button. */
+.pack-prices {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  margin: 12px 0;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.pack-prices legend {
+  font-weight: 700;
+  padding: 0 6px;
+}
+.pack-prices p {
+  margin: 0;
+}
+.pack-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+.pack-prices > button {
+  justify-self: start;
+}

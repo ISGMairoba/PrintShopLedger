@@ -3,6 +3,7 @@ import { templateSpecLines } from './pricing-templates.mjs';
 import { escapeHtml } from './print-settings.mjs';
 import { receiptBusiness, validLogo } from './business-branding.mjs';
 import { renameTerms } from './terms.mjs';
+import { packSummary } from './pack-prices.mjs';
 export const currency = (n) =>
   new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(n / 100);
 const validMoney = (n) => Number.isSafeInteger(n) && n >= 0;
@@ -87,6 +88,7 @@ export function receiptModel(record, business, pending = false, adjustments = []
     const meta = [
       o.showJobId ? (j.ref ?? shortRef(j.id)) : '',
       o.showQuantity && item?.quantity !== undefined && item?.quantity !== null ? `Qty ${item.quantity}` : '',
+      item?.packBreakdown?.length ? packSummary(item.unitPrice ?? 0, item.packBreakdown, item.quantity) : '',
       o.showSize && item?.requireSize ? `Size ${item.width} × ${item.height}` : '',
       ...templateSpecLines(item),
       o.showSource && item?.source

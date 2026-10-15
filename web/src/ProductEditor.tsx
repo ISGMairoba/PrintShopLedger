@@ -1,5 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import Modal from './Modal';
+import PackPricesField, { packDraft, packPricesFrom, type PackDraft } from './PackPricesField';
 import Icon from './Icon';
 import CurrencyInput from './CurrencyInput';
 import { useFeedbackMessage } from './Feedback';
@@ -42,6 +43,7 @@ export default function ProductEditor({
     mode: 'none' | 'add' | 'set';
     quantity: string;
     reason: string;
+    packs: PackDraft;
   };
   const fieldsFor = (id: string): Fields => {
     const p = products.find((x) => x.service.id === id);
@@ -55,13 +57,14 @@ export default function ProductEditor({
       mode: 'none',
       quantity: '',
       reason: '',
+      packs: packDraft(p?.service.packPrices),
     };
   };
   const [f, setF] = useState<Fields>(() => fieldsFor(initialServiceId));
   const [error, setError] = useFeedbackMessage('error');
   const [done, setDone] = useState('');
   const set = (patch: Partial<Fields>) => setF((x) => ({ ...x, ...patch }));
-  const { serviceId, name, price, renameStock, minimum, mode, quantity, reason } = f;
+  const { serviceId, name, price, renameStock, minimum, mode, quantity, reason, packs } = f;
   const chosen = products.find((p) => p.service.id === serviceId) ?? null;
   const shown = products.filter((p) =>
     `${p.service.description} ${p.material?.name ?? ''}`.toLowerCase().includes(query.trim().toLowerCase()),
@@ -77,6 +80,7 @@ export default function ProductEditor({
     renameStock,
     minimumStock: minimum === '' ? 0 : Number(minimum),
     stock: { mode, quantity: Number(quantity || 0), reason },
+    packPrices: packPricesFrom(packs),
   });
   let preview: string[] = [],
     problem = '';
@@ -170,6 +174,20 @@ export default function ProductEditor({
                 </label>
               )}
             </div>
+            {!chosen.service.private && !chosen.material?.requireSize && (
+              <PackPricesField
+                value={packs}
+                onChange={(next) => set({ packs: next })}
+                unitPrice={(() => {
+                  try {
+                    return money(price || '0');
+                  } catch {
+                    return null;
+                  }
+                })()}
+                unit={chosen.material?.measurementUnit ?? 'piece'}
+              />
+            )}
             {m ? (
               <>
                 <h4>
