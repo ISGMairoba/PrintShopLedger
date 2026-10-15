@@ -286,7 +286,9 @@ export default function QuickSale({
         </span>
         {priceError && cart.length > 0 && (
           <small className="danger-text" role="alert">
-            {cart.some((l) => !(l.quantity > 0)) ? 'Enter a quantity for each item, or remove it.' : priceError}
+            {cart.some((l) => !(l.quantity > 0))
+              ? 'Enter a quantity for each item, or remove it.'
+              : priceError}
           </small>
         )}
         {change > 0 && (
