@@ -38,6 +38,15 @@ export function validateService(data, ledger, existing) {
   if (data.private !== undefined && typeof data.private !== 'boolean')
     throw new Error('Choose whether this is used in templates only.');
   const packs = validPackPrices(data.packPrices);
+  if (
+    !!data.variantGroup !== !!data.variantName ||
+    (data.variantName !== undefined &&
+      data.variantName !== null &&
+      (typeof data.variantName !== 'string' ||
+        !data.variantName.trim() ||
+        data.variantName.trim().length > 60))
+  )
+    throw new Error('Give each variant a name of up to 60 characters.');
   const costing = validCosting(data.costing);
   if (data.private && !hasCost(costing)) throw new Error('A templates-only item needs a template cost.');
   if (
@@ -84,6 +93,9 @@ export function applyServiceEvent(input, event) {
       private: data.private ?? false,
       costing: validCosting(data.costing),
       packPrices: validPackPrices(data.packPrices),
+      ...(data.variantGroup
+        ? { variantGroup: data.variantGroup, variantName: String(data.variantName).trim() }
+        : {}),
       archived: false,
       version: 1,
       createdBy: data.modifiedBy,

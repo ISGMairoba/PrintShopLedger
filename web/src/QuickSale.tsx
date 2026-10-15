@@ -15,6 +15,7 @@ import {
   WALK_IN_NAME,
   addToCart,
   pricedCart,
+  productTiles,
   quickSaleInput,
   setQuantity,
   typeQuantity,
@@ -81,7 +82,9 @@ export default function QuickSale({
     }
   })();
   const change = !customer && tendered !== null && tendered > total ? tendered - total : 0;
-  const visible = products.filter((p) => p.name.toLowerCase().includes(query.trim().toLowerCase()));
+  const tiles = productTiles(products, query);
+  const left = (p: (typeof products)[number]) =>
+    p.stock === null ? null : p.stock - (cart.find((l) => l.serviceId === p.id)?.quantity ?? 0);
   async function complete() {
     if (busy) return;
     setError('');
@@ -133,9 +136,47 @@ export default function QuickSale({
             onChange={(e) => setQuery(e.target.value)}
           />
           <div className="quick-products" role="group" aria-label="Products">
-            {visible.map((p) => {
-              const inCart = cart.find((l) => l.serviceId === p.id)?.quantity ?? 0;
-              const out = p.stock !== null && p.stock - inCart <= 0;
+            {tiles.map((tile) => {
+              if (tile.kind === 'group') {
+                const first = tile.variants[0];
+                const total = tile.variants.reduce((n, v) => n + (left(v) ?? 0), 0);
+                return (
+                  <div
+                    className="quick-product quick-variants"
+                    key={tile.id}
+                    role="group"
+                    aria-label={tile.name}
+                  >
+                    <strong>{tile.name}</strong>
+                    <span>{currency(first.price)}</span>
+                    {first.packPrices.length > 0 && <small>{packList(first.packPrices)}</small>}
+                    <small>
+                      {total} {first.unit} left in all
+                    </small>
+                    <div className="variant-chips">
+                      {tile.variants.map((v) => {
+                        const n = left(v);
+                        return (
+                          <button
+                            type="button"
+                            key={v.id}
+                            className={`secondary${n !== null && n <= 0 ? ' out' : ''}`}
+                            aria-label={`Add ${v.name}${n === null ? '' : `, ${n} left`}`}
+                            disabled={busy}
+                            onClick={() => setCart((c) => addToCart(c, v.id))}
+                          >
+                            {v.variantName}
+                            {n !== null && <small>{n <= 0 ? 'Out' : n}</small>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              }
+              const p = tile.product;
+              const remaining = left(p);
+              const out = remaining !== null && remaining <= 0;
               return (
                 <button
                   type="button"
@@ -152,7 +193,7 @@ export default function QuickSale({
                       ? 'Not stock-tracked'
                       : out
                         ? 'Out of stock'
-                        : `${p.stock - inCart} ${p.unit} left`}
+                        : `${remaining} ${p.unit} left`}
                   </small>
                 </button>
               );

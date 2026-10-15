@@ -230,6 +230,48 @@ try {
     } catch (e) {
       failures.push(`${mode} template editor: ${e.message.split('\n')[0]}`);
     }
+    // A product with colour variants: the Add product form, then Quick sale, Edit Products and the editor.
+    try {
+      await nav('Services');
+      await page.getByRole('button', { name: 'Add product', exact: true }).click();
+      const d = page.getByRole('dialog', { name: 'Add product' });
+      await d.locator('input[name=name]').fill('Envelope');
+      await d.locator('input[name=price]').fill('100');
+      await d.getByRole('checkbox', { name: /Comes in variants/ }).check();
+      for (const [i, name, stock] of [
+        [1, 'Pink', '400'],
+        [2, 'Blue', '600'],
+      ]) {
+        await d.getByLabel(`Variant ${i} name`).fill(name);
+        await d.getByLabel(`Variant ${i} opening stock`).fill(stock);
+      }
+      await d.screenshot({ path: `${out}/${mode}-96-add-product-variants.png` });
+      await fieldHeights('Add product variants');
+      await d.getByRole('button', { name: /Save product/ }).click();
+      await d.waitFor({ state: 'detached' });
+      await nav('Point of Service');
+      await page.getByRole('button', { name: 'Quick sale', exact: true }).click();
+      const q = page.getByRole('dialog', { name: 'Quick sale' });
+      await q.getByRole('button', { name: /^Add Envelope — Blue/ }).click();
+      await shot('97-quick-sale-variants', false);
+      await closeDialogs();
+      await nav('Edit Products');
+      await page
+        .getByRole('main')
+        .getByPlaceholder(/Search/)
+        .fill('Envelope');
+      await shot('98-edit-products-variants');
+      await page.getByRole('main').getByRole('button', { name: /Edit/ }).first().click();
+      const e = page.getByRole('dialog').first();
+      await e.waitFor();
+      await e.getByRole('button', { name: 'Add variant' }).click();
+      await e.screenshot({ path: `${out}/${mode}-99-edit-variant.png` });
+      await fieldHeights('Edit variant');
+      await closeDialogs();
+    } catch (e) {
+      failures.push(`${mode} variants: ${e.message.split('\n')[0]}`);
+      await closeDialogs();
+    }
     await context.close();
   }
 } finally {
