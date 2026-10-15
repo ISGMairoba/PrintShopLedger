@@ -43,6 +43,9 @@ try {
     page.setDefaultTimeout(8000);
     await page.goto(`http://127.0.0.1:${port}`);
     await page.screenshot({ path: `${out}/${mode}-00-sign-in.png`, fullPage: true });
+    await page.getByRole('button', { name: 'Forgot password?', exact: true }).click();
+    await page.screenshot({ path: `${out}/${mode}-00-forgot-password.png`, fullPage: true });
+    await page.getByRole('button', { name: 'Back to sign in', exact: true }).click();
     const f = fixture();
     const ledger = applyEvent(f.ledger, f.event);
     const settings = { ...f.settings, theme, businessName: 'Mairoba Studio' };
@@ -161,7 +164,7 @@ try {
       await fieldHeights('Expenses filters');
       await shot('93-expenses-filters');
       await nav('Reports');
-      await page.getByLabel('Customer', { exact: true }).fill('Book');
+      await page.getByRole('button', { name: 'Show customer options', exact: true }).click();
       await fieldHeights('Reports customer');
       await shot('94-reports-customer-search', false);
       await nav('Dashboard');
@@ -189,6 +192,19 @@ try {
     };
     await dialog('Point of Service', 'Add job', 'new-checkout');
     await dialog('Point of Service', 'Quick sale', 'quick-sale');
+    try {
+      await nav('Point of Service');
+      await page.getByRole('button', { name: 'Quick sale', exact: true }).click();
+      const q = page.getByRole('dialog', { name: 'Quick sale' });
+      await q.locator('.quick-product').first().click();
+      await q.getByRole('spinbutton').first().fill('');
+      await q.getByLabel('Discount', { exact: true }).selectOption('percent');
+      await shot('95-quick-sale-discount', false);
+      await closeDialogs();
+    } catch (e) {
+      failures.push(`${mode} quick sale discount: ${e.message.split('\n')[0]}`);
+      await closeDialogs();
+    }
     await dialog('Point of Service', 'Receive payment', 'receive-payment');
     await dialog('Quotations', 'New quotation', 'new-quotation');
     await dialog('Expenses', 'Add expense', 'add-expense');

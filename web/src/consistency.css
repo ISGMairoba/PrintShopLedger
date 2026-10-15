@@ -577,3 +577,14 @@ button:not(
   display: block;
   margin-bottom: 7px;
 }
+
+/* Lists that open from a field or a More button may hang below their card instead of being cut
+   off by it. Cards only clip their corners when nothing is open. */
+.panel:has(.listed-combobox-list),
+.panel:has(.more-menu-panel),
+.panel:has(.customer-picker [role="listbox"]) {
+  overflow: visible;
+}
+.listed-combobox-list {
+  z-index: 40;
+}

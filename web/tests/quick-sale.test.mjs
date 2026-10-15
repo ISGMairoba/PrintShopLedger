@@ -2,7 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { applyEvent, emptyLedger } from '../src/domain.mjs';
 import { applyCheckout, prepareCheckout } from '../src/checkout.mjs';
-import { addToCart, quickSaleInput, setQuantity, shelfProducts, walkInCustomer } from '../src/quick-sale.mjs';
+import {
+  addToCart,
+  quickSaleInput,
+  setQuantity,
+  shelfProducts,
+  typeQuantity,
+  walkInCustomer,
+} from '../src/quick-sale.mjs';
 
 const audit = { modifiedBy: 'u', modifiedByLabel: 'Ada', modifiedAt: '2026-10-13T09:00:00Z' };
 const actor = { id: 'u', label: 'Ada' };
@@ -121,4 +128,63 @@ test('A named customer can pay part now; the rest is owed', () => {
     prepareCheckout(ledger, input, actor, 'sale-2', '2026-10-13T09:00:00Z'),
   );
   assert.equal(after.checkouts[0].outstandingAfter, 30000);
+});
+
+test('Quick sale discounts follow the rank: per item percentage for cashiers, whole sale for Admin+', () => {
+  const ledger = shop();
+  const cart = [
+    { serviceId: 'pen-s', quantity: 3 },
+    { serviceId: 'print', quantity: 100 },
+  ];
+  const cashier = { maxPercent: 10, canFlat: false };
+  const tenPercent = { kind: 'percent', value: 10, reason: 'Regular' };
+  const sale = quickSaleInput(
+    ledger,
+    cart,
+    opts({ customerId: null, tendered: 100000, discount: tenPercent, policy: cashier }),
+  );
+  // ₦600 + ₦100 = ₦700, less 10% on each item = ₦630.
+  assert.equal(sale.total, 63000);
+  assert.equal(sale.input.orderDiscount, undefined);
+  assert.ok(sale.input.lines.every((l) => l.discount?.value === 10));
+  const event = prepareCheckout(ledger, sale.input, actor, 'sale-d', '2026-10-13T09:00:00Z');
+  assert.equal(event.data.total, 63000);
+  assert.throws(
+    () =>
+      quickSaleInput(
+        ledger,
+        cart,
+        opts({
+          customerId: null,
+          tendered: 100000,
+          discount: { kind: 'percent', value: 20 },
+          policy: cashier,
+        }),
+      ),
+    /limit is 10%/,
+  );
+  const admin = { maxPercent: 100, canFlat: true };
+  const flat = quickSaleInput(
+    ledger,
+    cart,
+    opts({ customerId: null, tendered: 100000, discount: { kind: 'amount', value: 5000 }, policy: admin }),
+  );
+  assert.equal(flat.total, 65000);
+  assert.deepEqual(flat.input.orderDiscount, { kind: 'amount', value: 5000 });
+  assert.equal(
+    prepareCheckout(ledger, flat.input, actor, 'sale-f', '2026-10-13T09:00:00Z').data.total,
+    65000,
+  );
+});
+
+test('Typing a quantity of zero keeps the item in the cart until it is removed', () => {
+  const cart = [{ serviceId: 'pen-s', quantity: 2 }];
+  assert.deepEqual(typeQuantity(cart, 'pen-s', 0), [{ serviceId: 'pen-s', quantity: 0 }]);
+  assert.deepEqual(typeQuantity(cart, 'pen-s', Number('')), [{ serviceId: 'pen-s', quantity: 0 }]);
+  assert.deepEqual(typeQuantity(cart, 'pen-s', 5), [{ serviceId: 'pen-s', quantity: 5 }]);
+  assert.deepEqual(setQuantity(cart, 'pen-s', 0), []);
+  assert.throws(
+    () => quickSaleInput(shop(), typeQuantity(cart, 'pen-s', 0), opts({ customerId: null, tendered: 0 })),
+    /more than zero/,
+  );
 });

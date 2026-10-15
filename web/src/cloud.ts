@@ -74,6 +74,11 @@ export class JobSyncConflict extends Error {
     super('This job status changed on another device. Review the latest status.');
   }
 }
+// A password-reset email link opens the app with type=recovery. Read it before the business
+// client consumes the link, so the app can ask for the new password.
+export const passwordRecoveryLink =
+  typeof window !== 'undefined' &&
+  /(^|[#?&])type=recovery(&|$)/.test(window.location.hash + window.location.search);
 const url = import.meta.env.VITE_SUPABASE_URL;
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 // Only the business client may adopt a session from an email link. If both clients read

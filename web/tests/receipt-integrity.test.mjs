@@ -171,3 +171,46 @@ test('Each business chooses what its receipt shows and which line leads each job
   assert.ok(receiptHtml(r, brand({}), false, [], { layout: 'wide' }).includes('<th class="r">Balance</th>'));
   assert.ok(!receiptHtml(r, minimal, false, [], { layout: 'wide' }).includes('<th class="r">Paid now</th>'));
 });
+
+test('A payment that also clears older balances shows this sale first, then the earlier jobs', async () => {
+  const { receiptModel } = await import('../src/receipts.mjs');
+  const bal = (id, amount, before, now) => ({
+    id,
+    description: id,
+    service: 'Bag',
+    amount,
+    paidBefore: before,
+    paidThisCheckout: now,
+    outstandingAfter: amount - before - now,
+  });
+  const record = {
+    id: 'r',
+    customerSnapshot: { name: 'A', phone: '1' },
+    jobs: [{ id: 'new1' }, { id: 'new2' }],
+    jobBalances: [
+      bal('old', 4000000, 360000, 3640000),
+      bal('new1', 13500000, 0, 13500000),
+      bal('new2', 8000000, 0, 2860000),
+    ],
+    total: 21500000,
+    cashReceived: 20000000,
+    method: 'Cash',
+    createdAt: '2026-10-15T00:57:00Z',
+    paidOn: '2026-10-15',
+    allocations: [],
+    walletUsed: 0,
+    walletAdded: 0,
+  };
+  assert.deepEqual(
+    receiptModel(record, '').items.map((i) => [i.title, i.heading ?? '']),
+    [
+      ['new1', 'This sale'],
+      ['new2', ''],
+      ['old', 'Earlier balances paid with this payment'],
+    ],
+  );
+  // Only new jobs: no headings at all.
+  assert.ok(
+    receiptModel({ ...record, jobBalances: record.jobBalances.slice(1) }, '').items.every((i) => !i.heading),
+  );
+});

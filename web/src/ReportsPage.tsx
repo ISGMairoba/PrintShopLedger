@@ -27,7 +27,7 @@ import ListedCombobox from './ListedCombobox';
 
 /** How a customer appears in the statement picker: name, phone, and archived when it is. */
 const customerOption = (c: { name: string; phone: string; archived?: boolean }) =>
-  `${c.name}${c.phone ? ' — ' + c.phone : ''}${c.archived ? ' (archived)' : ''}`;
+  `${c.name}${c.phone && c.phone !== c.name ? ' — ' + c.phone : ''}${c.archived ? ' (archived)' : ''}`;
 import { nameSections } from './report-words';
 
 export type ReportAccess = {
