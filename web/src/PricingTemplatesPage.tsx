@@ -1,4 +1,6 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { TemplateExportDialog, TemplateImportDialog, type TemplatePackage } from './TemplateTransfer';
+import { MAX_TEMPLATE_FILE_BYTES, readTemplateFile } from './template-transfer.mjs';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import TemplateEditor from './PricingTemplatesEditor';
 import Modal from './Modal';
 import Icon from './Icon';
@@ -56,6 +58,9 @@ export default function PricingTemplatesPage({
   onStartQuotation: (start: TemplateStart) => void;
 }) {
   const { w } = useWords();
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState<TemplatePackage | null>(null);
+  const [exporting, setExporting] = useState<{ templates: PricingTemplate[]; share: boolean } | null>(null);
   const [editing, setEditing] = useState<PricingTemplate | null>(null);
   const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -147,10 +152,32 @@ export default function PricingTemplatesPage({
       setBusy(false);
     }
   }
+  async function readImport(file: File | undefined) {
+    if (!file || !canManage) return;
+    try {
+      if (file.size > MAX_TEMPLATE_FILE_BYTES)
+        throw Error('Choose a template JSON file no larger than 2 MB.');
+      setImporting(readTemplateFile(await file.text()));
+    } catch (cause) {
+      setMessage(cause instanceof Error ? cause.message : String(cause), 'error');
+    }
+  }
   const visible = pricing.templates.filter((t) => showArchived || !t.archived);
   const costs = ledger.services.filter((s) => !s.archived && s.costing);
   return (
     <section className="panel editor" aria-label="Pricing templates">
+      <input
+        ref={fileInput}
+        type="file"
+        accept=".json,application/json"
+        hidden
+        aria-label="Import template file"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = '';
+          void readImport(file);
+        }}
+      />
       <FeedbackBanner message={message} tone={tone} />
       <div className="settings-tabs" role="tablist" aria-label="Pricing templates sections">
         {tabs.map(([key, label]) => (
@@ -213,6 +240,22 @@ export default function PricingTemplatesPage({
             >
               <button
                 type="button"
+                className="secondary"
+                disabled={!canSave}
+                onClick={() => fileInput.current?.click()}
+              >
+                <Icon name="import" /> Import
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={busy || !visible.length}
+                onClick={() => setExporting({ templates: visible, share: false })}
+              >
+                <Icon name="export" /> Export {showArchived ? 'all' : 'active'}
+              </button>
+              <button
+                type="button"
                 disabled={!canSave}
                 onClick={() => setEditing(newTemplate() as PricingTemplate)}
               >
@@ -251,6 +294,22 @@ export default function PricingTemplatesPage({
                       </p>
                     )}
                     <div className="material-actions">
+                      <button
+                        type="button"
+                        className="text-button"
+                        disabled={busy}
+                        onClick={() => setExporting({ templates: [t], share: false })}
+                      >
+                        <Icon name="export" /> Export
+                      </button>
+                      <button
+                        type="button"
+                        className="text-button"
+                        disabled={busy}
+                        onClick={() => setExporting({ templates: [t], share: true })}
+                      >
+                        <Icon name="share" /> Share
+                      </button>
                       {!t.archived && (
                         <button
                           type="button"
@@ -395,6 +454,27 @@ export default function PricingTemplatesPage({
             </div>
           )}
         </>
+      )}
+      {exporting && canManage && (
+        <TemplateExportDialog
+          templates={exporting.templates}
+          ledger={ledger}
+          share={exporting.share}
+          onClose={() => setExporting(null)}
+        />
+      )}
+      {importing && canManage && (
+        <TemplateImportDialog
+          file={importing}
+          ledger={ledger}
+          pricing={pricing}
+          busy={busy}
+          canSave={canSave}
+          onClose={() => setImporting(null)}
+          onSave={(templates) =>
+            saveTemplates(templates, `${importing.templates.length} template(s) imported.`)
+          }
+        />
       )}
       {editing && (
         <TemplateEditor

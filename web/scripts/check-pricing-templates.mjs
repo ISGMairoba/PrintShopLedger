@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { readTemplateFile } from '../src/template-transfer.mjs';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from 'playwright';
@@ -262,6 +264,76 @@ try {
     assert.equal(await d.getByLabel('Quantity', { exact: true }).inputValue(), '20');
     await d.getByRole('button', { name: 'Close', exact: true }).first().click();
     await d.waitFor({ state: 'detached' });
+    // File transfer is reviewed first, keeps existing jobs/stock intact, and survives reload.
+    await nav('Pricing Templates');
+    await page.getByRole('tab', { name: 'Templates', exact: true }).click();
+    let card = page
+      .locator('.template-card')
+      .filter({ has: page.getByRole('heading', { name: 'Books', exact: true }) });
+    await card.getByRole('button', { name: 'Export', exact: true }).click();
+    let transfer = page.getByRole('dialog', { name: 'Export pricing templates', exact: true });
+    assert.match(await transfer.innerText(), /fixed amounts|fixed/i);
+    const downloadEvent = page.waitForEvent('download');
+    await transfer.getByRole('button', { name: 'Download file', exact: true }).click();
+    const exported = await downloadEvent;
+    const exportedText = await readFile(await exported.path(), 'utf8');
+    const portable = readTemplateFile(exportedText);
+    assert.equal(portable.templates.length, 1);
+    await transfer.getByRole('button', { name: 'Close', exact: true }).click();
+    // Unsupported file sharing downloads a portable file and explains attachment.
+    await page.evaluate(() =>
+      Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => false }),
+    );
+    await card.getByRole('button', { name: 'Share', exact: true }).click();
+    transfer = page.getByRole('dialog', { name: 'Share pricing template', exact: true });
+    const sharedDownload = page.waitForEvent('download');
+    await transfer.getByRole('button', { name: 'Share file', exact: true }).click();
+    await sharedDownload;
+    await transfer.getByText(/File downloaded. Attach it/).waitFor();
+    await transfer.getByRole('button', { name: 'Close', exact: true }).click();
+    const importFile = async (text) => {
+      const chooserEvent = page.waitForEvent('filechooser');
+      // On narrow screens ToolbarActions may put Import in the More menu.
+      const importButton = page.getByRole('button', { name: 'Import', exact: true });
+      if (!(await importButton.isVisible())) await page.getByRole('button', { name: /More/ }).click();
+      await importButton.click();
+      await (await chooserEvent).setFiles({
+        name: 'templates.json',
+        mimeType: 'application/json',
+        buffer: Buffer.from(text),
+      });
+    };
+    await importFile('{');
+    await page.getByText('This is not a valid template JSON file.', { exact: true }).waitFor();
+    await importFile(exportedText);
+    transfer = page.getByRole('dialog', { name: 'Import pricing templates', exact: true });
+    assert.equal(
+      await transfer.getByLabel('Template name', { exact: true }).inputValue(),
+      'Books (import 1)',
+    );
+    const match = transfer.locator('select').first();
+    const suggested = await match.inputValue();
+    assert.ok(suggested);
+    await match.selectOption('');
+    assert.equal(
+      await transfer.getByRole('button', { name: 'Import 1 template', exact: true }).isDisabled(),
+      true,
+    );
+    await match.selectOption(suggested);
+    await transfer.getByText(/All references matched/).waitFor();
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await transfer.screenshot({ path: `/tmp/pricing-templates-import-${mobile ? 'mobile' : 'desktop'}.png` });
+    const beforeImport = await readState();
+    await transfer.getByRole('button', { name: 'Import 1 template', exact: true }).click();
+    await transfer.waitFor({ state: 'detached' });
+    const afterImport = await readState();
+    assert.deepEqual(afterImport.ledger, beforeImport.ledger);
+    assert.deepEqual(afterImport.pending, beforeImport.pending);
+    await page.reload();
+    await page.getByRole('button', { name: 'Try locally on this device', exact: true }).click();
+    await nav('Pricing Templates');
+    await page.getByRole('tab', { name: 'Templates', exact: true }).click();
+    await page.getByRole('heading', { name: 'Books (import 1)', exact: true }).waitFor();
     await nav('Business Settings');
     await page.getByRole('tab', { name: 'Pricing templates', exact: true }).click();
     await page.getByLabel('Enable pricing templates').uncheck();

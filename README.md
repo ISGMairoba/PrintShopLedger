@@ -1,9 +1,12 @@
 # PrintShopLedger
 
-A generic business application for tracking jobs and the payments allocated to each job.
+A print-shop operations app for services and retail sales, production jobs, stock, quotations, pricing templates and payments allocated to individual jobs.
 
-The React + TypeScript app, offline storage, Supabase schema and setup instructions are in [web/README.md](web/README.md).
+The React + TypeScript PWA saves work locally and synchronizes with isolated Supabase business workspaces. It includes staff access, customer credit, expenses, audited corrections, reporting and QZ Tray printing.
 
-This first milestone includes customers, jobs and job-level payment allocations. Business workspaces keep each testing business's data separate. This repository contains the new web project only; the unfinished SMG-2026 desktop app remains its business-workflow reference.
+- [Features, setup and operational limits](web/README.md)
+- [Code guide](web/CODE_GUIDE.md)
+- [Pricing template import/export/share](web/docs/pricing-template-transfers.md)
+- [User manual plan](web/docs/manual-plan.md)
 
-For a map of the code and how to check a change, see [web/CODE_GUIDE.md](web/CODE_GUIDE.md).
+The application source is in `web/`. The earlier SMG-2026 desktop project remains a workflow reference, not part of this repository.
