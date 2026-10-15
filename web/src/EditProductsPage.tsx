@@ -4,6 +4,7 @@ import ResponsiveTable from './ResponsiveTable';
 import { useWords } from './Words';
 import { currency } from './receipts.mjs';
 import { editableProducts } from './product-edit.mjs';
+import { variantGroups } from './variants.mjs';
 import type { Ledger } from './types';
 
 /** Every product and service, with its stock: pick one to change its name, price and stock together. */
@@ -22,6 +23,17 @@ export default function EditProductsPage({
   const [query, setQuery] = useState('');
   const [stockOnly, setStockOnly] = useState(true);
   const products = useMemo(() => editableProducts(ledger), [ledger]);
+  // Stock across all variants of a product, e.g. "1,000 piece in all: Blue 600 · Pink 400".
+  const groups = useMemo(() => new Map(variantGroups(ledger).map((g) => [g.id, g])), [ledger]);
+  const groupLine = (id: string) => {
+    const g = groups.get(id);
+    if (!g) return '';
+    const total = g.members.reduce((n, m) => n + (m.material?.available ?? 0), 0);
+    const unit = g.members[0].material?.measurementUnit ?? '';
+    return `${g.name}: ${Math.round(total * 1000) / 1000} ${unit} in all (${g.members
+      .map((m) => `${m.service.variantName} ${m.material?.available ?? 0}`)
+      .join(' · ')})`;
+  };
   const shown = products.filter(
     (p) =>
       (!stockOnly || p.material) &&
@@ -78,11 +90,13 @@ export default function EditProductsPage({
                       <td>
                         <strong>{service.description}</strong>
                         <small>
-                          {material
-                            ? material.name === service.description
-                              ? w('Own stock item')
-                              : `${w('Stock item')}: ${material.name}`
-                            : w('No stock item')}
+                          {service.variantGroup
+                            ? groupLine(service.variantGroup)
+                            : material
+                              ? material.name === service.description
+                                ? w('Own stock item')
+                                : `${w('Stock item')}: ${material.name}`
+                              : w('No stock item')}
                           {sharedWith.length ? ` · shared with ${sharedWith.length}` : ''}
                           {service.private ? ' · Private' : ''}
                         </small>

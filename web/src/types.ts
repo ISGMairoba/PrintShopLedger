@@ -274,6 +274,10 @@ export interface Service {
   costing?: ServiceCosting | null;
   /** Prices for packs of this product (kobo for `quantity` pieces); sold as packs plus loose pieces. */
   packPrices?: PackPrice[];
+  /** Variants of one product (colours, sizes…) share this id; each has its own stock item. */
+  variantGroup?: string | null;
+  /** This variant's name, e.g. "Blue". */
+  variantName?: string | null;
   archived: boolean;
   version: number;
   createdBy: string;
@@ -292,6 +296,8 @@ export interface PackPrice {
 }
 export interface ServiceCommand {
   packPrices?: PackPrice[];
+  variantGroup?: string | null;
+  variantName?: string | null;
   shelfItem?: boolean;
   private?: boolean;
   costing?: ServiceCosting | null;

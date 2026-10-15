@@ -3,13 +3,14 @@ import CurrencyInput from './CurrencyInput';
 import ResponsiveTable from './ResponsiveTable';
 import Icon from './Icon';
 import { packList } from './pack-prices.mjs';
+import { newVariantProductEvents } from './variants.mjs';
 import PackPricesField, { packDraft, packPricesFrom, type PackDraft } from './PackPricesField';
 import ToolbarActions, { MenuToggle } from './ToolbarActions';
 import { useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import { shortLabel } from './material-display.mjs';
 import { SortHeader, useTableSort } from './TableSort';
-import { money } from './domain.mjs';
+import { emptyLedger, money } from './domain.mjs';
 import { materialCode } from './material-display.mjs';
 import { serviceCode, serviceMatches, servicePrice } from './services.mjs';
 import { canonical, consumptionUnit, costRate, hasCost, suggestCostKey } from './pricing-templates.mjs';
@@ -53,6 +54,15 @@ export default function ServicesPage({
   const [privateItem, setPrivateItem] = useState(false);
   const [costKey, setCostKey] = useState('');
   const [packs, setPacks] = useState<PackDraft>([]);
+  // Add product: one stock item, or one per variant (colours, sizes…).
+  const [withVariants, setWithVariants] = useState(false);
+  const blankVariants = () => [
+    { name: '', stock: '', minimum: '' },
+    { name: '', stock: '', minimum: '' },
+  ];
+  const [variantRows, setVariantRows] = useState(blankVariants);
+  /** Enough of the ledger to check new items before saving. */
+  const ledgerFor = () => ({ ...emptyLedger(), services, materials });
   const [priceText, setPriceText] = useState('');
   const kobo = (text: string) => {
     try {
@@ -166,6 +176,23 @@ export default function ServicesPage({
       const stock = Number(data.get('stock') || 0),
         minimum = Number(data.get('minimumStock') || 0);
       if (!name) throw Error(w('Enter a product name.'));
+      if (withVariants) {
+        await onSaveMany(
+          newVariantProductEvents(
+            ledgerFor(),
+            {
+              name,
+              unit: String(data.get('unit')).trim(),
+              price,
+              packPrices: packPricesFrom(packs),
+              variants: variantRows,
+            },
+            actor,
+          ),
+        );
+        setProduct(false);
+        return;
+      }
       if (!Number.isFinite(stock) || stock < 0) throw Error('Opening stock must be zero or more.');
       const at = new Date().toISOString();
       const audit = { modifiedBy: actor.id, modifiedByLabel: actor.label, modifiedAt: at };
@@ -275,6 +302,8 @@ export default function ServicesPage({
               onClick={() => {
                 setPacks([]);
                 setPriceText('');
+                setWithVariants(false);
+                setVariantRows(blankVariants());
                 setProduct(true);
                 setEditor(null);
                 setConfirmation(null);
@@ -694,16 +723,101 @@ export default function ServicesPage({
                   Price (₦)
                   <CurrencyInput name="price" required onValueChange={setPriceText} />
                 </label>
-                <label>
-                  Opening stock
-                  <input name="stock" type="number" min="0" step="0.001" defaultValue="0" />
-                </label>
-                <label>
-                  Minimum stock
-                  <input name="minimumStock" type="number" min="0" step="0.001" defaultValue="0" />
-                  <small>Shows a low-stock warning at or below this.</small>
-                </label>
+                {!withVariants && (
+                  <>
+                    <label>
+                      Opening stock
+                      <input name="stock" type="number" min="0" step="0.001" defaultValue="0" />
+                    </label>
+                    <label>
+                      Minimum stock
+                      <input name="minimumStock" type="number" min="0" step="0.001" defaultValue="0" />
+                      <small>Shows a low-stock warning at or below this.</small>
+                    </label>
+                  </>
+                )}
               </div>
+              <label className="check-label">
+                <input
+                  type="checkbox"
+                  checked={withVariants}
+                  onChange={(e) => setWithVariants(e.target.checked)}
+                />
+                Comes in variants (colours, sizes…)
+              </label>
+              {withVariants && (
+                <fieldset className="variant-rows">
+                  <legend>Variants</legend>
+                  <p className="muted">
+                    Each variant keeps its own stock. They share the price and pack prices, and each is priced
+                    on its own: pieces of different variants never make up a pack.
+                  </p>
+                  {variantRows.map((row, index) => (
+                    <div className="variant-row" key={index}>
+                      <label>
+                        Variant
+                        <input
+                          aria-label={`Variant ${index + 1} name`}
+                          maxLength={60}
+                          placeholder={['e.g. Pink', 'e.g. Blue', 'e.g. White'][index] ?? 'Name'}
+                          value={row.name}
+                          onChange={(e) =>
+                            setVariantRows((rows) =>
+                              rows.map((r, i) => (i === index ? { ...r, name: e.target.value } : r)),
+                            )
+                          }
+                        />
+                      </label>
+                      <label>
+                        Opening stock
+                        <input
+                          aria-label={`Variant ${index + 1} opening stock`}
+                          type="number"
+                          min="0"
+                          step="0.001"
+                          value={row.stock}
+                          onChange={(e) =>
+                            setVariantRows((rows) =>
+                              rows.map((r, i) => (i === index ? { ...r, stock: e.target.value } : r)),
+                            )
+                          }
+                        />
+                      </label>
+                      <label>
+                        Minimum stock
+                        <input
+                          aria-label={`Variant ${index + 1} minimum stock`}
+                          type="number"
+                          min="0"
+                          step="0.001"
+                          value={row.minimum}
+                          onChange={(e) =>
+                            setVariantRows((rows) =>
+                              rows.map((r, i) => (i === index ? { ...r, minimum: e.target.value } : r)),
+                            )
+                          }
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="secondary"
+                        aria-label={`Remove variant ${index + 1}`}
+                        disabled={variantRows.length <= 2}
+                        onClick={() => setVariantRows((rows) => rows.filter((_, i) => i !== index))}
+                      >
+                        <Icon name="close" />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={() => setVariantRows((rows) => [...rows, { name: '', stock: '', minimum: '' }])}
+                  >
+                    <Icon name="add" /> Add variant
+                  </button>
+                </fieldset>
+              )}
               <PackPricesField value={packs} onChange={setPacks} unitPrice={kobo(priceText)} />
               <button type="submit">
                 <Icon name="save" /> {busy ? 'Saving...' : 'Save product'}

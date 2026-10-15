@@ -4,6 +4,7 @@
 import { quoteLine } from './checkout.mjs';
 import { applyOrderDiscount, validDiscount } from './discounts.mjs';
 import { packTotal } from './pack-prices.mjs';
+import { variantBase } from './variants.mjs';
 
 export const WALK_IN_NAME = 'Walk-in customer';
 /** A phone value with no digits: it never clashes with a real customer's number. */
@@ -23,6 +24,9 @@ export function shelfProducts(ledger) {
         name: s.description,
         price: s.price,
         packPrices: s.packPrices ?? [],
+        variantGroup: s.variantGroup ?? null,
+        variantName: s.variantName ?? null,
+        productName: variantBase(s),
         material,
         stock: material ? material.available : null,
         unit: material?.measurementUnit ?? 'item',
@@ -32,6 +36,45 @@ export function shelfProducts(ledger) {
     })
     .filter((p) => p.sellable)
     .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * Tiles for the product grid: a product with variants is one tile with a button per variant.
+ * A search matches the product name or the variant name.
+ * @template {{ id: string, name: string, productName: string, variantGroup: string | null, variantName: string | null }} P
+ * @param {P[]} products
+ * @param {string} [query]
+ * @returns {({ kind: 'single', product: P } | { kind: 'group', id: string, name: string, variants: P[] })[]}
+ */
+export function productTiles(products, query = '') {
+  const q = query.trim().toLowerCase();
+  const tiles = [];
+  const groups = new Map();
+  for (const p of products) {
+    if (q && !p.name.toLowerCase().includes(q)) continue;
+    if (!p.variantGroup) {
+      tiles.push({ kind: 'single', product: p, sortName: p.name });
+      continue;
+    }
+    let tile = groups.get(p.variantGroup);
+    if (!tile) {
+      tile = {
+        kind: 'group',
+        id: p.variantGroup,
+        name: p.productName,
+        variants: [],
+        sortName: p.productName,
+      };
+      groups.set(p.variantGroup, tile);
+      tiles.push(tile);
+    }
+    tile.variants.push(p);
+  }
+  for (const tile of groups.values())
+    tile.variants.sort((a, b) => String(a.variantName).localeCompare(String(b.variantName)));
+  return tiles
+    .sort((a, b) => a.sortName.localeCompare(b.sortName))
+    .map(({ sortName: _sort, ...tile }) => tile);
 }
 
 /** The shared walk-in customer, if the business has one. */
