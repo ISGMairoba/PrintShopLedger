@@ -1,10 +1,31 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type InputHTMLAttributes } from 'react';
 import Modal from '../Modal';
 import { FeedbackBanner, type FeedbackTone } from '../Feedback';
 import type { Shop } from './shared';
 
 type Feedback = { message: string; tone: FeedbackTone };
 const invalid = ({ message, tone }: Feedback) => tone === 'error' && !!message;
+
+/**
+ * Staff tills are shared, so staff and supervisor passwords are not filled in or saved by the
+ * browser or a password manager: the boxes are marked as not-for-autofill ("new-password" stops
+ * browsers filling a saved password; the data- attributes are honoured by 1Password, LastPass and
+ * Bitwarden). Each sign-in form starts empty.
+ */
+function SharedDeviceInput(props: InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      {...props}
+      autoComplete={props.type === 'password' ? 'new-password' : 'off'}
+      autoCapitalize="none"
+      spellCheck={false}
+      data-1p-ignore="true"
+      data-lpignore="true"
+      data-bwignore="true"
+      data-form-type="other"
+    />
+  );
+}
 
 /** Shown while saved sign-ins load; offers a retry if loading stalls. */
 export function StartupScreen({ error, onRetry }: { error: string; onRetry: () => void }) {
@@ -249,23 +270,11 @@ export function StaffLoginForm({
     <form onSubmit={onSubmit}>
       <label>
         Username
-        <input
-          name="username"
-          autoComplete="username"
-          aria-invalid={invalid(feedback)}
-          maxLength={40}
-          required
-        />
+        <SharedDeviceInput name="username" aria-invalid={invalid(feedback)} maxLength={40} required />
       </label>
       <label>
         Password
-        <input
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          aria-invalid={invalid(feedback)}
-          required
-        />
+        <SharedDeviceInput name="password" type="password" aria-invalid={invalid(feedback)} required />
       </label>
       <button disabled={busy || !online}>{busy ? 'Signing in…' : 'Sign in user'}</button>
     </form>
@@ -344,17 +353,11 @@ export function SupervisorLogin({
       >
         <label>
           Supervisor username
-          <input name="username" autoComplete="username" aria-invalid={invalid(feedback)} required />
+          <SharedDeviceInput name="username" aria-invalid={invalid(feedback)} required />
         </label>
         <label>
           Supervisor password
-          <input
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            aria-invalid={invalid(feedback)}
-            required
-          />
+          <SharedDeviceInput name="password" type="password" aria-invalid={invalid(feedback)} required />
         </label>
         <button disabled={busy || !online}>Verify supervisor</button>
       </form>

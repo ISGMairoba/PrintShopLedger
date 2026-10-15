@@ -47,6 +47,7 @@ import {
   MaterialConflictReview,
 } from './ConflictReviews';
 import { useAuthSessions, useOnline, useWorkspaces } from './app/useSessions';
+import { useAutoLock } from './app/useAutoLock';
 import {
   BusinessLogin,
   PasswordRecovery,
@@ -835,6 +836,26 @@ export default function App() {
       : shop?.staffName || session?.user.user_metadata.full_name || salesActor.label,
   };
   const currentJob = ledger.jobs.find((job) => job.id === selectedJob);
+  // Auto-lock (Business Settings → Security): sign the user out after the idle time. The business
+  // stays signed in, so the staff sign-in appears with empty fields.
+  const lockMinutes = branding.settings.security.autoLockMinutes;
+  useAutoLock({
+    minutes: lockMinutes,
+    active: !demo && !!session && !!supabase,
+    online,
+    busy,
+    onLock: () => {
+      void supabase!.auth.signOut({ scope: 'local' }).then(({ error }: { error: unknown }) => {
+        if (error) return;
+        setSwitchUser(false);
+        setSession(null);
+        setMessage(
+          `Locked after ${lockMinutes} minute${lockMinutes === 1 ? '' : 's'} without use. Sign in to continue.`,
+          'info',
+        );
+      });
+    },
+  });
 
   if (validActivationToken(activationToken))
     return <DeveloperActivation key={activationToken} token={activationToken} online={online} />;
