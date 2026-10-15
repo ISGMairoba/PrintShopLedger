@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from './cloud';
-import { defaultBranding, validateBranding, themeVariables } from './business-branding.mjs';
+import { resolveLogo } from './logo-variants.mjs';
+import { defaultBranding, validateBranding, themeVariables, themeColors } from './business-branding.mjs';
 export type Branding = ReturnType<typeof defaultBranding>;
 type Saved = { settings: Branding; version: number; modified_at?: string; modified_by?: string };
 export default function useBusinessBranding(
@@ -11,6 +12,7 @@ export default function useBusinessBranding(
   demo: boolean,
 ) {
   const [saved, setSaved] = useState<Saved>({ settings: defaultBranding(), version: 0 }),
+    [sidebarLogo, setSidebarLogo] = useState(''),
     [ready, setReady] = useState(false),
     [error, setError] = useState(''),
     [preference, setPreference] = useState('business');
@@ -127,17 +129,37 @@ export default function useBusinessBranding(
     const settings = scope ? saved.settings : defaultBranding(),
       media = matchMedia('(prefers-color-scheme: dark)');
     const mode = scope && preference !== 'business' ? preference : settings.theme;
+    const favicon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+    const originalHref = favicon?.getAttribute('href');
+    const originalType = favicon?.getAttribute('type');
     const apply = () => {
       const resolved = mode === 'system' ? (media.matches ? 'dark' : 'light') : mode;
       document.documentElement.dataset.theme = resolved;
+      // Follow the actual sidebar surface, including custom background colors.
+      const background = themeColors(settings, resolved).ink === '#ffffff' ? 'dark' : 'light';
+      setSidebarLogo(resolveLogo(settings, 'sidebar', background));
+      if (favicon) {
+        const icon = resolveLogo(settings, 'favicon', resolved);
+        favicon.setAttribute('href', icon || originalHref || '/icon.svg');
+        if (icon) favicon.setAttribute('type', icon.startsWith('data:image/png') ? 'image/png' : 'image/jpeg');
+        else if (originalType) favicon.setAttribute('type', originalType);
+      }
       for (const [key, value] of Object.entries(themeVariables(settings, resolved)))
         document.documentElement.style.setProperty(key, value);
     };
     apply();
     media.addEventListener('change', apply);
-    return () => media.removeEventListener('change', apply);
+    return () => {
+      media.removeEventListener('change', apply);
+      if (favicon && originalHref) favicon.setAttribute('href', originalHref);
+      if (favicon) {
+        if (originalType) favicon.setAttribute('type', originalType);
+        else favicon.removeAttribute('type');
+      }
+    };
   }, [saved.settings, scope, preference]);
   return {
+    sidebarLogo,
     settings: { ...saved.settings, businessName: saved.settings.businessName || name },
     version: saved.version,
     modifiedAt: saved.modified_at,
@@ -149,3 +171,4 @@ export default function useBusinessBranding(
     setTheme,
   };
 }
+

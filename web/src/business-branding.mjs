@@ -1,3 +1,4 @@
+import { logoVariantsDefaults, logoUsageDefaults, validateLogoVariants, validateLogoUsage, resolveLogo } from './logo-variants.mjs';
 import {
   validatePageAccess,
   defaultPageAccess,
@@ -63,6 +64,8 @@ export const defaultBranding = () => ({
   website: '',
   socials: '',
   logo: '',
+  logoVariants: logoVariantsDefaults(),
+  logoUsage: logoUsageDefaults(),
   primary: '#124b40',
   accent: '#d9a126',
   theme: 'system',
@@ -127,6 +130,11 @@ export function validateBranding(input) {
   if (value.website && !/^https?:\/\/[^\s]+$/i.test(value.website))
     throw Error('Website must start with https:// or http://.');
   if (!validLogo(value.logo)) throw Error('Choose a PNG or JPEG logo (up to 250 KB after processing).');
+  value.logoVariants = validateLogoVariants(value.logoVariants);
+  value.logoUsage = validateLogoUsage(value.logoUsage);
+  // Leave room for JSONB whitespace in the database's 4 MB payload budget.
+  if (new TextEncoder().encode(JSON.stringify(value)).length > 3900000)
+    throw Error('Business settings are too large. Use smaller logos or remove unused logo variants.');
   for (const key of ['primary', 'accent'])
     if (!/^#[0-9a-f]{6}$/i.test(value[key])) throw Error('Choose valid brand colors.');
   if (!['light', 'dark', 'system'].includes(value.theme)) throw Error('Choose Light, Dark or System.');
@@ -340,6 +348,7 @@ export function receiptBusiness(input) {
   return {
     ...defaultBranding(),
     ...input,
+    logo: resolveLogo(input, 'documents', 'light'),
     receipt: { ...defaultBranding().receipt, ...input?.receipt },
     receiptPage: { ...defaultBranding().receiptPage, ...(input?.receiptPage ?? input?.receipt) },
     documents: { ...defaultBranding().documents, ...input?.documents },
@@ -359,3 +368,4 @@ export function suggestedPalette(pixels) {
     .slice(0, 6)
     .map(([hex]) => hex);
 }
+

@@ -1,4 +1,5 @@
 import type { Branding } from './useBusinessBranding';
+import { resolveLogo, logoVariantsDefaults } from './logo-variants.mjs';
 
 // Thermal receipt printers print black only: a coloured or pale logo (an orange wordmark, say)
 // comes out faint or not at all. For till rolls the logo is turned into solid black ink: every
@@ -44,10 +45,13 @@ export function inkLogo(dataUrl: string): Promise<string> {
 
 /** The business details with its logo in black ink (unchanged when there is no logo). */
 export async function withInkLogo(business: string | Branding): Promise<string | Branding> {
-  if (typeof business === 'string' || !business.logo) return business;
+  if (typeof business === 'string') return business;
+  const logo = resolveLogo(business, 'documents', 'light');
+  if (!logo) return business;
   try {
-    return { ...business, logo: await inkLogo(business.logo) };
+    return { ...business, logo: await inkLogo(logo), logoVariants: logoVariantsDefaults() };
   } catch {
     return business;
   }
 }
+
