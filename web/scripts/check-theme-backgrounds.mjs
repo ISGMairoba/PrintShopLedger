@@ -177,4 +177,3 @@ try {
   await browser?.close();
   server.kill();
 }
-
