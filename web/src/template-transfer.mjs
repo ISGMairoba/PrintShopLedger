@@ -145,6 +145,7 @@ export function compatibleTemplateItem(source, target, materials) {
   return (
     !!target &&
     !target.archived &&
+    (target.materialId === null || materials.some((m) => m.id === target.materialId && !m.archived)) &&
     consumptionUnit(target, materials) === source.unit &&
     (!source.uses.includes('cost') || hasCost(target.costing)) &&
     (!source.uses.includes('price') || (!!target.costing?.key && !target.private))

@@ -95,6 +95,9 @@ test('import requires all references, compatible units, active items, and requir
   ledger.services[0].archived = true;
   assert.throws(run, /compatible/);
   ledger.services[0].archived = false;
+  ledger.materials[0].archived = true;
+  assert.throws(run, /compatible/);
+  ledger.materials[0].archived = false;
   delete ledger.services[0].costing.amount;
   assert.throws(run, /compatible/);
 });
