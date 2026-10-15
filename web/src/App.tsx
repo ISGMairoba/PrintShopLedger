@@ -938,15 +938,15 @@ export default function App() {
                   header={
                     <>
                       <div className="brand">
-                        {branding.settings.logo && (
+                        {branding.sidebarLogo && (
                           <img
                             className="sidebar-business-logo"
-                            src={branding.settings.logo}
+                            src={branding.sidebarLogo}
                             alt={businessName + ' logo'}
                           />
                         )}
                         <div className="brand-copy">
-                          {!branding.settings.logo && <strong className="brand-title">{businessName}</strong>}
+                          {!branding.sidebarLogo && <strong className="brand-title">{businessName}</strong>}
                           <span className={`connection ${online ? 'online' : ''}`} role="status">
                             {online ? 'Online' : 'Offline'} · {state.pending.length} pending changes
                           </span>

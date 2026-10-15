@@ -73,7 +73,7 @@ export function receiptModel(record, business, pending = false, adjustments = []
   adjustments = adjustments.filter(
     (item) => !item.groupId || !adjustments.some((parent) => parent.id === item.groupId),
   );
-  const b = receiptBusiness(business),
+  const b = receiptBusiness(business, layout === 'roll' ? 'roll' : 'page'),
     // Receipt printers (roll) and full pages each have their own content settings.
     o = layout === 'roll' ? b.receipt : b.receiptPage,
     c = record.customerSnapshot;

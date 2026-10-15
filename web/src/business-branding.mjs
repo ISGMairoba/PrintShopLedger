@@ -1,4 +1,11 @@
 import {
+  logoVariantsDefaults,
+  logoUsageDefaults,
+  validateLogoVariants,
+  validateLogoUsage,
+  resolveLogo,
+} from './logo-variants.mjs';
+import {
   validatePageAccess,
   defaultPageAccess,
   upgradePageAccess,
@@ -63,6 +70,8 @@ export const defaultBranding = () => ({
   website: '',
   socials: '',
   logo: '',
+  logoVariants: logoVariantsDefaults(),
+  logoUsage: logoUsageDefaults(),
   primary: '#124b40',
   accent: '#d9a126',
   theme: 'system',
@@ -83,9 +92,11 @@ export const defaultBranding = () => ({
     showAddress: true,
     showContacts: true,
     footer: 'Thank you for your business.',
+    logoLayout: '',
     ...receiptContentDefaults(),
   },
   receiptPage: {
+    logoLayout: '',
     showLogo: true,
     showBusinessName: true,
     showAddress: true,
@@ -127,6 +138,11 @@ export function validateBranding(input) {
   if (value.website && !/^https?:\/\/[^\s]+$/i.test(value.website))
     throw Error('Website must start with https:// or http://.');
   if (!validLogo(value.logo)) throw Error('Choose a PNG or JPEG logo (up to 250 KB after processing).');
+  value.logoVariants = validateLogoVariants(value.logoVariants);
+  value.logoUsage = validateLogoUsage(value.logoUsage);
+  // Leave room for JSONB whitespace in the database's 4 MB payload budget.
+  if (new TextEncoder().encode(JSON.stringify(value)).length > 3900000)
+    throw Error('Business settings are too large. Use smaller logos or remove unused logo variants.');
   for (const key of ['primary', 'accent'])
     if (!/^#[0-9a-f]{6}$/i.test(value[key])) throw Error('Choose valid brand colors.');
   if (!['light', 'dark', 'system'].includes(value.theme)) throw Error('Choose Light, Dark or System.');
@@ -320,6 +336,9 @@ export function validateJobSettings(input) {
 export function validateReceiptOptions(input) {
   if (!input || typeof input !== 'object') throw Error('Invalid receipt options.');
   const value = { ...input };
+  value.logoLayout ??= '';
+  if (!['', 'complete', 'stacked', 'horizontal', 'wordmark', 'icon'].includes(value.logoLayout))
+    throw Error('Choose a valid receipt logo layout.');
   value.showBusinessName ??= true;
   for (const key of ['showLogo', 'showBusinessName', 'showAddress', 'showContacts'])
     if (typeof value[key] !== 'boolean') throw Error('Invalid receipt options.');
@@ -335,11 +354,12 @@ export function validateReceiptOptions(input) {
   }
   return value;
 }
-export function receiptBusiness(input) {
+export function receiptBusiness(input, usage = 'documents') {
   if (typeof input === 'string') return { ...defaultBranding(), businessName: input };
   return {
     ...defaultBranding(),
     ...input,
+    logo: resolveLogo(input, usage, 'light'),
     receipt: { ...defaultBranding().receipt, ...input?.receipt },
     receiptPage: { ...defaultBranding().receiptPage, ...(input?.receiptPage ?? input?.receipt) },
     documents: { ...defaultBranding().documents, ...input?.documents },

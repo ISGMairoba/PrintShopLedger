@@ -95,7 +95,7 @@ try {
     const blue = themeColors({ ...defaultBranding(), primary: '#2244ee' }, 'dark');
     await assertBackground('body', blue.canvas);
     await assertBackground('.business-settings', blue.surface);
-    await assertBackground('.business-settings select', blue.surfaceAlt);
+    await assertBackground('.business-settings select:visible', blue.surfaceAlt);
     assert.equal(await page.getByLabel('Dark page background automatic', { exact: true }).isChecked(), true);
     await page.getByLabel('Primary color', { exact: true }).fill('#ee4422');
     await save();
@@ -120,7 +120,7 @@ try {
     await save();
     await assertBackground('body', '#121225');
     await assertBackground('.business-settings', '#242448');
-    await assertBackground('.business-settings select', '#333366');
+    await assertBackground('.business-settings select:visible', '#333366');
     // Saving a different section must not overwrite the six custom background colors.
     await page.getByRole('tab', { name: /Receipts/ }).click();
     await page.getByLabel('Receipt footer', { exact: true }).fill('Theme test');

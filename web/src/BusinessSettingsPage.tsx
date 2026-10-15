@@ -4,6 +4,8 @@ import { receiptHtml } from './receipts.mjs';
 import { sampleReceipt } from './receipt-sample.mjs';
 import BusinessOptionsEditor from './BusinessOptionsEditor';
 import ThemeBackgroundEditor from './ThemeBackgroundEditor';
+import LogoVariantsEditor from './LogoVariantsEditor';
+import { resolveLogo, logoLayouts } from './logo-variants.mjs';
 import {
   allowedSettingsTabs,
   minimumPageAccess,
@@ -64,7 +66,7 @@ export default function BusinessSettingsPage({
     setDirtyKeys((keys) => (keys.includes(key) ? keys : [...keys, key]));
     setMessage('');
   }
-  async function logo(file?: File) {
+  async function logo(file?: File, layout?: string, mode: 'light' | 'dark' = 'light') {
     if (!file) return;
     setBusy(true);
     setMessage('');
@@ -92,7 +94,12 @@ export default function BusinessSettingsPage({
         throw Error(
           'This logo is too detailed. Choose a smaller image; the processed logo must be up to 250 KB.',
         );
-      field('logo', result);
+      if (layout)
+        field('logoVariants', {
+          ...draft.logoVariants,
+          [layout]: { ...draft.logoVariants[layout], [mode]: result },
+        });
+      else field('logo', result);
       setPalette(suggestedPalette(context.getImageData(0, 0, canvas.width, canvas.height).data));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error), 'error');
@@ -271,7 +278,8 @@ export default function BusinessSettingsPage({
                 Remove logo
               </button>
             )}
-            {sectionSave('Logo', ['logo'])}
+            <LogoVariantsEditor value={draft} onChange={field} onUpload={logo} busy={busy} />
+            {sectionSave('Logo', ['logo', 'logoVariants', 'logoUsage'])}
           </fieldset>
           <fieldset hidden={tab !== 'Appearance'} disabled={busy || !ready}>
             <legend>Appearance</legend>
@@ -376,6 +384,27 @@ export default function BusinessSettingsPage({
             <div className="receipt-settings-grid">
               <div>
                 <h3>Header</h3>
+                <label>
+                  Logo for this document size
+                  <select
+                    aria-label="Logo for this document size"
+                    value={opts.logoLayout}
+                    onChange={(event) => receipt('logoLayout', event.target.value)}
+                  >
+                    <option value="">Use previous document logo</option>
+                    {Object.entries(logoLayouts).map(([key, label]) => (
+                      <option value={key} key={key}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <small>
+                  {previewLayout === 'narrow'
+                    ? 'Used on 80mm and 58mm receipts, including roll PDFs.'
+                    : 'Used on A4/A5 receipts, quotations, comparisons and report PDFs.'}{' '}
+                  Upload logo artwork under Profile & logo. Documents use the light-background version.
+                </small>
                 {(
                   [
                     ['showLogo', 'Show logo'],
@@ -393,9 +422,10 @@ export default function BusinessSettingsPage({
                     {label}
                   </label>
                 ))}
-                {!opts.showBusinessName && !(opts.showLogo && draft.logo) && (
-                  <small>The name still shows while there is no logo on the receipt.</small>
-                )}
+                {!opts.showBusinessName &&
+                  !(opts.showLogo && resolveLogo(draft, previewLayout === 'narrow' ? 'roll' : 'page')) && (
+                    <small>The name still shows while there is no logo on the receipt.</small>
+                  )}
                 <h3>{w('Each job')}</h3>
                 <label>
                   Highlighted line
@@ -492,12 +522,12 @@ export default function BusinessSettingsPage({
                   <input
                     type="checkbox"
                     checked={draft.documents?.watermark ?? false}
-                    disabled={!draft.logo}
+                    disabled={!resolveLogo(draft)}
                     onChange={(e) => field('documents', { ...draft.documents, watermark: e.target.checked })}
                   />
                   Show logo as a faint watermark on report PDFs
                 </label>
-                {!draft.logo && <small>Add a logo under Profile & logo to use a watermark.</small>}
+                {!resolveLogo(draft) && <small>Add a logo under Profile & logo to use a watermark.</small>}
                 <small>
                   {w(
                     'Changes affect receipt and report branding, not saved job amounts or payment balances.',

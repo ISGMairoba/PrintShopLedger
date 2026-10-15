@@ -246,7 +246,7 @@ const longDate = (value) =>
 
 /** The quotation laid out like a receipt, so the same PDF and print layouts can draw it. */
 export function quotationModel(quote, business, layout = 'page', now = new Date().toISOString()) {
-  const b = receiptBusiness(business),
+  const b = receiptBusiness(business, layout === 'roll' ? 'roll' : 'page'),
     o = layout === 'roll' ? b.receipt : b.receiptPage;
   const state = quotationState(quote, now);
   const items = quote.lines.map((l) => ({
