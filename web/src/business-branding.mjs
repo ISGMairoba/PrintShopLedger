@@ -1,4 +1,10 @@
-import { logoVariantsDefaults, logoUsageDefaults, validateLogoVariants, validateLogoUsage, resolveLogo } from './logo-variants.mjs';
+import {
+  logoVariantsDefaults,
+  logoUsageDefaults,
+  validateLogoVariants,
+  validateLogoUsage,
+  resolveLogo,
+} from './logo-variants.mjs';
 import {
   validatePageAccess,
   defaultPageAccess,
@@ -368,4 +374,3 @@ export function suggestedPalette(pixels) {
     .slice(0, 6)
     .map(([hex]) => hex);
 }
-

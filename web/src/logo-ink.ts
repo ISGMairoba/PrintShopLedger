@@ -54,4 +54,3 @@ export async function withInkLogo(business: string | Branding): Promise<string |
     return business;
   }
 }
-

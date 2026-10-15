@@ -57,7 +57,17 @@ export const settingsTabs = [
 ];
 /** The saved settings each tab changes (the server uses the same list). */
 export const settingsTabKeys = {
-  'Profile & logo': ['businessName', 'address', 'phones', 'email', 'website', 'socials', 'logo', 'logoVariants', 'logoUsage'],
+  'Profile & logo': [
+    'businessName',
+    'address',
+    'phones',
+    'email',
+    'website',
+    'socials',
+    'logo',
+    'logoVariants',
+    'logoUsage',
+  ],
   Appearance: ['primary', 'accent', 'theme', 'backgrounds'],
   Receipts: ['receipt', 'receiptPage', 'documents'],
   'Dropdowns & workflow': ['options'],
@@ -177,4 +187,3 @@ export function canAccessPage(page, access, configured) {
   if (access === 4 || page === 'My Account') return true;
   return (configured?.[String(access)] ?? defaultPageAccess()[String(access)]).includes(page) ?? false;
 }
-

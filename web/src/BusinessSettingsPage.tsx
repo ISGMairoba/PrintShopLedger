@@ -94,10 +94,11 @@ export default function BusinessSettingsPage({
         throw Error(
           'This logo is too detailed. Choose a smaller image; the processed logo must be up to 250 KB.',
         );
-      if (layout) field('logoVariants', {
-        ...draft.logoVariants,
-        [layout]: { ...draft.logoVariants[layout], [mode]: result },
-      });
+      if (layout)
+        field('logoVariants', {
+          ...draft.logoVariants,
+          [layout]: { ...draft.logoVariants[layout], [mode]: result },
+        });
       else field('logo', result);
       setPalette(suggestedPalette(context.getImageData(0, 0, canvas.width, canvas.height).data));
     } catch (error) {
@@ -960,4 +961,3 @@ export default function BusinessSettingsPage({
     </section>
   );
 }
-

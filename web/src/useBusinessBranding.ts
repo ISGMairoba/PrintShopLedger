@@ -141,7 +141,8 @@ export default function useBusinessBranding(
       if (favicon) {
         const icon = resolveLogo(settings, 'favicon', resolved);
         favicon.setAttribute('href', icon || originalHref || '/icon.svg');
-        if (icon) favicon.setAttribute('type', icon.startsWith('data:image/png') ? 'image/png' : 'image/jpeg');
+        if (icon)
+          favicon.setAttribute('type', icon.startsWith('data:image/png') ? 'image/png' : 'image/jpeg');
         else if (originalType) favicon.setAttribute('type', originalType);
       }
       for (const [key, value] of Object.entries(themeVariables(settings, resolved)))
@@ -171,4 +172,3 @@ export default function useBusinessBranding(
     setTheme,
   };
 }
-
