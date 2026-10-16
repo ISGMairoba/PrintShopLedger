@@ -795,20 +795,20 @@ label.checkbox input {
  * Fields with hints underneath: name, box and hint are three shared rows, so the boxes in a row
  * line up even when one name or one hint is longer than its neighbour's.
  */
-.form-grid:has(> label > small) {
+.form-grid.hint-grid {
   row-gap: 18px;
   align-items: stretch;
 }
-.form-grid:has(> label > small) > * {
+.form-grid.hint-grid > * {
   grid-row: span 3;
 }
-.form-grid:has(> label > small) > label:not(.check-label):not(.checkbox) {
+.form-grid.hint-grid > label:not(.check-label):not(.checkbox) {
   display: grid;
   grid-template-rows: subgrid;
   row-gap: 7px;
   align-items: end;
 }
-.form-grid:has(> label > small) > label > small {
+.form-grid.hint-grid > label > small {
   align-self: start;
 }
 .variant-tools {

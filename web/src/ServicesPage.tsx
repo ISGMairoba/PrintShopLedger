@@ -607,7 +607,7 @@ export default function ServicesPage({
                 Use in pricing templates (gives it a formula name)
               </label>
               {(costed || privateItem) && (
-                <div className="form-grid">
+                <div className="form-grid hint-grid">
                   <label>
                     Formula name
                     <input
@@ -706,7 +706,7 @@ export default function ServicesPage({
           </p>
           <form onSubmit={submitProduct}>
             <fieldset disabled={busy}>
-              <div className="form-grid">
+              <div className="form-grid hint-grid">
                 <label>
                   Product name
                   <input name="name" maxLength={160} placeholder="e.g. Blue biro pen" required />
