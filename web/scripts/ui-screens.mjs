@@ -267,6 +267,16 @@ try {
       await e.getByRole('button', { name: 'Add variant' }).click();
       await e.screenshot({ path: `${out}/${mode}-99-edit-variant.png` });
       await fieldHeights('Edit variant');
+      await e.getByRole('button', { name: /a separate item$/ }).click();
+      await e.screenshot({ path: `${out}/${mode}-99-separate-variant.png` });
+      await e.getByRole('button', { name: 'Choose another product' }).click();
+      await e
+        .getByRole('button', { name: /^Art card/ })
+        .first()
+        .click();
+      await e.getByRole('button', { name: /Add variants/ }).click();
+      await e.screenshot({ path: `${out}/${mode}-99-make-variants.png` });
+      await fieldHeights('Make variants');
       await closeDialogs();
     } catch (e) {
       failures.push(`${mode} variants: ${e.message.split('\n')[0]}`);

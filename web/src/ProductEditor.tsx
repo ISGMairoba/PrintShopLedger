@@ -1,4 +1,5 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import VariantTools from './VariantTools';
 import Modal from './Modal';
 import PackPricesField, { packDraft, packPricesFrom, type PackDraft } from './PackPricesField';
 import Icon from './Icon';
@@ -71,6 +72,15 @@ export default function ProductEditor({
   const { serviceId, name, price, renameStock, unit, minimum, mode, quantity, reason, packs } = f;
   const chosen = products.find((p) => p.service.id === serviceId) ?? null;
   const group = chosen ? variantGroupOf(ledger, chosen.service) : null;
+  // After variants change, reload the fields from the updated ledger (names change with them).
+  const [reload, setReload] = useState('');
+  useEffect(() => {
+    if (!reload) return;
+    const message = reload;
+    setReload('');
+    setF(fieldsFor(serviceId));
+    setDone(message);
+  }, [ledger, reload]);
   const [newVariant, setNewVariant] = useState<{ name: string; stock: string; minimum: string } | null>(null);
   const shown = products.filter((p) =>
     `${p.service.description} ${p.material?.name ?? ''}`.toLowerCase().includes(query.trim().toLowerCase()),
@@ -217,6 +227,20 @@ export default function ProductEditor({
               </div>
             </div>
           )}
+          <VariantTools
+            key={chosen.service.id + (group?.id ?? '')}
+            ledger={ledger}
+            service={chosen.service}
+            group={group}
+            busy={busy}
+            actor={actor}
+            onSave={onSave}
+            onDone={(message) => {
+              setError('');
+              setReload(message);
+            }}
+            onError={setError}
+          />
           {group && newVariant && (
             <form className="variant-rows" onSubmit={saveVariant} aria-label="New variant">
               <p className="muted">
