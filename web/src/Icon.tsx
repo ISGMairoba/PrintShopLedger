@@ -1,4 +1,5 @@
 import {
+  faCircleQuestion,
   faCalendarDays,
   faFileImport,
   faFileExport,
@@ -49,6 +50,7 @@ const icons = {
   complete: faCircleCheck,
   drawer: faCashRegister,
   add: faPlus,
+  help: faCircleQuestion,
   edit: faPenToSquare,
   archive: faBoxArchive,
   restore: faRotateLeft,
