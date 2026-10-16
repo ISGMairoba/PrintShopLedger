@@ -6,6 +6,11 @@ on:
   push:
     branches: ['claude/videos*']
   workflow_dispatch:
+    inputs:
+      videos:
+        description: 'Video ids to record, separated by spaces (empty = all)'
+        required: false
+        default: ''
 permissions:
   contents: write
 jobs:
@@ -38,7 +43,7 @@ jobs:
       - name: Record
         env:
           PIPER_MODEL: /tmp/voice/voice.onnx
-        run: node scripts/tutorials/record.mjs /tmp/tutorials 2>&1 | tee /tmp/tutorials-log.txt
+        run: node scripts/tutorials/record.mjs /tmp/tutorials ${{ inputs.videos }} 2>&1 | tee /tmp/tutorials-log.txt
       - name: Save videos
         if: ${{ !cancelled() }}
         run: |

@@ -340,7 +340,7 @@ export const helpTopics = [
     steps: [
       'Open Expenses and press Add expense.',
       'Enter a description, the date, the total cost and who it was paid to.',
-      'If it is paid now, tick Record money paid now and enter the amount, date and method.',
+      'Record money paid now is ticked: check the amount, date and method. Untick it if you will pay later.',
       'Press Save expense. To pay an unpaid expense later, press Record payment on it.',
     ],
     notes: [

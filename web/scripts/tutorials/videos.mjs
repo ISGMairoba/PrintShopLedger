@@ -499,11 +499,11 @@ export const videos = [
         min: 4,
       },
       {
-        say: 'If you paid now, tick Record money paid now and enter the amount.',
-        do: async ({ page, tap, type }) => {
+        say: 'If you paid now, leave Record money paid now ticked, and check the amount paid.',
+        do: async ({ page, show, type }) => {
           const d = page.getByRole('dialog', { name: 'Add expense' });
-          await tap(d.getByRole('checkbox', { name: /Record money paid now/ }));
-          await type(d.getByLabel('Amount paid (₦)'), '25000');
+          await show(d.getByRole('checkbox', { name: /Record money paid now/ }), 1000);
+          await type(d.getByRole('textbox', { name: /Amount paid/ }), '25000');
         },
       },
       {
@@ -583,7 +583,7 @@ export const videos = [
         say: 'Spoilt work and reprints use stock too. Open Materials, then Waste and reprints.',
         do: async ({ nav, page, tap }) => {
           await nav('Materials');
-          await tap(page.getByRole('main').getByRole('tab', { name: /Waste/ }));
+          await tap(page.getByRole('button', { name: 'Waste & reprints', exact: true }));
         },
       },
       {
@@ -704,8 +704,8 @@ export const videos = [
           const d = page.getByRole('dialog', { name: 'Add product' });
           await tap(d.getByRole('button', { name: /Add pack price/ }));
           const packs = d.getByRole('group', { name: /Pack prices/ });
-          await type(packs.getByLabel(/Pack of/).first(), '10');
-          await type(packs.getByRole('textbox', { name: /Price/ }).first(), '2500');
+          await type(packs.getByLabel('Pack 1 size'), '10');
+          await type(packs.getByLabel('Pack 1 price'), '2500');
         },
         min: 5,
       },
@@ -846,7 +846,7 @@ export const videos = [
         say: 'Business Settings is where a manager sets up the shop. Profile and logo holds your details and logos.',
         do: async ({ nav, page, show }) => {
           await nav('Business Settings');
-          await show(page.getByRole('main').getByLabel('Business name'), 1500);
+          await show(page.getByRole('main').getByRole('textbox', { name: 'Business name' }), 1500);
         },
       },
       {
@@ -897,7 +897,8 @@ export const videos = [
       },
       {
         say: 'Below, choose which Business Settings tabs Admin and Manager may change. Then save.',
-        do: async ({ page, show }) => show(page.getByRole('main').locator('table').last(), 2000),
+        do: async ({ page, show }) =>
+          show(page.getByRole('main').getByRole('heading', { name: 'Business Settings tabs' }), 2000),
       },
       { say: 'Staff accounts themselves are added on the Users page, in a signed-in business.' },
     ],
