@@ -211,6 +211,18 @@ try {
     await dialog('Customers', 'Add customer', 'add-customer');
     await dialog('Materials', 'Add material', 'add-material');
     await dialog('Services', 'Add service', 'add-service');
+    // Edit item with its pricing-template fields open (name, cost, units and hints line up).
+    try {
+      await nav('Services');
+      await page.getByRole('button', { name: 'Add service', exact: true }).click();
+      const d = page.getByRole('dialog').first();
+      await d.getByRole('checkbox', { name: /Use in pricing templates/ }).check();
+      await d.screenshot({ path: `${out}/${mode}-91-dialog-service-costing.png` });
+      await closeDialogs();
+    } catch (e) {
+      failures.push(`${mode} service costing: ${e.message.split('\n')[0]}`);
+      await closeDialogs();
+    }
     await dialog('Edit Products', 'Edit', 'edit-product');
     await dialog('Jobs', 'Books', 'job-details');
     try {
@@ -272,7 +284,11 @@ try {
         .getByPlaceholder(/Search/)
         .fill('Envelope');
       await shot('98-edit-products-variants');
-      await page.getByRole('main').getByRole('button', { name: /Edit/ }).first().click();
+      await page
+        .getByRole('main')
+        .getByRole('button', { name: /^Edit$/ })
+        .first()
+        .click();
       const e = page.getByRole('dialog').first();
       await e.waitFor();
       await e.getByRole('button', { name: 'Add variant' }).click();
