@@ -111,7 +111,8 @@ function helpers(page, context) {
     },
     /** Point at something without pressing it. */
     async show(loc, pause = 1400) {
-      await loc.scrollIntoViewIfNeeded();
+      // Scroll it to the middle directly: big tables may never count as "still" for Playwright.
+      await loc.evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
       await mark(loc, true);
       await delay(pause);
       await mark(loc, false);
