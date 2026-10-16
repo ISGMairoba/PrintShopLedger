@@ -115,242 +115,249 @@ export default function QuickSale({
     }
   }
   return (
-    <Modal title="Quick sale" wide busy={busy} onClose={onClose} className="checkout-modal">
+    <Modal title="Quick sale" wide busy={busy} onClose={onClose} className="checkout-modal quick-sale-modal">
       {error && (
         <div className="notice" role="alert">
           {error}
         </div>
       )}
-      {!products.length ? (
-        <p className="empty">
-          {w(
-            'No shelf items yet. Tick “Sold off the shelf” on a service, or use Add product on the Services page.',
+      <div className="quick-sale-layout">
+        <section className="quick-sale-products" aria-label="Choose products">
+          {!products.length ? (
+            <p className="empty">
+              {w(
+                'No shelf items yet. Tick “Sold off the shelf” on a service, or use Add product on the Services page.',
+              )}
+            </p>
+          ) : (
+            <>
+              <input
+                aria-label="Search products"
+                placeholder="Search products"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              <div className="quick-products" role="group" aria-label="Products">
+                {tiles.map((tile) => {
+                  if (tile.kind === 'group') {
+                    const first = tile.variants[0];
+                    const total = tile.variants.reduce((n, v) => n + (left(v) ?? 0), 0);
+                    return (
+                      <div
+                        className="quick-product quick-variants"
+                        key={tile.id}
+                        role="group"
+                        aria-label={tile.name}
+                      >
+                        <strong>{tile.name}</strong>
+                        <span>{currency(first.price)}</span>
+                        {first.packPrices.length > 0 && <small>{packList(first.packPrices)}</small>}
+                        <small>
+                          {total} {first.unit} left in all
+                        </small>
+                        <div className="variant-chips">
+                          {tile.variants.map((v) => {
+                            const n = left(v);
+                            return (
+                              <button
+                                type="button"
+                                key={v.id}
+                                className={`secondary${n !== null && n <= 0 ? ' out' : ''}`}
+                                aria-label={`Add ${v.name}${n === null ? '' : `, ${n} left`}`}
+                                disabled={busy}
+                                onClick={() => setCart((c) => addToCart(c, v.id))}
+                              >
+                                {v.variantName}
+                                {n !== null && <small>{n <= 0 ? 'Out' : n}</small>}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  }
+                  const p = tile.product;
+                  const remaining = left(p);
+                  const out = remaining !== null && remaining <= 0;
+                  return (
+                    <button
+                      type="button"
+                      key={p.id}
+                      className={`quick-product${out ? ' out' : ''}`}
+                      disabled={busy}
+                      onClick={() => setCart((c) => addToCart(c, p.id))}
+                    >
+                      <strong>{p.name}</strong>
+                      <span>{currency(p.price)}</span>
+                      {p.packPrices.length > 0 && <small>{packList(p.packPrices)}</small>}
+                      <small>
+                        {p.stock === null
+                          ? 'Not stock-tracked'
+                          : out
+                            ? 'Out of stock'
+                            : `${remaining} ${p.unit} left`}
+                      </small>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
           )}
-        </p>
-      ) : (
-        <>
-          <input
-            aria-label="Search products"
-            placeholder="Search products"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <div className="quick-products" role="group" aria-label="Products">
-            {tiles.map((tile) => {
-              if (tile.kind === 'group') {
-                const first = tile.variants[0];
-                const total = tile.variants.reduce((n, v) => n + (left(v) ?? 0), 0);
-                return (
-                  <div
-                    className="quick-product quick-variants"
-                    key={tile.id}
-                    role="group"
-                    aria-label={tile.name}
-                  >
-                    <strong>{tile.name}</strong>
-                    <span>{currency(first.price)}</span>
-                    {first.packPrices.length > 0 && <small>{packList(first.packPrices)}</small>}
-                    <small>
-                      {total} {first.unit} left in all
-                    </small>
-                    <div className="variant-chips">
-                      {tile.variants.map((v) => {
-                        const n = left(v);
-                        return (
+        </section>
+        <section className="quick-sale-cart" aria-label="Sale">
+          {!cart.length && <p className="muted quick-cart-empty">Tap a product to add it to the sale.</p>}
+          {cart.length > 0 && (
+            <div className="table-wrap">
+              <table aria-label="Cart" className="quick-cart">
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th className="numeric">Qty</th>
+                    <th className="numeric">Amount</th>
+                    <th aria-label="Remove" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {cart.map((line) => {
+                    const p = products.find((x) => x.id === line.serviceId);
+                    const short = p?.stock != null && line.quantity > p.stock;
+                    return (
+                      <tr key={line.serviceId}>
+                        <td>
+                          {p?.name}
+                          <small>
+                            {currency(p?.price ?? 0)} each
+                            {short && (
+                              <span className="stock-near-text"> · More than the {p!.stock} in stock</span>
+                            )}
+                          </small>
+                        </td>
+                        <td className="numeric">
+                          <div className="quick-qty">
+                            <button
+                              type="button"
+                              className="secondary"
+                              aria-label={`One less ${p?.name}`}
+                              onClick={() => {
+                                setTyped(({ [line.serviceId]: _done, ...rest }) => rest);
+                                setCart((c) => setQuantity(c, line.serviceId, line.quantity - 1));
+                              }}
+                            >
+                              −
+                            </button>
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              inputMode="decimal"
+                              aria-label={`Quantity of ${p?.name}`}
+                              value={typed[line.serviceId] ?? String(line.quantity)}
+                              onChange={(e) => {
+                                const text = e.target.value;
+                                setTyped((t) => ({ ...t, [line.serviceId]: text }));
+                                setCart((c) => typeQuantity(c, line.serviceId, Number(text)));
+                              }}
+                              onBlur={() => setTyped(({ [line.serviceId]: _done, ...rest }) => rest)}
+                            />
+                            <button
+                              type="button"
+                              className="secondary"
+                              aria-label={`One more ${p?.name}`}
+                              onClick={() => {
+                                setTyped(({ [line.serviceId]: _done, ...rest }) => rest);
+                                setCart((c) => addToCart(c, line.serviceId));
+                              }}
+                            >
+                              +
+                            </button>
+                          </div>
+                        </td>
+                        <td className="numeric">
+                          {currency(packTotal(p?.price ?? 0, p?.packPrices, line.quantity))}
+                          {p && packSummary(p.price, p.packPrices, line.quantity) && (
+                            <small>{packSummary(p.price, p.packPrices, line.quantity)}</small>
+                          )}
+                        </td>
+                        <td>
                           <button
                             type="button"
-                            key={v.id}
-                            className={`secondary${n !== null && n <= 0 ? ' out' : ''}`}
-                            aria-label={`Add ${v.name}${n === null ? '' : `, ${n} left`}`}
-                            disabled={busy}
-                            onClick={() => setCart((c) => addToCart(c, v.id))}
+                            className="text-button danger-text"
+                            onClick={() => setCart((c) => setQuantity(c, line.serviceId, 0))}
                           >
-                            {v.variantName}
-                            {n !== null && <small>{n <= 0 ? 'Out' : n}</small>}
+                            Remove
                           </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              }
-              const p = tile.product;
-              const remaining = left(p);
-              const out = remaining !== null && remaining <= 0;
-              return (
-                <button
-                  type="button"
-                  key={p.id}
-                  className={`quick-product${out ? ' out' : ''}`}
-                  disabled={busy}
-                  onClick={() => setCart((c) => addToCart(c, p.id))}
-                >
-                  <strong>{p.name}</strong>
-                  <span>{currency(p.price)}</span>
-                  {p.packPrices.length > 0 && <small>{packList(p.packPrices)}</small>}
-                  <small>
-                    {p.stock === null
-                      ? 'Not stock-tracked'
-                      : out
-                        ? 'Out of stock'
-                        : `${remaining} ${p.unit} left`}
-                  </small>
-                </button>
-              );
-            })}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {cart.length > 0 && (discountPolicy.maxPercent > 0 || discountPolicy.canFlat) && (
+            <DiscountFields
+              label="Discount"
+              value={discount}
+              allowFlat={discountPolicy.canFlat}
+              maxPercent={discountPolicy.canFlat ? 100 : discountPolicy.maxPercent}
+              onChange={setDiscount}
+            />
+          )}
+          <div className="form-grid">
+            <ListedCombobox
+              label="Customer"
+              name="customer"
+              options={[WALK_IN_NAME, ...customers.map(label)]}
+              value={customerText}
+              onChange={setCustomerText}
+            />
+            <label>
+              Payment method
+              <select value={methodLabel} onChange={(e) => setMethodLabel(e.target.value)}>
+                {methods.map((m) => (
+                  <option key={m.label}>{m.label}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Money received (₦)
+              <CurrencyInput
+                aria-label="Money received (₦)"
+                value={received ?? (total / 100).toFixed(2)}
+                onValueChange={setReceived}
+              />
+            </label>
           </div>
-        </>
-      )}
-      {cart.length > 0 && (
-        <div className="table-wrap">
-          <table aria-label="Cart" className="quick-cart">
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th className="numeric">Qty</th>
-                <th className="numeric">Amount</th>
-                <th aria-label="Remove" />
-              </tr>
-            </thead>
-            <tbody>
-              {cart.map((line) => {
-                const p = products.find((x) => x.id === line.serviceId);
-                const short = p?.stock != null && line.quantity > p.stock;
-                return (
-                  <tr key={line.serviceId}>
-                    <td>
-                      {p?.name}
-                      <small>
-                        {currency(p?.price ?? 0)} each
-                        {short && (
-                          <span className="stock-near-text"> · More than the {p!.stock} in stock</span>
-                        )}
-                      </small>
-                    </td>
-                    <td className="numeric">
-                      <div className="quick-qty">
-                        <button
-                          type="button"
-                          className="secondary"
-                          aria-label={`One less ${p?.name}`}
-                          onClick={() => {
-                            setTyped(({ [line.serviceId]: _done, ...rest }) => rest);
-                            setCart((c) => setQuantity(c, line.serviceId, line.quantity - 1));
-                          }}
-                        >
-                          −
-                        </button>
-                        <input
-                          type="number"
-                          min="0"
-                          step="1"
-                          inputMode="decimal"
-                          aria-label={`Quantity of ${p?.name}`}
-                          value={typed[line.serviceId] ?? String(line.quantity)}
-                          onChange={(e) => {
-                            const text = e.target.value;
-                            setTyped((t) => ({ ...t, [line.serviceId]: text }));
-                            setCart((c) => typeQuantity(c, line.serviceId, Number(text)));
-                          }}
-                          onBlur={() => setTyped(({ [line.serviceId]: _done, ...rest }) => rest)}
-                        />
-                        <button
-                          type="button"
-                          className="secondary"
-                          aria-label={`One more ${p?.name}`}
-                          onClick={() => {
-                            setTyped(({ [line.serviceId]: _done, ...rest }) => rest);
-                            setCart((c) => addToCart(c, line.serviceId));
-                          }}
-                        >
-                          +
-                        </button>
-                      </div>
-                    </td>
-                    <td className="numeric">
-                      {currency(packTotal(p?.price ?? 0, p?.packPrices, line.quantity))}
-                      {p && packSummary(p.price, p.packPrices, line.quantity) && (
-                        <small>{packSummary(p.price, p.packPrices, line.quantity)}</small>
-                      )}
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        className="text-button danger-text"
-                        onClick={() => setCart((c) => setQuantity(c, line.serviceId, 0))}
-                      >
-                        Remove
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-      {cart.length > 0 && (discountPolicy.maxPercent > 0 || discountPolicy.canFlat) && (
-        <DiscountFields
-          label="Discount"
-          value={discount}
-          allowFlat={discountPolicy.canFlat}
-          maxPercent={discountPolicy.canFlat ? 100 : discountPolicy.maxPercent}
-          onChange={setDiscount}
-        />
-      )}
-      <div className="form-grid">
-        <ListedCombobox
-          label="Customer"
-          name="customer"
-          options={[WALK_IN_NAME, ...customers.map(label)]}
-          value={customerText}
-          onChange={setCustomerText}
-        />
-        <label>
-          Payment method
-          <select value={methodLabel} onChange={(e) => setMethodLabel(e.target.value)}>
-            {methods.map((m) => (
-              <option key={m.label}>{m.label}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Money received (₦)
-          <CurrencyInput
-            aria-label="Money received (₦)"
-            value={received ?? (total / 100).toFixed(2)}
-            onValueChange={setReceived}
-          />
-        </label>
+          <div className="cart-total" role="status">
+            {priced && priced.discountTotal > 0 && (
+              <small>
+                Before discount {currency(priced.gross)} · Discount −{currency(priced.discountTotal)}
+              </small>
+            )}
+            <span>
+              Total <strong>{currency(total)}</strong>
+            </span>
+            {priceError && cart.length > 0 && (
+              <small className="danger-text" role="alert">
+                {cart.some((l) => !(l.quantity > 0))
+                  ? 'Enter a quantity for each item, or remove it.'
+                  : priceError}
+              </small>
+            )}
+            {change > 0 && (
+              <small>
+                Change to give: <strong>{currency(change)}</strong>
+              </small>
+            )}
+            {customer && tendered !== null && tendered < total && (
+              <small>{currency(total - tendered)} will be owed on the customer's account.</small>
+            )}
+          </div>
+          <button type="button" disabled={busy || !cart.length || !priced} onClick={() => void complete()}>
+            <Icon name="complete" /> {busy ? 'Saving…' : `Complete sale · ${currency(total)}`}
+          </button>
+        </section>
       </div>
-      <div className="cart-total" role="status">
-        {priced && priced.discountTotal > 0 && (
-          <small>
-            Before discount {currency(priced.gross)} · Discount −{currency(priced.discountTotal)}
-          </small>
-        )}
-        <span>
-          Total <strong>{currency(total)}</strong>
-        </span>
-        {priceError && cart.length > 0 && (
-          <small className="danger-text" role="alert">
-            {cart.some((l) => !(l.quantity > 0))
-              ? 'Enter a quantity for each item, or remove it.'
-              : priceError}
-          </small>
-        )}
-        {change > 0 && (
-          <small>
-            Change to give: <strong>{currency(change)}</strong>
-          </small>
-        )}
-        {customer && tendered !== null && tendered < total && (
-          <small>{currency(total - tendered)} will be owed on the customer's account.</small>
-        )}
-      </div>
-      <button type="button" disabled={busy || !cart.length || !priced} onClick={() => void complete()}>
-        <Icon name="complete" /> {busy ? 'Saving…' : `Complete sale · ${currency(total)}`}
-      </button>
     </Modal>
   );
 }

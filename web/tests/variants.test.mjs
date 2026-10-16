@@ -201,3 +201,88 @@ test('Changing the unit of a product with variants changes every variant', () =>
   );
   assert.deepEqual(summary, ['Change the unit of all 2 variants to pack']);
 });
+
+test('An item can become a product with variants, join one, and a variant can be separated', async () => {
+  const { makeVariantsEvents, joinVariantsEvents, separateVariantEvents } = await import(
+    '../src/variants.mjs'
+  );
+  let ledger = emptyLedger();
+  const make = (name, unit, price) => {
+    const materialId = crypto.randomUUID();
+    const serviceId = crypto.randomUUID();
+    const audit = { modifiedBy: 'u', modifiedByLabel: 'Ada', modifiedAt: '2026-10-16T00:00:00Z' };
+    for (const e of [
+      {
+        id: crypto.randomUUID(),
+        kind: 'material.created',
+        data: {
+          id: materialId,
+          name,
+          available: 30,
+          measurementUnit: unit,
+          requireSize: false,
+          minimumStock: 0,
+          reason: 'Opening stock',
+          ...audit,
+        },
+      },
+      {
+        id: crypto.randomUUID(),
+        kind: 'service.created',
+        data: {
+          id: serviceId,
+          description: name,
+          materialId,
+          price,
+          shelfItem: true,
+          packPrices: packs,
+          ...audit,
+        },
+      },
+    ])
+      ledger = applyEvent(ledger, e);
+    return serviceId;
+  };
+  const rope = make('Crochet rope', 'piece', 5000);
+  const gold = make('Gold rope', 'piece', 7000);
+  const ream = make('Ream', 'ream', 500000);
+  // 1. Turn an item into variants.
+  let r = makeVariantsEvents(
+    ledger,
+    rope,
+    { product: 'Crochet rope', variant: 'Pink', others: [{ name: 'Blue', stock: 10 }] },
+    actor,
+  );
+  for (const e of r.events) ledger = applyEvent(ledger, e);
+  let [group] = variantGroups(ledger);
+  assert.deepEqual(
+    group.members.map((m) => [m.service.description, m.material.name, m.material.available, m.service.price]),
+    [
+      ['Crochet rope — Blue', 'Crochet rope — Blue', 10, 5000],
+      ['Crochet rope — Pink', 'Crochet rope — Pink', 30, 5000],
+    ],
+  );
+  // 2. Join an existing item: it takes the product's price; a different unit is refused.
+  r = joinVariantsEvents(ledger, gold, group.id, 'Gold', actor);
+  for (const e of r.events) ledger = applyEvent(ledger, e);
+  [group] = variantGroups(ledger);
+  assert.equal(group.members.length, 3);
+  assert.equal(ledger.services.find((s) => s.id === gold).price, 5000);
+  assert.equal(ledger.services.find((s) => s.id === gold).description, 'Crochet rope — Gold');
+  assert.throws(() => joinVariantsEvents(ledger, ream, group.id, 'Ream', actor), /Change its unit first/);
+  // 3. Separate a variant; with two left, the group stays.
+  r = separateVariantEvents(ledger, gold, 'Gold rope', actor);
+  for (const e of r.events) ledger = applyEvent(ledger, e);
+  assert.equal(ledger.services.find((s) => s.id === gold).variantGroup, undefined);
+  assert.equal(
+    ledger.materials.find((m) => m.id === ledger.services.find((s) => s.id === gold).materialId).name,
+    'Gold rope',
+  );
+  assert.equal(variantGroups(ledger)[0].members.length, 2);
+  // Separating one of the last two leaves no product with a single variant.
+  const pink = variantGroups(ledger)[0].members.find((m) => m.service.variantName === 'Pink').service.id;
+  r = separateVariantEvents(ledger, pink, 'Pink rope', actor);
+  for (const e of r.events) ledger = applyEvent(ledger, e);
+  assert.equal(variantGroups(ledger).length, 0);
+  assert.equal(r.summary.length, 2);
+});

@@ -125,6 +125,16 @@ export function applyServiceEvent(input, event) {
       ...audit,
       version: existing.version + 1,
     };
+    // Joining or leaving a product's variants: null clears the link (left out keeps it).
+    if (data.variantGroup !== undefined) {
+      delete next.variantGroup;
+      delete next.variantName;
+      if (data.variantGroup)
+        Object.assign(next, {
+          variantGroup: data.variantGroup,
+          variantName: String(data.variantName).trim(),
+        });
+    }
   } else if (event.kind === 'service.archived' || event.kind === 'service.restored') {
     const archived = event.kind === 'service.archived';
     if (existing.archived === archived)
