@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import Modal from './Modal';
 import Icon from './Icon';
 import { useWords } from './Words';
+import { videoFor } from './help-videos.mjs';
 import { helpChapters, quickStartCards, searchTopics, topicForPage, topicsFor } from './help-content.mjs';
 
 type Topic = ReturnType<typeof topicsFor>[number];
@@ -68,11 +69,12 @@ export default function HelpPanel({
 }) {
   const { w } = useWords();
   const topics = useMemo(() => topicsFor(rank), [rank]);
-  const start = page ? topicForPage(page, rank) : null;
+  // The ? on a page opens that page's topic: if they can open the page, they need its help.
+  const start = page ? topicForPage(page, 4) : null;
   const [current, setCurrent] = useState<Topic | null>(start);
   const [query, setQuery] = useState('');
   const shown = searchTopics(topics, query);
-  const card = quickStartCards[Math.min(Math.max(rank, 1), 1) as 1];
+  const card = quickStartCards[Math.min(Math.max(rank, 1), 3) as 1 | 2 | 3];
   const cardTopics = card.topics.map((id) => topics.find((t) => t.id === id)).filter((t): t is Topic => !!t);
   return (
     <Modal title="Help" wide onClose={onClose} className="help-modal">
@@ -149,10 +151,10 @@ export default function HelpPanel({
               </button>
               <h3>{w(current.title)}</h3>
               <p className="help-summary">{w(current.summary)}</p>
-              {current.video && (
+              {(current.video || videoFor(current.id)) && (
                 <div className="help-video">
                   <iframe
-                    src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(current.video)}`}
+                    src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(current.video || videoFor(current.id))}`}
                     title={`Video: ${w(current.title)}`}
                     allow="encrypted-media; picture-in-picture"
                     allowFullScreen
