@@ -772,9 +772,18 @@ button:not(
     grid-template-columns: 1fr;
     gap: 12px;
   }
-  .quick-sale-cart > button:last-child {
+  .quick-sale-checkout {
     position: sticky;
     bottom: 0;
+    z-index: 1;
+    background: var(--surface);
+    padding-bottom: 2px;
+  }
+  .quick-sale-checkout > .cart-total {
+    margin-top: 0;
+    padding: 10px 12px;
+  }
+  .quick-sale-checkout > button {
     width: 100%;
   }
 }
