@@ -1,9 +1,15 @@
 name: PrintShopLedger web
+# The full browser checks are long, so they run once when a PR is opened (or reopened), not on
+# every push, to save GitHub Actions minutes. Run them again from the Actions tab ("Run workflow").
+# The quick tests also run in every Vercel build, which will not publish a version that fails them.
 on:
-  push:
-    paths: ['web/**', '.github/workflows/printshopledger-web.yml']
   pull_request:
+    types: [opened, reopened, ready_for_review]
     paths: ['web/**', '.github/workflows/printshopledger-web.yml']
+  workflow_dispatch:
+concurrency:
+  group: printshopledger-web-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
