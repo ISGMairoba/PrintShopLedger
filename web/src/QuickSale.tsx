@@ -328,34 +328,37 @@ export default function QuickSale({
               />
             </label>
           </div>
-          <div className="cart-total" role="status">
-            {priced && priced.discountTotal > 0 && (
-              <small>
-                Before discount {currency(priced.gross)} · Discount −{currency(priced.discountTotal)}
-              </small>
-            )}
-            <span>
-              Total <strong>{currency(total)}</strong>
-            </span>
-            {priceError && cart.length > 0 && (
-              <small className="danger-text" role="alert">
-                {cart.some((l) => !(l.quantity > 0))
-                  ? 'Enter a quantity for each item, or remove it.'
-                  : priceError}
-              </small>
-            )}
-            {change > 0 && (
-              <small>
-                Change to give: <strong>{currency(change)}</strong>
-              </small>
-            )}
-            {customer && tendered !== null && tendered < total && (
-              <small>{currency(total - tendered)} will be owed on the customer's account.</small>
-            )}
+          {/* Total, change and Complete sale stay in view together while the cart scrolls. */}
+          <div className="quick-sale-checkout">
+            <div className="cart-total" role="status">
+              {priced && priced.discountTotal > 0 && (
+                <small>
+                  Before discount {currency(priced.gross)} · Discount −{currency(priced.discountTotal)}
+                </small>
+              )}
+              <span>
+                Total <strong>{currency(total)}</strong>
+              </span>
+              {priceError && cart.length > 0 && (
+                <small className="danger-text" role="alert">
+                  {cart.some((l) => !(l.quantity > 0))
+                    ? 'Enter a quantity for each item, or remove it.'
+                    : priceError}
+                </small>
+              )}
+              {change > 0 && (
+                <small>
+                  Change to give: <strong>{currency(change)}</strong>
+                </small>
+              )}
+              {customer && tendered !== null && tendered < total && (
+                <small>{currency(total - tendered)} will be owed on the customer's account.</small>
+              )}
+            </div>
+            <button type="button" disabled={busy || !cart.length || !priced} onClick={() => void complete()}>
+              <Icon name="complete" /> {busy ? 'Saving…' : `Complete sale · ${currency(total)}`}
+            </button>
           </div>
-          <button type="button" disabled={busy || !cart.length || !priced} onClick={() => void complete()}>
-            <Icon name="complete" /> {busy ? 'Saving…' : `Complete sale · ${currency(total)}`}
-          </button>
         </section>
       </div>
     </Modal>

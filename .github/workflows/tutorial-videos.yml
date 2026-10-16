@@ -1,0 +1,58 @@
+name: Tutorial videos
+# Records the tutorial videos (captions + computer voice) and saves them on the
+# tutorial-videos-output branch and as a downloadable artifact. Runs only when asked:
+# a push to a claude/videos* branch, or "Run workflow" in the Actions tab.
+on:
+  push:
+    branches: ['claude/videos*']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Voice and video tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg espeak-ng
+          pip install -q piper-tts==1.2.0 || echo "Piper not installed; using espeak-ng"
+          mkdir -p /tmp/voice
+          base=https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium
+          curl -fsSL -o /tmp/voice/voice.onnx "$base/en_US-lessac-medium.onnx" || true
+          curl -fsSL -o /tmp/voice/voice.onnx.json "$base/en_US-lessac-medium.onnx.json" || true
+      - name: Record
+        env:
+          PIPER_MODEL: /tmp/voice/voice.onnx
+        run: node scripts/tutorials/record.mjs /tmp/tutorials 2>&1 | tee /tmp/tutorials-log.txt
+      - name: Save videos
+        if: ${{ !cancelled() }}
+        run: |
+          mkdir -p /tmp/tutorials && cp /tmp/tutorials-log.txt /tmp/tutorials/log.txt || true
+          rm -rf /tmp/tutorials/.work
+          cd /tmp/tutorials
+          git init -q -b tutorial-videos-output
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add -A
+          git commit -qm "Tutorial videos for ${GITHUB_SHA}"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" tutorial-videos-output
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: tutorial-videos
+          path: /tmp/tutorials/*.mp4
