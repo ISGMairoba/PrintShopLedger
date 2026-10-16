@@ -306,6 +306,7 @@ export default function QuickSale({
           <div className="form-grid">
             <ListedCombobox
               label="Customer"
+              emptyText="No matching customer. Add them on Customers, or use Walk-in customer."
               name="customer"
               options={[WALK_IN_NAME, ...customers.map(label)]}
               value={customerText}

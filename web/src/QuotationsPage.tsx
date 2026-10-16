@@ -594,6 +594,7 @@ function QuotationEditor({
           <div className="form-grid">
             <ListedCombobox
               label="Customer"
+              emptyText="No saved customer matches. The name you typed will be used."
               name="customer"
               options={customers.map(customerLabel)}
               value={customerText}
