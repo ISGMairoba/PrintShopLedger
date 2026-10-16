@@ -17,6 +17,11 @@ mkdirSync(out, { recursive: true });
 const work = join(out, '.work');
 mkdirSync(work, { recursive: true });
 const port = 4198;
+console.log(
+  process.env.PIPER_MODEL && existsSync(process.env.PIPER_MODEL)
+    ? 'Voice: Piper'
+    : 'Voice: espeak-ng (Piper model missing)',
+);
 const SIZE = { width: 1280, height: 720 };
 
 // ---------- Voice ----------
@@ -206,16 +211,23 @@ async function record(browser, video) {
     await page.getByRole('navigation', { name: 'Main' }).waitFor();
   }
   await delay(600);
+  // Keep pop-ups above the caption band at the bottom of the frame.
+  await page.addStyleTag({
+    content:
+      'dialog.modal{inset:0 0 auto 0!important;margin:12px auto 0!important;max-height:calc(100dvh - 118px)!important}',
+  });
   const h = helpers(page, context);
   if (video.setup) await video.setup(h);
   const start = (Date.now() - born) / 1000;
-  const marks = [];
+  const marks = [],
+    done = [];
   for (const [i, step] of video.steps.entries()) {
     const at = (Date.now() - born) / 1000;
     marks.push(at - start);
     await caption(page, step.say);
     const began = Date.now();
     if (step.do) await step.do(h);
+    done.push((Date.now() - born) / 1000 - start);
     const hold = Math.max(lines[i].length + 0.7, step.min ?? 2.4) * 1000 - (Date.now() - began);
     if (hold > 0) await delay(hold);
   }
@@ -263,7 +275,7 @@ async function record(browser, video) {
   const frames = join(out, 'frames', video.id);
   mkdirSync(frames, { recursive: true });
   marks.forEach((at, i) => {
-    const t = Math.min(at + Math.max(lines[i].length, 1.5), end - start - 0.2);
+    const t = Math.min(Math.max(done[i] + 0.4, at + 1.5), end - start - 0.2);
     spawnSync('ffmpeg', [
       '-y',
       '-loglevel',

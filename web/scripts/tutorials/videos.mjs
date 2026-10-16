@@ -225,6 +225,22 @@ export const videos = [
     id: '05-receipts',
     title: 'Receipts: print, PDF and share',
     description: 'Printing, downloading and sharing a receipt, and finding an older one.',
+    // A sale today, so My Sales has one to show.
+    setup: async ({ page }) => {
+      await page
+        .getByRole('navigation', { name: 'Main' })
+        .getByRole('button', { name: 'Point of Service', exact: true })
+        .click();
+      await page.getByRole('button', { name: 'Quick sale', exact: true }).click();
+      const q = page.getByRole('dialog', { name: 'Quick sale' });
+      await q.locator('.quick-product', { hasText: 'Art card' }).click();
+      await q.getByRole('button', { name: /^Complete sale/ }).click();
+      await page.getByRole('dialog').last().getByRole('button', { name: 'Close', exact: true }).click();
+      await page
+        .getByRole('navigation', { name: 'Main' })
+        .getByRole('button', { name: 'Dashboard', exact: true })
+        .click();
+    },
     steps: [
       {
         say: 'Every sale opens its receipt. To find an older one, open My Sales.',
