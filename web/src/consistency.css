@@ -817,3 +817,131 @@ label.checkbox input {
 .variant-tools > .variant-chips {
   margin-bottom: 8px;
 }
+
+/* Help: a ? beside each page title, and the manual panel (topics list + one topic). */
+header .page-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 9px 0;
+}
+header .page-title h1 {
+  margin: 0;
+}
+.help-button {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 16px;
+  background: transparent;
+  color: var(--brand-link, #124b40);
+  border: 1px solid var(--line);
+}
+.help-button:hover {
+  background: var(--surface-alt);
+}
+.help-modal {
+  max-width: 1040px;
+}
+.help-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.help-index {
+  display: grid;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+}
+.help-index h3 {
+  margin: 4px 0 4px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.75;
+}
+.help-index ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+.help-index .text-button {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+}
+.help-index .text-button[aria-current="true"] {
+  background: var(--surface-alt);
+  font-weight: 700;
+}
+.help-card-button {
+  justify-self: start;
+}
+.help-topic {
+  min-width: 0;
+}
+.help-topic h3 {
+  margin: 0 0 6px;
+  font-size: 20px;
+}
+.help-summary {
+  font-size: 15px;
+  margin: 0 0 14px;
+}
+.help-topic ol {
+  padding-left: 22px;
+  display: grid;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+.help-topic .notice ul {
+  margin: 0;
+  padding-left: 18px;
+}
+.help-video {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  margin: 0 0 16px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #000;
+}
+.help-video iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.help-back {
+  display: none;
+}
+@media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
+  .help-layout {
+    grid-template-columns: 1fr;
+  }
+  .help-index {
+    position: static;
+  }
+  /* Phones: the list, or the topic with a way back. */
+  .help-layout.reading .help-index {
+    display: none;
+  }
+  .help-layout:not(.reading) .help-topic {
+    display: none;
+  }
+  .help-back {
+    display: inline-flex;
+    margin-bottom: 8px;
+  }
+}

@@ -48,6 +48,7 @@ import {
 } from './ConflictReviews';
 import { useAuthSessions, useOnline, useWorkspaces } from './app/useSessions';
 import { useAutoLock } from './app/useAutoLock';
+import HelpPanel from './HelpPanel';
 import {
   BusinessLogin,
   PasswordRecovery,
@@ -124,6 +125,8 @@ export default function App() {
   const [message, setMessage, messageTone] = useFeedbackMessage('success');
   const online = useOnline();
   const [switchUser, setSwitchUser] = useState(false);
+  // The Help panel: closed (undefined), the whole manual (null) or a page's own topic.
+  const [helpFor, setHelpFor] = useState<string | null | undefined>(undefined);
   const [staffEpoch, setStaffEpoch] = useState(0);
   const [authEpoch, setAuthEpoch] = useState(0);
   const [demo, setDemo] = useState(!supabase);
@@ -984,6 +987,9 @@ export default function App() {
                   }
                   footer={
                     <>
+                      <button className="secondary" onClick={() => setHelpFor(null)}>
+                        <Icon name="help" /> Help
+                      </button>
                       {!demo && (
                         <button
                           className="secondary"
@@ -1082,7 +1088,18 @@ export default function App() {
                   <header>
                     <div>
                       <span className="eyebrow">{demo ? 'LOCAL TRIAL' : businessName}</span>
-                      <h1>{pageName(page, branding.settings.terms)}</h1>
+                      <div className="page-title">
+                        <h1>{pageName(page, branding.settings.terms)}</h1>
+                        <button
+                          type="button"
+                          className="help-button"
+                          aria-label={`Help with ${pageName(page, branding.settings.terms)}`}
+                          title="Help with this page"
+                          onClick={() => setHelpFor(page)}
+                        >
+                          <Icon name="help" />
+                        </button>
+                      </div>
                       <p>{renameTerms(pageDescriptions[page], branding.settings.terms)}</p>
                     </div>
                     {!demo && scope && (
@@ -1092,6 +1109,14 @@ export default function App() {
                       </span>
                     )}
                   </header>
+                  {helpFor !== undefined && (
+                    <HelpPanel
+                      page={helpFor}
+                      rank={demo ? 4 : (shop?.accessLevel ?? 1)}
+                      businessName={businessName}
+                      onClose={() => setHelpFor(undefined)}
+                    />
+                  )}
                   {switchUser && (
                     <Modal title="Switch user" busy={busy} onClose={() => setSwitchUser(false)}>
                       <p>Business: {shop?.name}. Sign in with your staff username and password.</p>

@@ -230,6 +230,17 @@ try {
     } catch (e) {
       failures.push(`${mode} template editor: ${e.message.split('\n')[0]}`);
     }
+    // Help: the panel from a page's ? button, and from the menu.
+    try {
+      await nav('Point of Service');
+      await page.getByRole('button', { name: /^Help with / }).click();
+      await page.getByRole('dialog', { name: 'Help' }).waitFor();
+      await shot('95-help-page-topic', false);
+      await closeDialogs();
+    } catch (e) {
+      failures.push(`${mode} help: ${e.message.split('\n')[0]}`);
+      await closeDialogs();
+    }
     // A product with colour variants: the Add product form, then Quick sale, Edit Products and the editor.
     try {
       await nav('Services');
