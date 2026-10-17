@@ -1032,3 +1032,37 @@ header .page-title h1 {
     grid-column: 1 / -1;
   }
 }
+
+/* Correction requests (My Sales for cashiers; Sale Adjustments for approvers). */
+.request-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.request-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line, #d7dce2);
+  border-radius: 10px;
+}
+.request-item > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 260px;
+}
+.request-item small {
+  overflow-wrap: anywhere;
+}
+.request-item.pending {
+  border-color: var(--accent, #c77700);
+}
+.correction-requests {
+  margin: 0 0 16px;
+}

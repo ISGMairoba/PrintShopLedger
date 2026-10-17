@@ -89,6 +89,7 @@ try {
               staffName: 'Test User',
             },
           ];
+        else if (path.endsWith('/list_correction_requests')) result = [];
         else if (path.endsWith('/business_settings'))
           result = customSettings ? [{ settings: customSettings, version: 1 }] : [];
         else if (path.endsWith('/get_ledger'))

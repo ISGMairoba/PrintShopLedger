@@ -118,7 +118,8 @@ try {
         let cloud = base(),
           writes = [],
           cashier = false,
-          stale = false;
+          stale = false,
+          requests = [];
         const errors = [];
         await context.route('https://*.supabase.co/**', async (route) => {
           const path = new URL(route.request().url()).pathname;
@@ -172,6 +173,37 @@ try {
                 status = 409;
                 result = { code: 'PT409', message: e.message };
               }
+            }
+          } else if (path.endsWith('/list_correction_requests')) result = requests;
+          else if (path.endsWith('/submit_correction_request')) {
+            const event = route.request().postDataJSON().p_event;
+            requests = [
+              {
+                id: event.id,
+                jobId: event.data.jobId,
+                kind: event.kind,
+                event,
+                reason: event.data.reason,
+                requestedBy: actor.id,
+                requestedByLabel: 'Cashier',
+                requestedAt: new Date().toISOString(),
+                status: 'pending',
+              },
+              ...requests,
+            ];
+            result = requests;
+          } else if (path.endsWith('/approve_correction_request')) {
+            const { p_request, p_event } = route.request().postDataJSON();
+            writes.push(p_event);
+            if (cashier) {
+              status = 403;
+              result = { message: 'Admin approval required' };
+            } else {
+              cloud = applyEvent(cloud, p_event);
+              requests = requests.map((r) =>
+                r.id === p_request ? { ...r, status: 'approved', decidedByLabel: 'Admin' } : r,
+              );
+              result = cloud;
             }
           } else throw Error('Unexpected adjustments request ' + path);
           await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(result) });
@@ -449,6 +481,38 @@ try {
         assert.equal(cloud.payments.find((p) => p.id === paid.id).paidOn, '2026-01-05');
         assert.equal(writes.at(-1).kind, 'payment.corrected');
         assert.equal(writes.at(-1).data.paymentId, paid.id);
+        await dismiss();
+        // A cashier asks for a correction on their own sale; nothing changes until it is approved.
+        cashier = true;
+        await page.reload();
+        await page.getByRole('heading', { name: 'Point of Service', exact: true }).waitFor();
+        await nav('My Sales');
+        await page.getByLabel('Job to adjust').fill(uuid(6));
+        await page.getByRole('option').first().click();
+        await page.getByRole('button', { name: 'Request a correction', exact: true }).click();
+        d = page.getByRole('dialog', { name: 'Request a correction' });
+        await d.getByLabel('Money returned (₦)').fill('10');
+        await d.getByLabel('Reason', { exact: true }).fill('Customer asked for ₦10 back');
+        await d.getByRole('checkbox').check();
+        const creditBefore = walletBalance(cloud, customer);
+        await d.getByRole('button', { name: 'Send for approval' }).click();
+        await d.waitFor({ state: 'detached' });
+        assert.equal(requests.length, 1);
+        assert.equal(walletBalance(cloud, customer), creditBefore, 'A request changes nothing');
+        await page.getByText('Waiting for approval').first().waitFor();
+        await dismiss();
+        cashier = false;
+        await page.reload();
+        await page.getByRole('heading', { name: 'Point of Service', exact: true }).waitFor();
+        await nav('Sale Adjustments');
+        await page.getByRole('button', { name: 'Review', exact: true }).click();
+        d = page.getByRole('dialog', { name: 'Review correction request' });
+        await d.getByText('Money returned').waitFor();
+        await d.getByRole('button', { name: 'Approve and apply' }).click();
+        await d.waitFor({ state: 'detached' });
+        assert.equal(walletBalance(cloud, customer), creditBefore - 1000);
+        assert.equal(requests[0].status, 'approved');
+        assert.equal(writes.at(-1).data.requestedBy, actor.id);
         await dismiss();
         cashier = true;
         await page.reload();
