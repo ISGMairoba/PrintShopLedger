@@ -1,3 +1,4 @@
+import { settingsSection } from './settings-navigation.mjs';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -62,7 +63,7 @@ try {
       await d.waitFor({ state: 'detached' });
     }
     await nav('Business Settings');
-    await page.getByRole('tab', { name: 'Jobs & payments' }).click();
+    await settingsSection(page, 'Jobs & payments');
     await page.getByLabel('Job description entry').selectOption('optional');
     await page.getByRole('button', { name: 'Save job and payment settings', exact: true }).click();
     await nav('Point of Service');
@@ -130,7 +131,7 @@ try {
     );
     assert.ok(
       await page
-        .locator('.more-menu > button')
+        .locator('.toolbar-view-controls > button')
         .first()
         .evaluate((node) => node.closest('.job-list-toolbar') !== null),
       'View options are in the main toolbar',
@@ -168,14 +169,14 @@ try {
     await d.waitFor({ state: 'detached' });
     assert.equal(await page.getByText('Stage: Collected', { exact: true }).count(), 2);
     await nav('Business Settings');
-    await page.getByRole('tab', { name: 'Jobs & payments' }).click();
+    await settingsSection(page, 'Jobs & payments');
     await page.getByLabel('Job description entry').selectOption('hidden');
     await page.getByRole('button', { name: 'Save job and payment settings', exact: true }).click();
     await page.reload();
     await page.getByRole('button', { name: 'Try locally on this device', exact: true }).click();
     await page.getByRole('heading', { name: 'Point of Service', exact: true }).waitFor();
     await nav('Business Settings');
-    await page.getByRole('tab', { name: 'Jobs & payments' }).click();
+    await settingsSection(page, 'Jobs & payments');
     assert.equal(await page.getByLabel('Job description entry').inputValue(), 'hidden');
     await nav('Point of Service');
     await page.getByRole('button', { name: 'Add job', exact: true }).click();

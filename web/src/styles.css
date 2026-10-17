@@ -231,14 +231,6 @@ header p {
   font-size: 27px;
   letter-spacing: -0.7px;
 }
-.stats article:last-child {
-  background: #124b40;
-  color: white;
-}
-.stats article:last-child span,
-.stats article:last-child small {
-  color: #c2d9cf;
-}
 .panel {
   background: white;
   border: 1px solid #dfe6df;

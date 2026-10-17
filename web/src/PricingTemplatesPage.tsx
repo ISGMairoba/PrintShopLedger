@@ -1,3 +1,4 @@
+import ResponsiveTable from './ResponsiveTable';
 import CostImportDialog, { type ImportedCosts } from './CostImportDialog';
 import { readCostFile, MAX_COST_FILE_BYTES } from './cost-transfer.mjs';
 import { TemplateExportDialog, TemplateImportDialog, type TemplatePackage } from './TemplateTransfer';
@@ -230,7 +231,7 @@ export default function PricingTemplatesPage({
       )}
       {tab === 'templates' && canManage && (
         <>
-          <section className="stats">
+          <section className="stats catalogue-stats">
             <article>
               <span>Active templates</span>
               <strong>{pricing.templates.filter((t) => !t.archived).length}</strong>
@@ -386,7 +387,7 @@ export default function PricingTemplatesPage({
       )}
       {tab === 'costs' && canSeeCosts && (
         <>
-          <section className="stats">
+          <section className="stats catalogue-stats">
             <article>
               <span>Costs for formulas</span>
               <strong>{costs.length}</strong>
@@ -434,55 +435,62 @@ export default function PricingTemplatesPage({
             </p>
           ) : (
             <div className="table-wrap">
-              <table aria-label="Costs used in formulas">
-                <thead>
-                  <tr>
-                    <th>{w('Item')}</th>
-                    <th>Formula name</th>
-                    <th className="numeric">Cost</th>
-                    <th className="numeric">Per unit</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {costs.map((s) => {
-                    const unit = consumptionUnit(s, ledger.materials);
-                    return (
-                      <tr key={s.id}>
-                        <td>
-                          {s.description}
-                          <small>
-                            {s.private ? 'Private · templates only' : 'Also sold'}
-                            {s.materialId
-                              ? ` · ${w('stock item')}: ${ledger.materials.find((m) => m.id === s.materialId)?.name}`
-                              : ''}
-                          </small>
-                        </td>
-                        <td>
-                          {hasCost(s.costing) && <code>{s.costing!.key}</code>}
-                          {!s.private && (
+              <ResponsiveTable
+                columns={[
+                  { index: 0, label: w('Item'), details: [1] },
+                  { index: 2, label: 'Cost', details: [3] },
+                ]}
+              >
+                <table aria-label="Costs used in formulas">
+                  <thead>
+                    <tr>
+                      <th>{w('Item')}</th>
+                      <th>Formula name</th>
+                      <th className="numeric">Cost</th>
+                      <th className="numeric">Per unit</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {costs.map((s) => {
+                      const unit = consumptionUnit(s, ledger.materials);
+                      return (
+                        <tr key={s.id}>
+                          <td>
+                            {s.description}
                             <small>
-                              <code>{s.costing!.key}_price</code> = {currency(s.price)} selling price
+                              {s.private ? 'Private · templates only' : 'Also sold'}
+                              {s.materialId
+                                ? ` · ${w('stock item')}: ${ledger.materials.find((m) => m.id === s.materialId)?.name}`
+                                : ''}
                             </small>
-                          )}
-                        </td>
-                        <td className="numeric">
-                          {hasCost(s.costing) ? (
-                            <>
-                              {currency(s.costing!.amount!)} for {s.costing!.per} {unit}
-                              {s.costing!.unit ? <small>bought as {s.costing!.unit}</small> : null}
-                            </>
-                          ) : (
-                            <small>No cost · selling price only</small>
-                          )}
-                        </td>
-                        <td className="numeric">
-                          {hasCost(s.costing) ? `₦${canonical(costRate(s.costing!))} / ${unit}` : '—'}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                          </td>
+                          <td>
+                            {hasCost(s.costing) && <code>{s.costing!.key}</code>}
+                            {!s.private && (
+                              <small>
+                                <code>{s.costing!.key}_price</code> = {currency(s.price)} selling price
+                              </small>
+                            )}
+                          </td>
+                          <td className="numeric">
+                            {hasCost(s.costing) ? (
+                              <>
+                                {currency(s.costing!.amount!)} for {s.costing!.per} {unit}
+                                {s.costing!.unit ? <small>bought as {s.costing!.unit}</small> : null}
+                              </>
+                            ) : (
+                              <small>No cost · selling price only</small>
+                            )}
+                          </td>
+                          <td className="numeric">
+                            {hasCost(s.costing) ? `₦${canonical(costRate(s.costing!))} / ${unit}` : '—'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </ResponsiveTable>
             </div>
           )}
         </>

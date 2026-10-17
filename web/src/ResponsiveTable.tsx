@@ -2,6 +2,8 @@ import {
   Children,
   Fragment,
   isValidElement,
+  useEffect,
+  useRef,
   useState,
   useSyncExternalStore,
   type ReactElement,
@@ -16,6 +18,7 @@ type Element = ReactElement<{
   column?: string;
   sort?: { key: string; direction: 'asc' | 'desc'; toggle: (key: string) => void };
   className?: string;
+  'aria-label'?: string;
 }>;
 type MobileColumn = { index: number; label: string; details?: number[]; actions?: boolean };
 // Flatten fragments, but retain cells and their original event handlers.
@@ -67,9 +70,9 @@ function MobileActions({ children }: { children: ReactNode }) {
     </div>
   );
 }
-/** All new list pages should use this wrapper and declare at most three mobile columns.
- * Unassigned columns (including audit fields) become labelled details in the first column.
- * The original table is retained on desktop; mobile uses the same content and handlers.
+/** Lists adapt to their available width, including narrow desktop panels.
+ * Declared details stay visible; other columns are available in a disclosure.
+ * Audit columns remain visible when the user explicitly enables audit view.
  */
 export default function ResponsiveTable({
   children,
@@ -83,7 +86,14 @@ export default function ResponsiveTable({
   extraSortOptions?: { key: string; label: string }[];
 }) {
   const mobile = useMobileLayout();
-  if (!mobile) return children;
+  const container = useRef<HTMLDivElement>(null);
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const element = container.current!;
+    const observer = new ResizeObserver(([entry]) => setNarrow(entry.contentRect.width < 840));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
   const table = children as Element;
   const sections = elements(table.props.children);
   const head = sections.find((section) => section.type === 'thead');
@@ -99,88 +109,108 @@ export default function ResponsiveTable({
   const sort = sortHeaders[0]?.props.sort;
   const label = (index: number) =>
     labels[index] ?? headers[index]?.props.label ?? headers[index]?.props.children ?? 'Details';
+  const auditing = headers.some((header) => ['createdBy', 'modifiedBy'].includes(header.props.column ?? ''));
+  const metadata = (cells: Element[], detail: number) => (
+    <div className="mobile-meta" key={detail}>
+      <span className="mobile-meta-label">{label(detail)}: </span>
+      {cells[detail]?.props.children}
+    </div>
+  );
   return (
-    <>
-      {sort && (
-        <div className="mobile-sort">
-          <label>
-            Sort by
-            <select
-              aria-label="Sort list by"
-              value={sort.key}
-              onChange={(event) => sort.toggle(event.target.value)}
-            >
-              {extraSortOptions.map((option) => (
-                <option key={option.key} value={option.key}>
-                  {option.label}
-                </option>
-              ))}
-              {sortHeaders.map((header) => (
-                <option key={header.props.column} value={header.props.column}>
-                  {header.props.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            className="secondary"
-            aria-label="Reverse sort direction"
-            onClick={() => sort.toggle(sort.key)}
-          >
-            {sort.direction === 'asc' ? 'Ascending ↑' : 'Descending ↓'}
-          </button>
-        </div>
-      )}
-      <table className="mobile-list mobile-cards">
-        <thead>
-          <tr>
-            {columns.slice(0, 3).map((column) => (
-              <th key={column.index} scope="col">
-                {column.label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => {
-            const cells = elements(row.props.children);
-            return (
-              <tr key={row.key}>
-                {columns.slice(0, 3).map((column, position) => {
-                  const index = resolve(column.index);
-                  const details = [...(column.details ?? []).map(resolve), ...(position === 0 ? extra : [])];
-                  return (
-                    <td
-                      key={column.index}
-                      className={
-                        column.actions
-                          ? 'mobile-cell-actions'
-                          : position === 0
-                            ? 'mobile-cell-main'
-                            : 'mobile-cell-side'
-                      }
-                    >
-                      {column.actions ? (
-                        <MobileActions>{cells[index]?.props.children}</MobileActions>
-                      ) : (
-                        <>
-                          <div className="mobile-main-value">{cells[index]?.props.children}</div>
-                          {details.map((detail) => (
-                            <div className="mobile-meta" key={detail}>
-                              <span className="mobile-meta-label">{label(detail)}: </span>
-                              {cells[detail]?.props.children}
-                            </div>
-                          ))}
-                        </>
-                      )}
-                    </td>
-                  );
-                })}
+    <div className="responsive-records" ref={container}>
+      {!mobile && !narrow ? (
+        children
+      ) : (
+        <>
+          {sort && (
+            <div className="mobile-sort">
+              <label>
+                Sort by
+                <select
+                  aria-label="Sort list by"
+                  value={sort.key}
+                  onChange={(event) => sort.toggle(event.target.value)}
+                >
+                  {extraSortOptions.map((option) => (
+                    <option key={option.key} value={option.key}>
+                      {option.label}
+                    </option>
+                  ))}
+                  {sortHeaders.map((header) => (
+                    <option key={header.props.column} value={header.props.column}>
+                      {header.props.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                className="secondary"
+                aria-label="Reverse sort direction"
+                onClick={() => sort.toggle(sort.key)}
+              >
+                {sort.direction === 'asc' ? 'Ascending ↑' : 'Descending ↓'}
+              </button>
+            </div>
+          )}
+          <table className="mobile-list mobile-cards" aria-label={table.props['aria-label']}>
+            <thead>
+              <tr>
+                {columns.slice(0, 3).map((column) => (
+                  <th key={column.index} scope="col">
+                    {column.label}
+                  </th>
+                ))}
               </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </>
+            </thead>
+            <tbody>
+              {rows.map((row) => {
+                const cells = elements(row.props.children);
+                return (
+                  <tr key={row.key}>
+                    {columns.slice(0, 3).map((column, position) => {
+                      const index = resolve(column.index);
+                      const details = (column.details ?? []).map(resolve);
+                      return (
+                        <td
+                          key={column.index}
+                          className={
+                            column.actions
+                              ? 'mobile-cell-actions'
+                              : position === 0
+                                ? 'mobile-cell-main'
+                                : position === 1
+                                  ? 'mobile-cell-side'
+                                  : 'mobile-cell-third'
+                          }
+                        >
+                          {column.actions ? (
+                            <MobileActions>{cells[index]?.props.children}</MobileActions>
+                          ) : (
+                            <>
+                              <div className="mobile-main-value">{cells[index]?.props.children}</div>
+                              {details.map((detail) => metadata(cells, detail))}
+                              {position === 0 &&
+                                extra.length > 0 &&
+                                (auditing ? (
+                                  extra.map((detail) => metadata(cells, detail))
+                                ) : (
+                                  <details className="record-details">
+                                    <summary>More details</summary>
+                                    {extra.map((detail) => metadata(cells, detail))}
+                                  </details>
+                                ))}
+                            </>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </>
+      )}
+    </div>
   );
 }

@@ -1,3 +1,4 @@
+import { settingsSection } from './settings-navigation.mjs';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { readTemplateFile } from '../src/template-transfer.mjs';
@@ -73,7 +74,7 @@ try {
       await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name, exact: true }).click();
     };
     await nav('Business Settings');
-    await page.getByRole('tab', { name: 'Pricing templates', exact: true }).click();
+    await settingsSection(page, 'Pricing templates');
     assert.equal(await page.getByRole('button', { name: 'Start with book', exact: true }).count(), 0);
     assert.equal(
       await page
@@ -391,7 +392,7 @@ try {
     await page.getByRole('tab', { name: 'Templates', exact: true }).click();
     await page.getByRole('heading', { name: 'Books (import 1)', exact: true }).waitFor();
     await nav('Business Settings');
-    await page.getByRole('tab', { name: 'Pricing templates', exact: true }).click();
+    await settingsSection(page, 'Pricing templates');
     await page.getByLabel('Enable pricing templates').uncheck();
     await page.getByRole('button', { name: 'Save pricing templates', exact: true }).click();
     assert.equal(

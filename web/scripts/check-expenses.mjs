@@ -233,7 +233,69 @@ try {
   );
   await mobile.getByRole('button', { name: 'Add expense', exact: true }).click();
   const md = mobile.getByRole('dialog');
-  await md.getByLabel('Add purchased materials to stock').check();
+  assert.equal(
+    await md.evaluate((element) => document.activeElement === element),
+    true,
+    'Touch dialog opens without focusing a text field or raising the keyboard',
+  );
+  // A fixed footer creates a separate scroll viewport. Expose the complete touch target,
+  // then exercise the real native checkbox (no forced click or direct checked-state changes).
+  await md
+    .getByLabel('Add purchased materials to stock')
+    .evaluate((element) =>
+      element.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' }),
+    );
+  assert.ok(
+    await md.getByLabel('Add purchased materials to stock').evaluate((element) => {
+      const target = element.getBoundingClientRect();
+      const viewport = element.closest('dialog').querySelector('.modal-body').getBoundingClientRect();
+      return target.top >= viewport.top && target.bottom <= viewport.bottom;
+    }),
+    'Stock checkbox is fully inside the dialog scroll viewport before tapping',
+  );
+  await md.getByLabel('Add purchased materials to stock').evaluate((element) => {
+    element.uiEvents = [];
+    for (const type of ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'click', 'input', 'change']) {
+      element.addEventListener(
+        type,
+        (event) => {
+          element.uiEvents.push({ type, checked: element.checked, prevented: event.defaultPrevented });
+        },
+        true,
+      );
+    }
+  });
+  try {
+    const stockToggle = md.getByLabel('Add purchased materials to stock');
+    await stockToggle.tap();
+    // WebKit delivers the compatibility click after the touch sequence completes.
+    await mobile.waitForFunction(() => document.querySelector('.expense-stock input').checked);
+    assert.equal(await stockToggle.isChecked(), true, 'A real touch tap enables stock purchase');
+    await stockToggle.press('Space');
+    assert.equal(await stockToggle.isChecked(), false, 'Keyboard can turn stock purchase off');
+    await stockToggle.press('Space');
+    assert.equal(await stockToggle.isChecked(), true, 'Keyboard can turn stock purchase on');
+  } catch (error) {
+    console.log(
+      'Expense mobile hit target',
+      await md.getByLabel('Add purchased materials to stock').evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+        const body = element.closest('dialog').querySelector('.modal-body');
+        return {
+          checked: element.checked,
+          events: element.uiEvents,
+          rect: rect.toJSON(),
+          hit: hit?.outerHTML,
+          scrollTop: body.scrollTop,
+          body: body.getBoundingClientRect().toJSON(),
+        };
+      }),
+    );
+    console.log('Mobile page errors', errors);
+    await mobile.screenshot({ path: '/tmp/expenses-mobile-failure.png', fullPage: true });
+    throw error;
+  }
   await md.getByRole('button', { name: 'Add material', exact: true }).click();
   assert.ok(await md.evaluate((el) => el.scrollWidth <= el.clientWidth), 'Expense popup fits mobile');
   assert.ok(

@@ -36,6 +36,16 @@ jobs:
         timeout-minutes: 5
         run: npx playwright install chromium webkit
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: node scripts/run-check.mjs node scripts/check-ui-consistency.mjs
+      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: node scripts/run-check.mjs node scripts/check-expenses.mjs
+      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-consistency
+          path: /tmp/ui-consistency
+          retention-days: 7
+      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/run-check.mjs node scripts/check-business-branding.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/run-check.mjs node scripts/check-theme-backgrounds.mjs
@@ -64,8 +74,6 @@ jobs:
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/run-check.mjs node scripts/check-materialless-services.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-expenses.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/run-check.mjs npm run test:ui
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/run-check.mjs node scripts/check-print-settings.mjs
@@ -89,6 +97,7 @@ jobs:
             /tmp/retail-orders.png
             /tmp/job-batches-*.png
             /tmp/pricing-templates-*.png
+            /tmp/expenses-mobile*.png
           retention-days: 7
 
 

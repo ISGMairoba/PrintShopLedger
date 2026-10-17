@@ -66,7 +66,7 @@ npm run format        # format all code (Biome) — run before committing
 npm run build         # type-check and build, same as Vercel
 ```
 
-Every push to GitHub runs the full set in `.github/workflows/printshopledger-web.yml`: formatting, unit
+Opening or reopening a pull request runs the full set in `.github/workflows/printshopledger-web.yml`: formatting, unit
 tests, build, and all browser checks. Each step goes through `scripts/run-check.mjs`, so when one fails the
 last lines of its output appear as an annotation on the pull request — no need to download logs.
 
@@ -84,3 +84,5 @@ everything is listed in `.git-blame-ignore-revs`; run
 Update `README.md` when feature behaviour or setup changes; describe deployed configuration dependencies separately from code support. See [the transfer guide](docs/pricing-template-transfers.md) for the file contract and [the manual plan](docs/manual-plan.md) for chapter ownership and verification. Manual source is planned under `docs/manual/`; it is not yet a complete user manual.
 
 For transfer changes run `node --test tests/template-transfer.test.mjs tests/pricing-templates.test.mjs`, the full `npm test`, build, and `scripts/check-pricing-templates.mjs` in an environment with browser dependencies. The browser check covers import review/save/reload, download and unsupported-share fallback alongside existing pricing and checkout flows.
+
+For UI layout changes, follow [the UI conventions](docs/ui-conventions.md). Run `node scripts/check-ui-consistency.mjs` after building in an environment with Playwright Chromium and WebKit; CI retains screenshots for visual review.

@@ -213,7 +213,10 @@ try {
       if (rank === 3) {
         // Manager given Business Settings sees only the tabs chosen for Manager, never Page access.
         await nav.getByRole('button', { name: 'Business Settings', exact: true }).click();
-        const tabs = page.getByRole('tablist', { name: 'Business settings sections' }).getByRole('tab');
+        const picker = page.getByLabel('Business settings section', { exact: true });
+        const tabs = (await picker.isVisible())
+          ? picker.locator('option')
+          : page.getByRole('tablist', { name: 'Business settings sections' }).getByRole('tab');
         assert.deepEqual(
           (await tabs.allTextContents()).map((t) => t.trim()),
           ['Receipts'],

@@ -1,7 +1,8 @@
+import DialogActions from './DialogActions';
 import { useFeedbackMessage } from './Feedback';
 import ListedCombobox from './ListedCombobox';
 import { useBusinessOptions } from './BusinessOptionsContext';
-import { useState, type FormEvent } from 'react';
+import { useId, useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import CurrencyInput from './CurrencyInput';
 import Icon from './Icon';
@@ -37,6 +38,7 @@ export default function ExpenseEditor({
   onSave,
   onClose,
 }: Props) {
+  const formId = useId();
   const { w } = useWords();
   const options = useBusinessOptions(),
     expenseCategories = options.expenseCategories,
@@ -119,6 +121,11 @@ export default function ExpenseEditor({
       wide
       busy={busy}
       onClose={onClose}
+      footer={
+        <DialogActions form={formId} busy={busy} onCancel={onClose}>
+          {paymentOnly ? 'Save payment' : 'Save expense'}
+        </DialogActions>
+      }
     >
       {error && (
         <div className="notice" role="alert">
@@ -133,7 +140,7 @@ export default function ExpenseEditor({
           {currency(expense.amount - expensePaid(expense))}
         </p>
       )}
-      <form onSubmit={submit}>
+      <form id={formId} onSubmit={submit}>
         <fieldset disabled={busy}>
           {!paymentOnly && (
             <>
@@ -355,9 +362,6 @@ export default function ExpenseEditor({
           {expense && !paymentOnly && (
             <p className="muted">Recorded payments are retained. Use Record payment to add a payment.</p>
           )}
-          <button type="submit">
-            <Icon name="save" /> {busy ? 'Saving…' : paymentOnly ? 'Save payment' : 'Save expense'}
-          </button>
         </fieldset>
       </form>
     </Modal>

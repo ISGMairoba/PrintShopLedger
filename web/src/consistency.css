@@ -287,71 +287,69 @@ label small,
 
 /* Lists on phones: each row is a card. Name and details on the left, the amount on the right,
    actions along the bottom. The table keeps its header for screen readers. */
-@media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
-  .mobile-cards,
-  .mobile-cards tbody {
-    display: block;
-    width: 100%;
-  }
-  .mobile-cards thead {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-  .mobile-cards tbody {
-    display: grid;
-    gap: 10px;
-    padding: 12px;
-  }
-  .mobile-cards tr {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 6px 12px;
-    padding: 14px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius-lg, 12px);
-    background: var(--surface);
-    color: var(--ink);
-  }
-  .mobile-cards td {
-    display: block;
-    padding: 0;
-    border: 0;
-    min-width: 0;
-  }
-  .mobile-cards td.mobile-cell-main {
-    grid-column: 1;
-  }
-  .mobile-cards td.mobile-cell-side {
-    grid-column: 2;
-    grid-row: 1;
-    text-align: right;
-    max-width: 45vw;
-  }
-  .mobile-cards td.mobile-cell-side .mobile-meta {
-    text-align: right;
-  }
-  .mobile-cards td.mobile-cell-actions {
-    grid-column: 1 / -1;
-    padding-top: 10px;
-    margin-top: 4px;
-    border-top: 1px solid var(--line);
-  }
-  .mobile-cards .mobile-actions,
-  .mobile-cards .mobile-actions > div,
-  .mobile-cards .job-actions,
-  .mobile-cards .material-actions {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px 16px;
-  }
-  .mobile-cards .mobile-actions > .text-button:last-child:not(:first-child) {
-    margin-left: auto;
-  }
+.mobile-cards,
+.mobile-cards tbody {
+  display: block;
+  width: 100%;
+}
+.mobile-cards thead {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.mobile-cards tbody {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+.mobile-cards tr {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--surface);
+  color: var(--ink);
+}
+.mobile-cards td {
+  display: block;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.mobile-cards td.mobile-cell-main {
+  grid-column: 1;
+}
+.mobile-cards td.mobile-cell-side {
+  grid-column: 2;
+  grid-row: 1;
+  text-align: right;
+  max-width: 45vw;
+}
+.mobile-cards td.mobile-cell-side .mobile-meta {
+  text-align: right;
+}
+.mobile-cards td.mobile-cell-actions {
+  grid-column: 1 / -1;
+  padding-top: 10px;
+  margin-top: 4px;
+  border-top: 1px solid var(--line);
+}
+.mobile-cards .mobile-actions,
+.mobile-cards .mobile-actions > div,
+.mobile-cards .job-actions,
+.mobile-cards .material-actions {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+}
+.mobile-cards .mobile-actions > .text-button:last-child:not(:first-child) {
+  margin-left: auto;
 }
 
 /* Empty pages: one look — a short title, one line of explanation, then the next step. */
@@ -382,7 +380,7 @@ p.empty {
    and sits on the same line. Field names that used to sit above a control now sit beside it,
    so nothing pushes its control down. The search box takes the spare space. */
 :root {
-  --control-h: 42px;
+  --control-h: 44px;
 }
 .toolbar,
 .mobile-sort {
@@ -800,25 +798,54 @@ label.checkbox input {
   min-width: 0;
   margin: 0;
 }
-/*
- * Fields with hints underneath: name, box and hint are three shared rows, so the boxes in a row
- * line up even when one name or one hint is longer than its neighbour's.
- */
+/* All fields share label, control and supporting-text rows. Hints grow the row,
+   never move a neighbouring control. Non-field content occupies one complete field slot. */
+.form-grid,
 .form-grid.hint-grid {
-  row-gap: 18px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 20px;
   align-items: stretch;
 }
-.form-grid.hint-grid > * {
+.form-grid > * {
   grid-row: span 3;
+  min-width: 0;
+  margin-bottom: 12px;
 }
-.form-grid.hint-grid > label:not(.check-label):not(.checkbox) {
+.form-grid > label:not(.check-label):not(.checkbox):not(.material-checkbox),
+.form-grid > .listed-combobox {
   display: grid;
   grid-template-rows: subgrid;
-  row-gap: 7px;
-  align-items: end;
+  row-gap: 6px;
+  align-items: start;
 }
-.form-grid.hint-grid > label > small {
+.form-grid
+  > label:not(.check-label):not(.checkbox):not(.material-checkbox)
+  > :is(input:not([type="hidden"]), select, textarea),
+.form-grid > .listed-combobox > .listed-combobox-input {
+  grid-row: 2;
+  width: 100%;
+}
+.form-grid > label:not(.check-label):not(.checkbox):not(.material-checkbox) > small {
+  grid-row: 3;
   align-self: start;
+  margin: 0;
+  line-height: 1.5;
+}
+.form-grid > .listed-combobox > label {
+  margin: 0;
+}
+.form-grid > :is(.check-label, .checkbox, .material-checkbox) {
+  align-self: start;
+  margin-top: 24px;
+}
+@media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
+  .form-grid,
+  .form-grid.hint-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .form-grid > :is(.check-label, .checkbox, .material-checkbox) {
+    margin-top: 0;
+  }
 }
 .variant-tools {
   margin: 0 0 12px;
@@ -1033,6 +1060,397 @@ header .page-title h1 {
   }
 }
 
+/* Shared interaction states; colours follow the business theme. */
+button,
+input,
+select,
+textarea {
+  box-sizing: border-box;
+}
+button {
+  touch-action: manipulation;
+}
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+  outline: 3px solid var(--brand-accent);
+  outline-offset: 2px;
+}
+:is(input, select, textarea)[aria-invalid="true"] {
+  border-color: #c2413b;
+}
+label small {
+  color: var(--surface-subtle);
+  font-size: 12px;
+  line-height: 1.5;
+}
+label :is(.field-error, .currency-error) {
+  color: #b42318;
+}
+[data-theme="dark"] label :is(.field-error, .currency-error) {
+  color: #fda29b;
+}
+button.secondary:not(:disabled):hover {
+  border-color: var(--brand-link);
+}
+button[aria-busy="true"] {
+  cursor: progress;
+}
+
+/* Record lists fit their panel instead of acquiring a horizontal scrollbar. */
+.responsive-records {
+  min-width: 0;
+  width: 100%;
+}
+.responsive-records > table {
+  width: 100%;
+  table-layout: fixed;
+  white-space: normal;
+}
+.responsive-records > table :is(th, td) {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  padding: 14px 12px;
+}
+.responsive-records > table :is(button, .badge) {
+  max-width: 100%;
+  white-space: normal;
+}
+.responsive-records > table .sort-button {
+  text-align: inherit;
+}
+.responsive-records > table .mobile-meta {
+  font-size: 12px;
+}
+.responsive-records > table .mobile-cell-side {
+  max-width: none;
+}
+.mobile-cards tr {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.7fr);
+}
+.mobile-cards td.mobile-cell-third {
+  grid-column: 1 / -1;
+  grid-row: auto;
+}
+.mobile-cards .mobile-actions .text-button {
+  min-height: var(--control-h);
+}
+.record-details {
+  margin-top: 8px;
+  font-weight: 400;
+}
+.record-details > summary {
+  color: var(--brand-link);
+  cursor: pointer;
+  padding: 8px 0;
+  font-size: 12px;
+}
+.record-details[open] > summary {
+  margin-bottom: 4px;
+}
+.numeric {
+  font-variant-numeric: tabular-nums;
+}
+
+/* List view switches stay together beside the main action. */
+.toolbar-view-controls {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+  align-items: center;
+}
+.toolbar-view-controls .view-toggle {
+  width: var(--control-h);
+  height: var(--control-h);
+  min-height: var(--control-h);
+  padding: 0;
+  flex: none;
+}
+.toolbar-view-controls .view-toggle-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.toolbar-view-controls .view-toggle[aria-pressed="true"] {
+  background: var(--brand-primary);
+  color: var(--brand-on-primary);
+}
+.toolbar > .check-label {
+  flex: 1 1 100%;
+  order: 20;
+}
+.toolbar > input:not([type="checkbox"]) {
+  flex-basis: 180px;
+  min-width: 160px;
+}
+.toolbar-actions {
+  flex: 0 0 auto;
+}
+.toolbar-actions > button {
+  min-height: var(--control-h);
+}
+.more-menu-panel {
+  max-width: calc(100vw - 40px);
+}
+
+/* One scrolling body, with title and explicit action footer kept in view. */
+.modal[open] {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.modal-header {
+  flex: none;
+  position: relative;
+  z-index: 2;
+}
+.modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding: 20px;
+  overflow-anchor: none;
+}
+.modal-body :is(input, select, textarea) {
+  scroll-margin: 20px;
+}
+.modal-close {
+  width: var(--control-h);
+  height: var(--control-h);
+  padding: 0;
+}
+.modal-footer {
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+.dialog-action-buttons {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+.dialog-action-buttons > button {
+  min-width: 100px;
+  min-height: var(--control-h);
+}
+.dialog-action-summary {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  margin-right: auto;
+  font-variant-numeric: tabular-nums;
+}
+.dialog-action-summary small {
+  font-size: 12px;
+}
+.dialog-action-summary strong {
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+
+/* Settings navigation: a column on desktop and a section picker on phones. */
+.business-settings-layout {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  align-items: start;
+  gap: 24px;
+}
+.settings-section-navigation {
+  position: sticky;
+  top: 20px;
+}
+.business-section-tabs {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+.business-section-tabs > button {
+  width: 100%;
+  min-height: var(--control-h);
+  text-align: left;
+  justify-content: flex-start;
+  white-space: normal;
+  padding: 10px 12px;
+}
+.settings-section-picker {
+  display: none;
+}
+.business-settings-layout > [role="tabpanel"] {
+  min-width: 0;
+}
+.business-settings-layout fieldset:first-child {
+  margin-top: 0;
+}
+.settings-save-status {
+  display: grid;
+  gap: 4px;
+  padding-top: 16px;
+  margin-top: 20px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  font-weight: 600;
+}
+.settings-save-status small {
+  font-weight: 400;
+  line-height: 1.5;
+}
+@media (max-width: 1100px) {
+  .business-settings-layout {
+    grid-template-columns: 160px minmax(0, 1fr);
+    gap: 16px;
+  }
+  .business-settings-layout .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
+  .toolbar-actions {
+    flex: 1 1 100%;
+    justify-content: flex-end;
+  }
+  .toolbar-actions > * {
+    flex: 0 1 auto;
+  }
+  .toolbar-actions > .toolbar-view-controls {
+    margin-right: auto;
+    flex: 0 0 auto;
+  }
+  .toolbar-actions > button {
+    white-space: normal;
+  }
+  .toolbar > input:not([type="checkbox"]) {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+  .modal-wide[open]:not(.sidebar-drawer) {
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    max-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+  }
+  .modal-footer {
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  }
+  .dialog-action-buttons {
+    flex: 1 1 auto;
+    justify-content: flex-end;
+  }
+  .dialog-action-buttons > button {
+    min-width: 0;
+  }
+  .business-settings-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+  .settings-section-navigation {
+    position: static;
+  }
+  .settings-section-navigation .business-section-tabs {
+    display: none;
+  }
+  .settings-section-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .settings-section-picker select {
+    width: 100%;
+    font-size: 16px;
+  }
+  .business-settings fieldset {
+    padding: 16px;
+  }
+  .settings-actions > button {
+    flex: 1 1 100%;
+  }
+  :is(input, select, textarea) {
+    font-size: 16px;
+  }
+}
+@media (max-width: 360px) {
+  .toolbar-actions {
+    gap: 8px;
+  }
+  .toolbar-view-controls {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+  .dialog-action-summary {
+    flex: 1 1 100%;
+  }
+  .dialog-action-buttons {
+    width: 100%;
+  }
+  .dialog-action-buttons > button {
+    flex: 1;
+  }
+}
+.responsive-records > .mobile-cards td {
+  padding: 0;
+}
+.responsive-records > .mobile-cards td.mobile-cell-actions {
+  padding-top: 10px;
+}
+
+/* Comparison and permission tables wrap within their panel; document previews keep paper sizing. */
+.table-wrap > table {
+  width: 100%;
+  table-layout: fixed;
+  white-space: normal;
+}
+.table-wrap > table :is(th, td) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+/* Catalogue summaries should leave room for the actual list on a phone. */
+@media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
+  .stats.catalogue-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .stats.catalogue-stats article {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+    padding: 12px;
+    overflow-wrap: anywhere;
+  }
+  .stats.catalogue-stats article > span {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .stats.catalogue-stats article > strong {
+    margin: 0;
+    font-size: 22px;
+  }
+  .stats.catalogue-stats article > small {
+    display: none;
+  }
+}
+
 /* Correction requests (My Sales for cashiers; Sale Adjustments for approvers). */
 .request-list {
   list-style: none;
@@ -1065,4 +1483,39 @@ header .page-title h1 {
 }
 .correction-requests {
   margin: 0 0 16px;
+}
+
+/* Currency validation stays beneath its input, even when the field also has a hint. */
+.currency-control {
+  display: contents;
+}
+.form-grid > label > .currency-control {
+  display: block;
+  min-width: 0;
+  grid-row: 2;
+  align-self: start;
+}
+.form-grid > label > .currency-control > input:not([type="hidden"]) {
+  width: 100%;
+}
+.form-grid > button {
+  align-self: start;
+  margin-top: 24px;
+}
+@media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
+  .form-grid > button {
+    margin-top: 0;
+  }
+}
+
+/* The label is the touch target, not just the 18px checkbox artwork. */
+.check-label,
+label.checkbox,
+.material-checkbox > span {
+  min-height: var(--control-h);
+  touch-action: manipulation;
+}
+input[type="checkbox"],
+input[type="radio"] {
+  touch-action: manipulation;
 }

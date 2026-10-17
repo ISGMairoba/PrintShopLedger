@@ -1,3 +1,4 @@
+import ResponsiveTable from './ResponsiveTable';
 import { useState } from 'react';
 import Modal from './Modal';
 import Icon from './Icon';
@@ -83,65 +84,73 @@ export default function ReorderList({
             sending.
           </p>
           <div className="table-wrap">
-            <table aria-label="Reorder list">
-              <thead>
-                <tr>
-                  <th aria-label="Include" />
-                  <th>{w('Material')}</th>
-                  <th className="numeric">In stock</th>
-                  <th className="numeric">Minimum</th>
-                  <th className="numeric">Used (30 days)</th>
-                  <th className="numeric">Buy</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => {
-                  const on = chosen[r.materialId] !== undefined;
-                  return (
-                    <tr key={r.materialId}>
-                      <td>
-                        <input
-                          type="checkbox"
-                          aria-label={`Include ${r.name}`}
-                          checked={on}
-                          onChange={(e) =>
-                            setChosen((c) => {
-                              const next = { ...c };
-                              if (e.target.checked) next[r.materialId] = String(r.suggested);
-                              else delete next[r.materialId];
-                              return next;
-                            })
-                          }
-                        />
-                      </td>
-                      <td>
-                        {r.name}
-                        <small className={r.level === 'Critical' ? 'danger-text' : 'stock-near-text'}>
-                          {r.level}
-                        </small>
-                      </td>
-                      <td className="numeric">
-                        {r.available} {r.unit}
-                      </td>
-                      <td className="numeric">{r.minimum}</td>
-                      <td className="numeric">{r.used30}</td>
-                      <td className="numeric">
-                        <input
-                          type="number"
-                          min="0"
-                          step="any"
-                          aria-label={`Buy ${r.name}`}
-                          disabled={!on}
-                          value={chosen[r.materialId] ?? ''}
-                          onChange={(e) => setChosen((c) => ({ ...c, [r.materialId]: e.target.value }))}
-                          style={{ width: 90 }}
-                        />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <ResponsiveTable
+              columns={[
+                { index: 1, label: w('Material'), details: [0] },
+                { index: 2, label: 'In stock', details: [3, 4] },
+                { index: 5, label: 'Buy' },
+              ]}
+            >
+              <table aria-label="Reorder list">
+                <thead>
+                  <tr>
+                    <th aria-label="Include" />
+                    <th>{w('Material')}</th>
+                    <th className="numeric">In stock</th>
+                    <th className="numeric">Minimum</th>
+                    <th className="numeric">Used (30 days)</th>
+                    <th className="numeric">Buy</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => {
+                    const on = chosen[r.materialId] !== undefined;
+                    return (
+                      <tr key={r.materialId}>
+                        <td>
+                          <input
+                            type="checkbox"
+                            aria-label={`Include ${r.name}`}
+                            checked={on}
+                            onChange={(e) =>
+                              setChosen((c) => {
+                                const next = { ...c };
+                                if (e.target.checked) next[r.materialId] = String(r.suggested);
+                                else delete next[r.materialId];
+                                return next;
+                              })
+                            }
+                          />
+                        </td>
+                        <td>
+                          {r.name}
+                          <small className={r.level === 'Critical' ? 'danger-text' : 'stock-near-text'}>
+                            {r.level}
+                          </small>
+                        </td>
+                        <td className="numeric">
+                          {r.available} {r.unit}
+                        </td>
+                        <td className="numeric">{r.minimum}</td>
+                        <td className="numeric">{r.used30}</td>
+                        <td className="numeric">
+                          <input
+                            type="number"
+                            min="0"
+                            step="any"
+                            aria-label={`Buy ${r.name}`}
+                            disabled={!on}
+                            value={chosen[r.materialId] ?? ''}
+                            onChange={(e) => setChosen((c) => ({ ...c, [r.materialId]: e.target.value }))}
+                            style={{ width: 90 }}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </ResponsiveTable>
           </div>
           <div className="material-actions">
             <button
