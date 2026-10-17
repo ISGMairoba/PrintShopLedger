@@ -562,6 +562,8 @@ export interface LocalState {
   ledger: Ledger;
   pending: LedgerEvent[];
   lastSynced?: string;
+  /** Set when this device's damaged offline copy was replaced; cleared after the next download. */
+  storageRecovered?: string;
 }
 
 export interface ExpenseMaterial {

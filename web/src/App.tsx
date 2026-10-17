@@ -315,6 +315,18 @@ export default function App() {
           if (active) {
             setState(value);
             setReady(true);
+            if (value.storageRecovered) {
+              // The browser lost this device's offline copy; it is rebuilt from the server.
+              setMessage(
+                `This computer's offline copy was damaged (the browser lost one of its files), so it is being downloaded again from the server.${
+                  value.pending.length
+                    ? ` ${value.pending.length} unsynced change(s) were recovered and will sync now.`
+                    : ' Anything saved here after the last sync could not be recovered.'
+                }`,
+                'warning',
+              );
+              void mutateState(scope, (current) => ({ ...current, storageRecovered: undefined }));
+            }
           }
         })
         .catch((error) => {
