@@ -263,6 +263,8 @@ try {
   try {
     const stockToggle = md.getByLabel('Add purchased materials to stock');
     await stockToggle.tap();
+    // WebKit delivers the compatibility click after the touch sequence completes.
+    await mobile.waitForFunction(() => document.querySelector('.expense-stock input').checked);
     assert.equal(await stockToggle.isChecked(), true, 'A real touch tap enables stock purchase');
     await stockToggle.press('Space');
     assert.equal(await stockToggle.isChecked(), false, 'Keyboard can turn stock purchase off');
