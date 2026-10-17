@@ -8,7 +8,7 @@ Use shared components and theme tokens when adding or updating screens. Product 
 - Use `.form-grid` for related fields: label, control and supporting text occupy shared rows. A hint may grow without moving a neighbouring control. `.hint-grid` remains an alias for older screens.
 - Ordinary labels contain label text, then the control, then one supporting-text group. Group multiple hints/errors in that final group. Do not place a tooltip or placeholder in place of a persistent label.
 - `CurrencyInput` groups its input and validation text so an error and a field hint cannot overlap. `ListedCombobox` participates in the same field rows. Keep checkbox descriptions beside their checkbox group, rather than treating the checkbox as a text field.
-- Colours come from theme variables. Summary cards are neutral unless they communicate a meaningful state. Never highlight a card solely because it is last in a list.
+- Colours come from theme variables. Summary cards are neutral unless they communicate a meaningful state. Catalogue count summaries use `.catalogue-stats` for compact phone cards; money summaries retain room for long currency values. Never highlight a card solely because it is last in a list.
 
 ## Lists and toolbars
 

@@ -124,7 +124,7 @@ export default function MaterialsPage({
   }
   return (
     <>
-      <section className="stats">
+      <section className="stats catalogue-stats">
         <article>
           <span>{w('Active materials')}</span>
           <strong>{materials.filter((item) => !item.archived).length}</strong>

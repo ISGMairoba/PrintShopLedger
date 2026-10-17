@@ -231,7 +231,7 @@ export default function PricingTemplatesPage({
       )}
       {tab === 'templates' && canManage && (
         <>
-          <section className="stats">
+          <section className="stats catalogue-stats">
             <article>
               <span>Active templates</span>
               <strong>{pricing.templates.filter((t) => !t.archived).length}</strong>
@@ -387,7 +387,7 @@ export default function PricingTemplatesPage({
       )}
       {tab === 'costs' && canSeeCosts && (
         <>
-          <section className="stats">
+          <section className="stats catalogue-stats">
             <article>
               <span>Costs for formulas</span>
               <strong>{costs.length}</strong>

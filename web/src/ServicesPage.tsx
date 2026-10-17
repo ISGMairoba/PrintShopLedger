@@ -255,7 +255,7 @@ export default function ServicesPage({
   }
   return (
     <>
-      <section className="stats">
+      <section className="stats catalogue-stats">
         <article>
           <span>{w('Active services')}</span>
           <strong>{services.filter((item) => !item.archived).length}</strong>

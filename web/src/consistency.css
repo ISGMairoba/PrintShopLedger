@@ -1423,12 +1423,12 @@ button[aria-busy="true"] {
 
 /* Catalogue summaries should leave room for the actual list on a phone. */
 @media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
-  .stats:not(.dashboard-stats) {
+  .stats.catalogue-stats {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
     margin-bottom: 20px;
   }
-  .stats:not(.dashboard-stats) article {
+  .stats.catalogue-stats article {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
@@ -1438,15 +1438,15 @@ button[aria-busy="true"] {
     padding: 12px;
     overflow-wrap: anywhere;
   }
-  .stats:not(.dashboard-stats) article > span {
+  .stats.catalogue-stats article > span {
     font-size: 12px;
     line-height: 1.4;
   }
-  .stats:not(.dashboard-stats) article > strong {
+  .stats.catalogue-stats article > strong {
     margin: 0;
     font-size: 22px;
   }
-  .stats:not(.dashboard-stats) article > small {
+  .stats.catalogue-stats article > small {
     display: none;
   }
 }
