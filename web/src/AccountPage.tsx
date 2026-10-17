@@ -110,8 +110,12 @@ export default function AccountPage({
             />
             <small>
               3–40 characters: letters, numbers, dots, underscores or hyphens. Start with a letter or number.
+              {!valid && (
+                <span className="field-error" role="alert">
+                  Enter a valid username.
+                </span>
+              )}
             </small>
-            {!valid && <span role="alert">Enter a valid username.</span>}
           </label>
           <label>
             Current password

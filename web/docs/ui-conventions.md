@@ -1,5 +1,7 @@
 # UI conventions
 
+Every new feature and screen follows these conventions, on phones and desktop alike.
+
 Use shared components and theme tokens when adding or updating screens. Product names, monetary values, stock rules and permissions belong to existing domain code; a layout change must preserve those behaviours.
 
 ## Controls and supporting text
@@ -25,6 +27,8 @@ Use shared components and theme tokens when adding or updating screens. Product 
 - Main editors use `Modal.footer` with `DialogActions`: Cancel, then the main action. Checkout also shows its total. Wide dialogs use the full phone screen; short dialogs remain centred.
 - Give the form a unique `useId()` ID and pass that ID to `DialogActions.form`. Native form association preserves validation, Enter submission and FormData when buttons sit outside the scrolling body.
 - Pass `busy` to both the modal and its actions. Avoid duplicate submission controls. Leave enough space for phone safe areas and the onscreen keyboard.
+
+- Dialogs with two decisions (for example approve or reject) keep both in the footer, Cancel first, the main action last.
 
 ## Settings
 
