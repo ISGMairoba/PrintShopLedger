@@ -327,27 +327,29 @@ export default function JobsPaymentsPage({
                                 <small>Money returned to customer</small>
                               </strong>
                             )}
-                            {payment.checkoutId &&
-                              ledger.checkouts.find((r) => r.id === payment.checkoutId) && (
+                            <div className="action-row record-links">
+                              {payment.checkoutId &&
+                                ledger.checkouts.find((r) => r.id === payment.checkoutId) && (
+                                  <button
+                                    className="text-button"
+                                    onClick={() =>
+                                      onReceipt(ledger.checkouts.find((r) => r.id === payment.checkoutId)!)
+                                    }
+                                  >
+                                    Receipt
+                                  </button>
+                                )}
+                              {onCorrectPayment && !payment.refundId && (
                                 <button
-                                  className="text-button mx-4"
-                                  onClick={() =>
-                                    onReceipt(ledger.checkouts.find((r) => r.id === payment.checkoutId)!)
-                                  }
+                                  className="text-button"
+                                  disabled={busy}
+                                  aria-label={`Correct payment ${shortId(payment.id)}`}
+                                  onClick={() => onCorrectPayment(payment)}
                                 >
-                                  Receipt
+                                  Correct
                                 </button>
                               )}
-                            {onCorrectPayment && !payment.refundId && (
-                              <button
-                                className="text-button mx-4"
-                                disabled={busy}
-                                aria-label={`Correct payment ${shortId(payment.id)}`}
-                                onClick={() => onCorrectPayment(payment)}
-                              >
-                                Correct
-                              </button>
-                            )}
+                            </div>
                             {payment.allocations.map((allocation) => (
                               <small key={allocation.jobId}>
                                 {ledger.jobs.find((job) => job.id === allocation.jobId)?.description} -{' '}

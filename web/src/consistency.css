@@ -1579,3 +1579,8 @@ label small > .field-error {
     display: none;
   }
 }
+/* Links side by side in a list cell (Receipt · Correct). */
+.action-row.record-links {
+  gap: 4px 16px;
+  margin: 4px 0;
+}
