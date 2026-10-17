@@ -7,6 +7,7 @@ import { useBusinessOptions } from './BusinessOptionsContext';
 import { accountToken, walletBalance } from './checkout.mjs';
 import { applySaleAdjustment, adjustmentLabels, returnableStock } from './sale-adjustments.mjs';
 import { paymentCorrectionToken, quoteCorrectedJob } from './full-corrections.mjs';
+import { choiceUsed, hasMaterialChoice, serviceMaterial } from './material-choice.mjs';
 import { money, customerBalance } from './domain.mjs';
 import { currency } from './receipts.mjs';
 import { saleDay, drawerSnapshot } from './my-sales.mjs';
@@ -235,7 +236,42 @@ export function SaleAdjustmentEditor({
     [reference, setReference] = useState(customerPayments[0]?.reference ?? ''),
     [paidOn, setPaidOn] = useState(customerPayments[0]?.paidOn ?? '');
   const selectedPayment = customerPayments.find((p) => p.id === paymentId),
-    selectedMaterial = ledger.materials.find((m) => m.id === materialId);
+    selectedMaterial = ledger.materials.find((m) => m.id === materialId),
+    chosenService = ledger.services.find((s) => s.id === serviceId),
+    // A choice-of-materials service is sized by its first linked material.
+    sizeMaterial =
+      selectedMaterial ??
+      (hasMaterialChoice(chosenService) ? serviceMaterial(ledger, chosenService) : undefined);
+  // Confirmed choice of materials: corrections give the amount of each material really used.
+  const confirmedChoice = !!job.materialChoice && !!job.materialUsed,
+    choiceOptions = (job.materialChoice?.options ?? [])
+      .map((id) => ledger.materials.find((m) => m.id === id))
+      .filter((m) => !!m);
+  const [choiceDraft, setChoiceDraft] = useState<Record<string, string>>(() =>
+    Object.fromEntries(choiceOptions.map((m) => [m!.id, String(choiceUsed(ledger, job.id, m!.id))])),
+  );
+  const choiceUsages = () =>
+    choiceOptions.map((m) => ({ materialId: m!.id, quantity: Number(choiceDraft[m!.id] || 0) }));
+  const choiceFields = (legend: string, hint: string) => (
+    <fieldset className="material-used">
+      <legend>{legend}</legend>
+      <p className="muted">{hint}</p>
+      {choiceOptions.map((m, index) => (
+        <label key={m!.id}>
+          {m!.name} ({m!.measurementUnit}) · {w('recorded')} {choiceUsed(ledger, job.id, m!.id)}
+          <input
+            aria-label={`Really used ${index + 1}`}
+            type="number"
+            min="0"
+            step="0.001"
+            required
+            value={choiceDraft[m!.id] ?? '0'}
+            onChange={(e) => setChoiceDraft({ ...choiceDraft, [m!.id]: e.target.value })}
+          />
+        </label>
+      ))}
+    </fieldset>
+  );
   const [stockIds] = useState(() =>
     Object.fromEntries(ledger.materials.map((m) => [m.id, crypto.randomUUID()])),
   );
@@ -271,6 +307,7 @@ export function SaleAdjustmentEditor({
               stockMode,
               stockIds,
               materialVersions,
+              ...(confirmedChoice && stockMode === 'reconcile' ? { choiceUsages: choiceUsages() } : {}),
               ...(action === 'sale.combined_corrected'
                 ? {
                     detailsId,
@@ -292,9 +329,10 @@ export function SaleAdjustmentEditor({
               ? { amount: money(amount), description }
               : action === 'sale.cancelled'
                 ? {
-                    returnQuantity: Number(returned),
+                    returnQuantity: confirmedChoice ? 0 : Number(returned),
                     materialVersion: materialVersions[job.materialId ?? ''],
                     stockEventId: stockId,
+                    ...(confirmedChoice ? { choiceUsages: choiceUsages(), stockIds, materialVersions } : {}),
                   }
                 : {
                     refundAmount: money(refund),
@@ -561,19 +599,26 @@ export function SaleAdjustmentEditor({
                       ))}
                   </select>
                 </label>
-                <label>
-                  {w('Corrected material')}
-                  <select value={materialId} onChange={(e) => setMaterialId(e.target.value)}>
-                    <option value="">{w('No material')}</option>
-                    {ledger.materials
-                      .filter((m) => !m.archived)
-                      .map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.name}
-                        </option>
-                      ))}
-                  </select>
-                </label>
+                {hasMaterialChoice(chosenService) ? (
+                  <p className="muted">
+                    {w('Material')}: {w('chosen in production from')}{' '}
+                    {choiceOptions.map((m) => m!.name).join(', ')}
+                  </p>
+                ) : (
+                  <label>
+                    {w('Corrected material')}
+                    <select value={materialId} onChange={(e) => setMaterialId(e.target.value)}>
+                      <option value="">{w('No material')}</option>
+                      {ledger.materials
+                        .filter((m) => !m.archived)
+                        .map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.name}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                )}
                 <label>
                   Corrected quantity
                   <input
@@ -586,7 +631,7 @@ export function SaleAdjustmentEditor({
                     required
                   />
                 </label>
-                {selectedMaterial?.requireSize && (
+                {sizeMaterial?.requireSize && (
                   <>
                     <label>
                       Corrected width
@@ -618,7 +663,7 @@ export function SaleAdjustmentEditor({
                   Corrected unit price (₦)
                   <CurrencyInput value={unitPrice} onValueChange={setUnitPrice} required />
                   <small className="muted">
-                    {selectedMaterial?.requireSize
+                    {sizeMaterial?.requireSize
                       ? 'Rate per size unit: quantity × width × height × unit price.'
                       : 'Rate per item: quantity × unit price.'}{' '}
                     {w('This changes this job only.')}
@@ -647,6 +692,12 @@ export function SaleAdjustmentEditor({
                   'Stock corrections adjust only the difference. Keeping actual usage changes the job and charge without restoring consumed material. Waste records remain separate.',
                 )}
               </p>
+              {confirmedChoice &&
+                stockMode === 'reconcile' &&
+                choiceFields(
+                  w('Material really used'),
+                  w('Enter how much of each material this job really used. Stock moves by the difference.'),
+                )}
             </>
           )}
           {action === 'sale.combined_corrected' && (
@@ -790,7 +841,14 @@ export function SaleAdjustmentEditor({
                 The charge becomes zero and paid allocations become customer credit. Money is returned through
                 a separate refund.
               </p>
-              {mat && !mat.archived && availableReturn > 0 ? (
+              {confirmedChoice ? (
+                choiceFields(
+                  w('Material really used'),
+                  w(
+                    'Enter how much of each material was really used. The rest goes back to stock. Leave as recorded if it was all used.',
+                  ),
+                )
+              ) : mat && !mat.archived && availableReturn > 0 ? (
                 <label>
                   {w('Usable material returned')} ({mat.measurementUnit})
                   <input

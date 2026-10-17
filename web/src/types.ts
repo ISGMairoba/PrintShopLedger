@@ -176,7 +176,7 @@ export interface Job {
   materialChoice?: MaterialChoice;
   /** The material(s) confirmed as used in production. */
   materialUsed?: {
-    usages: { id: string; materialId: string; quantity: number }[];
+    usages: { id?: string; materialId: string; quantity: number }[];
     confirmedBy: string;
     confirmedByLabel: string;
     confirmedAt: string;
@@ -678,6 +678,8 @@ export interface SupervisedCommand {
   stockEventId?: string;
   quantity?: number;
   category?: string;
+  /** Choice-of-materials job, after confirmation: the new amount of each material really used. */
+  choiceUsages?: { materialId: string; quantity: number }[];
   /** Set when approving a cashier's correction request. */
   requestId?: string;
   requestedBy?: string;
