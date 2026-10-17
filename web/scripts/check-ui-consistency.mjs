@@ -131,6 +131,16 @@ try {
           element.scrollTop = element.scrollHeight;
         });
         const footer = await checkout.locator('.modal-footer').boundingBox();
+        const actionHeights = await checkout
+          .locator('.dialog-action-buttons > button')
+          .evaluateAll((buttons) =>
+            buttons.map((button) => Math.round(button.getBoundingClientRect().height)),
+          );
+        assert.equal(
+          new Set(actionHeights).size,
+          1,
+          'Paired footer actions retain equal height when text wraps',
+        );
         assert.ok(footer.y >= 0 && footer.y + footer.height <= 845, 'Checkout footer stays inside viewport');
         await fits('checkout');
         await page.screenshot({ path: `${out}/${engine.name()}-${theme}-${width}-checkout.png` });

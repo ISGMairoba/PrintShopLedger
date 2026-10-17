@@ -1239,7 +1239,7 @@ button[aria-busy="true"] {
 }
 .dialog-action-buttons {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 8px;
 }
 .dialog-action-buttons > button {
@@ -1483,4 +1483,39 @@ button[aria-busy="true"] {
 }
 .correction-requests {
   margin: 0 0 16px;
+}
+
+/* Currency validation stays beneath its input, even when the field also has a hint. */
+.currency-control {
+  display: contents;
+}
+.form-grid > label > .currency-control {
+  display: block;
+  min-width: 0;
+  grid-row: 2;
+  align-self: start;
+}
+.form-grid > label > .currency-control > input:not([type="hidden"]) {
+  width: 100%;
+}
+.form-grid > button {
+  align-self: start;
+  margin-top: 24px;
+}
+@media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
+  .form-grid > button {
+    margin-top: 0;
+  }
+}
+
+/* The label is the touch target, not just the 18px checkbox artwork. */
+.check-label,
+label.checkbox,
+.material-checkbox > span {
+  min-height: var(--control-h);
+  touch-action: manipulation;
+}
+input[type="checkbox"],
+input[type="radio"] {
+  touch-action: manipulation;
 }

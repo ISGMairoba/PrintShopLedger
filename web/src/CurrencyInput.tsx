@@ -38,7 +38,7 @@ export default function CurrencyInput({
     }
   }, [raw, display, max, revision]);
   return (
-    <>
+    <span className="currency-control">
       <input
         {...props}
         ref={input}
@@ -112,6 +112,6 @@ export default function CurrencyInput({
         </small>
       )}
       {name && <input type="hidden" name={name} value={raw} />}
-    </>
+    </span>
   );
 }
