@@ -18,7 +18,7 @@ import { allowedSettingsTabs, canAccessPage, pageGroup, pages, navigationPages }
 import ExpensesPage from './ExpensesPage';
 import type { ProgressMode } from './JobActions';
 import JobProgressDialog from './JobProgressDialog';
-import { progressEvents } from './job-progress.mjs';
+import { stageMoveEvents } from './material-choice.mjs';
 import MySalesPage from './MySalesPage';
 import PointOfServicePage from './PointOfServicePage';
 import CheckoutEditor from './CheckoutEditor';
@@ -1932,7 +1932,7 @@ export default function App() {
                       mode={batchToAdvance.mode}
                       busy={busy}
                       onClose={() => setBatchToAdvance(null)}
-                      onSave={async (targetStage) => {
+                      onSave={async (targetStage, usages) => {
                         if (busy || !ready || !scope || legacyConflict)
                           throw Error('Wait until the workspace is ready.');
                         const targetScope = scope;
@@ -1955,6 +1955,8 @@ export default function App() {
                               ? 'Local trial user'
                               : shop?.staffName || session!.user.email || session!.user.id,
                           },
+                          undefined,
+                          { ledger: state.ledger, usages },
                         );
                         if (!events.length) throw Error('No selected items can take this action.');
                         setBusy(true);
@@ -1974,22 +1976,30 @@ export default function App() {
                   )}
                   {jobToAdvance && (
                     <JobProgressDialog
+                      ledger={state.ledger}
                       job={jobToAdvance.job}
                       mode={jobToAdvance.mode}
                       busy={busy}
                       onClose={() => setJobToAdvance(null)}
-                      onSave={async (targetStage) => {
+                      onSave={async (targetStage, usages) => {
                         if (busy || !ready || !scope || legacyConflict)
                           throw Error('Wait until the workspace is ready.');
                         const targetScope = scope;
                         setBusy(true);
                         try {
-                          const events = progressEvents(jobToAdvance.job, targetStage, {
-                            id: demo ? 'local-trial' : session!.user.id,
-                            label: demo
-                              ? 'Local trial user'
-                              : shop?.staffName || session!.user.email || session!.user.id,
-                          });
+                          // A choice-of-materials job confirms its material first, then moves.
+                          const events = stageMoveEvents(
+                            state.ledger,
+                            jobToAdvance.job,
+                            targetStage,
+                            {
+                              id: demo ? 'local-trial' : session!.user.id,
+                              label: demo
+                                ? 'Local trial user'
+                                : shop?.staffName || session!.user.email || session!.user.id,
+                            },
+                            usages,
+                          );
                           const next = await saveEvents(targetScope, events, !demo);
                           if (activeScope.current === targetScope) {
                             setState(next);

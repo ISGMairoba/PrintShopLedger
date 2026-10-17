@@ -1,6 +1,7 @@
 import Icon from './Icon';
 import { useState, useEffect } from 'react';
 import { groupJobsByCheckout } from './job-batches.mjs';
+import { materialPending } from './material-choice.mjs';
 import { jobWorkflow } from './business-options.mjs';
 import ResponsiveTable from './ResponsiveTable';
 import { SortHeader, useTableSort } from './TableSort';
@@ -189,6 +190,9 @@ export default function JobTable({
                     Stage: {stageLabel(stage)}
                     {job.shelfItem ? ' · Shelf' : ''}
                   </small>
+                  {materialPending(job) && stage !== 'Cancelled' && (
+                    <small className="material-pending">Material to confirm</small>
+                  )}
                   <progress
                     className="job-progress"
                     aria-label={`Progress for ${job.description || job.service}`}

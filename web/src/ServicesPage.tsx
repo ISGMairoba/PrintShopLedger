@@ -30,6 +30,9 @@ type Props = {
   onEditProduct?: (serviceId: string) => void;
 };
 const timestamp = (value: string) => new Date(value).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' });
+/** The material select's value for a choice of materials. */
+const CHOICE = '__choice';
+
 export default function ServicesPage({
   services,
   materials,
@@ -54,6 +57,16 @@ export default function ServicesPage({
   const [privateItem, setPrivateItem] = useState(false);
   const [costKey, setCostKey] = useState('');
   const [packs, setPacks] = useState<PackDraft>([]);
+  // Material: '' = none, a material id = one fixed material, CHOICE = a choice of materials.
+  const [materialValue, setMaterialValue] = useState('');
+  const [choiceIds, setChoiceIds] = useState<string[]>([]);
+  const [confirmStage, setConfirmStage] = useState('Printing');
+  const { jobStages } = useBusinessOptions();
+  const { stage } = useWords();
+  const confirmStages = jobStages.filter((s) => s !== 'Collected');
+  const defaultConfirmStage = confirmStages.includes('Printing')
+    ? 'Printing'
+    : (confirmStages[confirmStages.length - 2] ?? confirmStages[0] ?? 'Printing');
   // Add product: one stock item, or one per variant (colours, sizes…).
   const [withVariants, setWithVariants] = useState(false);
   const blankVariants = () => [
@@ -78,6 +91,9 @@ export default function ServicesPage({
     setCosted(!!s?.costing);
     setPrivateItem(!!s?.private);
     setCostKey(s?.costing?.key ?? '');
+    setMaterialValue(s?.materialOptions?.length ? CHOICE : (s?.materialId ?? ''));
+    setChoiceIds(s?.materialOptions ?? []);
+    setConfirmStage(s?.confirmStage ?? defaultConfirmStage);
     setEditor(target);
   };
   const activeMaterials = materials.filter((item) => !item.archived);
@@ -93,9 +109,11 @@ export default function ServicesPage({
       id: (item) => serviceCode(item.id, services),
       description: (item) => item.description,
       material: (item) =>
-        item.materialId === null
-          ? 'No material'
-          : materials.find((material) => material.id === item.materialId)?.name,
+        item.materialOptions?.length
+          ? 'Choice'
+          : item.materialId === null
+            ? 'No material'
+            : materials.find((material) => material.id === item.materialId)?.name,
       price: (item) => item.price,
       status: (item) => (item.archived ? 'Archived' : 'Active'),
       createdBy: (item) => item.createdByLabel,
@@ -154,9 +172,11 @@ export default function ServicesPage({
         id,
         baseVersion: editing?.version,
         description: String(data.get('description')).trim(),
-        materialId: String(data.get('material')) || null,
+        materialId: materialValue === CHOICE ? null : materialValue || null,
+        materialOptions: materialValue === CHOICE ? choiceIds : [],
+        ...(materialValue === CHOICE ? { confirmStage } : {}),
         price,
-        shelfItem: !privateItem && data.get('shelfItem') === 'on',
+        shelfItem: !privateItem && materialValue !== CHOICE && data.get('shelfItem') === 'on',
         private: privateItem,
         costing,
         packPrices: privateItem ? [] : packPricesFrom(packs),
@@ -415,9 +435,13 @@ export default function ServicesPage({
                           )}
                         </td>
                         <td>
-                          {service.materialId === null
-                            ? w('No material')
-                            : (material?.name ?? w('Material unavailable'))}
+                          {service.materialOptions?.length
+                            ? `${w('Choice')}: ${service.materialOptions
+                                .map((id) => shortLabel(materials.find((m) => m.id === id)?.name ?? '?'))
+                                .join(', ')}`
+                            : service.materialId === null
+                              ? w('No material')
+                              : (material?.name ?? w('Material unavailable'))}
                           <small>
                             {material ? materialCode(material.id, materials) : ''}
                             {material?.archived ? w(' · Archived material') : ''}
@@ -555,7 +579,11 @@ export default function ServicesPage({
                 </label>
                 <label>
                   {w('Base material')}
-                  <select name="material" defaultValue={editing?.materialId ?? ''}>
+                  <select
+                    name="material"
+                    value={materialValue}
+                    onChange={(e) => setMaterialValue(e.target.value)}
+                  >
                     <option value="">{w('No material — service only')}</option>
                     {options.map((item) => (
                       <option key={item.id} value={item.id} title={item.name}>
@@ -563,6 +591,7 @@ export default function ServicesPage({
                         {item.archived ? ' · Archived' : ''}
                       </option>
                     ))}
+                    {!privateItem && <option value={CHOICE}>{w('A choice of materials…')}</option>}
                   </select>
                 </label>
                 {!privateItem && (
@@ -588,7 +617,55 @@ export default function ServicesPage({
                 />
                 Private: used in pricing templates only, never sold
               </label>
-              {!privateItem && (
+              {materialValue === CHOICE && !privateItem && (
+                <fieldset className="material-choice">
+                  <legend>{w('Materials that can do this job')}</legend>
+                  <p className="muted">
+                    {w(
+                      'Tick 2 to 10 materials with the same unit, for example 2 ft, 5 ft and 10 ft rolls. The price stays the same whichever is used. No stock is taken at the sale; staff confirm what was really used, and how much, when the job leaves the stage below.',
+                    )}
+                  </p>
+                  <div className="material-choice-list">
+                    {materials
+                      .filter((m) => !m.archived || choiceIds.includes(m.id))
+                      .map((m) => (
+                        <label className="checkbox" key={m.id}>
+                          <input
+                            type="checkbox"
+                            checked={choiceIds.includes(m.id)}
+                            onChange={(e) =>
+                              setChoiceIds((ids) =>
+                                e.target.checked ? [...ids, m.id] : ids.filter((x) => x !== m.id),
+                              )
+                            }
+                          />
+                          {shortLabel(m.name)}
+                          <small>
+                            {m.measurementUnit}
+                            {m.requireSize ? ' · by size' : ''}
+                            {m.archived ? ' · Archived' : ''}
+                          </small>
+                        </label>
+                      ))}
+                  </div>
+                  <label>
+                    {w('Confirm material used when the job leaves')}
+                    <select value={confirmStage} onChange={(e) => setConfirmStage(e.target.value)}>
+                      {[...new Set([...confirmStages, confirmStage])].map((s) => (
+                        <option key={s} value={s}>
+                          {stage(s)}
+                        </option>
+                      ))}
+                    </select>
+                    <small>
+                      {w(
+                        'Moving a job past this stage, or straight to Completed, asks which material was used and how much.',
+                      )}
+                    </small>
+                  </label>
+                </fieldset>
+              )}
+              {!privateItem && materialValue !== CHOICE && (
                 <label className="checkbox">
                   <input type="checkbox" name="shelfItem" defaultChecked={editing?.shelfItem ?? false} />
                   Sold off the shelf

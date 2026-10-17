@@ -1,7 +1,7 @@
 import { applySaleAdjustment, applyWaste } from './sale-adjustments.mjs';
 import { normalizeAmount } from './currency-input.mjs';
 import { applyExpenseEvent } from './expenses.mjs';
-import { applyCheckout, applyJobStatus } from './checkout.mjs';
+import { applyCheckout, applyJobMaterial, applyJobStatus } from './checkout.mjs';
 import { applyCustomerEvent } from './customers.mjs';
 import { applyServiceEvent } from './services.mjs';
 import { applyMaterialEvent, normalizeLedger } from './materials.mjs';
@@ -78,6 +78,7 @@ export function applyEvent(ledger, event) {
   if (event.kind.startsWith('material.')) return applyMaterialEvent(ledger, event);
   if (event.kind === 'checkout.completed') return applyCheckout(ledger, event);
   if (event.kind === 'job.status_changed') return applyJobStatus(ledger, event);
+  if (event.kind === 'job.material_used') return applyJobMaterial(ledger, event);
   const data = event.data;
   if (!event.id || !data.id) throw new Error('Missing record identifier.');
   if (event.kind === 'job.created') {

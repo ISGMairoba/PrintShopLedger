@@ -278,6 +278,7 @@ export const helpTopics = [
     ],
     notes: [
       'Shelf items from Quick sale skip the stages and are marked Collected straight away.',
+      'A job with a choice of materials asks which material was used, and how much, when it passes its confirmation stage.',
       'Your business may use its own stage names, set in Business Settings → Jobs & payments.',
     ],
     pages: ['Jobs'],
@@ -387,6 +388,26 @@ export const helpTopics = [
       'Pieces of different colours never make up a pack together.',
     ],
     pages: ['Services'],
+    rank: 2,
+  },
+  {
+    id: 'material-choice',
+    chapter: 'stock',
+    title: 'A choice of materials for one service',
+    summary:
+      'A service can link several materials that do the same job, such as 2 ft, 5 ft and 10 ft rolls, at one price. The material used is confirmed in production.',
+    steps: [
+      'Open Services and edit the service (or Add service).',
+      'Under Base material, choose A choice of materials…, then tick 2 to 10 materials with the same unit.',
+      'Choose the stage after which the material is confirmed, for example Printing. Save.',
+      'At the sale, nothing is taken from stock; the price is the same whichever material is used.',
+      'When the job is moved past that stage (or straight to Completed), the app asks which material was used and how much. Split it across two if one ran out. Stock is taken then.',
+    ],
+    notes: [
+      'Jobs still waiting show Material to confirm on the Jobs page.',
+      'Services with one fixed material still take stock at the sale, as before.',
+    ],
+    pages: [],
     rank: 2,
   },
   {

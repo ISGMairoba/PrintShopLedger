@@ -1,4 +1,5 @@
 import { TemplateInputs, TemplateEstimate, tryTemplate } from './TemplateFields';
+import { serviceMaterial } from './material-choice.mjs';
 import { templateDefaults } from './pricing-templates.mjs';
 import type { TemplateSnapshot } from './types';
 import { lineWithDescription } from './job-batches.mjs';
@@ -222,7 +223,7 @@ export default function CheckoutEditor({
 }: Props) {
   const options = useBusinessOptions(),
     jobSources = options.jobSources;
-  const { w } = useWords();
+  const { w, stage } = useWords();
   const newLine = () => ({
     ...line(),
     source: jobSources[0],
@@ -626,7 +627,7 @@ export default function CheckoutEditor({
                 {lines.map((item, index) => {
                   const template = working.pricing?.templates.find((t) => t.id === item.serviceId);
                   const service = working.services.find((s) => s.id === item.serviceId),
-                    material = working.materials.find((m) => m.id === service?.materialId);
+                    material = serviceMaterial(working, service);
                   const quote = quotedLines[index];
                   const templateCheck = template
                     ? tryTemplate(working, template, item.templateInputs ?? {}, item.quantity)
@@ -845,9 +846,17 @@ export default function CheckoutEditor({
                         <p>
                           {quote.templateSnapshot
                             ? `${w('Template')} · ${quote.templateSnapshot.stock.length ? `Stock: ${quote.templateSnapshot.stock.map((s: { quantity: number; unit: string; name: string }) => `${s.quantity} ${s.unit} ${s.name}`).join(', ')}` : w('No stock deduction')}`
-                            : quote.materialId === null
-                              ? w('No material · No stock deduction')
-                              : `${w('Material')}: ${material?.name} · Usage: ${quote.materialNeeded} ${quote.measurementUnit}`}
+                            : quote.materialChoice
+                              ? `${w('Material')}: ${quote.materialChoice.options
+                                  .map(
+                                    (id: string) => working.materials.find((m) => m.id === id)?.name ?? '?',
+                                  )
+                                  .join(
+                                    ' / ',
+                                  )} · ${quote.materialChoice.work} ${quote.measurementUnit} · ${w('confirmed when the job leaves')} ${stage(quote.materialChoice.confirmStage)}`
+                              : quote.materialId === null
+                                ? w('No material · No stock deduction')
+                                : `${w('Material')}: ${material?.name} · Usage: ${quote.materialNeeded} ${quote.measurementUnit}`}
                           {service?.shelfItem ? ' · Collected when sold' : ''} ·{' '}
                           <strong>{currency(quote.amount)}</strong>
                           {quote.lineDiscount > 0 && (

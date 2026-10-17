@@ -6,6 +6,13 @@ import { applyCustomerEvent, phoneOwner } from './customers.mjs';
 import { jobBalance, customerBalance } from './domain.mjs';
 import { materialSnapshot } from './material-display.mjs';
 import { checkTemplateDiscount, quoteTemplate } from './pricing-templates.mjs';
+import {
+  applyJobMaterial,
+  choiceMaterials,
+  hasMaterialChoice,
+  materialChoiceFor,
+  materialConfirmDue,
+} from './material-choice.mjs';
 export const jobStatuses = ['Added', 'In Queue', 'Printing', 'Completed', 'Collected'];
 export const jobSources = ['In shop / USB', 'Shop network', 'WhatsApp', 'Email', 'Other'];
 const maxMoney = 100000000000;
@@ -63,9 +70,15 @@ export function quoteLine(ledger, line) {
   }
   const service = ledger.services.find((s) => s.id === line.serviceId && !s.archived);
   if (service?.private) throw Error(`${service.description} is used in templates only and cannot be sold.`);
-  const material = ledger.materials.find((m) => m.id === service?.materialId && !m.archived);
-  if (!service || (service.materialId !== null && !material))
+  // A choice of materials: priced and sized like its materials, but no stock is taken now.
+  const choice = hasMaterialChoice(service);
+  const material = choice
+    ? choiceMaterials(ledger, service)[0]
+    : ledger.materials.find((m) => m.id === service?.materialId && !m.archived);
+  if (!service || ((service.materialId !== null || choice) && !material))
     throw Error('Select an active service with an active base material, or a service without material.');
+  if (choice && service.shelfItem)
+    throw Error('Items with a choice of materials cannot be sold off the shelf.');
   if (!line.description?.trim() || line.description.trim().length > 500)
     throw Error('Enter a job description (up to 500 characters).');
   const quantity = units(line.quantity),
@@ -104,6 +117,7 @@ export function quoteLine(ledger, line) {
     orderDiscountShare: _share,
     discountAmount: _discount,
     packBreakdown: _packs,
+    materialChoice: givenChoice,
     ...rest
   } = line;
   // Shelf items are handed over at the till: no deadline, no production stages.
@@ -116,7 +130,7 @@ export function quoteLine(ledger, line) {
     ...rest,
     ...(dueAt ? { dueAt } : {}),
     ...(discount ? { discount } : {}),
-    stockCountEventId: material ? stockCountEvent(ledger, material.id) : null,
+    stockCountEventId: material && !choice ? stockCountEvent(ledger, material.id) : null,
     ...(line.workflow ? { workflow: validateWorkflow(line.workflow) } : {}),
     ...(shelfItem ? { shelfItem: true } : {}),
     description: line.description.trim(),
@@ -129,8 +143,9 @@ export function quoteLine(ledger, line) {
     unitPrice: service.price,
     ...(packs.length ? { packBreakdown: packs } : {}),
     service: service.description,
-    materialId: material?.id ?? null,
-    materialNeeded: material ? needed : 0,
+    materialId: choice ? null : (material?.id ?? null),
+    materialNeeded: material && !choice ? needed : 0,
+    ...(choice ? { materialChoice: materialChoiceFor(service, needed, givenChoice?.plannedMaterialId) } : {}),
     measurementUnit: material?.measurementUnit ?? 'item',
     requireSize: material?.requireSize ?? false,
     serviceVersion: service.version,
@@ -335,6 +350,7 @@ export function prepareCheckout(
     },
   };
 }
+export { applyJobMaterial };
 export function applyCheckout(ledger, event) {
   const data = event.data;
   if ((ledger.checkouts ?? []).some((c) => c.id === data.id)) return ledger;
@@ -376,6 +392,12 @@ export function applyCheckout(ledger, event) {
     ])
       if (data.jobs[index][key] !== rebuilt.data.jobs[index][key])
         throw Error('Job price or material changed. Review the checkout.');
+  for (let index = 0; index < data.jobs.length; index++)
+    if (
+      JSON.stringify(data.jobs[index].materialChoice ?? null) !==
+      JSON.stringify(rebuilt.data.jobs[index].materialChoice ?? null)
+    )
+      throw Error('The materials for this service changed. Review the checkout.');
   for (let index = 0; index < data.jobs.length; index++)
     if ((data.jobs[index].stockCountEventId ?? null) !== (rebuilt.data.jobs[index].stockCountEventId ?? null))
       throw Error('Stock count changed. Supervisor review is required before deducting these materials.');
@@ -484,6 +506,8 @@ export function applyJobStatus(ledger, event) {
     data.status !== jobWorkflow(job)[jobWorkflow(job).indexOf(job.productionStatus ?? 'Added') + 1]
   )
     throw Error('Review the latest job status before proceeding.');
+  if (materialConfirmDue(job, data.status))
+    throw Error('Confirm the material used for this job before moving it on.');
   const next = {
     ...job,
     version: (job.version ?? 1) + 1,

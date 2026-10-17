@@ -1,5 +1,5 @@
 import { jobWorkflow } from './business-options.mjs';
-import { progressEvents } from './job-progress.mjs';
+import { stageMoveEvents } from './material-choice.mjs';
 import { jobBalance } from './domain.mjs';
 
 // Group only by the recorded checkout, never by date, customer or similar descriptions.
@@ -50,9 +50,26 @@ export function batchProgressPlan(jobs, mode, target) {
     });
 }
 
-export function batchProgressEvents(jobs, mode, target, actor, now = new Date().toISOString()) {
+/**
+ * The events for a batch move. Jobs with a choice of materials that pass their confirmation stage
+ * need their usage in `usages` (job id → [{ materialId, quantity }]), confirmed before the move.
+ * @param {import('./types').Job[]} jobs
+ * @param {'next' | 'set' | 'complete'} mode
+ * @param {string} target
+ * @param {{ id: string, label: string }} actor
+ * @param {string} [now]
+ * @param {{ ledger?: any, usages?: Record<string, { materialId: string, quantity: number }[]> }} [options]
+ */
+export function batchProgressEvents(
+  jobs,
+  mode,
+  target,
+  actor,
+  now = new Date().toISOString(),
+  { ledger = null, usages = {} } = {},
+) {
   return batchProgressPlan(jobs, mode, target).flatMap((row) =>
-    row.reason ? [] : progressEvents(row.job, row.target, actor, now),
+    row.reason ? [] : stageMoveEvents(ledger, row.job, row.target, actor, usages[row.job.id] ?? null, now),
   );
 }
 
