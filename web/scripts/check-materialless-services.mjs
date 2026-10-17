@@ -1,3 +1,4 @@
+import { readCopy } from './local-copy.mjs';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -38,23 +39,7 @@ try {
       }
       await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name, exact: true }).click();
     };
-    const state = () =>
-      page.evaluate(
-        () =>
-          new Promise((resolve, reject) => {
-            const r = indexedDB.open('printshopledger-v1', 1);
-            r.onsuccess = () => {
-              const db = r.result;
-              const g = db.transaction('ledgers').objectStore('ledgers').get('local-trial');
-              g.onsuccess = () => {
-                resolve(g.result.ledger);
-                db.close();
-              };
-              g.onerror = reject;
-            };
-            r.onerror = reject;
-          }),
-      );
+    const state = () => readCopy(page, 'local-trial');
     await nav('Services');
     await page.getByRole('button', { name: 'Add service', exact: true }).click();
     let d = page.getByRole('dialog');

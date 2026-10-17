@@ -64,7 +64,11 @@ try {
         });
         await new Promise((resolve, reject) => {
           const tx = db.transaction('ledgers', 'readwrite');
-          tx.objectStore('ledgers').put({ ledger, pending: [] }, 'local-trial');
+          {
+            const st = tx.objectStore('ledgers');
+            st.delete(IDBKeyRange.bound('local-trial' + '|', 'local-trial' + '|\uffff'));
+            st.put({ ledger, pending: [] }, 'local-trial');
+          }
           tx.oncomplete = resolve;
           tx.onerror = reject;
         });

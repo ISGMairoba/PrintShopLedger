@@ -1,3 +1,4 @@
+import { readCopy } from './local-copy.mjs';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -244,7 +245,11 @@ try {
           r.onsuccess = () => {
             const db = r.result,
               tx = db.transaction('ledgers', 'readwrite');
-            tx.objectStore('ledgers').put(state, scope);
+            {
+              const st = tx.objectStore('ledgers');
+              st.delete(IDBKeyRange.bound(scope + '|', scope + '|\uffff'));
+              st.put(state, scope);
+            }
             tx.oncomplete = () => {
               db.close();
               resolve();
@@ -322,22 +327,7 @@ try {
       .getByRole('alert')
       .filter({ hasText: 'Admin review required.' })
       .waitFor({ state: 'detached' });
-    const local = await till.evaluate(
-      (scope) =>
-        new Promise((resolve, reject) => {
-          const r = indexedDB.open('printshopledger-v1', 1);
-          r.onsuccess = () => {
-            const db = r.result,
-              q = db.transaction('ledgers').objectStore('ledgers').get(scope);
-            q.onsuccess = () => {
-              db.close();
-              resolve(q.result);
-            };
-            q.onerror = () => reject(q.error);
-          };
-        }),
-      cashier + ':' + shop,
-    );
+    const local = await readCopy(till, cashier + ':' + shop);
     assert.equal(local.pending.length, 0);
     assert.equal(local.ledger.checkouts.length, 2);
     assert.equal(
