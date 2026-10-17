@@ -233,6 +233,11 @@ try {
   );
   await mobile.getByRole('button', { name: 'Add expense', exact: true }).click();
   const md = mobile.getByRole('dialog');
+  assert.equal(
+    await md.evaluate((element) => document.activeElement === element),
+    true,
+    'Touch dialog opens without focusing a text field or raising the keyboard',
+  );
   // A fixed footer creates a separate scroll viewport. Expose the complete touch target,
   // then exercise the real native checkbox (no forced click or direct checked-state changes).
   await md
