@@ -211,3 +211,121 @@ export function stageMoveEvents(ledger, job, target, actor, usages = null, now =
   const after = { ...job, version: (job.version ?? 1) + 1, materialUsed: { usages: confirm.data.usages } };
   return [confirm, ...progressEvents(after, target, actor, now)];
 }
+
+// ---- Corrections after the material was confirmed --------------------------------------------
+// The stock a job really took is its recorded history (confirmed use, corrections, returns). A
+// correction gives the new amount of each material really used; stock moves by the difference.
+const USAGE_ACTIONS = ['material.job_used', 'material.sale_returned', 'material.job_corrected'];
+
+/** How much of a material this job has taken from stock, net of returns and corrections. */
+export function choiceUsed(ledger, jobId, materialId) {
+  return Math.max(
+    0,
+    round3(
+      ledger.materialHistory
+        .filter((h) => h.jobId === jobId && h.materialId === materialId && USAGE_ACTIONS.includes(h.action))
+        .reduce((n, h) => n + (h.beforeAvailable ?? h.afterAvailable) - h.afterAvailable, 0),
+    ),
+  );
+}
+
+/** The confirmed usage of each linked material, in link order (materials with none left out). */
+export function currentChoiceUsages(ledger, job) {
+  return (job.materialChoice?.options ?? [])
+    .map((materialId) => ({ materialId, quantity: choiceUsed(ledger, job.id, materialId) }))
+    .filter((u) => u.quantity > 0);
+}
+
+/**
+ * The stock changes for new amounts used: usages [{ materialId, quantity }] (the new totals; a
+ * material left out stays as it is). Returns [{ materialId, delta }]; a positive delta goes back
+ * to stock. `returnsOnly`: when cancelling, nothing more can be taken.
+ */
+export function choiceUsagePlan(ledger, job, usages, returnsOnly = false) {
+  if (!job.materialChoice) return [];
+  if (!job.materialUsed)
+    throw Error('The material for this job is not confirmed yet, so no stock was taken.');
+  if (!Array.isArray(usages) || usages.length > job.materialChoice.options.length)
+    throw Error('Enter how much of each material was really used.');
+  const seen = new Set();
+  const plan = [];
+  for (const usage of usages) {
+    if (!job.materialChoice.options.includes(usage?.materialId) || seen.has(usage.materialId))
+      throw Error('Choose each material linked to this service at most once.');
+    seen.add(usage.materialId);
+    const target = Number(usage.quantity);
+    if (!(target >= 0) || target > 1000000000000 || round3(target) !== target)
+      throw Error('Enter how much of each material was really used (up to three decimal places).');
+    const used = choiceUsed(ledger, job.id, usage.materialId),
+      delta = round3(used - target);
+    if (returnsOnly && delta < 0) throw Error('Returned stock cannot exceed recorded material usage.');
+    if (!delta) continue;
+    const first = ledger.materialHistory
+      .filter(
+        (h) =>
+          h.jobId === job.id &&
+          h.materialId === usage.materialId &&
+          ['material.job_used', 'material.job_corrected'].includes(h.action),
+      )
+      .map((h) => Date.parse(h.changedAt));
+    if (
+      first.length &&
+      ledger.materialHistory.some(
+        (h) =>
+          h.materialId === usage.materialId &&
+          h.action === 'material.stock_set' &&
+          Date.parse(h.changedAt) >= Math.min(...first),
+      )
+    )
+      throw Error('A later stock count already reconciled this usage. Keep actual usage and current stock.');
+    plan.push({ materialId: usage.materialId, delta });
+  }
+  return plan;
+}
+
+/**
+ * Apply stock changes from a correction: each material moves by its delta, with a history entry.
+ * ids and versions are per material (the stock event IDs and the material versions seen).
+ */
+export function applyStockDeltas(ledger, job, changes, ids, versions, audit, action) {
+  let materials = ledger.materials,
+    history = ledger.materialHistory;
+  for (const change of changes) {
+    const m = materials.find((x) => x.id === change.materialId),
+      id = ids?.[change.materialId];
+    if (!m || m.archived || versions?.[m.id] !== m.version || !id || history.some((h) => h.id === id))
+      throw Error('Material changed. Sync and reopen the correction.');
+    const next = {
+      ...m,
+      available: round3(m.available + change.delta),
+      version: m.version + 1,
+      modifiedBy: audit.changedBy,
+      modifiedByLabel: audit.changedByLabel,
+      modifiedAt: audit.changedAt,
+      lastEventId: id,
+    };
+    materials = materials.map((x) => (x.id === m.id ? next : x));
+    history = [
+      ...history,
+      {
+        id,
+        materialId: m.id,
+        materialName: m.name,
+        measurementUnit: m.measurementUnit,
+        action,
+        jobId: job.id,
+        checkoutId: job.checkoutId ?? null,
+        beforeAvailable: m.available,
+        afterAvailable: next.available,
+        reason: audit.reason,
+        changedBy: audit.changedBy,
+        changedByLabel: audit.changedByLabel,
+        changedAt: audit.changedAt,
+        before: materialSnapshot(m),
+        after: materialSnapshot(next),
+        detailsComplete: true,
+      },
+    ];
+  }
+  return { materials, materialHistory: history };
+}

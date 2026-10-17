@@ -427,6 +427,9 @@ export const helpTopics = [
     notes: [
       'Jobs still waiting show Material to confirm on the Jobs page.',
       'Services with one fixed material still take stock at the sale, as before.',
+      'Correcting the size before the material is confirmed changes only the size to confirm. After it is confirmed, Sale Adjustments asks how much of each material was really used and moves stock by the difference.',
+      'Cancelling a confirmed job asks how much of each material was really used; the rest goes back to stock.',
+      'A job with a choice of materials keeps its service. To change the service, cancel the job and add a new one.',
     ],
     pages: [],
     rank: 2,
