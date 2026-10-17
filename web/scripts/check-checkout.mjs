@@ -1,3 +1,4 @@
+import { readCopy } from './local-copy.mjs';
 import { readFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
@@ -127,23 +128,7 @@ try {
   assert.ok(await d.locator('.allocation-description').first().getAttribute('title'));
   assert.match(await d.innerText(), /Stock warning/);
   await finish();
-  const state = () =>
-    page.evaluate(
-      () =>
-        new Promise((resolve, reject) => {
-          const r = indexedDB.open('printshopledger-v1', 1);
-          r.onsuccess = () => {
-            const db = r.result;
-            const get = db.transaction('ledgers').objectStore('ledgers').get('local-trial');
-            get.onsuccess = () => {
-              resolve(get.result);
-              db.close();
-            };
-            get.onerror = reject;
-          };
-          r.onerror = reject;
-        }),
-    );
+  const state = () => readCopy(page, 'local-trial');
   let saved = await state();
   assert.equal(saved.ledger.jobs.length, 2);
   assert.equal(saved.ledger.customers.length, 1);

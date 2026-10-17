@@ -1588,3 +1588,25 @@ label small > .field-error {
 .action-row > .section-save {
   margin-top: 0;
 }
+/* My Account → This device: label and value on one line each. */
+.device-storage {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.device-storage > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+.device-storage dt {
+  font-size: 13px;
+}
+.device-storage dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}

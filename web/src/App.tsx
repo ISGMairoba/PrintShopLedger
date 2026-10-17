@@ -24,6 +24,7 @@ import PointOfServicePage from './PointOfServicePage';
 import CheckoutEditor from './CheckoutEditor';
 import ReceiptView from './ReceiptView';
 import PaymentCorrectionDialog from './PaymentCorrectionDialog';
+import DeviceStorageCard, { LOW_SPACE } from './DeviceStorageCard';
 import { MyCorrectionsPanel, PendingRequestsPanel } from './CorrectionRequests';
 import { receiptPayments } from './payment-correction.mjs';
 import { receiptIntegrityError } from './receipts.mjs';
@@ -84,7 +85,7 @@ import {
   withdrawCorrectionRequest,
   rejectCorrectionRequest,
 } from './cloud';
-import { readState, saveEvent, saveEvents, mutateState } from './storage';
+import { readState, saveEvent, saveEvents, mutateState, storageHealth } from './storage';
 import MaterialsPage from './MaterialsPage';
 import CustomersPage from './CustomersPage';
 import UsersPage from './UsersPage';
@@ -117,6 +118,8 @@ import RemindersPage from './RemindersPage';
 const DashboardPage = lazy(() => import('./DashboardPage'));
 const ReportsPage = lazy(() => import('./ReportsPage'));
 
+// The low-space check runs once per workspace per page load.
+const lowSpaceChecked = new Set<string>();
 export default function App() {
   const [registering, setRegistering] = useState(false);
   const [activationToken, setActivationToken] = useState(
@@ -315,6 +318,15 @@ export default function App() {
           if (active) {
             setState(value);
             setReady(true);
+            if (!value.storageRecovered && !lowSpaceChecked.has(scope))
+              void storageHealth().then((health) => {
+                lowSpaceChecked.add(scope);
+                if (active && health.free !== null && health.free < LOW_SPACE)
+                  setMessage(
+                    `This computer is low on space (${Math.round(health.free / 1048576)} MB left for the app). Free up disk space so the offline copy and unsynced sales stay safe.`,
+                    'warning',
+                  );
+              });
             if (value.storageRecovered) {
               // The browser lost this device's offline copy; it is rebuilt from the server.
               setMessage(
@@ -1557,21 +1569,24 @@ export default function App() {
                           />
                         )
                       ) : page === 'My Account' ? (
-                        <AccountPage
-                          key={`${scope}:${shop?.username}`}
-                          shopId={shop?.id ?? ''}
-                          userId={session?.user.id ?? ''}
-                          businessAccount={!!session && session.user.id === businessSession?.user.id}
-                          username={shop?.username ?? ''}
-                          online={online}
-                          demo={demo}
-                          themePreference={branding.preference}
-                          setThemePreference={branding.setTheme}
-                          onChanged={(message) => {
-                            setMessage(message);
-                            setStaffEpoch((value) => value + 1);
-                          }}
-                        />
+                        <>
+                          <AccountPage
+                            key={`${scope}:${shop?.username}`}
+                            shopId={shop?.id ?? ''}
+                            userId={session?.user.id ?? ''}
+                            businessAccount={!!session && session.user.id === businessSession?.user.id}
+                            username={shop?.username ?? ''}
+                            online={online}
+                            demo={demo}
+                            themePreference={branding.preference}
+                            setThemePreference={branding.setTheme}
+                            onChanged={(message) => {
+                              setMessage(message);
+                              setStaffEpoch((value) => value + 1);
+                            }}
+                          />
+                          <DeviceStorageCard pending={state.pending.length} lastSynced={state.lastSynced} />
+                        </>
                       ) : page === 'Edit Products' ? (
                         <EditProductsPage
                           key={scope}

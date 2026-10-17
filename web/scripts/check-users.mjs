@@ -1,3 +1,4 @@
+import { readCopy } from './local-copy.mjs';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -617,22 +618,7 @@ try {
   await page.locator('tbody tr').filter({ hasText: 'Cashier only' }).waitFor();
   assert.equal(await page.getByText('Manager print', { exact: true }).count(), 0);
   assert.equal(serverLedger.drawerClosings.length, 1);
-  const outgoingCache = await page.evaluate(
-    (scope) =>
-      new Promise((resolve, reject) => {
-        const request = indexedDB.open('printshopledger-v1', 1);
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => {
-          const db = request.result,
-            tx = db.transaction('ledgers'),
-            read = tx.objectStore('ledgers').get(scope);
-          read.onsuccess = () => resolve(read.result);
-          read.onerror = () => reject(read.error);
-          tx.oncomplete = () => db.close();
-        };
-      }),
-    `${actor}:${shop}`,
-  );
+  const outgoingCache = await readCopy(page, `${actor}:${shop}`);
   assert.equal(
     outgoingCache.ledger.drawerClosings.length,
     1,

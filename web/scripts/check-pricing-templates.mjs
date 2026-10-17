@@ -1,3 +1,4 @@
+import { readCopy } from './local-copy.mjs';
 import { settingsSection } from './settings-navigation.mjs';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -57,7 +58,11 @@ try {
         });
         await new Promise((resolve, reject) => {
           const tx = db.transaction('ledgers', 'readwrite');
-          tx.objectStore('ledgers').put({ ledger, pending: [] }, 'local-trial');
+          {
+            const st = tx.objectStore('ledgers');
+            st.delete(IDBKeyRange.bound('local-trial' + '|', 'local-trial' + '|\uffff'));
+            st.put({ ledger, pending: [] }, 'local-trial');
+          }
           tx.oncomplete = resolve;
           tx.onerror = reject;
         });
@@ -170,19 +175,7 @@ try {
     await d.getByText('₦15,000.00').first().waitFor();
     await d.getByRole('button', { name: 'Save quotation', exact: true }).click();
     await d.waitFor({ state: 'detached' });
-    const readState = () =>
-      page.evaluate(async () => {
-        const db = await new Promise((resolve) => {
-          const r = indexedDB.open('printshopledger-v1', 1);
-          r.onsuccess = () => resolve(r.result);
-        });
-        const state = await new Promise((resolve) => {
-          const r = db.transaction('ledgers').objectStore('ledgers').get('local-trial');
-          r.onsuccess = () => resolve(r.result);
-        });
-        db.close();
-        return state;
-      });
+    const readState = () => readCopy(page, 'local-trial');
     let state = await readState();
     assert.equal(state.ledger.jobs.length, 0);
     assert.equal(state.ledger.materials[0].available, 2000);

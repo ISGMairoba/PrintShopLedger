@@ -1,3 +1,4 @@
+import { readCopy } from './local-copy.mjs';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -40,23 +41,7 @@ try {
   await page.getByRole('button', { name: 'Try locally on this device' }).click();
   const nav = (name) =>
     page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name, exact: true }).click();
-  const state = () =>
-    page.evaluate(
-      () =>
-        new Promise((resolve, reject) => {
-          const r = indexedDB.open('printshopledger-v1', 1);
-          r.onsuccess = () => {
-            const db = r.result;
-            const g = db.transaction('ledgers').objectStore('ledgers').get('local-trial');
-            g.onsuccess = () => {
-              resolve(g.result);
-              db.close();
-            };
-            g.onerror = reject;
-          };
-          r.onerror = reject;
-        }),
-    );
+  const state = () => readCopy(page, 'local-trial');
   await nav('Materials');
   await page.getByRole('button', { name: 'Add material', exact: true }).click();
   let d = page.getByRole('dialog');
@@ -206,7 +191,11 @@ try {
         r.onsuccess = () => {
           const db = r.result;
           const tx = db.transaction('ledgers', 'readwrite');
-          tx.objectStore('ledgers').put(saved, 'local-trial');
+          {
+            const st = tx.objectStore('ledgers');
+            st.delete(IDBKeyRange.bound('local-trial' + '|', 'local-trial' + '|\uffff'));
+            st.put(saved, 'local-trial');
+          }
           tx.oncomplete = () => {
             db.close();
             resolve();

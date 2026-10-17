@@ -1,3 +1,4 @@
+import { readCopy } from './local-copy.mjs';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -220,24 +221,7 @@ try {
       if (mobile) await openMenu();
       await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name, exact: true }).click();
     };
-    const saved = () =>
-      page.evaluate(
-        (scope) =>
-          new Promise((resolve, reject) => {
-            const r = indexedDB.open('printshopledger-v1', 1);
-            r.onsuccess = () => {
-              const db = r.result,
-                q = db.transaction('ledgers').objectStore('ledgers').get(scope);
-              q.onsuccess = () => {
-                resolve(q.result);
-                db.close();
-              };
-              q.onerror = () => reject(q.error);
-            };
-            r.onerror = () => reject(r.error);
-          }),
-        id + ':' + shop,
-      );
+    const saved = () => readCopy(page, id + ':' + shop);
     for (const code of ['PT409', '40001']) {
       conflictCode = code;
       await nav('Materials');

@@ -1,3 +1,4 @@
+import { readCopy } from './local-copy.mjs';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -54,7 +55,11 @@ try {
         });
         await new Promise((resolve, reject) => {
           const tx = db.transaction('ledgers', 'readwrite');
-          tx.objectStore('ledgers').put({ ledger, pending: [] }, 'local-trial');
+          {
+            const st = tx.objectStore('ledgers');
+            st.delete(IDBKeyRange.bound('local-trial' + '|', 'local-trial' + '|\uffff'));
+            st.put({ ledger, pending: [] }, 'local-trial');
+          }
           tx.oncomplete = resolve;
           tx.onerror = reject;
         });
@@ -94,18 +99,7 @@ try {
     await d.getByRole('button', { name: 'Save changes', exact: true }).click();
     await d.getByText(/^Saved:/).waitFor();
     await d.getByRole('button', { name: 'Close', exact: true }).click();
-    const state = await page.evaluate(async () => {
-      const db = await new Promise((resolve) => {
-        const r = indexedDB.open('printshopledger-v1', 1);
-        r.onsuccess = () => resolve(r.result);
-      });
-      const s = await new Promise((resolve) => {
-        const r = db.transaction('ledgers').objectStore('ledgers').get('local-trial');
-        r.onsuccess = () => resolve(r.result);
-      });
-      db.close();
-      return s;
-    });
+    const state = await readCopy(page, 'local-trial');
     const service = state.ledger.services.find((s) => s.description === 'Art card 300gsm');
     const material = state.ledger.materials.find((m) => m.id === service.materialId);
     assert.equal(service.price, 25000);
