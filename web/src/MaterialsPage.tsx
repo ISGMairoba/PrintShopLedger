@@ -1,9 +1,10 @@
+import DialogActions from './DialogActions';
 import { useFeedbackMessage } from './Feedback';
 import { useBusinessOptions } from './BusinessOptionsContext';
 import ResponsiveTable from './ResponsiveTable';
 import Icon from './Icon';
 import ToolbarActions, { MenuToggle } from './ToolbarActions';
-import { useState, type FormEvent } from 'react';
+import { useId, useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import { SortHeader, useTableSort } from './TableSort';
 import { materialCode, stockLevel } from './material-display.mjs';
@@ -39,6 +40,7 @@ export default function MaterialsPage({
   canRecordPurchase = false,
   onSaveExpense,
 }: Props) {
+  const formId = useId();
   const [reorder, setReorder] = useState(false);
   const toReorder = reorderList({ materials, materialHistory: history } as never).length;
   const { w } = useWords();
@@ -474,6 +476,11 @@ export default function MaterialsPage({
         <Modal
           title={w(editing ? 'Edit material' : 'Add material')}
           busy={busy}
+          footer={
+            <DialogActions form={formId} busy={busy} onCancel={() => setEditor(null)}>
+              {wt('Save material')}
+            </DialogActions>
+          }
           onClose={() => setEditor(null)}
         >
           {error && (
@@ -481,7 +488,7 @@ export default function MaterialsPage({
               {error}
             </div>
           )}
-          <form key={editing ? `${editing.id}:${editing.version}` : 'new'} onSubmit={submit}>
+          <form id={formId} key={editing ? `${editing.id}:${editing.version}` : 'new'} onSubmit={submit}>
             {editing ? (
               <p className="material-id">
                 {wt('Material ID')}: {materialCode(editing.id, materials)}
@@ -549,9 +556,6 @@ export default function MaterialsPage({
                   <option key={unit} value={unit} />
                 ))}
               </datalist>
-              <button type="submit">
-                <Icon name="save" /> {busy ? 'Saving...' : wt('Save material')}
-              </button>
             </fieldset>
           </form>
         </Modal>

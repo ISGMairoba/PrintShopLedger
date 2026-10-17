@@ -9,6 +9,8 @@ type Props = {
   wide?: boolean;
   className?: string;
   closeLabel?: string;
+  /** Actions may target a form inside the body with the native `form` attribute. */
+  footer?: ReactNode;
 };
 let openModals = 0;
 let previousOverflow = '';
@@ -20,6 +22,7 @@ export default function Modal({
   wide = false,
   className = '',
   closeLabel = 'Close',
+  footer,
 }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -101,6 +104,7 @@ export default function Modal({
         </button>
       </div>
       <div className="modal-body">{children}</div>
+      {footer && <div className="modal-footer">{footer}</div>}
     </dialog>,
     document.body,
   );

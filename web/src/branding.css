@@ -30,15 +30,9 @@ button:where(:not(.secondary, .text-button, .sort-button, .danger-button)):hover
   background: var(--brand-primary);
   filter: brightness(0.9);
 }
-.brand-mark,
-.stats article:last-child {
+.brand-mark {
   background: var(--brand-primary);
   color: var(--brand-on-primary);
-}
-.stats article:last-child span,
-.stats article:last-child small {
-  color: var(--brand-on-primary);
-  opacity: 0.85;
 }
 nav button.active {
   background: var(--brand-primary);
@@ -221,14 +215,6 @@ select:focus-visible {
 }
 [data-theme] .comparison-changed td:last-child {
   background: color-mix(in srgb, var(--brand-primary) 12%, var(--surface));
-}
-[data-theme] .stats:not(.dashboard-stats) article:last-child {
-  background: var(--brand-primary);
-  color: var(--brand-on-primary);
-}
-[data-theme] .stats:not(.dashboard-stats) article:last-child span,
-[data-theme] .stats:not(.dashboard-stats) article:last-child small {
-  color: var(--brand-on-primary);
 }
 /* Native mobile select arrows need to remain readable on custom input backgrounds. */
 @media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {

@@ -1,3 +1,4 @@
+import { settingsSection } from './settings-navigation.mjs';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -54,7 +55,7 @@ try {
     await page.getByLabel('Phone / WhatsApp numbers', { exact: true }).fill('08011112222');
     await page.getByLabel('Email', { exact: true }).fill('studio@example.com');
     await page.getByLabel('Website', { exact: true }).fill('https://example.com');
-    await page.getByRole('tab', { name: 'Receipts' }).click();
+    await settingsSection(page, 'Receipts');
     await page.getByLabel('Receipt footer', { exact: true }).fill('Thank you from Mairoba.');
     // Receipt printer and full-page receipts are set separately.
     await page.getByRole('button', { name: 'Full page (A4 / A5)', exact: true }).click();
@@ -68,7 +69,7 @@ try {
       ctx.fillRect(0, 0, 300, 120);
       return canvas.toDataURL('image/png');
     });
-    await page.getByRole('tab', { name: /Profile & logo/ }).click();
+    await settingsSection(page, /Profile & logo/);
     await page.getByLabel('Upload logo', { exact: true }).setInputFiles({
       name: 'brand.png',
       mimeType: 'image/png',
@@ -103,12 +104,12 @@ try {
       await page.getByAltText('Horizontal · label beside for ' + mode + ' backgrounds').waitFor();
     }
     await page.getByLabel('Browser tab icon', { exact: true }).selectOption('horizontal');
-    await page.getByRole('tab', { name: /Receipts/ }).click();
+    await settingsSection(page, /Receipts/);
     await page.getByRole('button', { name: 'Receipt printer (80 mm / 58 mm)', exact: true }).click();
     await page.getByLabel('Logo for this document size', { exact: true }).selectOption('complete');
     await page.getByRole('button', { name: 'Full page (A4 / A5)', exact: true }).click();
     await page.getByLabel('Logo for this document size', { exact: true }).selectOption('horizontal');
-    await page.getByRole('tab', { name: /Dropdowns & workflow/ }).click();
+    await settingsSection(page, /Dropdowns & workflow/);
     await page.getByLabel('New payment method', { exact: true }).fill('Opay');
     await page.getByLabel('New payment accounting type', { exact: true }).selectOption('Transfer');
     await page.getByRole('button', { name: 'Add payment method', exact: true }).click();
@@ -119,13 +120,13 @@ try {
     await page
       .getByLabel('Job stages', { exact: true })
       .fill('Added\nDesign\nApproval\nFinishing\nCompleted\nCollected');
-    await page.getByRole('tab', { name: /Profile & logo/ }).click();
+    await settingsSection(page, /Profile & logo/);
     await page.getByLabel('Email', { exact: true }).fill('invalid');
     await page.getByRole('button', { name: 'Save logo', exact: true }).click();
     await page.getByText('Logo saved.', { exact: true }).waitFor();
     assert.equal(await page.getByLabel('Email', { exact: true }).inputValue(), 'invalid');
     await page.getByLabel('Email', { exact: true }).fill('studio@example.com');
-    await page.getByRole('tab', { name: /Appearance/ }).click();
+    await settingsSection(page, /Appearance/);
     await page.getByLabel('Primary color', { exact: true }).fill('#f4d945');
     await page.getByLabel('Accent color', { exact: true }).fill('#235488');
     await page.getByLabel('Business default theme', { exact: true }).selectOption('dark');
@@ -155,7 +156,7 @@ try {
       await page.getByAltText('Horizontal · label beside for dark backgrounds').getAttribute('src'),
       darkPng,
     );
-    await page.getByRole('tab', { name: /Receipts/ }).click();
+    await settingsSection(page, /Receipts/);
     assert.equal(
       await page.getByLabel('Logo for this document size', { exact: true }).inputValue(),
       'complete',
@@ -166,11 +167,11 @@ try {
       'horizontal',
     );
     assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'dark');
-    await page.getByRole('tab', { name: /Corrections/ }).click();
+    await settingsSection(page, /Corrections/);
     await page.getByLabel('Recent jobs window (days)').fill('14');
     await page.getByRole('button', { name: 'Save correction settings', exact: true }).click();
     await page.getByText('Correction settings saved.', { exact: true }).waitFor();
-    await page.getByRole('tab', { name: /Page access/ }).click();
+    await settingsSection(page, /Page access/);
     assert.equal(
       await page.getByLabel('Cashier access to Sale Adjustments', { exact: true }).isDisabled(),
       true,
@@ -192,9 +193,9 @@ try {
     await page.reload();
     await page.getByRole('button', { name: 'Try locally on this device' }).click();
     await nav('Business Settings');
-    await page.getByRole('tab', { name: /Corrections/ }).click();
+    await settingsSection(page, /Corrections/);
     assert.equal(await page.getByLabel('Recent jobs window (days)').inputValue(), '14');
-    await page.getByRole('tab', { name: /Page access/ }).click();
+    await settingsSection(page, /Page access/);
     assert.equal(await page.getByLabel('Cashier access to Jobs', { exact: true }).isChecked(), true);
     assert.equal(await page.getByLabel('Admin access to Payments', { exact: true }).isChecked(), false);
     assert.equal(await page.getByLabel('Manager access to Jobs', { exact: true }).isChecked(), false);
@@ -268,7 +269,7 @@ try {
     await dialog.waitFor({ state: 'detached' });
     await page.getByRole('button', { name: 'Next: Approval', exact: true }).waitFor();
     await nav('Business Settings');
-    await page.getByRole('tab', { name: /Dropdowns & workflow/ }).click();
+    await settingsSection(page, /Dropdowns & workflow/);
     await page.getByLabel('Job stages', { exact: true }).fill('Added\nPrinting\nCompleted\nCollected');
     await page.getByRole('button', { name: 'Remove payment method 4', exact: true }).click();
     await page.getByRole('button', { name: 'Save business settings', exact: true }).click();

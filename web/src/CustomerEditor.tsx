@@ -1,7 +1,7 @@
+import DialogActions from './DialogActions';
 import { useFeedbackMessage } from './Feedback';
 import CurrencyInput from './CurrencyInput';
-import Icon from './Icon';
-import { useState, type FormEvent } from 'react';
+import { useId, useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import { money } from './domain.mjs';
 import { createCustomerEvent, customerCode, phoneKey, phoneOwner } from './customers.mjs';
@@ -24,6 +24,7 @@ export default function CustomerEditor({
   onClose,
   onSaved,
 }: Props) {
+  const formId = useId();
   const [error, setError] = useFeedbackMessage('error');
   const [phone, setPhone] = useState(customer?.phone ?? '');
   // Each number belongs to one customer; an older shared number may be kept unchanged.
@@ -69,14 +70,23 @@ export default function CustomerEditor({
     }
   }
   return (
-    <Modal title={customer ? 'Edit customer' : 'Add customer'} busy={busy} onClose={onClose}>
+    <Modal
+      title={customer ? 'Edit customer' : 'Add customer'}
+      busy={busy}
+      onClose={onClose}
+      footer={
+        <DialogActions form={formId} busy={busy} onCancel={onClose}>
+          Save customer
+        </DialogActions>
+      }
+    >
       {error && (
         <div className="notice" role="alert">
           {error}
         </div>
       )}
       {customer && <p className="material-id">Customer ID: {customerCode(customer.id, customers)}</p>}
-      <form onSubmit={submit}>
+      <form id={formId} onSubmit={submit}>
         <fieldset disabled={busy}>
           <div className="form-grid">
             <label>
@@ -128,9 +138,6 @@ export default function CustomerEditor({
             </label>
           </div>
           <p className="muted">The credit limit is saved for later use during checkout.</p>
-          <button type="submit">
-            <Icon name="save" /> {busy ? 'Saving...' : 'Save customer'}
-          </button>
         </fieldset>
       </form>
     </Modal>

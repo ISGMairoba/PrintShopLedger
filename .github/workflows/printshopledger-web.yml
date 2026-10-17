@@ -36,6 +36,14 @@ jobs:
         timeout-minutes: 5
         run: npx playwright install chromium webkit
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: node scripts/run-check.mjs node scripts/check-ui-consistency.mjs
+      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-consistency
+          path: /tmp/ui-consistency
+          retention-days: 7
+      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/run-check.mjs node scripts/check-business-branding.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/run-check.mjs node scripts/check-theme-backgrounds.mjs

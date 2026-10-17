@@ -1,3 +1,4 @@
+import { settingsSection } from './settings-navigation.mjs';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -68,7 +69,7 @@ try {
         await success.waitFor();
         assert.match(await success.innerText(), /Business details saved/);
         await success.getByRole('button', { name: 'Dismiss success notification' }).click();
-        await page.getByRole('tab', { name: /Appearance/ }).click();
+        await settingsSection(page, /Appearance/);
         await page.getByLabel('Business default theme').selectOption('dark');
         await page.getByRole('button', { name: 'Save appearance', exact: true }).click();
         await page

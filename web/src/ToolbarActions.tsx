@@ -76,9 +76,16 @@ export function MoreMenu({ children, label = 'More' }: { children: ReactNode; la
 export default function ToolbarActions({ more, children }: { more?: ReactNode; children?: ReactNode }) {
   // A menu with a single item is just an extra click: show that item as a button instead.
   const items = flatten(more);
+  const views = items.filter((item) => isValidElement(item) && item.type === MenuToggle);
+  const other = items.filter((item) => !views.includes(item));
   return (
     <div className="toolbar-actions">
-      {items.length > 1 ? <MoreMenu>{items}</MoreMenu> : items}
+      {views.length > 0 && (
+        <div className="toolbar-view-controls" role="group" aria-label="List view">
+          {views}
+        </div>
+      )}
+      {other.length > 1 ? <MoreMenu>{other}</MoreMenu> : other}
       {children}
     </div>
   );
@@ -106,8 +113,15 @@ export function MenuToggle({
   onClick: () => void;
 }) {
   return (
-    <button type="button" className="secondary" aria-pressed={pressed} onClick={onClick}>
-      {icon && <Icon name={icon} />} {children}
+    <button
+      type="button"
+      className={`secondary${icon ? ' view-toggle' : ''}`}
+      aria-label={typeof children === 'string' ? children : undefined}
+      title={typeof children === 'string' ? children : undefined}
+      aria-pressed={pressed}
+      onClick={onClick}
+    >
+      {icon && <Icon name={icon} />} <span className="view-toggle-label">{children}</span>
       {pressed && (
         <span className="menu-check" aria-hidden="true">
           ✓

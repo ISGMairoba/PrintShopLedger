@@ -118,6 +118,16 @@ try {
         );
         if (new Set(sizes).size > 1)
           failures.push(`${mode} ${name}: toolbar heights ${[...new Set(sizes)].join('/')}`);
+        const picker = page.getByLabel('Business settings section', { exact: true });
+        if (await picker.isVisible()) {
+          const sections = await picker
+            .locator('option')
+            .evaluateAll((items) => items.map((item) => item.value));
+          for (const section of sections.slice(1)) {
+            await picker.selectOption(section);
+            await shot(`${id}-${slug(name)}-section-${slug(section)}`);
+          }
+        }
         const tabs = page.getByRole('main').getByRole('tab');
         const count = await tabs.count();
         for (let t = 1; t < count; t++) {

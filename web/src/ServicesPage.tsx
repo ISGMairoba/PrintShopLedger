@@ -1,3 +1,4 @@
+import DialogActions from './DialogActions';
 import { useFeedbackMessage } from './Feedback';
 import CurrencyInput from './CurrencyInput';
 import ResponsiveTable from './ResponsiveTable';
@@ -6,7 +7,7 @@ import { packList } from './pack-prices.mjs';
 import { newVariantProductEvents } from './variants.mjs';
 import PackPricesField, { packDraft, packPricesFrom, type PackDraft } from './PackPricesField';
 import ToolbarActions, { MenuToggle } from './ToolbarActions';
-import { useState, type FormEvent } from 'react';
+import { useId, useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import { shortLabel } from './material-display.mjs';
 import { SortHeader, useTableSort } from './TableSort';
@@ -43,6 +44,7 @@ export default function ServicesPage({
   onSaveMany,
   onEditProduct,
 }: Props) {
+  const formId = useId();
   const { w } = useWords();
   const units = useBusinessOptions().materialUnits;
   const [product, setProduct] = useState(false);
@@ -550,6 +552,11 @@ export default function ServicesPage({
         <Modal
           title={w(editing ? 'Edit service' : 'Add service')}
           busy={busy}
+          footer={
+            <DialogActions form={formId} busy={busy} onCancel={() => setEditor(null)}>
+              {w('Save service')}
+            </DialogActions>
+          }
           onClose={() => setEditor(null)}
         >
           {error && (
@@ -564,7 +571,7 @@ export default function ServicesPage({
           ) : (
             <p className="muted">{w('A permanent service ID is generated when you save.')}</p>
           )}
-          <form key={editing ? editing.id + ':' + editing.version : 'new'} onSubmit={submit}>
+          <form id={formId} key={editing ? editing.id + ':' + editing.version : 'new'} onSubmit={submit}>
             <fieldset disabled={busy}>
               <div className="form-grid">
                 <label>
@@ -762,9 +769,6 @@ export default function ServicesPage({
                   'Choose No material for services such as cap pressing, shirt pressing or binding with customer-supplied materials. These use quantity × price and do not deduct stock. Linked materials retain their Require Size setting.',
                 )}
               </p>
-              <button type="submit">
-                <Icon name="save" /> {busy ? 'Saving...' : w('Save service')}
-              </button>
             </fieldset>
           </form>
         </Modal>

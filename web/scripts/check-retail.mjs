@@ -1,3 +1,4 @@
+import { settingsSection } from './settings-navigation.mjs';
 // Retail use: a product (stock item + shelf item) sold at the till is Collected at once and takes
 // stock; the Words setting renames the screens. Runs against the local trial.
 import assert from 'node:assert/strict';
@@ -115,7 +116,7 @@ try {
 
   // Retail words.
   await nav('Business Settings');
-  await page.getByRole('tab', { name: 'Jobs & payments' }).click();
+  await settingsSection(page, 'Jobs & payments');
   await page.getByLabel('Words for').selectOption('retail');
   await page.getByRole('button', { name: 'Save words', exact: true }).click();
   await menu.getByRole('button', { name: 'Orders', exact: true }).waitFor();

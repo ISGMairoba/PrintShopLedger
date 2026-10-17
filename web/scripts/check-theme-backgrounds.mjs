@@ -1,3 +1,4 @@
+import { settingsSection } from './settings-navigation.mjs';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -72,7 +73,7 @@ try {
     };
     const appearance = async () => {
       await nav('Business Settings');
-      await page.getByRole('tab', { name: /Appearance/ }).click();
+      await settingsSection(page, /Appearance/);
     };
     const save = async () => {
       await page.getByRole('button', { name: 'Save appearance', exact: true }).click();
@@ -102,8 +103,10 @@ try {
     const red = themeColors({ ...defaultBranding(), primary: '#ee4422' }, 'dark');
     await assertBackground('body', red.canvas);
     assert.notEqual(blue.canvas, red.canvas);
-    await page.getByRole('tab', { name: /Appearance/ }).hover();
-    await assertBackground('.settings-tabs .active', '#ee4422');
+    if (!mobile) {
+      await page.getByRole('tab', { name: /Appearance/ }).hover();
+      await assertBackground('.settings-tabs .active', '#ee4422');
+    }
     const controls = [
       ['Light page background', '#f0e8ff'],
       ['Light panels & sidebar', '#fff7ed'],
@@ -122,7 +125,7 @@ try {
     await assertBackground('.business-settings', '#242448');
     await assertBackground('.business-settings select:visible', '#333366');
     // Saving a different section must not overwrite the six custom background colors.
-    await page.getByRole('tab', { name: /Receipts/ }).click();
+    await settingsSection(page, /Receipts/);
     await page.getByLabel('Receipt footer', { exact: true }).fill('Theme test');
     await page.getByRole('button', { name: 'Save receipt settings', exact: true }).click();
     await page.getByText('Receipt settings saved.', { exact: true }).waitFor();

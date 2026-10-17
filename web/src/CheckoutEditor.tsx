@@ -1,3 +1,4 @@
+import DialogActions from './DialogActions';
 import { TemplateInputs, TemplateEstimate, tryTemplate } from './TemplateFields';
 import { serviceMaterial } from './material-choice.mjs';
 import { templateDefaults } from './pricing-templates.mjs';
@@ -6,7 +7,7 @@ import { lineWithDescription } from './job-batches.mjs';
 import { useFeedbackMessage } from './Feedback';
 import { useBusinessOptions } from './BusinessOptionsContext';
 import CurrencyInput from './CurrencyInput';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import Modal from './Modal';
 import { rebalanceManualAllocations } from './manual-allocation.mjs';
 import Icon from './Icon';
@@ -221,6 +222,7 @@ export default function CheckoutEditor({
   fromQuotation,
   startTemplate,
 }: Props) {
+  const formId = useId();
   const options = useBusinessOptions(),
     jobSources = options.jobSources;
   const { w, stage } = useWords();
@@ -511,6 +513,23 @@ export default function CheckoutEditor({
         wide
         busy={busy}
         onClose={onClose}
+        footer={
+          <DialogActions
+            form={formId}
+            busy={busy}
+            onCancel={onClose}
+            summary={
+              !paymentOnly && (
+                <>
+                  <small>Total</small>
+                  <strong>{cartTotal === null ? '—' : currency(cartTotal)}</strong>
+                </>
+              )
+            }
+          >
+            Complete checkout
+          </DialogActions>
+        }
       >
         {initialCheckout && (
           <p className="notice">
@@ -557,6 +576,7 @@ export default function CheckoutEditor({
           </div>
         )}
         <form
+          id={formId}
           onSubmit={async (e) => {
             e.preventDefault();
             if (busy) return;
@@ -1181,9 +1201,6 @@ export default function CheckoutEditor({
                   </p>
                 ))}
             {previewError && customer && <p className="muted">{previewError}</p>}
-            <button type="submit">
-              <Icon name="save" /> {busy ? 'Saving…' : 'Complete checkout'}
-            </button>
           </fieldset>
         </form>
       </Modal>
