@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
+import DialogActions from './DialogActions';
 import Modal from './Modal';
 import CurrencyInput from './CurrencyInput';
 import { useFeedbackMessage } from './Feedback';
@@ -39,6 +40,7 @@ export default function PaymentCorrectionDialog({
     [error, setError] = useFeedbackMessage('error');
   const [id] = useState(() => crypto.randomUUID());
   const [submitted, setSubmitted] = useState<SupervisedEvent | null>(null);
+  const formId = useId();
   const customer = ledger.customers.find((c) => c.id === payment.customerId);
   const jobName = (jobId: string) =>
     ledger.jobs.find((j) => j.id === jobId)?.description ?? jobId.slice(0, 8);
@@ -100,7 +102,16 @@ export default function PaymentCorrectionDialog({
   const changed = rows.filter(([, a, b]) => a !== b);
 
   return (
-    <Modal title="Correct payment" busy={busy} onClose={onClose}>
+    <Modal
+      title="Correct payment"
+      busy={busy}
+      onClose={onClose}
+      footer={
+        <DialogActions form={formId} busy={busy} onCancel={onClose}>
+          {submitted ? 'Retry same correction' : 'Save correction'}
+        </DialogActions>
+      }
+    >
       <p>
         {customer?.name ?? 'Customer'} · {w('Payment')} #{payment.id.slice(0, 8).toUpperCase()} ·{' '}
         {currency(payment.amount)} · {payment.methodLabel ?? payment.method} · {payment.paidOn}
@@ -111,6 +122,7 @@ export default function PaymentCorrectionDialog({
         </p>
       )}
       <form
+        id={formId}
         className="supervisor-form"
         onSubmit={async (e) => {
           e.preventDefault();
@@ -200,12 +212,6 @@ export default function PaymentCorrectionDialog({
             </p>
           )}
         </section>
-        <div className="actions">
-          <button type="button" className="secondary" onClick={onClose} disabled={busy}>
-            Cancel
-          </button>
-          <button disabled={busy || !next}>{busy ? 'Saving…' : 'Save correction'}</button>
-        </div>
       </form>
     </Modal>
   );

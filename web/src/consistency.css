@@ -75,21 +75,15 @@ label small,
   outline-offset: 2px;
 }
 @media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
-  /* On phones tabs stay on one line and scroll sideways instead of stacking. */
+  /* On phones tabs share the row and wrap, so every tab stays in view (no hidden sideways scroll). */
   .settings-tabs {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-    margin-left: -2px;
-    margin-right: -2px;
+    flex-wrap: wrap;
     padding: 2px;
   }
-  .settings-tabs::-webkit-scrollbar {
-    display: none;
-  }
   .settings-tabs button {
-    flex: none;
-    white-space: nowrap;
+    flex: 1 1 auto;
+    min-width: 0;
+    white-space: normal;
   }
 }
 
@@ -1115,6 +1109,11 @@ button[aria-busy="true"] {
   overflow-wrap: anywhere;
   padding: 14px 12px;
 }
+/* Column headings break between syllables, not at a random letter ("Outstandin g"). */
+.responsive-records > table th {
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
 .responsive-records > table :is(button, .badge) {
   max-width: 100%;
   white-space: normal;
@@ -1129,7 +1128,7 @@ button[aria-busy="true"] {
   max-width: none;
 }
 .mobile-cards tr {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 0.7fr);
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
 }
 .mobile-cards td.mobile-cell-third {
   grid-column: 1 / -1;
@@ -1319,13 +1318,13 @@ button[aria-busy="true"] {
 @media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
   .toolbar-actions {
     flex: 1 1 100%;
-    justify-content: flex-end;
+    justify-content: stretch;
   }
+  /* Buttons share each row evenly; icon-only view switches keep their square size. */
   .toolbar-actions > * {
-    flex: 0 1 auto;
+    flex: 1 1 auto;
   }
   .toolbar-actions > .toolbar-view-controls {
-    margin-right: auto;
     flex: 0 0 auto;
   }
   .toolbar-actions > button {
@@ -1518,4 +1517,65 @@ label.checkbox,
 input[type="checkbox"],
 input[type="radio"] {
   touch-action: manipulation;
+}
+
+/* Review fixes (phones and desktop). */
+/* A field's error sits on its own line inside the hint group, never on top of the hint. */
+label small > .field-error {
+  display: block;
+  margin-top: 4px;
+}
+/* Notes placed directly in a list panel get the panel's side padding. */
+.panel > .panel-note {
+  margin: 0;
+  padding: 12px 20px 0;
+}
+.payment-recommendation {
+  padding: 12px 14px;
+}
+/* "Sort by" sits beside its list, on the same line. */
+.toolbar .list-sort-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0;
+}
+/* Quick sale: total and Complete sale stay in view and full width on every screen. */
+.quick-sale-checkout {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  background: var(--surface);
+  padding-bottom: 2px;
+}
+.quick-sale-checkout > button {
+  width: 100%;
+}
+/* Job details: stage actions in their own section, spaced like a list. */
+.job-detail-stage {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.job-detail-stage h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+.job-detail-stage .job-actions {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+@media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
+  .modal-footer .dialog-action-buttons > button {
+    flex: 1 1 auto;
+  }
+}
+@media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
+  /* Phones sort with the separate Sort by bar under the toolbar. */
+  .toolbar .list-sort-select {
+    display: none;
+  }
 }

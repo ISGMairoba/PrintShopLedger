@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
+import DialogActions from './DialogActions';
 import Modal from './Modal';
 import JobCorrectionPicker from './JobCorrectionPicker';
 import CurrencyInput from './CurrencyInput';
@@ -183,6 +184,7 @@ export function SaleAdjustmentEditor({
 }) {
   const { w, stage } = useWords();
   const [submitted, setSubmitted] = useState<SupervisedEvent | null>(null);
+  const formId = useId();
   const options = useBusinessOptions(),
     methods = options.paymentMethods.filter((m) => m.enabled);
   const [action, setAction] = useState<SupervisedEvent['kind']>(
@@ -496,7 +498,23 @@ export function SaleAdjustmentEditor({
   if (action === 'sale.refunded') add('Money returned', currency(0), currency(adjustment?.refundAmount ?? 0));
 
   return (
-    <Modal title={request ? 'Request a correction' : 'Adjust sale'} wide busy={busy} onClose={onClose}>
+    <Modal
+      title={request ? 'Request a correction' : 'Adjust sale'}
+      wide
+      busy={busy}
+      onClose={onClose}
+      footer={
+        <DialogActions form={formId} busy={busy} onCancel={onClose}>
+          {request
+            ? submitted
+              ? 'Retry sending'
+              : 'Send for approval'
+            : submitted
+              ? 'Retry same adjustment'
+              : 'Approve and save adjustment'}
+        </DialogActions>
+      }
+    >
       {request && (
         <p className="muted">
           {w(
@@ -518,6 +536,7 @@ export function SaleAdjustmentEditor({
         </p>
       )}
       <form
+        id={formId}
         className="supervisor-form"
         onSubmit={async (e) => {
           e.preventDefault();
@@ -949,19 +968,6 @@ export function SaleAdjustmentEditor({
             it.
           </p>
         )}
-        <button disabled={busy}>
-          {request
-            ? busy
-              ? 'Sending…'
-              : submitted
-                ? 'Retry sending'
-                : 'Send for approval'
-            : busy
-              ? 'Saving adjustment…'
-              : submitted
-                ? 'Retry same adjustment'
-                : 'Approve and save adjustment'}
-        </button>
       </form>
     </Modal>
   );

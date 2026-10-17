@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
+import Icon from './Icon';
 import Modal from './Modal';
 import JobCorrectionPicker from './JobCorrectionPicker';
 import { useFeedbackMessage } from './Feedback';
@@ -256,6 +257,7 @@ function RequestReviewDialog({
   onReject: (note: string) => Promise<void>;
 }) {
   const { w } = useWords();
+  const rejectId = useId();
   const [note, setNote] = useState(''),
     [error, setError] = useFeedbackMessage('error');
   const [event] = useState(() => {
@@ -285,7 +287,30 @@ function RequestReviewDialog({
     }
   };
   return (
-    <Modal title="Review correction request" wide busy={busy} onClose={onClose}>
+    <Modal
+      title="Review correction request"
+      wide
+      busy={busy}
+      onClose={onClose}
+      footer={
+        <div className="dialog-action-buttons">
+          <button type="button" className="secondary" disabled={busy} onClick={onClose}>
+            Cancel
+          </button>
+          <button type="submit" form={rejectId} className="secondary" disabled={busy || !canSave}>
+            <Icon name="close" /> Reject request
+          </button>
+          <button
+            type="button"
+            disabled={busy || !canSave || !!problem || !event}
+            aria-busy={busy}
+            onClick={() => void run(() => onApprove(event!))}
+          >
+            <Icon name="save" /> {busy ? 'Saving…' : 'Approve and apply'}
+          </button>
+        </div>
+      }
+    >
       <p>
         <strong>{w(kindLabel(request.kind))}</strong> · {job?.description} #
         {request.jobId.slice(0, 8).toUpperCase()}
@@ -331,15 +356,8 @@ function RequestReviewDialog({
           <p className="muted">{w('Nothing would change.')}</p>
         )}
       </section>
-      <div className="actions">
-        <button
-          disabled={busy || !canSave || !!problem || !event}
-          onClick={() => void run(() => onApprove(event!))}
-        >
-          {busy ? 'Saving…' : 'Approve and apply'}
-        </button>
-      </div>
       <form
+        id={rejectId}
         className="supervisor-form"
         onSubmit={(e) => {
           e.preventDefault();
@@ -349,10 +367,8 @@ function RequestReviewDialog({
         <label>
           {w('Reason for rejecting')}
           <textarea value={note} onChange={(e) => setNote(e.target.value)} required maxLength={500} />
+          <small className="muted">{w('Needed only to reject. The cashier sees it.')}</small>
         </label>
-        <button className="secondary" disabled={busy || !canSave}>
-          Reject request
-        </button>
       </form>
     </Modal>
   );
