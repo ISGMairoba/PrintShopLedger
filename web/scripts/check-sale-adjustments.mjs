@@ -488,7 +488,7 @@ try {
         await page.getByRole('heading', { name: 'Point of Service', exact: true }).waitFor();
         await nav('My Sales');
         await page.getByLabel('Job to adjust').fill(uuid(6));
-        await page.getByRole('option').first().click();
+        await page.getByRole('listbox', { name: 'Recent jobs' }).getByRole('option').first().click();
         await page.getByRole('button', { name: 'Request a correction', exact: true }).click();
         d = page.getByRole('dialog', { name: 'Request a correction' });
         await d.getByLabel('Money returned (₦)').fill('10');
