@@ -75,6 +75,8 @@ begin$b$],
   if new_amount=j.amount and btrim(d->>'description')=j.description and job_meta=j.metadata and stocks='[]'::jsonb then raise exception 'Nothing changed';end if;$b$]
  ];
  for i in 1..array_length(pairs,1) loop
+  -- Pasting from Windows can add carriage returns to line breaks; the server code has none.
+  pairs[i][1]:=replace(pairs[i][1],chr(13),'');pairs[i][2]:=replace(pairs[i][2],chr(13),'');
   if (length(src)-length(replace(src,pairs[i][1],'')))/length(pairs[i][1])<>1 then raise exception 'apply_supervised_event_v2 changed (part %); review the choice corrections migration',i;end if;
   src:=replace(src,pairs[i][1],pairs[i][2]);
  end loop;
@@ -99,6 +101,8 @@ begin$b$],
   array[$a$'returnQuantity',returned,$a$, $b$'returnQuantity',returned,'stockChanges',choice_stocks,$b$]
  ];
  for i in 1..array_length(pairs,1) loop
+  -- Pasting from Windows can add carriage returns to line breaks; the server code has none.
+  pairs[i][1]:=replace(pairs[i][1],chr(13),'');pairs[i][2]:=replace(pairs[i][2],chr(13),'');
   if (length(src)-length(replace(src,pairs[i][1],'')))/length(pairs[i][1])<>1 then raise exception 'apply_supervised_event_v1 changed (part %); review the choice corrections migration',i;end if;
   src:=replace(src,pairs[i][1],pairs[i][2]);
  end loop;
