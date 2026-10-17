@@ -225,7 +225,8 @@ export function SaleAdjustmentEditor({
     [paymentMethod, setPaymentMethod] = useState(
       customerPayments[0]?.methodLabel ?? customerPayments[0]?.method ?? '',
     ),
-    [reference, setReference] = useState(customerPayments[0]?.reference ?? '');
+    [reference, setReference] = useState(customerPayments[0]?.reference ?? ''),
+    [paidOn, setPaidOn] = useState(customerPayments[0]?.paidOn ?? '');
   const selectedPayment = customerPayments.find((p) => p.id === paymentId),
     selectedMaterial = ledger.materials.find((m) => m.id === materialId);
   const [stockIds] = useState(() =>
@@ -278,6 +279,7 @@ export function SaleAdjustmentEditor({
                 method: chosen?.kind ?? selectedPayment?.method,
                 methodLabel: chosen?.label ?? paymentMethod,
                 reference,
+                paidOn,
               }
             : action === 'sale.corrected'
               ? { amount: money(amount), description }
@@ -353,6 +355,7 @@ export function SaleAdjustmentEditor({
           : 'Payment ';
     add(prefix + 'amount', currency(original.amount), currency(payment.amount));
     add(prefix + 'method', original.methodLabel ?? original.method, payment.methodLabel ?? payment.method);
+    add(prefix + 'date', original.paidOn, payment.paidOn);
     add(prefix + 'reference', original.reference, payment.reference);
   }
   for (const payment of ledger.payments) {
@@ -724,6 +727,7 @@ export function SaleAdjustmentEditor({
                     setPaymentAmount(String(payment.amount / 100));
                     setPaymentMethod(payment.methodLabel ?? payment.method);
                     setReference(payment.reference);
+                    setPaidOn(payment.paidOn);
                   }}
                 >
                   <option value="">Choose a payment</option>
@@ -749,6 +753,10 @@ export function SaleAdjustmentEditor({
                       <option key={m.label}>{m.label}</option>
                     ))}
                   </select>
+                </label>
+                <label>
+                  Corrected payment date
+                  <input type="date" value={paidOn} onChange={(e) => setPaidOn(e.target.value)} required />
                 </label>
                 <label>
                   Corrected payment reference
