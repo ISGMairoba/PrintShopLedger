@@ -51,6 +51,7 @@ export function eventResources(event, ledger) {
     add('customer', job?.customerId ?? d.customerId);
     add('material', job?.materialId ?? d.materialId);
     add('service', job?.serviceId ?? d.serviceId);
+    for (const usage of d.usages ?? []) add('material', usage.materialId);
   } else if (family === 'payment') {
     add('customer', d.customerId);
     for (const item of d.allocations ?? []) add('job', item.jobId);

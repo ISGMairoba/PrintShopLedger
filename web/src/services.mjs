@@ -2,6 +2,7 @@ import { normalizeLedger } from './materials.mjs';
 import { materialCode } from './material-display.mjs';
 import { hasCost, validCosting } from './pricing-templates.mjs';
 import { validPackPrices } from './pack-prices.mjs';
+import { validConfirmStage, validMaterialOptions } from './material-choice.mjs';
 export const serviceCode = (id, services = []) => materialCode(id, services).replace('MAT-', 'SVC-');
 export const servicePrice = (price) =>
   new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(price / 100);
@@ -54,6 +55,25 @@ export function validateService(data, ledger, existing) {
     ledger.services.some((s) => s.id !== data.id && !s.archived && s.costing?.key === costing.key)
   )
     throw new Error(`The formula name "${costing.key}" is already used by another item.`);
+  // A choice of materials (several linked) instead of one fixed material.
+  const options = validMaterialOptions(
+    ledger,
+    data.materialOptions === undefined ? existing?.materialOptions : data.materialOptions,
+    existing?.materialOptions ?? [],
+  );
+  if (options.length) {
+    if (data.materialId !== null)
+      throw new Error('Choose one fixed material or a choice of materials, not both.');
+    if (data.shelfItem)
+      throw new Error(
+        'Items with a choice of materials go through production, so they cannot be sold off the shelf.',
+      );
+    const sized = options.some((id) => ledger.materials.find((m) => m.id === id)?.requireSize);
+    if (sized && (data.packPrices === undefined ? existing?.packPrices?.length : packs.length))
+      throw new Error('Pack prices are for items sold by count, not by size.');
+    validConfirmStage(data.confirmStage ?? existing?.confirmStage);
+    return;
+  }
   if (data.materialId === null) return;
   const material = ledger.materials.find((item) => item.id === data.materialId);
   if (!material) throw new Error('Choose a base material from this workspace.');
@@ -61,6 +81,20 @@ export function validateService(data, ledger, existing) {
     throw new Error('Pack prices are for items sold by count, not by size.');
   if (material.archived && existing?.materialId !== material.id)
     throw new Error('Choose an active base material.');
+}
+/** The material-choice fields to store: the linked materials and the confirmation stage. */
+function choiceFields(ledger, data, existing) {
+  const options = validMaterialOptions(
+    ledger,
+    data.materialOptions === undefined ? existing?.materialOptions : data.materialOptions,
+    existing?.materialOptions ?? [],
+  );
+  return options.length
+    ? {
+        materialOptions: options,
+        confirmStage: validConfirmStage(data.confirmStage ?? existing?.confirmStage),
+      }
+    : {};
 }
 export function applyServiceEvent(input, event) {
   const ledger = normalizeLedger(input);
@@ -96,6 +130,7 @@ export function applyServiceEvent(input, event) {
       ...(data.variantGroup
         ? { variantGroup: data.variantGroup, variantName: String(data.variantName).trim() }
         : {}),
+      ...choiceFields(ledger, data),
       archived: false,
       version: 1,
       createdBy: data.modifiedBy,
@@ -125,6 +160,9 @@ export function applyServiceEvent(input, event) {
       ...audit,
       version: existing.version + 1,
     };
+    delete next.materialOptions;
+    delete next.confirmStage;
+    Object.assign(next, choiceFields(ledger, data, existing));
     // Joining or leaving a product's variants: null clears the link (left out keeps it).
     if (data.variantGroup !== undefined) {
       delete next.variantGroup;

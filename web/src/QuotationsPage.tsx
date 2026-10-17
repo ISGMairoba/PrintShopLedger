@@ -5,6 +5,7 @@ import {
   tryTemplate,
   type TemplateStart,
 } from './TemplateFields';
+import { serviceMaterial } from './material-choice.mjs';
 import { templateDefaults } from './pricing-templates.mjs';
 import type { TemplateSnapshot } from './types';
 import { lineWithDescription } from './job-batches.mjs';
@@ -627,7 +628,7 @@ function QuotationEditor({
           {lines.map((item, index) => {
             const template = ledger.pricing?.templates.find((t) => t.id === item.serviceId);
             const service = ledger.services.find((s) => s.id === item.serviceId);
-            const material = ledger.materials.find((m) => m.id === service?.materialId);
+            const material = serviceMaterial(ledger, service);
             const line = priced.ok?.lines[index];
             const templateCheck = template
               ? tryTemplate(ledger, template, item.templateInputs ?? {}, item.quantity)

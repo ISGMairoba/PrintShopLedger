@@ -122,6 +122,24 @@ export type CustomerEvent = {
   kind: 'customer.created' | 'customer.updated' | 'customer.archived' | 'customer.restored';
   data: CustomerCommand;
 };
+export type MaterialChoice = {
+  options: string[];
+  confirmStage: string;
+  work: number;
+  plannedMaterialId?: string;
+};
+export type JobMaterialEvent = {
+  id: string;
+  kind: 'job.material_used';
+  data: {
+    id: string;
+    baseVersion: number;
+    usages: { id: string; materialId: string; quantity: number }[];
+    modifiedBy: string;
+    modifiedByLabel: string;
+    modifiedAt: string;
+  };
+};
 export interface Job {
   templateInputs?: Record<string, number | string>;
   templateSnapshot?: TemplateSnapshot;
@@ -154,6 +172,15 @@ export interface Job {
   createdBy?: string | null;
   createdByLabel?: string | null;
   unitPrice?: number;
+  /** A choice-of-materials job: its linked materials, confirmation stage and size in material units. */
+  materialChoice?: MaterialChoice;
+  /** The material(s) confirmed as used in production. */
+  materialUsed?: {
+    usages: { id: string; materialId: string; quantity: number }[];
+    confirmedBy: string;
+    confirmedByLabel: string;
+    confirmedAt: string;
+  };
   /** Packs this job was sold as (pack-priced products): [{ quantity, price, count }]. */
   packBreakdown?: { quantity: number; price: number; count: number }[];
   materialNeeded?: number;
@@ -278,6 +305,10 @@ export interface Service {
   variantGroup?: string | null;
   /** This variant's name, e.g. "Blue". */
   variantName?: string | null;
+  /** A choice of materials (2–10 linked); the material used is confirmed in production. */
+  materialOptions?: string[];
+  /** The stage after which the material used is confirmed (the business's stage name). */
+  confirmStage?: string;
   archived: boolean;
   version: number;
   createdBy: string;
@@ -295,6 +326,8 @@ export interface PackPrice {
   price: number;
 }
 export interface ServiceCommand {
+  materialOptions?: string[];
+  confirmStage?: string;
   packPrices?: PackPrice[];
   variantGroup?: string | null;
   variantName?: string | null;
@@ -516,6 +549,7 @@ export type LedgerEvent =
   | ExpenseEvent
   | CheckoutEvent
   | JobStatusEvent
+  | JobMaterialEvent
   | CustomerEvent
   | { id: string; kind: 'job.created'; data: Job }
   | { id: string; kind: 'payment.recorded'; data: Payment }

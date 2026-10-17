@@ -954,3 +954,81 @@ header .page-title h1 {
     margin-bottom: 8px;
   }
 }
+
+/* Service editor: a choice of materials. */
+.material-choice {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  margin: 12px 0;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.material-choice legend {
+  font-weight: 700;
+  padding: 0 6px;
+}
+.material-choice p {
+  margin: 0;
+}
+.material-choice-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 6px 16px;
+}
+.material-choice-list small {
+  opacity: 0.7;
+  margin-left: 4px;
+}
+.material-pending {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #fff4d6;
+  color: #7a5200;
+  font-weight: 600;
+}
+[data-theme="dark"] .material-pending {
+  background: #4a3a10;
+  color: #ffe2a0;
+}
+/* "Material used" when moving a job: material, amount, remove. */
+.material-used {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  margin: 12px 0;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.material-used legend {
+  font-weight: 700;
+  padding: 0 6px;
+}
+.material-used p {
+  margin: 0;
+}
+.material-used > button {
+  justify-self: start;
+}
+.material-used.compact {
+  padding: 8px 12px;
+  margin: 8px 0 0;
+}
+.material-used-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+@media (max-width: 560px) {
+  .material-used-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .material-used-row > label:first-child {
+    grid-column: 1 / -1;
+  }
+}

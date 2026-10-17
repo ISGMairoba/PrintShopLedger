@@ -7,6 +7,8 @@ import { batchProgressPlan, collectionCheck } from './job-batches.mjs';
 import { currency } from './receipts.mjs';
 import type { Job, Ledger } from './types';
 import type { ProgressMode } from './JobActions';
+import MaterialUsedFields, { usageDraft, usagesFrom, type UsageDraft } from './MaterialUsedFields';
+import { materialConfirmDue } from './material-choice.mjs';
 
 export default function BatchJobProgressDialog({
   ledger,
@@ -21,7 +23,11 @@ export default function BatchJobProgressDialog({
   mode: ProgressMode;
   busy: boolean;
   onClose: () => void;
-  onSave: (target: string) => Promise<void>;
+  /** usages: for each job whose move confirms its material, what was used. */
+  onSave: (
+    target: string,
+    usages: Record<string, { materialId: string; quantity: number }[]>,
+  ) => Promise<void>;
 }) {
   const { w, stage } = useWords();
   const stages = [
@@ -40,6 +46,10 @@ export default function BatchJobProgressDialog({
   const eligible = plan.filter((row) => !row.reason);
   const collect = collectionCheck(plan, ledger);
   const [unpaidConfirmed, setUnpaidConfirmed] = useState(false);
+  // Jobs with a choice of materials that this move takes past their confirmation stage.
+  const confirming = eligible.filter((row) => materialConfirmDue(row.job, row.target));
+  const [drafts, setDrafts] = useState<Record<string, UsageDraft>>({});
+  const draftFor = (job: Job) => drafts[job.id] ?? usageDraft(job);
   return (
     <Modal title={w('Update selected jobs')} wide busy={busy} onClose={onClose}>
       <p>
@@ -59,7 +69,10 @@ export default function BatchJobProgressDialog({
           if (busy || !eligible.length) return;
           setError('');
           try {
-            await onSave(target);
+            await onSave(
+              target,
+              Object.fromEntries(confirming.map((row) => [row.job.id, usagesFrom(draftFor(row.job))])),
+            );
           } catch (cause) {
             setError(cause instanceof Error ? cause.message : String(cause));
           }
@@ -86,6 +99,15 @@ export default function BatchJobProgressDialog({
                 {stage(row.job.productionStatus ?? 'Added')} →{' '}
                 {row.reason ? `Skipped: ${row.reason}` : row.path.map(stage).join(' → ')}
               </small>
+              {!row.reason && materialConfirmDue(row.job, row.target) && (
+                <MaterialUsedFields
+                  compact
+                  ledger={ledger}
+                  job={row.job}
+                  value={draftFor(row.job)}
+                  onChange={(next) => setDrafts((all) => ({ ...all, [row.job.id]: next }))}
+                />
+              )}
             </li>
           ))}
         </ul>

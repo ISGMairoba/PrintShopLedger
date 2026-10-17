@@ -242,6 +242,53 @@ try {
     } catch (e) {
       failures.push(`${mode} template editor: ${e.message.split('\n')[0]}`);
     }
+    // A choice of materials: link two papers to Lamination, sell it, then confirm what was used.
+    try {
+      await nav('Services');
+      await page.getByRole('button', { name: 'Add service', exact: true }).click();
+      const d = page.getByRole('dialog').first();
+      await d.getByLabel('Service description').fill('Lamination (A4)');
+      await d.getByLabel('Base material').selectOption('__choice');
+      await d.getByRole('checkbox', { name: /Paper 70gsm/ }).check();
+      await d.getByRole('checkbox', { name: /Paper 80gsm/ }).check();
+      await d.getByRole('textbox', { name: 'Price (₦)' }).fill('300');
+      await d.screenshot({ path: `${out}/${mode}-89-service-material-choice.png` });
+      await d.getByRole('button', { name: /Save service/ }).click();
+      await d.waitFor({ state: 'detached' });
+      await nav('Point of Service');
+      await page.getByRole('button', { name: 'Add job', exact: true }).click();
+      const c = page.getByRole('dialog', { name: 'New checkout' });
+      const line = c.locator('.cart-line').first();
+      const value = await line
+        .getByLabel('Service', { exact: true })
+        .evaluate((el) => [...el.options].find((o) => o.textContent.includes('Lamination'))?.value);
+      await line.getByLabel('Service', { exact: true }).selectOption(value);
+      await line.getByLabel('Quantity', { exact: true }).fill('100');
+      await line.getByLabel('Job description').fill('Laminate certificates');
+      await c.getByRole('combobox', { name: 'Customer name or phone' }).fill('Book');
+      await c.getByRole('listbox', { name: 'Customer suggestions' }).getByRole('option').first().click();
+      await c
+        .locator('.cart-line')
+        .first()
+        .screenshot({ path: `${out}/${mode}-89-checkout-material-choice.png` });
+      await c.getByRole('button', { name: 'Complete checkout' }).click();
+      await page.getByRole('dialog').last().getByRole('button', { name: 'Close', exact: true }).click();
+      await nav('Jobs');
+      await shot('89-jobs-material-to-confirm');
+      await page
+        .getByRole('main')
+        .getByRole('button', { name: /Mark as Complete/ })
+        .first()
+        .click();
+      const m = page.getByRole('dialog').last();
+      await m.getByRole('button', { name: /Add another material/ }).click();
+      await fieldHeights('Material used');
+      await m.screenshot({ path: `${out}/${mode}-89-material-used.png` });
+      await closeDialogs();
+    } catch (e) {
+      failures.push(`${mode} material choice: ${e.message.split('\n')[0]}`);
+      await closeDialogs();
+    }
     // Help: the panel from a page's ? button, and from the menu.
     try {
       await nav('Point of Service');

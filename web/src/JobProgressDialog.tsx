@@ -2,21 +2,26 @@ import { useFeedbackMessage } from './Feedback';
 import { jobWorkflow } from './business-options.mjs';
 import { useState } from 'react';
 import Modal from './Modal';
-import type { Job } from './types';
+import type { Job, Ledger } from './types';
+import MaterialUsedFields, { usageDraft, usagesFrom, type UsageDraft } from './MaterialUsedFields';
+import { materialConfirmDue } from './material-choice.mjs';
 import type { ProgressMode } from './JobActions';
 import { useWords } from './Words';
 export default function JobProgressDialog({
+  ledger,
   job,
   mode,
   busy,
   onClose,
   onSave,
 }: {
+  ledger: Ledger;
   job: Job;
   mode: ProgressMode;
   busy: boolean;
   onClose: () => void;
-  onSave: (target: string) => Promise<void>;
+  /** usages: the material(s) used, when this move confirms them (a choice-of-materials job). */
+  onSave: (target: string, usages: { materialId: string; quantity: number }[] | null) => Promise<void>;
 }) {
   const { w, stage } = useWords();
   const stageName = stage;
@@ -25,6 +30,8 @@ export default function JobProgressDialog({
   const [target, setTarget] = useState(mode === 'complete' ? 'Completed' : jobStatuses[index + 1]),
     [error, setError] = useFeedbackMessage('error');
   const path = jobStatuses.slice(index + 1, jobStatuses.indexOf(target) + 1);
+  const confirming = materialConfirmDue(job, target);
+  const [draft, setDraft] = useState<UsageDraft>(() => (job.materialChoice ? usageDraft(job) : []));
   return (
     <Modal
       title={mode === 'set' ? w('Set job stage') : w(`Move job to ${stage(target)}?`)}
@@ -45,7 +52,7 @@ export default function JobProgressDialog({
           if (busy) return;
           setError('');
           try {
-            await onSave(target);
+            await onSave(target, confirming ? usagesFrom(draft) : null);
           } catch (cause) {
             setError(cause instanceof Error ? cause.message : String(cause));
           }
@@ -63,6 +70,7 @@ export default function JobProgressDialog({
             </select>
           </label>
         )}
+        {confirming && <MaterialUsedFields ledger={ledger} job={job} value={draft} onChange={setDraft} />}
         <p>Proceed in order: {path.map(stage).join(' → ')}</p>
         <p className="muted">
           Each stage is recorded separately.{' '}
