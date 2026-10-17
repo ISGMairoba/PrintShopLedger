@@ -561,6 +561,26 @@ export const helpTopics = [
     rank: 2,
   },
   {
+    id: 'correction-requests',
+    chapter: 'staff',
+    title: 'Asking for a correction (cashiers)',
+    summary:
+      'Cashiers can ask for a correction on their own sales. Nothing changes until an Admin, Manager or Developer approves it.',
+    steps: [
+      'Open My Sales and find Corrections to my sales.',
+      'Choose the job, press Request a correction, and fill in the correction as you would like it.',
+      'Give the reason and press Send for approval. Follow it under My requests: waiting, approved or rejected with a note.',
+      'Admins and higher: open Sale Adjustments, press Review on a request, check the changes, then Approve and apply or Reject request with a reason.',
+    ],
+    notes: [
+      'Cashiers see only their own requests and the corrections made to their own sales.',
+      'One request per job at a time. Withdraw a waiting request to send a different one.',
+      'An approved correction is recorded as requested by the cashier and approved by the approver.',
+    ],
+    pages: ['My Sales', 'Sale Adjustments'],
+    rank: 1,
+  },
+  {
     id: 'conflicts',
     chapter: 'staff',
     title: 'The Conflict Inbox',
@@ -750,7 +770,16 @@ export const helpTopics = [
 export const quickStartCards = {
   1: {
     title: 'Cashier quick-start',
-    topics: ['sign-in', 'new-job', 'quick-sale', 'payment', 'receipts', 'offline', 'auto-lock'],
+    topics: [
+      'sign-in',
+      'new-job',
+      'quick-sale',
+      'payment',
+      'receipts',
+      'offline',
+      'auto-lock',
+      'correction-requests',
+    ],
   },
   2: {
     title: 'Admin quick-start',

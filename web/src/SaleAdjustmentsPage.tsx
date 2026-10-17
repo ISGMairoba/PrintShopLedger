@@ -95,7 +95,10 @@ export default function SaleAdjustmentsPage({
   busy,
   canSave,
   onAdjust,
+  requests,
 }: {
+  /** Cashiers' correction requests waiting for approval. */
+  requests?: import('react').ReactNode;
   recentDays?: number;
   ledger: Ledger;
   ready: boolean;
@@ -131,6 +134,7 @@ export default function SaleAdjustmentsPage({
           'Connect and finish syncing before approving an adjustment. To refund money allocated to a job, reduce the charge or cancel the sale first; then return the resulting customer credit.',
         )}
       </p>
+      {requests}
       <div className="form-grid">
         <JobCorrectionPicker ledger={ledger} days={recentDays} value={jobId} onChange={setJobId} />
         <button
@@ -165,6 +169,7 @@ export function SaleAdjustmentEditor({
   actor,
   onClose,
   onSave,
+  request = false,
 }: {
   ledger: Ledger;
   job: Job;
@@ -172,6 +177,8 @@ export function SaleAdjustmentEditor({
   actor: { id: string; label: string };
   onClose: () => void;
   onSave: (event: SupervisedEvent) => Promise<void>;
+  /** A cashier asking for this correction: it is sent for approval, not applied. */
+  request?: boolean;
 }) {
   const { w, stage } = useWords();
   const [submitted, setSubmitted] = useState<SupervisedEvent | null>(null);
@@ -451,7 +458,14 @@ export function SaleAdjustmentEditor({
   if (action === 'sale.refunded') add('Money returned', currency(0), currency(adjustment?.refundAmount ?? 0));
 
   return (
-    <Modal title="Adjust sale" wide busy={busy} onClose={onClose}>
+    <Modal title={request ? 'Request a correction' : 'Adjust sale'} wide busy={busy} onClose={onClose}>
+      {request && (
+        <p className="muted">
+          {w(
+            'Nothing changes until an Admin or Manager approves. You can follow the request under My Sales.',
+          )}
+        </p>
+      )}
       <p>
         {ledger.customers.find((c) => c.id === job.customerId)?.name} · {job.service} · {w('Job')} #
         {job.id.slice(0, 8).toUpperCase()}
@@ -866,7 +880,9 @@ export function SaleAdjustmentEditor({
           </section>
           <label className="check-label">
             <input type="checkbox" key={action} required />{' '}
-            {w('I approve these changes and confirm the material or money returned.')}
+            {request
+              ? w('I confirm these are the right corrections.')
+              : w('I approve these changes and confirm the material or money returned.')}
           </label>
         </fieldset>
         {submitted && (
@@ -876,7 +892,17 @@ export function SaleAdjustmentEditor({
           </p>
         )}
         <button disabled={busy}>
-          {busy ? 'Saving adjustment…' : submitted ? 'Retry same adjustment' : 'Approve and save adjustment'}
+          {request
+            ? busy
+              ? 'Sending…'
+              : submitted
+                ? 'Retry sending'
+                : 'Send for approval'
+            : busy
+              ? 'Saving adjustment…'
+              : submitted
+                ? 'Retry same adjustment'
+                : 'Approve and save adjustment'}
         </button>
       </form>
     </Modal>

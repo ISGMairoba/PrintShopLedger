@@ -678,6 +678,10 @@ export interface SupervisedCommand {
   stockEventId?: string;
   quantity?: number;
   category?: string;
+  /** Set when approving a cashier's correction request. */
+  requestId?: string;
+  requestedBy?: string;
+  requestedByLabel?: string;
   reason: string;
   modifiedBy: string;
   modifiedByLabel: string;
@@ -695,6 +699,22 @@ export type SupervisedEvent = {
     | 'material.wasted';
   data: SupervisedCommand;
 };
+/** A cashier's correction waiting for (or decided by) an Admin, Manager or Developer. */
+export interface CorrectionRequest {
+  id: string;
+  jobId: string;
+  kind: SupervisedEvent['kind'];
+  event: SupervisedEvent;
+  reason: string;
+  requestedBy: string;
+  requestedByLabel: string;
+  requestedAt: string;
+  status: 'pending' | 'approved' | 'rejected' | 'withdrawn';
+  decidedBy?: string | null;
+  decidedByLabel?: string | null;
+  decidedAt?: string | null;
+  note?: string | null;
+}
 export interface SaleAdjustment {
   groupId?: string;
   childIds?: string[];
