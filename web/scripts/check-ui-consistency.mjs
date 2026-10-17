@@ -126,6 +126,7 @@ try {
         if (!mobile)
           assert.ok(Math.abs(source.y - deadline.y) <= 2, 'A deadline hint does not move its neighbour');
         assert.equal(Math.round(source.height), 44, 'Shared control height');
+        await page.screenshot({ path: `${out}/${engine.name()}-${theme}-${width}-checkout-fields.png` });
         await checkout.locator('.modal-body').evaluate((element) => {
           element.scrollTop = element.scrollHeight;
         });
@@ -151,6 +152,14 @@ try {
         await page.getByText('UI layout paper', { exact: true }).waitFor();
         await fits('saved material');
         await page.screenshot({ path: `${out}/${engine.name()}-${theme}-${width}-materials.png` });
+        await page.locator('.responsive-records').first().scrollIntoViewIfNeeded();
+        await fits('material records');
+        await page.screenshot({ path: `${out}/${engine.name()}-${theme}-${width}-material-records.png` });
+        await nav('Pricing Templates');
+        await page.getByRole('tab', { name: 'Costs', exact: true }).click();
+        await fits('saved costs');
+        await nav('Reports');
+        await fits('reports');
         await nav('Business Settings');
         await settingsSection(page, 'Jobs & payments');
         await fits('settings');

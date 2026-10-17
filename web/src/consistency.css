@@ -818,12 +818,14 @@ label.checkbox input {
   row-gap: 6px;
   align-items: start;
 }
-.form-grid > label > :is(input:not([type="hidden"]), select, textarea),
+.form-grid
+  > label:not(.check-label):not(.checkbox):not(.material-checkbox)
+  > :is(input:not([type="hidden"]), select, textarea),
 .form-grid > .listed-combobox > .listed-combobox-input {
   grid-row: 2;
   width: 100%;
 }
-.form-grid > label > small {
+.form-grid > label:not(.check-label):not(.checkbox):not(.material-checkbox) > small {
   grid-row: 3;
   align-self: start;
   margin: 0;
@@ -1214,6 +1216,7 @@ button[aria-busy="true"] {
   overflow-y: auto;
   overscroll-behavior: contain;
   scroll-padding: 20px;
+  overflow-anchor: none;
 }
 .modal-body :is(input, select, textarea) {
   scroll-margin: 20px;
@@ -1404,4 +1407,46 @@ button[aria-busy="true"] {
 }
 .responsive-records > .mobile-cards td.mobile-cell-actions {
   padding-top: 10px;
+}
+
+/* Comparison and permission tables wrap within their panel; document previews keep paper sizing. */
+.table-wrap > table {
+  width: 100%;
+  table-layout: fixed;
+  white-space: normal;
+}
+.table-wrap > table :is(th, td) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+/* Catalogue summaries should leave room for the actual list on a phone. */
+@media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
+  .stats:not(.dashboard-stats) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .stats:not(.dashboard-stats) article {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+    padding: 12px;
+    overflow-wrap: anywhere;
+  }
+  .stats:not(.dashboard-stats) article > span {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .stats:not(.dashboard-stats) article > strong {
+    margin: 0;
+    font-size: 22px;
+  }
+  .stats:not(.dashboard-stats) article > small {
+    display: none;
+  }
 }

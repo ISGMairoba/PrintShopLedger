@@ -97,6 +97,7 @@ jobs:
             /tmp/retail-orders.png
             /tmp/job-batches-*.png
             /tmp/pricing-templates-*.png
+            /tmp/expenses-mobile*.png
           retention-days: 7
 
 
