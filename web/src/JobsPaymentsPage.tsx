@@ -330,7 +330,7 @@ export default function JobsPaymentsPage({
                             {payment.checkoutId &&
                               ledger.checkouts.find((r) => r.id === payment.checkoutId) && (
                                 <button
-                                  className="text-button"
+                                  className="text-button mx-4"
                                   onClick={() =>
                                     onReceipt(ledger.checkouts.find((r) => r.id === payment.checkoutId)!)
                                   }
@@ -340,7 +340,7 @@ export default function JobsPaymentsPage({
                               )}
                             {onCorrectPayment && !payment.refundId && (
                               <button
-                                className="text-button"
+                                className="text-button mx-4"
                                 disabled={busy}
                                 aria-label={`Correct payment ${shortId(payment.id)}`}
                                 onClick={() => onCorrectPayment(payment)}
