@@ -372,19 +372,21 @@ export default function BusinessSettingsPage({
                 Brand preview · {draft.businessName || 'Business'}
               </div>
               <ThemeBackgroundEditor value={draft} onChange={(value) => field('backgrounds', value)} />
-              <button
-                type="button"
-                className="secondary"
-                onClick={() => {
-                  const defaults = defaultBranding();
-                  field('primary', defaults.primary);
-                  field('accent', defaults.accent);
-                  field('backgrounds', defaults.backgrounds);
-                }}
-              >
-                Restore default colors
-              </button>
-              {sectionSave('Appearance', ['primary', 'accent', 'theme', 'backgrounds'])}
+              <div className="action-row">
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => {
+                    const defaults = defaultBranding();
+                    field('primary', defaults.primary);
+                    field('accent', defaults.accent);
+                    field('backgrounds', defaults.backgrounds);
+                  }}
+                >
+                  Restore default colors
+                </button>
+                {sectionSave('Appearance', ['primary', 'accent', 'theme', 'backgrounds'])}
+              </div>
             </fieldset>
             <fieldset hidden={tab !== 'Receipts'} disabled={busy || !ready} className="receipt-settings">
               <legend>Receipts & PDFs</legend>
