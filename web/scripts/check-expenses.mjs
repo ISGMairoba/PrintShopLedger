@@ -248,8 +248,26 @@ try {
     }),
     'Stock checkbox is fully inside the dialog scroll viewport before tapping',
   );
+  await md.getByLabel('Add purchased materials to stock').evaluate((element) => {
+    element.uiEvents = [];
+    for (const type of ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'click', 'input', 'change']) {
+      element.addEventListener(
+        type,
+        (event) => {
+          element.uiEvents.push({ type, checked: element.checked, prevented: event.defaultPrevented });
+        },
+        true,
+      );
+    }
+  });
   try {
-    await md.getByLabel('Add purchased materials to stock').check();
+    const stockToggle = md.getByLabel('Add purchased materials to stock');
+    await stockToggle.tap();
+    assert.equal(await stockToggle.isChecked(), true, 'A real touch tap enables stock purchase');
+    await stockToggle.press('Space');
+    assert.equal(await stockToggle.isChecked(), false, 'Keyboard can turn stock purchase off');
+    await stockToggle.press('Space');
+    assert.equal(await stockToggle.isChecked(), true, 'Keyboard can turn stock purchase on');
   } catch (error) {
     console.log(
       'Expense mobile hit target',
@@ -259,6 +277,7 @@ try {
         const body = element.closest('dialog').querySelector('.modal-body');
         return {
           checked: element.checked,
+          events: element.uiEvents,
           rect: rect.toJSON(),
           hit: hit?.outerHTML,
           scrollTop: body.scrollTop,
@@ -266,6 +285,7 @@ try {
         };
       }),
     );
+    console.log('Mobile page errors', errors);
     await mobile.screenshot({ path: '/tmp/expenses-mobile-failure.png', fullPage: true });
     throw error;
   }
