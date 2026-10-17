@@ -233,6 +233,21 @@ try {
   );
   await mobile.getByRole('button', { name: 'Add expense', exact: true }).click();
   const md = mobile.getByRole('dialog');
+  // A fixed footer creates a separate scroll viewport. Expose the complete touch target,
+  // then exercise the real native checkbox (no forced click or direct checked-state changes).
+  await md
+    .getByLabel('Add purchased materials to stock')
+    .evaluate((element) =>
+      element.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' }),
+    );
+  assert.ok(
+    await md.getByLabel('Add purchased materials to stock').evaluate((element) => {
+      const target = element.getBoundingClientRect();
+      const viewport = element.closest('dialog').querySelector('.modal-body').getBoundingClientRect();
+      return target.top >= viewport.top && target.bottom <= viewport.bottom;
+    }),
+    'Stock checkbox is fully inside the dialog scroll viewport before tapping',
+  );
   try {
     await md.getByLabel('Add purchased materials to stock').check();
   } catch (error) {
