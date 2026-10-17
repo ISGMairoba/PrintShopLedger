@@ -133,7 +133,7 @@ export default function RemindersPage({
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
-        <p className="muted">
+        <p className="muted panel-note">
           Remind sends a friendly WhatsApp message with the customer's statement attached (on a computer the
           statement downloads and WhatsApp opens ready to attach it). Each reminder is recorded below.
         </p>

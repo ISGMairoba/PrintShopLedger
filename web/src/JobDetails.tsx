@@ -58,7 +58,33 @@ export default function JobDetails({
   const customerName = (id: string) =>
     ledger.customers.find((customer) => customer.id === id)?.name ?? 'Unknown customer';
   return (
-    <Modal title={job.description} wide busy={busy} onClose={onClose}>
+    <Modal
+      title={job.description}
+      wide
+      busy={busy}
+      onClose={onClose}
+      footer={
+        <div className="dialog-action-buttons">
+          {canAdjust && (
+            <button
+              type="button"
+              className="secondary"
+              disabled={busy || hasConflict || !canSave}
+              onClick={() => onAdjust(job)}
+            >
+              Adjust sale / refund
+            </button>
+          )}
+          <button
+            type="button"
+            disabled={busy || legacyConflict || customerHeld || jobBalance(ledger, job).outstanding <= 0}
+            onClick={() => onPayment(job.customerId)}
+          >
+            Receive customer payment
+          </button>
+        </div>
+      }
+    >
       <span className="eyebrow">
         {w('JOB')} #{shortId(job.id)}
       </span>
@@ -121,15 +147,6 @@ export default function JobDetails({
       {!ledger.payments.some((payment) =>
         payment.allocations.some((allocation) => allocation.jobId === job.id),
       ) && <p className="muted">No payments recorded yet.</p>}
-      {canAdjust && (
-        <button
-          className="secondary"
-          disabled={busy || hasConflict || !canSave}
-          onClick={() => onAdjust(job)}
-        >
-          Adjust sale / refund
-        </button>
-      )}
       <AdjustmentHistory
         records={ledger.saleAdjustments.filter(
           (r) =>
@@ -139,13 +156,10 @@ export default function JobDetails({
             ),
         )}
       />
-      <JobActions job={job} busy={busy || legacyConflict} onAction={onAction} />
-      <button
-        disabled={busy || legacyConflict || customerHeld || jobBalance(ledger, job).outstanding <= 0}
-        onClick={() => onPayment(job.customerId)}
-      >
-        Receive customer payment
-      </button>
+      <section className="job-detail-stage" aria-label={w('Job stage')}>
+        <h3>{w('Job stage')}</h3>
+        <JobActions job={job} busy={busy || legacyConflict} onAction={onAction} />
+      </section>
     </Modal>
   );
 }
