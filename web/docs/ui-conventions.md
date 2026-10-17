@@ -23,7 +23,7 @@ Use shared components and theme tokens when adding or updating screens. Product 
 
 ## Dialogs
 
-- `Modal` owns the title, focus containment, focus restoration and scroll area. Do not create another page scroll area for a form.
+- `Modal` owns the title, focus containment, focus restoration and scroll area. Touch dialogs initially focus the dialog so the keyboard opens only when a field is chosen; desktop dialogs focus the first field. Do not create another page scroll area for a form.
 - Main editors use `Modal.footer` with `DialogActions`: Cancel, then the main action. Checkout also shows its total. Wide dialogs use the full phone screen; short dialogs remain centred.
 - Give the form a unique `useId()` ID and pass that ID to `DialogActions.form`. Native form association preserves validation, Enter submission and FormData when buttons sit outside the scrolling body.
 - Pass `busy` to both the modal and its actions. Avoid duplicate submission controls. Leave enough space for phone safe areas and the onscreen keyboard.

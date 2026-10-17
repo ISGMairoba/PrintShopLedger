@@ -38,7 +38,9 @@ export default function Modal({
     const input = element.querySelector<HTMLElement>(
       'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])',
     );
-    input?.focus();
+    // Touch users choose when to open the keyboard; focus the dialog initially.
+    if (window.matchMedia('(pointer: fine)').matches) input?.focus();
+    else element.focus({ preventScroll: true });
     return () => {
       element.close();
       window.dispatchEvent(new Event('feedback:modal'));
@@ -56,6 +58,7 @@ export default function Modal({
       aria-modal="true"
       aria-busy={busy}
       tabIndex={-1}
+      autoFocus
       onKeyDown={(event) => {
         if (event.key !== 'Tab') return;
         const element = dialog.current!;

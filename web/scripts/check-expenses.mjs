@@ -233,6 +233,11 @@ try {
   );
   await mobile.getByRole('button', { name: 'Add expense', exact: true }).click();
   const md = mobile.getByRole('dialog');
+  assert.equal(
+    await md.evaluate((element) => document.activeElement === element),
+    true,
+    'Touch dialog opens without focusing a text field or raising the keyboard',
+  );
   // A fixed footer creates a separate scroll viewport. Expose the complete touch target,
   // then exercise the real native checkbox (no forced click or direct checked-state changes).
   await md
@@ -263,6 +268,8 @@ try {
   try {
     const stockToggle = md.getByLabel('Add purchased materials to stock');
     await stockToggle.tap();
+    // WebKit delivers the compatibility click after the touch sequence completes.
+    await mobile.waitForFunction(() => document.querySelector('.expense-stock input').checked);
     assert.equal(await stockToggle.isChecked(), true, 'A real touch tap enables stock purchase');
     await stockToggle.press('Space');
     assert.equal(await stockToggle.isChecked(), false, 'Keyboard can turn stock purchase off');
