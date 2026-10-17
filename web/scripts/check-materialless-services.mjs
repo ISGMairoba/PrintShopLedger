@@ -39,7 +39,7 @@ try {
       }
       await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name, exact: true }).click();
     };
-    const state = () => readCopy(page, 'local-trial');
+    const state = () => readCopy(page, 'local-trial').then((copy) => copy.ledger);
     await nav('Services');
     await page.getByRole('button', { name: 'Add service', exact: true }).click();
     let d = page.getByRole('dialog');
