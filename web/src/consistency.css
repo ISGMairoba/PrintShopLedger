@@ -1584,3 +1584,7 @@ label small > .field-error {
   gap: 4px 16px;
   margin: 4px 0;
 }
+/* A section's Save button lines up with the buttons beside it. */
+.action-row > .section-save {
+  margin-top: 0;
+}
