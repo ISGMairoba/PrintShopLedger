@@ -3,6 +3,11 @@ import { materialSnapshot } from './material-display.mjs';
 import { quoteLine, accountToken, walletBalance } from './checkout.mjs';
 import { jobBalance } from './domain.mjs';
 import { sameEvent } from './sale-adjustments.mjs';
+const validDate = (value) =>
+  typeof value === 'string' &&
+  /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+  !Number.isNaN(Date.parse(value)) &&
+  new Date(value).toISOString().slice(0, 10) === value;
 export const correctionKinds = ['sale.combined_corrected', 'sale.details_corrected', 'payment.corrected'];
 export const paymentCorrectionToken = (p) => ({
   amount: p.amount,
@@ -359,11 +364,14 @@ export function applyFullCorrection(input, event) {
       d.reference.length > 500
     )
       throw Error('Enter valid payment details.');
+    // Older apps send no date; the date then stays as it was.
+    if (d.paidOn !== undefined && !validDate(d.paidOn)) throw Error('Choose a valid payment date.');
     if (
       p.amount === d.paymentAmount &&
       p.method === d.method &&
       (p.methodLabel ?? p.method) === d.methodLabel &&
-      p.reference === d.reference
+      p.reference === d.reference.trim() &&
+      (d.paidOn ?? p.paidOn) === p.paidOn
     )
       throw Error('Nothing changed.');
     const before = ledger.payments.find((x) => x.id === p.id),
@@ -408,6 +416,7 @@ export function applyFullCorrection(input, event) {
     p.method = d.method;
     p.methodLabel = d.methodLabel;
     p.reference = d.reference.trim();
+    if (d.paidOn !== undefined) p.paidOn = d.paidOn;
     const checkout = ledger.checkouts.find((r) => r.id === (p.checkoutId ?? p.id));
     historicalClosingId =
       checkout?.drawerClosingId ??

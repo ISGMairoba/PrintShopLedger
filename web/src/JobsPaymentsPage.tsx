@@ -31,6 +31,8 @@ type Props = {
   onAction: (job: Job, mode: ProgressMode) => void;
   onBulkAction: (jobs: Job[], mode: ProgressMode) => void;
   onReceipt: (record: CheckoutRecord) => void;
+  /** Admin or higher (online): correct a payment's amount, method, date or reference. */
+  onCorrectPayment?: (payment: Payment) => void;
 };
 
 /** The Jobs and Payments list pages: totals, sort and search, and the table. */
@@ -48,6 +50,7 @@ export default function JobsPaymentsPage({
   onAction,
   onBulkAction,
   onReceipt,
+  onCorrectPayment,
 }: Props) {
   const { w } = useWords();
   const [grouped, setGrouped] = useState(false);
@@ -310,6 +313,9 @@ export default function JobsPaymentsPage({
                           <td>{customerName(payment.customerId)}</td>
                           <td>
                             {currency(payment.amount)}
+                            {ledger.saleAdjustments.some((r) => r.paymentId === payment.id) && (
+                              <small>{payment.amount ? 'Corrected' : 'Removed (₦0 correction)'}</small>
+                            )}
                             <small>Wallet used: {currency(payment.walletUsed ?? 0)}</small>
                             <small>Wallet added: {currency(payment.walletAdded ?? 0)}</small>
                           </td>
@@ -332,6 +338,16 @@ export default function JobsPaymentsPage({
                                   Receipt
                                 </button>
                               )}
+                            {onCorrectPayment && !payment.refundId && (
+                              <button
+                                className="text-button"
+                                disabled={busy}
+                                aria-label={`Correct payment ${shortId(payment.id)}`}
+                                onClick={() => onCorrectPayment(payment)}
+                              >
+                                Correct
+                              </button>
+                            )}
                             {payment.allocations.map((allocation) => (
                               <small key={allocation.jobId}>
                                 {ledger.jobs.find((job) => job.id === allocation.jobId)?.description} -{' '}

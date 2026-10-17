@@ -23,6 +23,8 @@ import MySalesPage from './MySalesPage';
 import PointOfServicePage from './PointOfServicePage';
 import CheckoutEditor from './CheckoutEditor';
 import ReceiptView from './ReceiptView';
+import PaymentCorrectionDialog from './PaymentCorrectionDialog';
+import { receiptPayments } from './payment-correction.mjs';
 import { receiptIntegrityError } from './receipts.mjs';
 import { printAfterTransaction, printReceipt, setPrintSigner } from './printing';
 import useAutoSync from './useAutoSync';
@@ -164,6 +166,7 @@ export default function App() {
   const [productEdit, setProductEdit] = useState<string | null>(null);
   const [jobToAdvance, setJobToAdvance] = useState<{ job: Job; mode: ProgressMode } | null>(null);
   const [adjustingJob, setAdjustingJob] = useState<Job | null>(null);
+  const [correctingPayment, setCorrectingPayment] = useState<Payment | null>(null);
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
   const [paymentCustomer, setPaymentCustomer] = useState('');
   const [busy, setBusy] = useState(false);
@@ -235,6 +238,7 @@ export default function App() {
       setBatchToAdvance(null);
       setReceipt(null);
       setAdjustingJob(null);
+      setCorrectingPayment(null);
     }
   }, [pageAllowed, branding.ready, demo, session?.user.id, shop?.userId]);
   const businessName = branding.settings.businessName || shop?.name || 'Business';
@@ -290,6 +294,7 @@ export default function App() {
     setForm(null);
     setSelectedJob(null);
     setAdjustingJob(null);
+    setCorrectingPayment(null);
     setQuery('');
     setConflict(null);
     setServiceConflict(null);
@@ -554,6 +559,12 @@ export default function App() {
   );
   const heldWork = blockedWork(state);
   const hasConflict = legacyConflict || heldWork.eventIds.size > 0;
+  // Payment corrections are Sale Adjustments: Admin or higher, online, with that page allowed.
+  const canCorrectPayments =
+    demo ||
+    (online &&
+      (shop?.accessLevel ?? 0) >= 2 &&
+      canAccessPage('Sale Adjustments', shop?.accessLevel ?? 0, branding.settings.pageAccess));
   const canReviewConflicts = demo || (shop?.accessLevel ?? 0) >= 2 || !!supervisor;
   useEffect(() => {
     if (!hasConflict && !state.pending.length) {
@@ -1740,6 +1751,7 @@ export default function App() {
                           onAction={(job, mode) => setJobToAdvance({ job, mode })}
                           onBulkAction={(jobs, mode) => setBatchToAdvance({ jobs, mode })}
                           onReceipt={setReceipt}
+                          onCorrectPayment={canCorrectPayments ? setCorrectingPayment : undefined}
                         />
                       )}
                       <p className="footnote">
@@ -1902,6 +1914,18 @@ export default function App() {
                       onSave={approveOperation}
                     />
                   )}
+                  {correctingPayment && (
+                    <PaymentCorrectionDialog
+                      ledger={ledger}
+                      payment={
+                        ledger.payments.find((p) => p.id === correctingPayment.id) ?? correctingPayment
+                      }
+                      busy={busy}
+                      actor={salesActor}
+                      onClose={() => setCorrectingPayment(null)}
+                      onSave={approveOperation}
+                    />
+                  )}
                   {receipt && (
                     <ReceiptView
                       ledger={ledger}
@@ -1923,6 +1947,15 @@ export default function App() {
                       )}
                       pending={state.pending.some((e) => e.id === receipt.id)}
                       onClose={() => setReceipt(null)}
+                      onCorrectPayment={
+                        canCorrectPayments && receiptPayments(ledger, receipt.id).length
+                          ? () => {
+                              const [payment] = receiptPayments(ledger, receipt.id);
+                              setReceipt(null);
+                              setCorrectingPayment(payment);
+                            }
+                          : undefined
+                      }
                     />
                   )}
                   {batchToAdvance && (

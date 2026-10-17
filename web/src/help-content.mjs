@@ -333,6 +333,27 @@ export const helpTopics = [
     rank: 1,
   },
   {
+    id: 'correct-payment',
+    chapter: 'jobs',
+    title: 'Correcting a payment',
+    summary:
+      'Admins, Managers and Developers can fix a payment entered wrongly: recorded twice, the wrong method, the wrong amount or the wrong date.',
+    steps: [
+      'Open Payments and press Correct next to the payment, or open its receipt and press Correct payment.',
+      'Change the amount, method, date or reference. If it was recorded twice, set the amount to ₦0.',
+      'Check Review changes: it shows what the payment, the jobs it paid and the customer balance will become.',
+      'Give the reason and press Save correction.',
+    ],
+    notes: [
+      '₦0 removes a duplicate: the jobs it paid show as owed again, and the payment stays in the list marked as removed.',
+      'A higher amount pays what the customer owes first, then becomes credit. A lower amount takes back unspent credit first.',
+      'Every correction is kept in Sale Adjustments history, and cash changes follow the original cashier’s drawer.',
+      'Connect and let the app finish syncing first.',
+    ],
+    pages: ['Payments'],
+    rank: 2,
+  },
+  {
     id: 'expenses',
     chapter: 'jobs',
     title: 'Recording expenses',

@@ -434,6 +434,22 @@ try {
           'Combined change is shown once in history',
         );
         await dismiss();
+        // Correct a payment from the Payments page: a wrong date (amount, method and reference work the same).
+        const paid = cloud.payments.find((p) => !p.refundId && p.allocations.length);
+        await nav('Payments');
+        await page
+          .getByRole('button', { name: `Correct payment ${paid.id.slice(0, 8).toUpperCase()}` })
+          .click();
+        const fix = page.getByRole('dialog', { name: 'Correct payment' });
+        await fix.getByLabel('Payment date').fill('2026-01-05');
+        await fix.getByText('2026-01-05').waitFor();
+        await fix.getByLabel('Reason').fill('Entered with the wrong date');
+        await fix.getByRole('button', { name: 'Save correction' }).click();
+        await fix.waitFor({ state: 'hidden' });
+        assert.equal(cloud.payments.find((p) => p.id === paid.id).paidOn, '2026-01-05');
+        assert.equal(writes.at(-1).kind, 'payment.corrected');
+        assert.equal(writes.at(-1).data.paymentId, paid.id);
+        await dismiss();
         cashier = true;
         await page.reload();
         await page.getByRole('heading', { name: 'Point of Service', exact: true }).waitFor();
@@ -452,6 +468,18 @@ try {
             .count(),
           0,
         );
+        const paymentsNav = page
+          .getByRole('navigation', { name: 'Main' })
+          .getByRole('button', { name: 'Payments', exact: true });
+        if (!mobile && (await paymentsNav.count())) {
+          await paymentsNav.click();
+          await page.getByRole('heading', { name: 'Payments', exact: true }).waitFor();
+          assert.equal(
+            await page.getByRole('button', { name: /^Correct payment / }).count(),
+            0,
+            'Cashiers cannot correct payments',
+          );
+        }
         assert.ok(
           await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
           'Responsive page fits',

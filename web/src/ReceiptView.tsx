@@ -15,6 +15,7 @@ export default function ReceiptView({
   scope,
   pending,
   onClose,
+  onCorrectPayment,
   adjustments = [],
 }: {
   record: CheckoutRecord;
@@ -24,6 +25,8 @@ export default function ReceiptView({
   pending: boolean;
   adjustments?: import('./types').SaleAdjustment[];
   onClose: () => void;
+  /** Admin or higher: correct the payment on this receipt (amount, method, date, reference). */
+  onCorrectPayment?: () => void;
 }) {
   // Load the PDF and share code now: phones only open the share sheet straight after the tap.
   useEffect(() => {
@@ -129,6 +132,11 @@ export default function ReceiptView({
         <button className="secondary" disabled={busy || !!warning} onClick={() => void pdf('roll')}>
           Download PDF (80mm)
         </button>
+        {onCorrectPayment && (
+          <button className="secondary" disabled={busy || pending} onClick={onCorrectPayment}>
+            <Icon name="edit" /> Correct payment
+          </button>
+        )}
         <small>
           Printing uses the paper in Print Settings ({settings.paper}, {settings.orientation}): receipt rolls
           get the till-roll layout, larger paper gets the page layout — the same as the A4 PDF.
