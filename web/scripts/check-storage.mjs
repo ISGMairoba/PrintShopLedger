@@ -108,6 +108,7 @@ try {
       // Lose one piece: the app opens, says what happened, and keeps working.
       await page.evaluate(() => localStorage.setItem('drill-break', 'local-trial|L|customers|0'));
       await page.reload();
+      await page.getByRole('button', { name: 'Try locally on this device' }).click();
       await page.getByRole('heading', { name: 'Point of Service', exact: true }).waitFor();
       await page
         .getByText(/offline copy was damaged/)
@@ -115,6 +116,7 @@ try {
         .waitFor();
       await page.evaluate(() => localStorage.removeItem('drill-break'));
       await page.reload();
+      await page.getByRole('button', { name: 'Try locally on this device' }).click();
       await page.getByRole('heading', { name: 'Point of Service', exact: true }).waitFor();
       assert.equal(
         await page.getByText(/offline copy was damaged/).count(),
