@@ -24,6 +24,7 @@ import PointOfServicePage from './PointOfServicePage';
 import CheckoutEditor from './CheckoutEditor';
 import ReceiptView from './ReceiptView';
 import PaymentCorrectionDialog from './PaymentCorrectionDialog';
+import { MyCorrectionsPanel, PendingRequestsPanel } from './CorrectionRequests';
 import { receiptPayments } from './payment-correction.mjs';
 import { receiptIntegrityError } from './receipts.mjs';
 import { printAfterTransaction, printReceipt, setPrintSigner } from './printing';
@@ -78,6 +79,10 @@ import {
   resolvePendingWork,
   checkoutReviewBase,
   saveSupervisedEvent,
+  listCorrectionRequests,
+  submitCorrectionRequest,
+  withdrawCorrectionRequest,
+  rejectCorrectionRequest,
 } from './cloud';
 import { readState, saveEvent, saveEvents, mutateState } from './storage';
 import MaterialsPage from './MaterialsPage';
@@ -167,6 +172,8 @@ export default function App() {
   const [jobToAdvance, setJobToAdvance] = useState<{ job: Job; mode: ProgressMode } | null>(null);
   const [adjustingJob, setAdjustingJob] = useState<Job | null>(null);
   const [correctingPayment, setCorrectingPayment] = useState<Payment | null>(null);
+  const [requestingJob, setRequestingJob] = useState<Job | null>(null),
+    [requestsVersion, setRequestsVersion] = useState(0);
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
   const [paymentCustomer, setPaymentCustomer] = useState('');
   const [busy, setBusy] = useState(false);
@@ -381,7 +388,7 @@ export default function App() {
       setBusy(false);
     }
   }
-  async function approveOperation(operation: SupervisedEvent) {
+  async function approveOperation(operation: SupervisedEvent, requestId?: string) {
     if (busy || !ready || !scope || hasConflict || (!demo && (!online || (shop?.accessLevel ?? 0) < 2)))
       throw Error('Connect and finish syncing as Admin, Manager or Developer before approving.');
     const target = scope;
@@ -389,7 +396,7 @@ export default function App() {
     try {
       const next = demo
         ? await saveEvent(target, operation, false)
-        : await saveSupervisedEvent(target, shop!.id, operation);
+        : await saveSupervisedEvent(target, shop!.id, operation, requestId);
       if (activeScope.current === target) {
         setState(next);
         channel.current?.postMessage('changed');
@@ -411,6 +418,18 @@ export default function App() {
           low ? 'warning' : 'success',
         );
       }
+    } finally {
+      setBusy(false);
+    }
+  }
+  // A cashier's correction request: sent to the server for an Admin or higher to approve.
+  async function sendCorrectionRequest(operation: SupervisedEvent) {
+    if (demo || !shop || !online) throw Error('Connect to the internet to request a correction.');
+    setBusy(true);
+    try {
+      await submitCorrectionRequest(shop.id, operation);
+      setRequestsVersion((v) => v + 1);
+      setMessage('Correction request sent. An Admin or Manager will review it.', 'success');
     } finally {
       setBusy(false);
     }
@@ -1475,6 +1494,20 @@ export default function App() {
                           busy={busy || hasConflict}
                           canSave={demo || online}
                           onAdjust={setAdjustingJob}
+                          requests={
+                            !demo && shop ? (
+                              <PendingRequestsPanel
+                                ledger={ledger}
+                                actor={salesActor}
+                                busy={busy || hasConflict}
+                                canSave={online}
+                                version={requestsVersion}
+                                load={() => listCorrectionRequests(shop.id)}
+                                onApprove={approveOperation}
+                                onReject={(id, note) => rejectCorrectionRequest(shop.id, id, note)}
+                              />
+                            ) : undefined
+                          }
                         />
                       ) : page === 'Material Waste' ? (
                         <>
@@ -1591,20 +1624,34 @@ export default function App() {
                           onSave={saveCatalogue}
                         />
                       ) : page === 'My Sales' ? (
-                        <MySalesPage
-                          key={scope}
-                          ledger={ledger}
-                          userId={demo ? 'local-trial' : session!.user.id}
-                          username={demo ? 'trial' : (shop?.username ?? '')}
-                          name={demo ? 'Local trial user' : (shop?.staffName ?? '')}
-                          ready={ready}
-                          busy={busy || hasConflict}
-                          online={online}
-                          demo={demo}
-                          pending={state.pending.length}
-                          onReceipt={setReceipt}
-                          onHandover={closeDrawer}
-                        />
+                        <>
+                          <MySalesPage
+                            key={scope}
+                            ledger={ledger}
+                            userId={demo ? 'local-trial' : session!.user.id}
+                            username={demo ? 'trial' : (shop?.username ?? '')}
+                            name={demo ? 'Local trial user' : (shop?.staffName ?? '')}
+                            ready={ready}
+                            busy={busy || hasConflict}
+                            online={online}
+                            demo={demo}
+                            pending={state.pending.length}
+                            onReceipt={setReceipt}
+                            onHandover={closeDrawer}
+                          />
+                          {!demo && shop && shop.accessLevel < 2 && (
+                            <MyCorrectionsPanel
+                              ledger={ledger}
+                              userId={session!.user.id}
+                              busy={busy || hasConflict}
+                              online={online}
+                              version={requestsVersion}
+                              load={() => listCorrectionRequests(shop.id)}
+                              onRequest={setRequestingJob}
+                              onWithdraw={(id) => withdrawCorrectionRequest(shop.id, id)}
+                            />
+                          )}
+                        </>
                       ) : page === 'Payment Reminders' ? (
                         <RemindersPage
                           key={scope}
@@ -1912,6 +1959,17 @@ export default function App() {
                       actor={salesActor}
                       onClose={() => setAdjustingJob(null)}
                       onSave={approveOperation}
+                    />
+                  )}
+                  {requestingJob && (
+                    <SaleAdjustmentEditor
+                      request
+                      ledger={ledger}
+                      job={ledger.jobs.find((j) => j.id === requestingJob.id) ?? requestingJob}
+                      busy={busy}
+                      actor={salesActor}
+                      onClose={() => setRequestingJob(null)}
+                      onSave={sendCorrectionRequest}
                     />
                   )}
                   {correctingPayment && (

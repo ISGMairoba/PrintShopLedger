@@ -11,6 +11,7 @@ import { resolveMaterialState } from './material-conflicts.mjs';
 import { resolveServiceState } from './service-conflicts.mjs';
 import { resolveCustomerState } from './customer-conflicts.mjs';
 import type {
+  CorrectionRequest,
   Ledger,
   Material,
   Service,
@@ -472,7 +473,13 @@ export async function resolveCloudExpense(
 
 // Supervisor transactions are online-only. The shared sync lock prevents a second sync
 // from projecting an old response over an approved revision.
-export async function saveSupervisedEvent(scope: string, shopId: string, event: SupervisedEvent) {
+// requestId: approving a cashier's correction request (the event is the request, refreshed).
+export async function saveSupervisedEvent(
+  scope: string,
+  shopId: string,
+  event: SupervisedEvent,
+  requestId?: string,
+) {
   if (!supabase || !navigator.onLine || !navigator.locks) throw Error('Connect to approve this action.');
   await requireConflictReviewer(supabase, scope, shopId);
   await syncLedger(scope, shopId);
@@ -483,9 +490,10 @@ export async function saveSupervisedEvent(scope: string, shopId: string, event: 
     const { data: auth, error: authError } = await supabase!.auth.getSession();
     if (authError || auth.session?.user.id !== scope.split(':')[0])
       throw Error('Your sign-in changed. Reopen the workspace.');
-    const { data, error } = await supabase!
-      .rpc('apply_supervised_event', { p_shop: shopId, p_event: event })
-      .abortSignal(AbortSignal.timeout(30000));
+    const { data, error } = await (requestId
+      ? supabase!.rpc('approve_correction_request', { p_shop: shopId, p_request: requestId, p_event: event })
+      : supabase!.rpc('apply_supervised_event', { p_shop: shopId, p_event: event })
+    ).abortSignal(AbortSignal.timeout(30000));
     if (error) {
       // A network failure can happen after the transaction committed. Confirm its ID
       // before reporting failure; never create another refund automatically.
@@ -521,3 +529,20 @@ export async function saveSupervisedEvent(scope: string, shopId: string, event: 
     }));
   });
 }
+
+// Correction requests (online only): cashiers ask for a correction on their own sale; an Admin or
+// higher approves (saveSupervisedEvent with the request ID) or rejects it.
+async function requestRpc(name: string, args: Record<string, unknown>): Promise<CorrectionRequest[]> {
+  if (!supabase || !navigator.onLine) throw Error('Connect to the internet to use correction requests.');
+  const { data, error } = await supabase.rpc(name, args).abortSignal(AbortSignal.timeout(30000));
+  if (error) throw Error(error.message);
+  return (data ?? []) as CorrectionRequest[];
+}
+export const listCorrectionRequests = (shopId: string) =>
+  requestRpc('list_correction_requests', { p_shop: shopId });
+export const submitCorrectionRequest = (shopId: string, event: SupervisedEvent) =>
+  requestRpc('submit_correction_request', { p_shop: shopId, p_event: event });
+export const withdrawCorrectionRequest = (shopId: string, requestId: string) =>
+  requestRpc('withdraw_correction_request', { p_shop: shopId, p_request: requestId });
+export const rejectCorrectionRequest = (shopId: string, requestId: string, note: string) =>
+  requestRpc('reject_correction_request', { p_shop: shopId, p_request: requestId, p_note: note });

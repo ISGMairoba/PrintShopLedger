@@ -184,6 +184,7 @@ try {
       own.forEach((r) => (r.drawerClosingId = closing.id));
       result = { closing, access_token: makeToken(cashierId), refresh_token: 'handover-refresh' };
     } else if (path.endsWith('/business_settings')) result = [];
+    else if (path.endsWith('/list_correction_requests')) result = [];
     else if (path.endsWith('/get_ledger')) {
       downloads++;
       if (failDownload) {
