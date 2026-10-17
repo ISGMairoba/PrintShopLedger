@@ -3,6 +3,7 @@ import { materialSnapshot } from './material-display.mjs';
 import { quoteLine, accountToken, walletBalance } from './checkout.mjs';
 import { jobBalance } from './domain.mjs';
 import { sameEvent } from './sale-adjustments.mjs';
+import { choiceUsagePlan, currentChoiceUsages, hasMaterialChoice } from './material-choice.mjs';
 const validDate = (value) =>
   typeof value === 'string' &&
   /^\d{4}-\d{2}-\d{2}$/.test(value) &&
@@ -23,6 +24,17 @@ export function quoteCorrectedJob(ledger, job, d) {
   const service = ledger.services.find((s) => s.id === d.serviceId && !s.archived && !s.private);
   if (!service || service.version !== d.serviceVersion)
     throw Error('Service changed. Sync and reopen the correction.');
+  // A choice-of-materials job keeps its service: its stock is confirmed per linked material.
+  if ((job.materialChoice || hasMaterialChoice(service)) && service.id !== job.serviceId)
+    throw Error(
+      'A job with a choice of materials keeps its service. Cancel it and add a new job for another service.',
+    );
+  if (!!job.materialChoice !== hasMaterialChoice(service))
+    throw Error(
+      'This service changed how it uses materials since the sale. Cancel the job and add it again.',
+    );
+  if (hasMaterialChoice(service) && d.materialId)
+    throw Error('This service uses a choice of materials, confirmed in production.');
   const material = d.materialId ? ledger.materials.find((m) => m.id === d.materialId && !m.archived) : null;
   if (d.materialId && !material) throw Error('Choose an active material.');
   if (!Number.isSafeInteger(d.unitPrice) || d.unitPrice < 0 || d.unitPrice > 100000000000)
@@ -43,6 +55,11 @@ export function quoteCorrectedJob(ledger, job, d) {
     ),
     stockCountEventId: job.stockCountEventId ?? null,
   };
+}
+/** The job after a details correction: its materials to choose from stay; only the size changes. */
+function keepChoice(job, after) {
+  if (!job.materialChoice || !after.materialChoice) return after;
+  return { ...after, materialChoice: { ...job.materialChoice, work: after.materialChoice.work } };
 }
 export function stockCorrectionPlan(ledger, job, after, mode) {
   if (!['reconcile', 'keep'].includes(mode))
@@ -278,12 +295,18 @@ export function applyFullCorrection(input, event) {
         'Template components cannot be changed after checkout. Cancel and create a replacement job; adjust returned materials separately.',
       );
     if (job.productionStatus === 'Cancelled') throw Error('This sale is already cancelled.');
-    after = quoteCorrectedJob(ledger, job, d);
+    after = keepChoice(job, quoteCorrectedJob(ledger, job, d));
     stockChanges = stockCorrectionPlan(ledger, job, after, d.stockMode);
+    // Confirmed choice of materials: the new amount of each material really used.
+    if (job.materialUsed && d.stockMode === 'reconcile') {
+      if (!Array.isArray(d.choiceUsages)) throw Error('Enter how much of each material was really used.');
+      stockChanges = choiceUsagePlan(ledger, job, d.choiceUsages);
+    }
     if (
       ['description', 'quantity', 'width', 'height', 'serviceId', 'materialId', 'unitPrice', 'amount'].every(
         (k) => (after[k] ?? null) === (job[k] ?? null),
       ) &&
+      JSON.stringify(after.materialChoice ?? null) === JSON.stringify(job.materialChoice ?? null) &&
       !stockChanges.length
     )
       throw Error('Nothing changed.');
@@ -329,6 +352,14 @@ export function applyFullCorrection(input, event) {
         },
       ];
     }
+    if (job.materialUsed && stockChanges.length)
+      after = {
+        ...after,
+        materialUsed: {
+          ...job.materialUsed,
+          usages: currentChoiceUsages({ ...ledger, materialHistory: history }, job),
+        },
+      };
     let excess = Math.max(
       0,
       payments.reduce(

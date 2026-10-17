@@ -2,6 +2,7 @@ import { applyFullCorrection, correctionKinds } from './full-corrections.mjs';
 import { normalizeLedger, validateMaterial } from './materials.mjs';
 import { materialSnapshot } from './material-display.mjs';
 import { accountToken, walletBalance } from './checkout.mjs';
+import { applyStockDeltas, choiceUsagePlan, currentChoiceUsages } from './material-choice.mjs';
 export const sameEvent = (a, b) =>
   JSON.stringify(a, (_, v) =>
     v && typeof v === 'object' && !Array.isArray(v)
@@ -219,6 +220,29 @@ export function applySaleAdjustment(input, event) {
       },
     ];
   }
+  // Cancelling a confirmed choice-of-materials job: what was not really used goes back to stock.
+  let stockChanges = [];
+  if (Array.isArray(d.choiceUsages) && d.choiceUsages.length) {
+    if (event.kind !== 'sale.cancelled') throw Error('Stock may only be returned when cancelling a sale.');
+    stockChanges = choiceUsagePlan(ledger, job, d.choiceUsages, true);
+    ({ materials, materialHistory: history } = applyStockDeltas(
+      { ...ledger, materials, materialHistory: history },
+      job,
+      stockChanges,
+      d.stockIds,
+      d.materialVersions,
+      a,
+      'material.sale_returned',
+    ));
+    if (stockChanges.length)
+      after = {
+        ...after,
+        materialUsed: {
+          ...job.materialUsed,
+          usages: currentChoiceUsages({ ...ledger, materialHistory: history }, job),
+        },
+      };
+  }
   const changes = ledger.payments.flatMap((p) => {
     const next = payments.find((x) => x.id === p.id);
     return JSON.stringify(p) === JSON.stringify(next) ? [] : [{ before: p, after: next }];
@@ -237,6 +261,7 @@ export function applySaleAdjustment(input, event) {
     methodLabel: d.methodLabel,
     paidOn: d.paidOn,
     returnQuantity: returned,
+    stockChanges,
     paymentChanges: changes,
     event,
   };

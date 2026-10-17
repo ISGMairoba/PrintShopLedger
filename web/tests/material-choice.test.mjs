@@ -209,3 +209,125 @@ test('service rules: 2–10 materials, same unit and size rule, not a shelf item
   assert.equal(after.materialId, s.r5);
   assert.equal(after.materialOptions, undefined);
 });
+
+// ---- Corrections: stock follows the material really used ----
+import { accountToken } from '../src/checkout.mjs';
+const correction = (ledger, job, kind, data) => ({
+  id: id(),
+  kind,
+  data: {
+    jobId: job.id,
+    baseVersion: job.version ?? 1,
+    expectedAccount: accountToken(ledger, job.customerId),
+    reason: 'Fix',
+    ...audit,
+    ...data,
+  },
+});
+const details = (ledger, job, patch) =>
+  correction(ledger, job, 'sale.details_corrected', {
+    serviceId: job.serviceId,
+    serviceVersion: ledger.services.find((s) => s.id === job.serviceId).version,
+    description: job.description,
+    quantity: job.quantity,
+    width: job.width,
+    height: job.height,
+    unitPrice: job.unitPrice,
+    stockMode: 'reconcile',
+    stockIds: Object.fromEntries(ledger.materials.map((m) => [m.id, id()])),
+    materialVersions: Object.fromEntries(ledger.materials.map((m) => [m.id, m.version])),
+    ...patch,
+  });
+const confirmed = (s, usages) => {
+  let { ledger, jobId } = sell(s);
+  const job = ledger.jobs.find((j) => j.id === jobId);
+  for (const e of stageMoveEvents(ledger, job, 'Completed', actor, usages, at))
+    ledger = applyEvent(ledger, e);
+  return { ledger, job: ledger.jobs.find((j) => j.id === jobId) };
+};
+
+test('before the material is confirmed, a size correction only changes the job size to confirm', () => {
+  const s = shop();
+  let { ledger, jobId } = sell(s);
+  const job = ledger.jobs.find((j) => j.id === jobId);
+  ledger = applyEvent(ledger, details(ledger, job, { width: 10 }));
+  const after = ledger.jobs.find((j) => j.id === jobId);
+  assert.equal(after.amount, 50000 * 40);
+  assert.equal(after.materialChoice.work, 40);
+  assert.equal(materialPending(after), true);
+  assert.deepEqual(
+    ledger.materials.map((m) => m.available),
+    [100, 250, 500],
+  );
+});
+
+test('after it is confirmed, a correction asks the new amount of each material and moves stock by the difference', () => {
+  const s = shop();
+  let { ledger, job } = confirmed(s, [{ materialId: s.r5, quantity: 4 }]);
+  assert.throws(() => applyEvent(ledger, details(ledger, job, { width: 10 })), /really used/);
+  ledger = applyEvent(
+    ledger,
+    details(ledger, job, {
+      width: 10,
+      choiceUsages: [
+        { materialId: s.r5, quantity: 6 },
+        { materialId: s.r10, quantity: 1 },
+      ],
+    }),
+  );
+  assert.deepEqual(
+    ledger.materials.map((m) => m.available),
+    [100, 244, 499],
+  );
+  job = ledger.jobs.find((j) => j.id === job.id);
+  assert.deepEqual(
+    job.materialUsed.usages.map((u) => [u.materialId, u.quantity]),
+    [
+      [s.r5, 6],
+      [s.r10, 1],
+    ],
+  );
+  // Keep: the job changes, the stock does not.
+  ledger = applyEvent(ledger, details(ledger, job, { quantity: 1, stockMode: 'keep' }));
+  assert.deepEqual(
+    ledger.materials.map((m) => m.available),
+    [100, 244, 499],
+  );
+});
+
+test('cancelling a confirmed job returns what was not really used, per material', () => {
+  const s = shop();
+  const { ledger, job } = confirmed(s, [
+    { materialId: s.r5, quantity: 4 },
+    { materialId: s.r2, quantity: 1 },
+  ]);
+  const cancel = (usages) =>
+    correction(ledger, job, 'sale.cancelled', {
+      returnQuantity: 0,
+      choiceUsages: usages,
+      stockIds: Object.fromEntries(ledger.materials.map((m) => [m.id, id()])),
+      materialVersions: Object.fromEntries(ledger.materials.map((m) => [m.id, m.version])),
+    });
+  assert.throws(() => applyEvent(ledger, cancel([{ materialId: s.r5, quantity: 5 }])), /cannot exceed/);
+  const next = applyEvent(ledger, cancel([{ materialId: s.r5, quantity: 1 }]));
+  assert.deepEqual(
+    next.materials.map((m) => m.available),
+    [99, 249, 500],
+  );
+  assert.equal(next.jobs.find((j) => j.id === job.id).productionStatus, 'Cancelled');
+  const returned = next.materialHistory.filter(
+    (h) => h.jobId === job.id && h.action === 'material.sale_returned',
+  );
+  assert.equal(returned.length, 1);
+});
+
+test('a choice-of-materials job keeps its service in corrections', () => {
+  const s = shop();
+  const other = s.apply('service.created', { id: id(), description: 'Design', materialId: null, price: 100 });
+  const { ledger, jobId } = sell({ ...s, ledger: s.get() });
+  const job = ledger.jobs.find((j) => j.id === jobId);
+  assert.throws(
+    () => applyEvent(ledger, details(ledger, job, { serviceId: other, serviceVersion: 1 })),
+    /keeps its service/,
+  );
+});
