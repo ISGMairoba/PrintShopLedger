@@ -73,6 +73,14 @@ ledger.services.push(
   }),
   shelf(11, 'Plain Paper', 1000),
   shelf(12, 'Straw Board (A5)', 6000),
+  ...Array.from({ length: 24 }, (_, i) =>
+    shelf(
+      20 + i,
+      `Envelope ${['A4', 'A5', 'DL', 'C4'][i % 4]} ${i}`,
+      1000 + i * 100,
+      i % 3 ? {} : { packPrices: packs },
+    ),
+  ),
 );
 // More customers with long details.
 for (let i = 0; i < 6; i++)
@@ -179,9 +187,16 @@ try {
       await page.screenshot({ path: `${out}/${mode}-${name}.png`, fullPage: full });
     };
     const close = async () => {
-      for (let i = 0; i < 3 && (await page.locator('dialog[open]').count()); i++) {
-        await page.keyboard.press('Escape');
-        await delay(200);
+      for (let i = 0; i < 4 && (await page.locator('dialog[open]').count()); i++) {
+        const d = page.locator('dialog[open]').last();
+        const button = d.getByRole('button', { name: /^(Close|Cancel|Discard|Leave)/ }).first();
+        if (await button.count()) await button.click({ timeout: 2000 }).catch(() => {});
+        else await page.keyboard.press('Escape');
+        await delay(250);
+      }
+      if (await page.locator('dialog[open]').count()) {
+        await page.reload();
+        await delay(800);
       }
     };
     const step = async (name, run) => {
