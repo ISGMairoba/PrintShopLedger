@@ -2,6 +2,7 @@ import DialogActions from './DialogActions';
 import { useFeedbackMessage } from './Feedback';
 import CurrencyInput from './CurrencyInput';
 import ResponsiveTable from './ResponsiveTable';
+import { AuditCells, AuditHeaders } from './AuditColumns';
 import Icon from './Icon';
 import { packList } from './pack-prices.mjs';
 import { newVariantProductEvents } from './variants.mjs';
@@ -385,14 +386,7 @@ export default function ServicesPage({
                     <SortHeader label={w('Base material')} column="material" sort={sorting} />
                     <SortHeader label="Price" column="price" sort={sorting} />
                     <SortHeader label="Status" column="status" sort={sorting} />
-                    {audit && (
-                      <>
-                        <SortHeader label="Created by" column="createdBy" sort={sorting} />
-                        <SortHeader label="Created at" column="createdAt" sort={sorting} />
-                        <SortHeader label="Modified by" column="modifiedBy" sort={sorting} />
-                        <SortHeader label="Modified at" column="modifiedAt" sort={sorting} />
-                      </>
-                    )}
+                    {audit && <AuditHeaders sort={sorting} />}
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -455,14 +449,7 @@ export default function ServicesPage({
                             {service.archived ? 'Archived' : 'Active'}
                           </span>
                         </td>
-                        {audit && (
-                          <>
-                            <td>{service.createdByLabel}</td>
-                            <td>{timestamp(service.createdAt)}</td>
-                            <td>{service.modifiedByLabel}</td>
-                            <td>{timestamp(service.modifiedAt)}</td>
-                          </>
-                        )}
+                        {audit && <AuditCells record={service} format={timestamp} />}
                         <td>
                           <div className="material-actions">
                             {!service.archived && (

@@ -37,6 +37,7 @@ export default function JobTable({
   onBulkAction,
   grouped = false,
   selecting = false,
+  pageSort = false,
 }: {
   ledger: Ledger;
   jobs: Job[];
@@ -50,6 +51,8 @@ export default function JobTable({
   onBulkAction?: (jobs: Job[], mode: ProgressMode) => void;
   grouped?: boolean;
   selecting?: boolean;
+  /** The page toolbar has its own Sort by. */
+  pageSort?: boolean;
 }) {
   const { w, stage: stageLabel } = useWords();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -96,6 +99,7 @@ export default function JobTable({
   );
   const renderTable = (rows: Job[]) => (
     <ResponsiveTable
+      pageSort={pageSort}
       columns={[
         { index: 0, label: w('Job'), details: [1, 3, 4] },
         { index: 2, label: 'Amount' },

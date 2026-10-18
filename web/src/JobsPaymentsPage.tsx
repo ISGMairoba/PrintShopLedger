@@ -265,6 +265,7 @@ export default function JobsPaymentsPage({
                   onBulkAction={onBulkAction}
                   grouped={grouped}
                   selecting={selecting}
+                  pageSort
                 />
                 {!matchingJobs.length && <p className="empty">{w('No matching jobs.')}</p>}
               </div>
@@ -280,6 +281,7 @@ export default function JobsPaymentsPage({
             ) : (
               <div className="table-wrap">
                 <ResponsiveTable
+                  pageSort
                   extraSortOptions={[
                     { key: 'createdAt', label: 'Created at' },
                     { key: 'date', label: 'Payment date' },

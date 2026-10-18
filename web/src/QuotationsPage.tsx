@@ -349,9 +349,6 @@ export default function QuotationsPage({
             <button className="secondary" onClick={() => void pdf(current, 'roll', 'download')}>
               Download PDF (80 mm)
             </button>
-            <button className="secondary" onClick={() => void pdf(current, 'a4', 'open')}>
-              <Icon name="services" /> Print
-            </button>
             {current.status === 'open' && (
               <button
                 className="text-button danger-text"
@@ -415,7 +412,7 @@ function QuotationSummary({ quote }: { quote: Quotation }) {
         </small>
       </p>
       <div className="table-wrap">
-        <table aria-label="Quotation items">
+        <table aria-label="Quotation items" className="quotation-items">
           <thead>
             <tr>
               <th>{w('Item')}</th>

@@ -79,11 +79,14 @@ export default function ResponsiveTable({
   columns,
   labels = {},
   extraSortOptions = [],
+  pageSort = false,
 }: {
   children: ReactElement;
   columns: MobileColumn[];
   labels?: Record<number, string>;
   extraSortOptions?: { key: string; label: string }[];
+  /** The page's own toolbar already has Sort by (shown on wider screens): no second one there. */
+  pageSort?: boolean;
 }) {
   const mobile = useMobileLayout();
   const container = useRef<HTMLDivElement>(null);
@@ -109,7 +112,11 @@ export default function ResponsiveTable({
   const sort = sortHeaders[0]?.props.sort;
   const label = (index: number) =>
     labels[index] ?? headers[index]?.props.label ?? headers[index]?.props.children ?? 'Details';
-  const auditing = headers.some((header) => ['createdBy', 'modifiedBy'].includes(header.props.column ?? ''));
+  const auditing = headers.some(
+    (header) =>
+      ['createdBy', 'modifiedBy'].includes(header.props.column ?? '') ||
+      /\baudit-heading\b/.test(header.props.className ?? ''),
+  );
   const metadata = (cells: Element[], detail: number) => (
     <div className="mobile-meta" key={detail}>
       <span className="mobile-meta-label">{label(detail)}: </span>
@@ -122,7 +129,7 @@ export default function ResponsiveTable({
         children
       ) : (
         <>
-          {sort && (
+          {sort && (mobile || !pageSort) && (
             <div className="mobile-sort">
               <label>
                 Sort by
