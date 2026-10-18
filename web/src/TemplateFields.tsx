@@ -222,6 +222,12 @@ export function StaffView({
           {s.stock.map((m) => `${m.quantity} ${m.unit} ${m.name}`).join(', ')}
         </p>
       )}
+      {s.choice && (
+        <p className="muted">
+          {s.choice.name}: about {s.choice.work} {s.choice.unit}, from a choice of materials. Stock is taken
+          when production confirms which material was used.
+        </p>
+      )}
     </section>
   );
 }

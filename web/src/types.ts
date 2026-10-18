@@ -104,6 +104,15 @@ export type TemplateSnapshot = {
     stockEventId: string;
     stockCountEventId: string | null;
   }[];
+  /** An item with a choice of materials: confirmed in production, not taken at the sale. */
+  choice?: {
+    serviceId: string;
+    name: string;
+    options: string[];
+    confirmStage: string;
+    unit: string;
+    work: number;
+  };
 };
 export interface CustomerCommand {
   id: string;

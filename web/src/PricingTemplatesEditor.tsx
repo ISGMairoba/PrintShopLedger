@@ -412,7 +412,9 @@ export default function TemplateEditor({
   };
   const [error, setError] = useState('');
   const costs = ledger.services.filter((s) => !s.archived && s.costing);
-  const stockItems = ledger.services.filter((s) => !s.archived && s.materialId);
+  const stockItems = ledger.services.filter(
+    (s) => !s.archived && (s.materialId || s.materialOptions?.length),
+  );
   const change = (patch: Partial<Draft>) => setD((x) => ({ ...x, ...patch }));
   // New names avoid the template's own names and every cost's formula name.
   const used = () =>
@@ -806,6 +808,7 @@ export default function TemplateEditor({
                                 {' '}
                                 {canonical(costRate(s.costing!))} per {unit}
                                 {s.materialId ? ' · stock item' : ''}
+                                {s.materialOptions?.length ? ' · choice of materials' : ''}
                                 {s.private ? ' · private' : ''}
                               </small>
                             </label>
@@ -941,8 +944,9 @@ export default function TemplateEditor({
                         <optgroup label={w('Material')}>
                           {stockItems.map((s) => (
                             <option key={s.id} value={'s:' + s.id}>
-                              {ledger.materials.find((m) => m.id === s.materialId)?.name} (via {s.description}
-                              )
+                              {s.materialOptions?.length
+                                ? `${s.description} (choice of materials, confirmed in production)`
+                                : `${ledger.materials.find((m) => m.id === s.materialId)?.name} (via ${s.description})`}
                             </option>
                           ))}
                         </optgroup>

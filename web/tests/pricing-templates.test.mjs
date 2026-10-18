@@ -503,3 +503,75 @@ test('computed values reach clients only when chosen; audit ranks are a setting'
   assert.equal(canSeeTemplateCosts({ auditRanks: [] }, 4), true);
   assert.equal(canSeeTemplateCosts(undefined, 2), true);
 });
+
+test('a template line using an item with a choice of materials confirms its material in production', async () => {
+  const { stageMoveEvents, materialConfirmDue } = await import('../src/material-choice.mjs');
+  const { applyEvent } = await import('../src/domain.mjs');
+  const { ledger, input } = fixture();
+  const film = (n, name) => ({
+    ...ledger.materials[0],
+    id: id(n),
+    name,
+    measurementUnit: 'ft',
+    available: 300,
+  });
+  ledger.materials.push(film(11, 'Film 12 inch'), film(12, 'Film 18 inch'));
+  ledger.services.push({
+    ...ledger.services[3],
+    id: id(13),
+    description: 'Lamination film',
+    materialId: null,
+    materialOptions: [id(11), id(12)],
+    confirmStage: 'Printing',
+    private: false,
+    costing: { key: 'film', amount: 5000, per: 1 },
+  });
+  const template = bookTemplate();
+  template.computed.push({
+    key: 'film_required',
+    label: 'Film required',
+    unit: 'ft',
+    formula: 'quantity * 2',
+    stock: { serviceId: id(13) },
+  });
+  template.expenses.push({ key: 'film_expense', label: 'Film', formula: 'film_required * film' });
+  ledger.pricing = validatePricingSettings({ enabled: true, templates: [template] });
+  const event = prepareCheckout(ledger, input, actor, id(40), '2026-10-13T08:00:00Z');
+  const job = event.data.jobs[0];
+  assert.deepEqual(job.templateSnapshot.choice, {
+    serviceId: id(13),
+    name: 'Lamination film',
+    options: [id(11), id(12)],
+    confirmStage: 'Printing',
+    unit: 'ft',
+    work: 100,
+  });
+  assert.deepEqual(job.materialChoice, { options: [id(11), id(12)], confirmStage: 'Printing', work: 100 });
+  assert.equal(
+    job.templateSnapshot.stock.some((s) => s.materialId === id(11) || s.materialId === id(12)),
+    false,
+    'no film is taken at the sale',
+  );
+  let next = applyCheckout(ledger, event);
+  const saved = next.jobs.find((j) => j.id === job.id);
+  assert.equal(materialConfirmDue(saved, 'Completed'), true);
+  for (const e of stageMoveEvents(next, saved, 'Completed', actor, [{ materialId: id(12), quantity: 96 }]))
+    next = applyEvent(next, e);
+  assert.equal(next.materials.find((m) => m.id === id(12)).available, 204);
+  assert.equal(next.materials.find((m) => m.id === id(11)).available, 300);
+  // Two different choice items in one template are not supported yet.
+  ledger.services.push({
+    ...ledger.services.at(-1),
+    id: id(14),
+    costing: { key: 'film2', amount: 1, per: 1 },
+  });
+  template.computed.push({
+    key: 'more_film',
+    label: 'More film',
+    unit: 'ft',
+    formula: '1',
+    stock: { serviceId: id(14) },
+  });
+  ledger.pricing = validatePricingSettings({ enabled: true, templates: [{ ...template, version: 2 }] });
+  assert.throws(() => prepareCheckout(ledger, input, actor, id(41), '2026-10-13T08:00:00Z'), /only one item/);
+});
