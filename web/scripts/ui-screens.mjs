@@ -48,6 +48,42 @@ try {
     await page.getByRole('button', { name: 'Back to sign in', exact: true }).click();
     const f = fixture();
     const ledger = applyEvent(f.ledger, f.event);
+    // A template job using two items with a choice of materials, waiting for its materials.
+    {
+      const mat = (n, name, unit) => ({
+        ...ledger.materials[0],
+        id: `c0000000-0000-4000-8000-0000000000${n}`,
+        name,
+        measurementUnit: unit,
+        available: 120,
+      });
+      ledger.materials.push(
+        mat(11, 'Film 12 inch', 'ft'),
+        mat(12, 'Film 18 inch', 'ft'),
+        mat(15, 'Board 2mm', 'sheet'),
+        mat(16, 'Board 3mm', 'sheet'),
+      );
+      const ids = (a, b) => [
+        `c0000000-0000-4000-8000-0000000000${a}`,
+        `c0000000-0000-4000-8000-0000000000${b}`,
+      ];
+      ledger.jobs.push({
+        ...ledger.jobs[0],
+        id: 'c0000000-0000-4000-8000-000000000020',
+        description: 'Framed certificates',
+        productionStatus: 'Printing',
+        materialUsed: undefined,
+        materialChoice: {
+          options: [...ids(11, 12), ...ids(15, 16)],
+          confirmStage: 'Printing',
+          work: 36.25,
+          groups: [
+            { name: 'Lamination film', options: ids(11, 12), unit: 'ft', work: 26.25 },
+            { name: 'Backing board', options: ids(15, 16), unit: 'sheet', work: 10 },
+          ],
+        },
+      });
+    }
     const settings = { ...f.settings, theme, businessName: 'Mairoba Studio' };
     settings.pricing = { ...settings.pricing, enabled: true };
     await page.evaluate(
@@ -301,6 +337,29 @@ try {
       await closeDialogs();
     } catch (e) {
       failures.push(`${mode} material choice: ${e.message.split('\n')[0]}`);
+      await closeDialogs();
+    }
+    // A template job with two choice items: one section per item.
+    try {
+      await nav('Jobs');
+      await page
+        .getByRole('main')
+        .getByPlaceholder(/Search/)
+        .first()
+        .fill('Framed');
+      await delay(400);
+      await page
+        .getByRole('main')
+        .getByRole('button', { name: /Mark as Complete/ })
+        .first()
+        .click();
+      const m = page.getByRole('dialog').last();
+      await m.getByRole('button', { name: 'Add another material for Lamination film' }).click();
+      await fieldHeights('Material used');
+      await m.screenshot({ path: `${out}/${mode}-89-material-used-two-items.png` });
+      await closeDialogs();
+    } catch (e) {
+      failures.push(`${mode} template choices: ${e.message.split('\n')[0]}`);
       await closeDialogs();
     }
     // Help: the panel from a page's ? button, and from the menu.
