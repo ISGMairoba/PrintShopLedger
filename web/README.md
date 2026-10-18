@@ -83,9 +83,13 @@ Enable Pricing templates in Business Settings, then open its separate menu page.
 
 Templates support number/options/material/yes-no inputs, computed formulas, expenses and markup or margin. Formula evaluation uses a restricted arithmetic grammar and exact-decimal calculations with 12-place intermediate rounding. Supported functions are `CEILING`, `FLOOR`, `ROUNDUP`, `ROUND`, `SUM`, `ABS`, `MIN`, `MAX` and `IF`. Formula names refer to local item costs; `<name>_price` uses an item's selling price. Preview default inputs and representative order sizes before making a template available to staff.
 
+**Compare options** lists every combination as separate prices. Send them to a client as a PDF (share, A4, A5, print) or as plain text: **Copy text** puts it on the clipboard to paste into any chat, and **Share text** opens the phone's share sheet (or WhatsApp on a computer). The text uses the same options, grouping and client-visible details as the PDF, never costs; **See the text** shows exactly what will be sent.
+
 Use **Templates → Import** for a `.json` transfer, **Export active/all** for the displayed collection, or **Export / Share** on a card for one template. Transfers create new active version-1 copies, preserve the receiving shop's catalogue and require compatible item matching. They do not copy catalogue prices or stock balances. Fixed amounts inside formulas and profit rules are included; review the export dialog before sharing. [Full transfer guide](docs/pricing-template-transfers.md).
 
 ## Printing and sharing
+
+**Installer credit.** Developer can add one line naming who installed or supports the app (for example `Installed by Mairoba Studio | 08088850271`, up to 60 characters) under **Business Settings → Installer credit**, and choose where it appears: receipt-printer receipts, full-page documents (A4/A5 receipts, quotations, comparisons), report PDFs and text shares. It prints small, under the business's own footer. The tab is Developer only and cannot be given to Admin or Manager; the server keeps the saved value when anyone below Developer saves settings.
 
 Print Settings stores printer, paper, font, margins, copies and automatic-print preference per user/business on the current device. QZ Tray must be installed and connected on the printing computer. Receipts are generated as PDFs for the selected paper; checkout is saved before printing, and sync/replay does not trigger another print. A failed print can be retried without recreating the sale. Spool submission does not prove physical output.
 

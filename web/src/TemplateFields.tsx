@@ -1,5 +1,6 @@
 import { Fragment, createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { comparisonMessage } from './comparison-doc.mjs';
+import { comparisonMessage, comparisonText } from './comparison-doc.mjs';
+import { copyText, shareText } from './share-text';
 import type { Branding } from './useBusinessBranding';
 import {
   FieldError,
@@ -804,6 +805,33 @@ export function CompareOptions({
       setWorking(false);
     }
   }
+  /** The options as chat text, matching the PDF (same order, groups and client details). */
+  const chatText = () =>
+    comparisonText(template, ordered(), doc.business, {
+      customerName: customerName.trim(),
+      ...(headings && grouping && grouping.clientVisible !== false ? { groupBy: grouping.key } : {}),
+    });
+  async function sendText(action: 'copy' | 'share') {
+    setNotice('');
+    try {
+      const text = chatText();
+      if (action === 'copy') {
+        setNotice(
+          (await copyText(text))
+            ? 'Text copied. Paste it into the chat.'
+            : 'This browser would not copy. Open “See the text” below and copy it by hand.',
+        );
+      } else {
+        const result = await shareText(text, {
+          title: `${template.name} options`,
+          phone: customerPhone.trim() || undefined,
+        });
+        setNotice(result === 'whatsapp' ? 'WhatsApp is open with the text ready to send.' : '');
+      }
+    } catch (cause) {
+      setNotice(cause instanceof Error ? cause.message : String(cause));
+    }
+  }
   return (
     <div className="template-compare">
       <p className="muted">
@@ -947,7 +975,13 @@ export function CompareOptions({
               <p className="danger-text">Fix the options that cannot be priced before sending.</p>
             ) : (
               <div className="material-actions">
-                <button type="button" onClick={() => void comparisonPdf('share')}>
+                <button type="button" onClick={() => void sendText('copy')}>
+                  <Icon name="copy" /> Copy text
+                </button>
+                <button type="button" className="secondary" onClick={() => void sendText('share')}>
+                  <Icon name="share" /> Share text
+                </button>
+                <button type="button" className="secondary" onClick={() => void comparisonPdf('share')}>
                   <Icon name="share" /> Share PDF
                 </button>
                 <button type="button" className="secondary" onClick={() => void comparisonPdf('a4')}>
@@ -965,6 +999,19 @@ export function CompareOptions({
               <p className="muted" role="status">
                 {notice}
               </p>
+            )}
+            {!rows.some((r) => r.error) && (
+              <details className="compare-chat-text">
+                <summary>See the text</summary>
+                <textarea
+                  aria-label="Comparison text for chat"
+                  readOnly
+                  rows={10}
+                  value={chatText()}
+                  onFocus={(e) => e.currentTarget.select()}
+                />
+                <small>Clients who will not open a PDF can read this straight in the chat.</small>
+              </details>
             )}
           </fieldset>
           <div className="table-wrap">

@@ -1,6 +1,6 @@
 // A client comparison as a document: each priced option of one template, with only the details the
 // client may see. Drawn by the same PDF code as quotations (A4, A5 or any page size).
-import { receiptBusiness, validLogo } from './business-branding.mjs';
+import { poweredByLine, receiptBusiness, validLogo } from './business-branding.mjs';
 import { currency } from './receipts.mjs';
 import { computedSpecs, valueLabel } from './pricing-templates.mjs';
 import { renameTerms } from './terms.mjs';
@@ -95,3 +95,37 @@ export function comparisonModel(template, rows, business, details = {}) {
 /** The message sent with a shared comparison. */
 export const comparisonMessage = (template, rows, businessName) =>
   `${businessName ? businessName + ': ' : ''}price options for ${template.name} (${rows.length} options). The PDF is attached.`;
+
+/** WhatsApp styling: *bold*. Stray markers in names would bold or strike the wrong words, so drop them. */
+const plain = (value) => String(value ?? '').replace(/[*_~`]/g, '');
+
+/**
+ * The comparison as plain text to paste into a chat, for clients who will not open a PDF.
+ * Same options, order, groups and client-visible details as the PDF; never costs or totals.
+ * WhatsApp shows *text* in bold; other apps show the stars, which still reads fine.
+ */
+export function comparisonText(template, rows, business, details = {}) {
+  const m = comparisonModel(template, rows, business, details);
+  const b = receiptBusiness(business);
+  const lines = [];
+  if (b.businessName) lines.push(`*${plain(b.businessName)}*`);
+  lines.push(`*Price options: ${plain(template.name)}*`);
+  lines.push(`${m.date} · Ref ${m.number}`);
+  if (details.customerName) lines.push(`For: ${plain(details.customerName)}`);
+  for (const item of m.items) {
+    if (item.heading) lines.push('', `*${plain(item.heading)}*`);
+    // Details, then the unit price (the model lists it last).
+    const specs = item.meta.slice(0, -1).map(plain);
+    const each = item.meta[item.meta.length - 1];
+    lines.push('', `*${item.title}: ${item.amount}*`);
+    if (specs.length) lines.push(specs.join(' · '));
+    lines.push(each);
+  }
+  lines.push('', 'Choose one option: prices are not added together.');
+  lines.push('Reply with the option number to go ahead. Prices may change.');
+  const contact = [b.phones, b.email].filter(Boolean).map(plain).join(' · ');
+  if (contact && b.receiptPage.showContacts) lines.push(contact);
+  const credit = poweredByLine(business, 'shares');
+  if (credit) lines.push('', `_${plain(credit)}_`);
+  return lines.join('\n');
+}

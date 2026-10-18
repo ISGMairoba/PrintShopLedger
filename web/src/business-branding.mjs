@@ -58,6 +58,45 @@ export const defaultPeriods = () => ({
 });
 export const periodChoices = ['today', 'week', 'month', '30days', 'all'];
 export const pagesWithoutAll = ['dashboard', 'reports'];
+// The installer's credit ("Installed by … | phone"). Only Developer can change it (the server keeps
+// it out of every Business Settings tab). Each switch chooses where the line appears.
+export const POWERED_BY_MAX = 60;
+export const poweredByDefaults = () => ({
+  text: '',
+  receipts: false,
+  pages: false,
+  reports: false,
+  shares: false,
+});
+export function validatePoweredBy(input) {
+  const value = { ...poweredByDefaults(), ...(input ?? {}) };
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    Array.isArray(value) ||
+    Object.keys(value).some((key) => !(key in poweredByDefaults()))
+  )
+    throw Error('Invalid installer credit.');
+  if (typeof value.text !== 'string' || /[\x00-\x1f\x7f]/.test(value.text))
+    throw Error('The installer credit must be a single line of text.');
+  value.text = value.text.trim().replace(/\s+/g, ' ');
+  if (value.text.length > POWERED_BY_MAX)
+    throw Error(`Keep the installer credit to ${POWERED_BY_MAX} characters so it fits on a receipt.`);
+  for (const key of ['receipts', 'pages', 'reports', 'shares'])
+    if (typeof value[key] !== 'boolean') throw Error('Invalid installer credit.');
+  return value;
+}
+/**
+ * The installer credit for one kind of output, or '' when it is off there.
+ * where: 'receipts' (receipt printers), 'pages' (full-page receipts, quotations, comparisons),
+ * 'reports' (report PDFs) or 'shares' (text pasted in chat).
+ */
+export function poweredByLine(business, where) {
+  if (!business || typeof business !== 'object') return '';
+  const p = business.poweredBy;
+  if (!p || typeof p.text !== 'string' || p[where] !== true) return '';
+  return p.text.trim().replace(/\s+/g, ' ').slice(0, POWERED_BY_MAX);
+}
 export const defaultBackgrounds = () => ({
   light: { canvas: '', surface: '', surfaceAlt: '' },
   dark: { canvas: '', surface: '', surfaceAlt: '' },
@@ -106,6 +145,7 @@ export const defaultBranding = () => ({
     ...receiptContentDefaults(),
   },
   documents: { watermark: false },
+  poweredBy: poweredByDefaults(),
 });
 export function validLogo(value) {
   return (
@@ -156,6 +196,7 @@ export function validateBranding(input) {
   if (typeof value.documents !== 'object' || typeof value.documents.watermark !== 'boolean')
     throw Error('Invalid document options.');
   value.documents = { watermark: value.documents.watermark };
+  value.poweredBy = validatePoweredBy(value.poweredBy);
   value.options = validateOptions(value.options);
   if (value.pageAccessVersion !== PAGE_ACCESS_VERSION) value.pageAccess = upgradePageAccess(value.pageAccess);
   value.pageAccess = validatePageAccess(value.pageAccess);
@@ -373,6 +414,7 @@ export function receiptBusiness(input, usage = 'documents') {
     receipt: { ...defaultBranding().receipt, ...input?.receipt },
     receiptPage: { ...defaultBranding().receiptPage, ...(input?.receiptPage ?? input?.receipt) },
     documents: { ...defaultBranding().documents, ...input?.documents },
+    poweredBy: { ...poweredByDefaults(), ...input?.poweredBy },
   };
 }
 export function suggestedPalette(pixels) {

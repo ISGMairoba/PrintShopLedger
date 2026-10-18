@@ -68,13 +68,14 @@ test('older saved settings give each new page its old page access, once', () => 
 });
 test('Business Settings tabs: Developer has all and Page access; others only allowed tabs', () => {
   const settings = validateBranding({ ...defaultBranding(), businessName: 'B' });
-  assert.deepEqual(allowedSettingsTabs(4, settings), [...settingsTabs, 'Page access']);
+  assert.deepEqual(allowedSettingsTabs(4, settings), [...settingsTabs, 'Page access', 'Installer credit']);
   assert.deepEqual(allowedSettingsTabs(3, settings), []);
   settings.pageAccess['3'].push('Business Settings');
   settings.settingsTabs['3'] = ['Receipts', 'Profile & logo'];
   assert.deepEqual(allowedSettingsTabs(3, validateBranding(settings)), ['Profile & logo', 'Receipts']);
   assert.deepEqual(allowedSettingsTabs(1, settings), []);
   assert.throws(() => validateSettingsTabs({ 2: ['Page access'] }));
+  assert.throws(() => validateSettingsTabs({ 3: ['Installer credit'] }));
   assert.throws(() => validateSettingsTabs({ 1: [] }));
 });
 test('developer has every page; manager excludes business settings; revoked and unknown denied', () => {
