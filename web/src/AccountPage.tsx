@@ -1,3 +1,4 @@
+import Icon from './Icon';
 import { useFeedbackMessage, FeedbackBanner } from './Feedback';
 import { useState, type FormEvent } from 'react';
 import { supabase } from './cloud';
@@ -128,7 +129,9 @@ export default function AccountPage({
             />
           </label>
         </div>
-        <button disabled={disabled || !valid}>Save username</button>
+        <button disabled={disabled || !valid}>
+          <Icon name="save" /> Save username
+        </button>
       </form>
       <h3>Change password</h3>
       {businessAccount && (
@@ -172,7 +175,9 @@ export default function AccountPage({
             />
           </label>
         </div>
-        <button disabled={disabled}>Save password</button>
+        <button disabled={disabled}>
+          <Icon name="save" /> Save password
+        </button>
       </form>
     </section>
   );

@@ -118,6 +118,49 @@ ledger.quotations = [
     lastEventId: uid(401),
   },
 ];
+// Expenses with materials and part payments.
+const audit = {
+  version: 1,
+  createdBy: uid(1),
+  createdByLabel: 'smgraphics2nd',
+  createdAt: now,
+  modifiedBy: uid(1),
+  modifiedByLabel: 'smgraphics2nd',
+  modifiedAt: now,
+  lastEventId: uid(500),
+};
+ledger.expenses = [
+  {
+    id: uid(501),
+    description: 'Restock: DI PRINTING',
+    category: 'Materials',
+    incurredOn: '2026-10-13',
+    amount: 5000000,
+    payee: 'SMG',
+    note: '',
+    receiptReference: '',
+    materials: [{ materialId: base.id, name: 'DI PRINTING', quantity: 1000, measurementUnit: 'A4' }],
+    payments: [{ id: uid(502), amount: 5000000, paidOn: '2026-10-13', method: 'Cash' }],
+    voided: false,
+    voidReason: '',
+    ...audit,
+  },
+  {
+    id: uid(503),
+    description: 'Restock: SAV, SUBLIMATION',
+    category: 'Materials',
+    incurredOn: '2026-10-13',
+    amount: 45000000,
+    payee: 'SMG',
+    note: '',
+    receiptReference: '',
+    materials: [],
+    payments: [{ id: uid(504), amount: 20000000, paidOn: '2026-10-13', method: 'Transfer' }],
+    voided: false,
+    voidReason: '',
+    ...audit,
+  },
+];
 const settings = { ...f.settings, businessName: 'Mairoba Studio' };
 settings.pricing = { ...settings.pricing, enabled: true };
 
@@ -272,6 +315,15 @@ try {
       await nav('Materials');
       await shot('07-materials');
     });
+    for (const [name, label] of [
+      ['Payments', '15-payments'],
+      ['Stock History', '16-stock-history'],
+      ['Expenses', '17-expenses'],
+    ])
+      await step(label, async () => {
+        await nav(name);
+        await shot(label);
+      });
     await step('dashboard', async () => {
       await nav('Dashboard');
       const panel = page.getByRole('heading', { name: 'Critical stock' });

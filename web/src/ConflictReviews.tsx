@@ -1,3 +1,4 @@
+import Icon from './Icon';
 import Modal from './Modal';
 import { FeedbackBanner, type FeedbackTone } from './Feedback';
 import { currency } from './app/shared';
@@ -96,7 +97,7 @@ export function ExpenseConflictReview({
             className={choice === 'cloud' ? 'secondary' : ''}
             onClick={() => onResolve(choice)}
           >
-            {choice === 'local' ? 'Reapply pending changes' : 'Keep business version'}
+            <Icon name="sync" /> {choice === 'local' ? 'Reapply pending changes' : 'Keep business version'}
           </button>
         ))}
       </div>
@@ -125,7 +126,7 @@ export function JobConflictReview({
         )}
       </p>
       <button disabled={busy} onClick={onResolve}>
-        Use business status
+        <Icon name="sync" /> Use business status
       </button>
     </Modal>
   );
@@ -190,10 +191,10 @@ export function CustomerConflictReview({
       </p>
       <div className="material-actions">
         <button disabled={busy} onClick={() => onResolve('local')}>
-          Keep this device's version
+          <Icon name="restore" /> Keep this device's version
         </button>
         <button className="secondary" disabled={busy} onClick={() => onResolve('cloud')}>
-          Keep business version
+          <Icon name="sync" /> Keep business version
         </button>
       </div>
     </Modal>
@@ -253,10 +254,10 @@ export function MaterialConflictReview({
       </p>
       <div className="material-actions">
         <button disabled={busy} onClick={() => onResolve('local')}>
-          Reapply pending edits
+          <Icon name="restore" /> Reapply pending edits
         </button>
         <button className="secondary" disabled={busy} onClick={() => onResolve('cloud')}>
-          Keep business version
+          <Icon name="sync" /> Keep business version
         </button>
       </div>
     </Modal>

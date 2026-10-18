@@ -1,3 +1,4 @@
+import Icon from './Icon';
 import { useState } from 'react';
 import Modal from './Modal';
 import { useWords } from './Words';
@@ -141,7 +142,7 @@ export default function BatchJobProgressDialog({
           <p className="muted">Mark as Complete leaves collection as a separate action.</p>
         )}
         <button disabled={busy || !eligible.length || (collect.unpaid > 0 && !unpaidConfirmed)}>
-          Apply to {eligible.length} {w(eligible.length === 1 ? 'job' : 'jobs')}
+          <Icon name="complete" /> Apply to {eligible.length} {w(eligible.length === 1 ? 'job' : 'jobs')}
         </button>
       </form>
     </Modal>

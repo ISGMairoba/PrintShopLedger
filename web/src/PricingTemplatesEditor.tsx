@@ -734,7 +734,7 @@ export default function TemplateEditor({
                             className="text-button danger-text"
                             onClick={() => setVariable(i, { options: v.options!.filter((_, k) => k !== j) })}
                           >
-                            Remove option
+                            <Icon name="close" /> Remove option
                           </button>
                         </div>
                       ))}
@@ -841,7 +841,7 @@ export default function TemplateEditor({
                         className="text-button danger-text"
                         onClick={() => change({ variables: d.variables.filter((_, j) => j !== i) })}
                       >
-                        Remove {v.label || 'variable'}
+                        <Icon name="close" /> Remove {v.label || 'variable'}
                       </button>
                     )}
                   </div>
@@ -976,7 +976,7 @@ export default function TemplateEditor({
                   className="text-button danger-text"
                   onClick={() => change({ computed: d.computed.filter((_, j) => j !== i) })}
                 >
-                  Remove {c.label || 'computed variable'}
+                  <Icon name="close" /> Remove {c.label || 'computed variable'}
                 </button>
               </div>
             ))}
@@ -1038,7 +1038,7 @@ export default function TemplateEditor({
                     className="text-button danger-text"
                     onClick={() => change({ expenses: d.expenses.filter((_, j) => j !== i) })}
                   >
-                    Remove {e.label || 'expense'}
+                    <Icon name="close" /> Remove {e.label || 'expense'}
                   </button>
                 )}
               </div>
@@ -1160,7 +1160,7 @@ export default function TemplateEditor({
         )}
         {step < tabs.length - 1 ? (
           <button type="button" disabled={busy} onClick={() => go(step + 1)}>
-            Next: {tabs[step + 1]}
+            <Icon name="next" /> Next: {tabs[step + 1]}
           </button>
         ) : (
           <button type="button" disabled={busy || !!problem} onClick={() => void save()}>
@@ -1168,7 +1168,7 @@ export default function TemplateEditor({
           </button>
         )}
         <button type="button" className="secondary" disabled={busy} onClick={onClose}>
-          Cancel
+          <Icon name="close" /> Cancel
         </button>
       </div>
     </Modal>

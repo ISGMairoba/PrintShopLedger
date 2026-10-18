@@ -20,7 +20,7 @@ export default function DialogActions({
       {summary && <div className="dialog-action-summary">{summary}</div>}
       <div className="dialog-action-buttons">
         <button type="button" className="secondary" disabled={busy} onClick={onCancel}>
-          Cancel
+          <Icon name="close" /> Cancel
         </button>
         <button type="submit" form={form} disabled={busy} aria-busy={busy}>
           <Icon name="save" /> {busy ? 'Saving…' : children}

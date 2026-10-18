@@ -193,11 +193,11 @@ export default function CustomersPage({
                       <td>
                         <div className="material-actions">
                           <button className="text-button" onClick={() => setAccount(customer)}>
-                            Account records
+                            <Icon name="customers" /> Account records
                           </button>
                           {onStatement && (
                             <button className="text-button" onClick={() => onStatement(customer.id)}>
-                              Statement
+                              <Icon name="reports" /> Statement
                             </button>
                           )}
                           {!customer.archived && (
@@ -225,7 +225,7 @@ export default function CustomersPage({
                             disabled={busy || customer.archived}
                             onClick={() => onRecordPayment(customer.id)}
                           >
-                            Record payment
+                            <Icon name="payments" /> Record payment
                           </button>
                         </div>
                       </td>
@@ -273,10 +273,11 @@ export default function CustomersPage({
               disabled={busy}
               onClick={() => void changeStatus()}
             >
+              <Icon name="archive" />{' '}
               {busy ? 'Saving...' : confirmation.archived ? 'Restore customer' : 'Archive customer'}
             </button>
             <button className="secondary" disabled={busy} onClick={() => setConfirmation(null)}>
-              Cancel
+              <Icon name="close" /> Cancel
             </button>
           </div>
         </Modal>

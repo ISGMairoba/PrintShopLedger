@@ -123,7 +123,7 @@ export default function CostImportDialog({
           <Icon name="import" /> {busy ? 'Importing…' : 'Save imported costs'}
         </button>
         <button type="button" className="secondary" disabled={busy} onClick={onClose}>
-          Cancel
+          <Icon name="close" /> Cancel
         </button>
       </div>
     </Modal>

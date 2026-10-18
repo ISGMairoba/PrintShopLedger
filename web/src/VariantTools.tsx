@@ -107,7 +107,7 @@ export default function VariantTools({
                   setOpen(open === 'join' ? '' : 'join');
                 }}
               >
-                Make it a variant of another product
+                <Icon name="add" /> Make it a variant of another product
               </button>
             )}
           </>
@@ -271,7 +271,7 @@ export default function VariantTools({
               <Icon name="save" /> {busy ? 'Saving…' : 'Save'}
             </button>
             <button type="button" className="secondary" onClick={() => setOpen('')}>
-              Cancel
+              <Icon name="close" /> Cancel
             </button>
           </div>
         </form>

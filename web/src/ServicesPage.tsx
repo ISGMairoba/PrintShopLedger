@@ -527,10 +527,11 @@ export default function ServicesPage({
                 })
               }
             >
+              <Icon name="archive" />{' '}
               {busy ? 'Saving...' : w(confirmation.archived ? 'Restore service' : 'Archive service')}
             </button>
             <button className="secondary" disabled={busy} onClick={() => setConfirmation(null)}>
-              Cancel
+              <Icon name="close" /> Cancel
             </button>
           </div>
         </Modal>

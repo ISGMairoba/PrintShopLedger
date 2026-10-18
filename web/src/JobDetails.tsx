@@ -1,3 +1,4 @@
+import Icon from './Icon';
 import { TemplateSummary } from './TemplateFields';
 import Modal from './Modal';
 import { deadlineState } from './job-deadlines.mjs';
@@ -72,7 +73,7 @@ export default function JobDetails({
               disabled={busy || hasConflict || !canSave}
               onClick={() => onAdjust(job)}
             >
-              Adjust sale / refund
+              <Icon name="adjustments" /> Adjust sale / refund
             </button>
           )}
           <button
@@ -80,7 +81,7 @@ export default function JobDetails({
             disabled={busy || legacyConflict || customerHeld || jobBalance(ledger, job).outstanding <= 0}
             onClick={() => onPayment(job.customerId)}
           >
-            Receive customer payment
+            <Icon name="payments" /> Receive customer payment
           </button>
         </div>
       }

@@ -134,7 +134,7 @@ export default function StockHistoryPage({ history, materials, pending, ready, d
               setPage(0);
             }}
           >
-            Reset filters
+            <Icon name="sync" /> Reset filters
           </button>
         </div>
         {dates.panel}
@@ -233,7 +233,7 @@ export default function StockHistoryPage({ history, materials, pending, ready, d
               disabled={activePage === maxPage}
               onClick={() => setPage(activePage + 1)}
             >
-              Next
+              <Icon name="next" /> Next
             </button>
           </div>
         )}

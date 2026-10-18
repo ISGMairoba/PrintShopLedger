@@ -1,3 +1,4 @@
+import Icon from './Icon';
 import { useFeedbackMessage } from './Feedback';
 import { useState, type ReactNode } from 'react';
 import { defaultOptions } from './business-options.mjs';
@@ -102,7 +103,7 @@ export default function BusinessOptionsEditor({
                 )
               }
             >
-              Remove
+              <Icon name="close" /> Remove
             </button>
           </div>
         ))}
@@ -146,7 +147,7 @@ export default function BusinessOptionsEditor({
             setPayment('');
           }}
         >
-          Add payment method
+          <Icon name="add" /> Add payment method
         </button>
       </div>
       {error && (

@@ -1,3 +1,4 @@
+import Icon from './Icon';
 import { useState, type FormEvent } from 'react';
 import { businessAuth, supabase } from './cloud';
 import { validateSignup, validateNewPassword } from './registration.mjs';
@@ -85,7 +86,9 @@ export function BusinessSignup({ online, onBack }: { online: boolean; onBack: ()
               Use 12–128 characters. Your first staff account will be Manager. A separate Developer account
               handles maintenance.
             </small>
-            <button disabled={busy || !online}>{busy ? 'Registering…' : 'Register business'}</button>
+            <button disabled={busy || !online}>
+              <Icon name="account" /> {busy ? 'Registering…' : 'Register business'}
+            </button>
           </form>
         )}
         <FeedbackBanner message={message} tone={sent ? 'success' : 'error'} login />
@@ -153,13 +156,15 @@ export function DeveloperActivation({ token, online }: { token: string; online: 
                 required
               />
             </label>
-            <button disabled={busy || !online}>{busy ? 'Activating…' : 'Activate account'}</button>
+            <button disabled={busy || !online}>
+              <Icon name="account" /> {busy ? 'Activating…' : 'Activate account'}
+            </button>
           </form>
         )}
         <FeedbackBanner message={message} tone={complete ? 'success' : 'error'} login />
         {complete && (
           <button className="secondary" onClick={() => location.assign('/')}>
-            Open sign in
+            <Icon name="next" /> Open sign in
           </button>
         )}
       </section>

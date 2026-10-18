@@ -284,7 +284,7 @@ export default function QuickSale({
                             className="text-button danger-text"
                             onClick={() => setCart((c) => setQuantity(c, line.serviceId, 0))}
                           >
-                            Remove
+                            <Icon name="close" /> Remove
                           </button>
                         </td>
                       </tr>

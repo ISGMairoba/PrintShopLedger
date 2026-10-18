@@ -1,3 +1,4 @@
+import Icon from './Icon';
 import ToolbarActions from './ToolbarActions';
 import { useState } from 'react';
 import Modal from './Modal';
@@ -63,7 +64,7 @@ export default function MaterialWastePage({
               setError('');
             }}
           >
-            {w('Record material waste')}
+            <Icon name="waste" /> {w('Record material waste')}
           </button>
         </ToolbarActions>
       </div>
@@ -242,6 +243,7 @@ export default function MaterialWastePage({
               </p>
             )}
             <button disabled={busy}>
+              <Icon name="save" />{' '}
               {busy ? 'Saving waste…' : submitted ? 'Retry same waste entry' : 'Approve and save waste'}
             </button>
           </form>
