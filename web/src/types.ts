@@ -145,7 +145,7 @@ export type JobMaterialEvent = {
   data: {
     id: string;
     baseVersion: number;
-    usages: { id: string; materialId: string; quantity: number }[];
+    usages: { id: string; materialId: string; quantity: number; group?: number }[];
     modifiedBy: string;
     modifiedByLabel: string;
     modifiedAt: string;
@@ -187,7 +187,7 @@ export interface Job {
   materialChoice?: MaterialChoice;
   /** The material(s) confirmed as used in production. */
   materialUsed?: {
-    usages: { id?: string; materialId: string; quantity: number }[];
+    usages: { id?: string; materialId: string; quantity: number; group?: number }[];
     confirmedBy: string;
     confirmedByLabel: string;
     confirmedAt: string;
