@@ -1634,18 +1634,18 @@ label small > .field-error {
 .responsive-records > table:not(.mobile-cards) th {
   hyphens: manual;
 }
-.responsive-records > table:not(.mobile-cards) :is(.cell-fit, td.numeric, th.numeric, .audit-cell) {
+.responsive-records > table:not(.mobile-cards) :is(.cell-fit, td.numeric, th.numeric) {
   white-space: nowrap;
   width: 1%;
+}
+.responsive-records > table:not(.mobile-cards) .audit-cell {
+  width: 1%;
+  min-width: 7.5rem;
 }
 .responsive-records > table:not(.mobile-cards) .badge {
   white-space: nowrap;
 }
-.responsive-records > table:not(.mobile-cards) td:last-child:has(> .material-actions) {
-  width: 1%;
-}
 .responsive-records > table:not(.mobile-cards) .material-actions {
-  width: max-content;
   max-width: 17rem;
   gap: 2px 14px;
 }
