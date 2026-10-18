@@ -149,7 +149,7 @@ try {
   await dialog.getByLabel('Credit limit (₦)').fill('500.25');
   await dialog.getByRole('button', { name: 'Save customer', exact: true }).click();
   await dialog.waitFor({ state: 'detached' });
-  await page.getByRole('button', { name: 'Full name', exact: true }).click();
+  await page.getByRole('button', { name: 'Customer', exact: true }).click();
   assert.equal(await page.locator('th[aria-sort="descending"]').count(), 1);
   await page.getByRole('button', { name: 'Credit limit', exact: true }).click();
   assert.equal(await page.locator('th[aria-sort="ascending"]').count(), 1);

@@ -1757,3 +1757,9 @@ label small > .field-error {
 .quick-product:not(.quick-variants):not(:disabled):hover {
   border-color: var(--brand-link);
 }
+.responsive-records > table:not(.mobile-cards) th .sort-button {
+  white-space: nowrap;
+}
+.responsive-records > table:not(.mobile-cards) :is(.material-id, .record-id) {
+  overflow-wrap: anywhere;
+}

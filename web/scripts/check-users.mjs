@@ -430,7 +430,7 @@ try {
   await page.getByRole('dialog').waitFor({ state: 'detached' });
   await page.getByLabel('User status').selectOption('active');
   await row.getByText('Amina Updated', { exact: true }).waitFor();
-  await page.getByRole('button', { name: 'Name', exact: true }).click();
+  await page.getByRole('button', { name: 'User', exact: true }).click();
   assert.equal(await page.locator('th[aria-sort="descending"]').count(), 1);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.locator('.mobile-list').waitFor();
