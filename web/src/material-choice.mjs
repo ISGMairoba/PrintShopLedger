@@ -87,6 +87,17 @@ export function materialConfirmDue(job, next) {
   return to > at;
 }
 
+/**
+ * The items a job confirms materials for: its groups (a template using several items with a
+ * choice of materials), or one group of all its options.
+ * @returns {{ name: string, options: string[], unit: string | null, work: number }[]}
+ */
+export function choiceGroups(job) {
+  const choice = job?.materialChoice;
+  if (!choice) return [];
+  return choice.groups ?? [{ name: '', options: choice.options, unit: null, work: choice.work }];
+}
+
 /** A suggested amount for a material: the job's size in material units (rounded). */
 export const suggestedUsage = (job) => round3(job?.materialChoice?.work ?? 0);
 
@@ -128,6 +139,9 @@ export function applyJobMaterial(ledger, event) {
   if ((job.version ?? 1) !== d.baseVersion) throw Error('Job changed. Review the latest version.');
   if (!Array.isArray(d.usages) || !d.usages.length || d.usages.length > job.materialChoice.options.length)
     throw Error('Choose the material or materials used.');
+  for (const group of job.materialChoice.groups ?? [])
+    if (!d.usages.some((u) => group.options.includes(u.materialId)))
+      throw Error(`Confirm the material used for ${group.name}.`);
   const materials = ledger.materials.map((m) => ({ ...m })),
     history = [...ledger.materialHistory],
     seen = new Set();

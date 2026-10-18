@@ -104,15 +104,15 @@ export type TemplateSnapshot = {
     stockEventId: string;
     stockCountEventId: string | null;
   }[];
-  /** An item with a choice of materials: confirmed in production, not taken at the sale. */
-  choice?: {
+  /** Items with a choice of materials: confirmed in production, not taken at the sale. */
+  choices?: {
     serviceId: string;
     name: string;
     options: string[];
     confirmStage: string;
     unit: string;
     work: number;
-  };
+  }[];
 };
 export interface CustomerCommand {
   id: string;
@@ -136,6 +136,8 @@ export type MaterialChoice = {
   confirmStage: string;
   work: number;
   plannedMaterialId?: string;
+  /** A template job using several items with a choice of materials: each item is confirmed. */
+  groups?: { name: string; options: string[]; unit: string; work: number }[];
 };
 export type JobMaterialEvent = {
   id: string;

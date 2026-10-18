@@ -596,7 +596,7 @@ export function priceTemplate(ledger, template, supplied, quantity, stockIds = {
   if (amount > 100000000000) throw Error('Template price exceeds the supported range.');
   // Computed variables linked to stock take their quantity out of a material at checkout.
   const stock = [];
-  let choice = null;
+  const choices = [];
   for (const c of template.computed) {
     if (!c.stock) continue;
     const service = c.stock.variable
@@ -604,25 +604,30 @@ export function priceTemplate(ledger, template, supplied, quantity, stockIds = {
       : ledger.services.find((s) => s.id === c.stock.serviceId && !s.archived);
     if (!service) throw Error(`${c.label}: its stock item is no longer available. Review the template.`);
     if (service.materialId === null) {
-      // A choice of materials: nothing is taken now. The job asks which material(s) were used
-      // when it passes the item's confirmation stage (one such item per template).
+      // A choice of materials: nothing is taken now. The job asks which material(s) were used for
+      // each such item when it passes the confirmation stage.
       if (!service.materialOptions?.length) continue;
       const x = values.get(c.key);
       const work = Number(floorDiv(2n * x.n * 1000n + x.d, 2n * x.d)) / 1000;
       if (work === 0) continue;
-      if (choice && choice.serviceId !== service.id)
-        throw Error('A template can use only one item with a choice of materials. Review the template.');
+      const entry = choices.find((ch) => ch.serviceId === service.id);
+      if (entry) {
+        entry.work = Math.round((entry.work + work) * 1000) / 1000;
+        continue;
+      }
+      if (choices.some((ch) => ch.options.some((o) => service.materialOptions.includes(o))))
+        throw Error(
+          `${service.description} shares a material with another item with a choice of materials in this template. Link each material to one item only.`,
+        );
       const first = ledger.materials.find((m) => m.id === service.materialOptions[0]);
-      choice = choice
-        ? { ...choice, work: Math.round((choice.work + work) * 1000) / 1000 }
-        : {
-            serviceId: service.id,
-            name: service.description,
-            options: [...service.materialOptions],
-            confirmStage: service.confirmStage ?? 'Printing',
-            unit: first?.measurementUnit ?? 'item',
-            work,
-          };
+      choices.push({
+        serviceId: service.id,
+        name: service.description,
+        options: [...service.materialOptions],
+        confirmStage: service.confirmStage ?? 'Printing',
+        unit: first?.measurementUnit ?? 'item',
+        work,
+      });
       continue;
     }
     const material = ledger.materials.find((m) => m.id === service.materialId && !m.archived);
@@ -646,7 +651,7 @@ export function priceTemplate(ledger, template, supplied, quantity, stockIds = {
       });
     }
   }
-  if (stock.some((s) => s.quantity > 1000000000000) || (choice && choice.work > 1000000000000))
+  if (stock.some((s) => s.quantity > 1000000000000) || choices.some((ch) => ch.work > 1000000000000))
     throw Error('Material usage is outside the supported range.');
   return {
     template,
@@ -656,7 +661,7 @@ export function priceTemplate(ledger, template, supplied, quantity, stockIds = {
     expenses,
     price: { cost: canonical(cost), raw: canonical(raw), amount, minimum: minimumKobo },
     stock,
-    ...(choice ? { choice } : {}),
+    ...(choices.length ? { choices } : {}),
   };
 }
 
@@ -698,16 +703,24 @@ export function quoteTemplate(ledger, line) {
     height: null,
     templateInputs: snapshot.inputs,
     templateSnapshot: snapshot,
-    // The job confirms its material in production, like a choice-of-materials item sold alone.
-    ...(snapshot.choice
-      ? {
-          materialChoice: {
-            options: snapshot.choice.options,
-            confirmStage: snapshot.choice.confirmStage,
-            work: snapshot.choice.work,
-          },
-        }
-      : {}),
+    // The job confirms its material(s) in production, like a choice-of-materials item sold alone.
+    ...(snapshot.choices ? { materialChoice: templateMaterialChoice(snapshot.choices) } : {}),
+  };
+}
+/**
+ * The materialChoice of a template job. One choice item: as for the item sold alone. Several:
+ * every linked material, the first item's confirmation stage, and one group per item, each
+ * confirmed separately. The server builds the same (apply_checkout_event).
+ */
+export function templateMaterialChoice(choices) {
+  const [first] = choices;
+  if (choices.length === 1)
+    return { options: first.options, confirmStage: first.confirmStage, work: first.work };
+  return {
+    options: choices.flatMap((c) => c.options),
+    confirmStage: first.confirmStage,
+    work: Math.round(choices.reduce((n, c) => n + c.work * 1000, 0)) / 1000,
+    groups: choices.map((c) => ({ name: c.name, options: c.options, unit: c.unit, work: c.work })),
   };
 }
 /** The deepest discount (%) the minimum profit allows, rounded down to 2 places (Costora). */

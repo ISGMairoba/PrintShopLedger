@@ -538,14 +538,16 @@ test('a template line using an item with a choice of materials confirms its mate
   ledger.pricing = validatePricingSettings({ enabled: true, templates: [template] });
   const event = prepareCheckout(ledger, input, actor, id(40), '2026-10-13T08:00:00Z');
   const job = event.data.jobs[0];
-  assert.deepEqual(job.templateSnapshot.choice, {
-    serviceId: id(13),
-    name: 'Lamination film',
-    options: [id(11), id(12)],
-    confirmStage: 'Printing',
-    unit: 'ft',
-    work: 100,
-  });
+  assert.deepEqual(job.templateSnapshot.choices, [
+    {
+      serviceId: id(13),
+      name: 'Lamination film',
+      options: [id(11), id(12)],
+      confirmStage: 'Printing',
+      unit: 'ft',
+      work: 100,
+    },
+  ]);
   assert.deepEqual(job.materialChoice, { options: [id(11), id(12)], confirmStage: 'Printing', work: 100 });
   assert.equal(
     job.templateSnapshot.stock.some((s) => s.materialId === id(11) || s.materialId === id(12)),
@@ -559,19 +561,59 @@ test('a template line using an item with a choice of materials confirms its mate
     next = applyEvent(next, e);
   assert.equal(next.materials.find((m) => m.id === id(12)).available, 204);
   assert.equal(next.materials.find((m) => m.id === id(11)).available, 300);
-  // Two different choice items in one template are not supported yet.
+  // Several items with a choice of materials: each is confirmed separately.
+  const board = (n, name) => ({ ...film(n, name), measurementUnit: 'sheet', available: 50 });
+  ledger.materials.push(board(15, 'Board 2mm'), board(16, 'Board 3mm'));
   ledger.services.push({
     ...ledger.services.at(-1),
     id: id(14),
-    costing: { key: 'film2', amount: 1, per: 1 },
+    description: 'Backing board',
+    materialOptions: [id(15), id(16)],
+    costing: { key: 'board', amount: 1, per: 1 },
   });
   template.computed.push({
-    key: 'more_film',
-    label: 'More film',
-    unit: 'ft',
-    formula: '1',
+    key: 'boards',
+    label: 'Boards',
+    unit: 'sheet',
+    formula: 'quantity',
     stock: { serviceId: id(14) },
   });
   ledger.pricing = validatePricingSettings({ enabled: true, templates: [{ ...template, version: 2 }] });
-  assert.throws(() => prepareCheckout(ledger, input, actor, id(41), '2026-10-13T08:00:00Z'), /only one item/);
+  const two = prepareCheckout(ledger, input, actor, id(41), '2026-10-13T08:00:00Z').data.jobs[0];
+  assert.deepEqual(
+    two.templateSnapshot.choices.map((c) => [c.name, c.unit, c.work]),
+    [
+      ['Lamination film', 'ft', 100],
+      ['Backing board', 'sheet', 50],
+    ],
+  );
+  assert.deepEqual(two.materialChoice, {
+    options: [id(11), id(12), id(15), id(16)],
+    confirmStage: 'Printing',
+    work: 150,
+    groups: [
+      { name: 'Lamination film', options: [id(11), id(12)], unit: 'ft', work: 100 },
+      { name: 'Backing board', options: [id(15), id(16)], unit: 'sheet', work: 50 },
+    ],
+  });
+  let after = applyCheckout(ledger, prepareCheckout(ledger, input, actor, id(41), '2026-10-13T08:00:00Z'));
+  const twoSaved = after.jobs.find((j) => j.id === two.id);
+  assert.throws(
+    () => stageMoveEvents(after, twoSaved, 'Completed', actor, [{ materialId: id(11), quantity: 100 }]),
+    /Confirm the material used for Backing board/,
+  );
+  for (const e of stageMoveEvents(after, twoSaved, 'Completed', actor, [
+    { materialId: id(11), quantity: 60 },
+    { materialId: id(12), quantity: 40 },
+    { materialId: id(16), quantity: 50 },
+  ]))
+    after = applyEvent(after, e);
+  const left = (n) => after.materials.find((m) => m.id === id(n)).available;
+  assert.deepEqual([left(11), left(12), left(15), left(16)], [240, 260, 50, 0]);
+  // A material linked to two of the template's choice items would be ambiguous.
+  ledger.services.at(-1).materialOptions = [id(12), id(16)];
+  assert.throws(
+    () => prepareCheckout(ledger, input, actor, id(42), '2026-10-13T08:00:00Z'),
+    /shares a material with another item/,
+  );
 });
