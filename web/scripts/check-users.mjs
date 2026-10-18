@@ -389,7 +389,7 @@ try {
   await dialog.getByRole('button', { name: 'Save user', exact: true }).click();
   await dialog.waitFor({ state: 'detached' });
   await (await openMore(page)).getByRole('button', { name: 'Audit view', exact: true }).click();
-  await page.getByRole('button', { name: 'Created by', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Created', exact: true }).waitFor();
   await page.getByLabel('Search users').fill('amina.print');
   let row = page.locator('tbody tr').filter({ hasText: 'amina.print' });
   await row.getByRole('button', { name: 'Edit', exact: true }).click();
@@ -403,7 +403,7 @@ try {
     'Editing another user preserves the list search',
   );
   assert.equal(
-    await page.getByRole('button', { name: 'Created by', exact: true }).count(),
+    await page.getByRole('button', { name: 'Created', exact: true }).count(),
     1,
     'Editing another user preserves audit view',
   );
