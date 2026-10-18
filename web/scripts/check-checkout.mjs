@@ -44,7 +44,7 @@ try {
   await page.getByRole('button', { name: 'Add service', exact: true }).click();
   d = page.getByRole('dialog');
   await d.getByLabel('Service description').fill('Printing');
-  await d.getByLabel('Base material').selectOption({ index: 1 });
+  await d.getByLabel('Base material').selectOption({ index: 2 });
   await d.getByLabel('Price (₦)').fill('000100.00');
   await d.getByLabel('Price (₦)').blur();
   assert.equal(await d.getByLabel('Price (₦)').inputValue(), '100.00');
