@@ -1096,7 +1096,8 @@ export default function App() {
                             }
                           }}
                         >
-                          <Icon name="close" /> {demo ? 'Business sign in' : 'Sign out business'}
+                          <Icon name={demo ? 'account' : 'close'} />{' '}
+                          {demo ? 'Business sign in' : 'Sign out business'}
                         </button>
                       )}
                     </>

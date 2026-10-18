@@ -1795,3 +1795,7 @@ label small > .field-error {
 .job-date > .job-date-label {
   display: inline;
 }
+/* Audit names wrap at spaces only (a username stays whole). */
+.responsive-records > table:not(.mobile-cards) .audit-cell {
+  overflow-wrap: normal;
+}
