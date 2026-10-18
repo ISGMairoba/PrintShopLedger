@@ -1,16 +1,18 @@
 import Icon from './Icon';
 import { useWords } from './Words';
-import { suggestedUsage } from './material-choice.mjs';
+import { choiceGroups, suggestedUsage } from './material-choice.mjs';
 import type { Job, Ledger } from './types';
 
 export type UsageDraft = { materialId: string; quantity: string }[];
 
-/** A first suggestion: the planned (or first) material, and the job's size in material units. */
+/** A first suggestion: the planned (or first) material of each item, and its size in material units. */
 export function usageDraft(job: Job): UsageDraft {
   const choice = job.materialChoice!;
-  return [
-    { materialId: choice.plannedMaterialId ?? choice.options[0], quantity: String(suggestedUsage(job)) },
-  ];
+  if (!choice.groups)
+    return [
+      { materialId: choice.plannedMaterialId ?? choice.options[0], quantity: String(suggestedUsage(job)) },
+    ];
+  return choice.groups.map((g) => ({ materialId: g.options[0], quantity: String(g.work) }));
 }
 
 /** The usages to save, or an error for the person to fix. */
@@ -25,7 +27,8 @@ export function usagesFrom(draft: UsageDraft) {
 
 /**
  * "What was used?" for a job with a choice of materials: one or more of its linked materials and
- * how much of each. Stock is taken when the move is saved.
+ * how much of each. A template job using several such items asks for each item separately.
+ * Stock is taken when the move is saved.
  */
 export default function MaterialUsedFields({
   ledger,
@@ -41,81 +44,106 @@ export default function MaterialUsedFields({
   compact?: boolean;
 }) {
   const { w } = useWords();
-  const choice = job.materialChoice!;
-  const options = choice.options.map((id) => ledger.materials.find((m) => m.id === id)).filter(Boolean);
-  const unit = options[0]?.measurementUnit ?? '';
+  const groups = choiceGroups(job);
+  const several = groups.length > 1;
   const set = (index: number, patch: Partial<UsageDraft[number]>) =>
     onChange(value.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+  let row = 0; // numbers the rows across items, for labels
   return (
     <fieldset className={`material-used${compact ? ' compact' : ''}`}>
       <legend>{w('Material used')}</legend>
       {!compact && (
         <p className="muted">
-          {w('No stock was taken at the sale. Choose what was really used and how much.')} {w('The job is')}{' '}
-          {choice.work} {unit}
-          {'; '}
+          {w('No stock was taken at the sale. Choose what was really used and how much.')}{' '}
+          {several
+            ? w('Confirm each item below; ')
+            : `${w('The job is')} ${groups[0]?.work} ${groupUnit(ledger, groups[0])}; `}
           {w('if one material ran out, add the other.')}
         </p>
       )}
-      {value.map((row, index) => {
-        const material = ledger.materials.find((m) => m.id === row.materialId);
+      {groups.map((group, g) => {
+        const options = group.options.map((id) => ledger.materials.find((m) => m.id === id)).filter(Boolean);
+        const unit = groupUnit(ledger, group);
+        const rows = value
+          .map((r, index) => ({ r, index }))
+          .filter(({ r }) => group.options.includes(r.materialId));
         return (
-          <div className="material-used-row" key={index}>
-            <label>
-              {w('Material')}
-              <select
-                aria-label={`Material used ${index + 1}`}
-                value={row.materialId}
-                onChange={(e) => set(index, { materialId: e.target.value })}
+          <div className="material-used-group" key={g}>
+            {several && (
+              <p className="material-used-item">
+                <strong>{group.name}</strong> · {w('about')} {group.work} {unit}
+              </p>
+            )}
+            {rows.map(({ r, index }) => {
+              const n = ++row;
+              const material = ledger.materials.find((m) => m.id === r.materialId);
+              return (
+                <div className="material-used-row" key={index}>
+                  <label>
+                    {w('Material')}
+                    <select
+                      aria-label={`Material used ${n}`}
+                      value={r.materialId}
+                      onChange={(e) => set(index, { materialId: e.target.value })}
+                    >
+                      {options.map((m) => (
+                        <option key={m!.id} value={m!.id}>
+                          {m!.name} · {m!.available} {m!.measurementUnit} in stock
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    {w('Amount used')} ({material?.measurementUnit ?? unit})
+                    <input
+                      aria-label={`Amount used ${n}`}
+                      type="number"
+                      min="0.001"
+                      step="0.001"
+                      required
+                      value={r.quantity}
+                      onChange={(e) => set(index, { quantity: e.target.value })}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="secondary"
+                    aria-label={`Remove material ${n}`}
+                    disabled={rows.length <= 1}
+                    onClick={() => onChange(value.filter((_, i) => i !== index))}
+                  >
+                    <Icon name="close" />
+                  </button>
+                </div>
+              );
+            })}
+            {rows.length < options.length && (
+              <button
+                type="button"
+                className="secondary"
+                aria-label={several ? `Add another material for ${group.name}` : undefined}
+                onClick={() =>
+                  onChange([
+                    ...value,
+                    {
+                      materialId: options.find((m) => !value.some((x) => x.materialId === m!.id))!.id,
+                      quantity: '',
+                    },
+                  ])
+                }
               >
-                {options.map((m) => (
-                  <option key={m!.id} value={m!.id}>
-                    {m!.name} · {m!.available} {m!.measurementUnit} in stock
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              {w('Amount used')} ({material?.measurementUnit ?? unit})
-              <input
-                aria-label={`Amount used ${index + 1}`}
-                type="number"
-                min="0.001"
-                step="0.001"
-                required
-                value={row.quantity}
-                onChange={(e) => set(index, { quantity: e.target.value })}
-              />
-            </label>
-            <button
-              type="button"
-              className="secondary"
-              aria-label={`Remove material ${index + 1}`}
-              disabled={value.length <= 1}
-              onClick={() => onChange(value.filter((_, i) => i !== index))}
-            >
-              <Icon name="close" />
-            </button>
+                <Icon name="add" /> {w('Add another material')}
+              </button>
+            )}
           </div>
         );
       })}
-      {value.length < options.length && (
-        <button
-          type="button"
-          className="secondary"
-          onClick={() =>
-            onChange([
-              ...value,
-              {
-                materialId: options.find((m) => !value.some((r) => r.materialId === m!.id))!.id,
-                quantity: '',
-              },
-            ])
-          }
-        >
-          <Icon name="add" /> {w('Add another material')}
-        </button>
-      )}
     </fieldset>
   );
+}
+
+/** The unit an item's materials are measured in. */
+function groupUnit(ledger: Ledger, group: { options: string[]; unit: string | null } | undefined) {
+  if (!group) return '';
+  return group.unit ?? ledger.materials.find((m) => m.id === group.options[0])?.measurementUnit ?? '';
 }

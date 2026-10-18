@@ -1032,7 +1032,16 @@ header .page-title h1 {
 .material-used p {
   margin: 0;
 }
-.material-used > button {
+.material-used-group {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.material-used-group + .material-used-group {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.material-used-group > button {
   justify-self: start;
 }
 .material-used.compact {

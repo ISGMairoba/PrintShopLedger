@@ -865,7 +865,20 @@ export default function CheckoutEditor({
                       {quote && (
                         <p>
                           {quote.templateSnapshot
-                            ? `${w('Template')} · ${quote.templateSnapshot.stock.length ? `Stock: ${quote.templateSnapshot.stock.map((s: { quantity: number; unit: string; name: string }) => `${s.quantity} ${s.unit} ${s.name}`).join(', ')}` : w('No stock deduction')}`
+                            ? [
+                                w('Template'),
+                                ...(quote.templateSnapshot.stock.length
+                                  ? [
+                                      `Stock: ${quote.templateSnapshot.stock.map((s: { quantity: number; unit: string; name: string }) => `${s.quantity} ${s.unit} ${s.name}`).join(', ')}`,
+                                    ]
+                                  : quote.templateSnapshot.choices
+                                    ? []
+                                    : [w('No stock deduction')]),
+                                ...(quote.templateSnapshot.choices ?? []).map(
+                                  (c: { name: string; work: number; unit: string }) =>
+                                    `${c.name}: ${c.work} ${c.unit}, ${w('material confirmed in production')}`,
+                                ),
+                              ].join(' · ')
                             : quote.materialChoice
                               ? `${w('Material')}: ${quote.materialChoice.options
                                   .map(
