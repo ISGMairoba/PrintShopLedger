@@ -1619,3 +1619,138 @@ label small > .field-error {
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
+
+/* ---- Record tables on wide screens ----
+   Columns size to what they hold: names, descriptions and addresses take the spare width;
+   figures, dates, badges, IDs and audit details keep to one line; actions sit side by side,
+   two or three to a row. Rows stay as low as their content allows. */
+.responsive-records > table:not(.mobile-cards) {
+  table-layout: auto;
+}
+.responsive-records > table:not(.mobile-cards) :is(th, td) {
+  padding: 10px 12px;
+}
+.responsive-records > table:not(.mobile-cards) th {
+  hyphens: manual;
+}
+.responsive-records > table:not(.mobile-cards) :is(.cell-fit, td.numeric) {
+  white-space: nowrap;
+}
+.responsive-records > table:not(.mobile-cards) .audit-cell {
+  min-width: 7.5rem;
+}
+.responsive-records > table:not(.mobile-cards) .badge {
+  white-space: nowrap;
+}
+.responsive-records > table:not(.mobile-cards) .material-actions {
+  max-width: 17rem;
+  gap: 2px 14px;
+}
+.responsive-records > table:not(.mobile-cards) .material-actions > .text-button {
+  white-space: nowrap;
+}
+.record-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+.audit-cell small {
+  display: block;
+}
+
+/* ---- Scroll bars appear only while needed ----
+   Thin bars that stay hidden until the pointer is over the area or it is being scrolled (the
+   page's own bar shows while scrolling). The space is kept, so nothing shifts. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+*:not(html):hover,
+.is-scrolling {
+  scrollbar-color: color-mix(in srgb, var(--ink, #555) 35%, transparent) transparent;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 8px;
+}
+*:not(html):hover::-webkit-scrollbar-thumb,
+.is-scrolling::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--ink, #555) 35%, transparent);
+}
+
+/* ---- Toolbars on medium screens ----
+   The tick box shares a row with the buttons when there is room, and "Sort by" sits beside its
+   list instead of above it. */
+.toolbar > .check-label {
+  flex: 0 1 auto;
+  order: 0;
+}
+.toolbar label.list-sort-select {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.toolbar label.list-sort-select > select {
+  width: auto;
+}
+
+/* ---- Quick sale ----
+   Tiles grow with their text (prices, packs, variants) instead of overlapping the next row,
+   and use the panel colours so every line stays readable. */
+.quick-sale-products .quick-products {
+  grid-auto-rows: max-content;
+}
+.quick-product:not(.quick-variants) {
+  border: 1px solid var(--line);
+  padding: 10px 12px;
+}
+.quick-product small {
+  opacity: 0.85;
+}
+.quick-product.out,
+.quick-variants .variant-chips button.out {
+  opacity: 0.7;
+}
+
+/* ---- Dashboard: Critical stock keeps a fixed height and scrolls ---- */
+.dashboard-warning {
+  max-height: 420px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* ---- Quotation preview: the item takes the width, quantity and amount fit their values ---- */
+.quotation-items {
+  table-layout: auto !important;
+}
+.quotation-items :is(th, td).numeric {
+  width: 1%;
+  white-space: nowrap;
+}
+.quotation-items td:first-child .template-breakdown {
+  max-width: none;
+}
+/* The sort button beside "Sort by" is a compact arrow. */
+.toolbar > button.sort-direction {
+  width: var(--control-h);
+  padding: 0;
+  font-size: 18px;
+}
+.quick-product:not(.quick-variants) {
+  background: var(--surface);
+  color: var(--ink);
+}
+.quick-product:not(.quick-variants):not(:disabled):hover {
+  border-color: var(--brand-link);
+}
+.responsive-records > table:not(.mobile-cards) :is(.material-id, .record-id) {
+  overflow-wrap: anywhere;
+}

@@ -1701,7 +1701,7 @@ nav button {
 }
 
 .checkout-customer #checkout-customer-fields {
-  padding: 14px;
+  padding: 0;
 }
 .checkout-customer .customer-picker {
   grid-template-columns: minmax(0, 1fr) auto;

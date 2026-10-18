@@ -183,7 +183,7 @@ export default function QuickSale({
                     <button
                       type="button"
                       key={p.id}
-                      className={`quick-product${out ? ' out' : ''}`}
+                      className={`quick-product secondary${out ? ' out' : ''}`}
                       disabled={busy}
                       onClick={() => setCart((c) => addToCart(c, p.id))}
                     >

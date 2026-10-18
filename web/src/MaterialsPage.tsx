@@ -2,6 +2,7 @@ import DialogActions from './DialogActions';
 import { useFeedbackMessage } from './Feedback';
 import { useBusinessOptions } from './BusinessOptionsContext';
 import ResponsiveTable from './ResponsiveTable';
+import { auditCells, auditHeaders } from './AuditColumns';
 import Icon from './Icon';
 import ToolbarActions, { MenuToggle } from './ToolbarActions';
 import { useId, useState, type FormEvent } from 'react';
@@ -207,29 +208,24 @@ export default function MaterialsPage({
           <div className="table-wrap">
             <ResponsiveTable
               columns={[
-                { index: 0, label: w('Material'), details: [1, 4, 5] },
-                { index: 2, label: 'Available', details: [3] },
+                { index: 0, label: w('Material'), details: [3] },
+                { index: 1, label: 'Available', details: [2] },
                 { index: -1, label: 'Actions', actions: true },
               ]}
-              labels={{ 1: 'ID', 3: 'Unit' }}
+              labels={{ 2: 'Unit' }}
+              extraSortOptions={[
+                { key: 'id', label: w('Material ID') },
+                { key: 'requireSize', label: 'Require size' },
+              ]}
             >
               <table className="materials-table">
                 <thead>
                   <tr>
                     <SortHeader label={w('Material')} column="name" sort={sorting} />
-                    <SortHeader label={w('Material ID')} column="id" sort={sorting} />
                     <SortHeader label="Available" column="available" sort={sorting} />
-                    <SortHeader label="Measurement unit" column="unit" sort={sorting} />
-                    <SortHeader label="Require size" column="requireSize" sort={sorting} />
+                    <SortHeader label="Unit · size" column="unit" sort={sorting} />
                     <SortHeader label="Status" column="status" sort={sorting} />
-                    {audit && (
-                      <>
-                        <SortHeader label="Created by" column="createdBy" sort={sorting} />
-                        <SortHeader label="Created at" column="createdAt" sort={sorting} />
-                        <SortHeader label="Modified by" column="modifiedBy" sort={sorting} />
-                        <SortHeader label="Modified at" column="modifiedAt" sort={sorting} />
-                      </>
-                    )}
+                    {audit && auditHeaders(sorting)}
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -238,10 +234,9 @@ export default function MaterialsPage({
                     <tr key={material.id}>
                       <td>
                         <strong>{material.name}</strong>
+                        <small className="record-id">{materialCode(material.id, materials)}</small>
                       </td>
-                      <td className="material-id">{materialCode(material.id, materials)}</td>
-
-                      <td>
+                      <td className="cell-fit">
                         {material.available.toLocaleString(undefined, { maximumFractionDigits: 3 })}
                         <small>
                           Minimum: {material.minimumStock ?? 0} {material.measurementUnit}
@@ -256,21 +251,16 @@ export default function MaterialsPage({
                           </small>
                         )}
                       </td>
-                      <td>{material.measurementUnit}</td>
-                      <td>{material.requireSize ? 'Yes' : 'No'}</td>
-                      <td>
+                      <td className="cell-fit">
+                        {material.measurementUnit}
+                        <small>{material.requireSize ? 'Size required' : 'No size'}</small>
+                      </td>
+                      <td className="cell-fit">
                         <span className={`badge ${material.archived ? 'unpaid' : 'paid'}`}>
                           {material.archived ? 'Archived' : 'Active'}
                         </span>
                       </td>
-                      {audit && (
-                        <>
-                          <td>{material.createdByLabel}</td>
-                          <td>{timestamp(material.createdAt)}</td>
-                          <td>{material.modifiedByLabel}</td>
-                          <td>{timestamp(material.modifiedAt)}</td>
-                        </>
-                      )}
+                      {audit && auditCells(material, timestamp)}
                       <td>
                         <div className="material-actions">
                           {!material.archived && (

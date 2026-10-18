@@ -128,7 +128,7 @@ try {
   assert.equal(saved.ledger.expenses[0].payments.length, 2);
   assert.equal(saved.ledger.materials[0].available, 120);
   await (await openMore(page)).getByRole('button', { name: 'Audit view', exact: true }).click();
-  assert.ok(await page.getByRole('columnheader', { name: 'Created by', exact: true }).count());
+  assert.ok(await page.getByRole('columnheader', { name: 'Created', exact: true }).count());
   await page.getByRole('button', { name: 'Amount', exact: true }).click();
   await page.getByLabel('Search expenses').fill('Paper Seller');
   assert.equal(await page.locator('tbody tr').count(), 1);

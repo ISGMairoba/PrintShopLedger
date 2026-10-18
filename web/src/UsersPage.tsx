@@ -1,5 +1,6 @@
 import { useFeedbackMessage, FeedbackBanner } from './Feedback';
 import ResponsiveTable from './ResponsiveTable';
+import { auditCells, auditHeaders } from './AuditColumns';
 import { useEffect, useState, type FormEvent } from 'react';
 import { supabase } from './cloud';
 import Modal from './Modal';
@@ -321,60 +322,50 @@ export default function UsersPage({ shopId, actorId, businessUserId, role, onlin
           <div className="table-wrap">
             <ResponsiveTable
               columns={[
-                { index: 1, label: 'User', details: [0, 2, 5, 6] },
-                { index: 3, label: 'Rank', details: [4] },
+                { index: 0, label: 'User', details: [1, 4] },
+                { index: 2, label: 'Rank', details: [3] },
                 { index: -1, label: 'Actions', actions: true },
               ]}
-              labels={{ 0: 'ID' }}
+              labels={{ 4: 'Status' }}
+              extraSortOptions={[
+                { key: 'id', label: 'User ID' },
+                { key: 'lastLogin', label: 'Last login' },
+              ]}
             >
-              <table>
+              <table className="users-table">
                 <thead>
                   <tr>
-                    {heading('id', 'User ID')}
-                    {heading('name', 'Name')}
+                    {heading('name', 'User')}
                     {heading('username', 'Username')}
                     {heading('rank', 'Rank')}
                     {heading('role', 'Access level')}
-                    {heading('lastLogin', 'Last login')}
-                    {heading('status', 'Status')}
-                    {audit && (
-                      <>
-                        {heading('createdBy', 'Created by')}
-                        {heading('createdAt', 'Created at')}
-                        {heading('modifiedBy', 'Modified by')}
-                        {heading('modifiedAt', 'Modified at')}
-                      </>
-                    )}
+                    {heading('status', 'Status · last login')}
+                    {audit && auditHeaders(sorting)}
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {visible.map((user) => (
                     <tr key={user.id}>
-                      <td className="material-id">{userCode(user.id)}</td>
                       <td>
                         <strong>{user.name}</strong>
                         {user.userId === actorId ? ' (you)' : ''}
+                        <small className="record-id">{userCode(user.id)}</small>
                       </td>
                       <td>{user.username}</td>
-                      <td>
+                      <td className="cell-fit">
                         {accessLevels[user.role]} ({user.rank})
                       </td>
-                      <td>{user.accessLevel === 0 ? '0 — Revoked' : user.accessLevel}</td>
-                      <td>{date(user.lastLogin)}</td>
-                      <td>
+                      <td className="cell-fit">
+                        {user.accessLevel === 0 ? '0 — Revoked' : user.accessLevel}
+                      </td>
+                      <td className="cell-fit">
                         <span className={`badge ${user.archived ? 'unpaid' : 'paid'}`}>
                           {user.archived ? 'Archived' : 'Active'}
                         </span>
+                        <small>Last login: {date(user.lastLogin)}</small>
                       </td>
-                      {audit && (
-                        <>
-                          <td>{user.createdByLabel}</td>
-                          <td>{date(user.createdAt)}</td>
-                          <td>{user.modifiedByLabel}</td>
-                          <td>{date(user.modifiedAt)}</td>
-                        </>
-                      )}
+                      {audit && auditCells(user, date)}
                       <td>
                         <div className="material-actions">
                           {!user.archived && (

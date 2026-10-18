@@ -149,7 +149,7 @@ try {
   await dialog.getByLabel('Credit limit (₦)').fill('500.25');
   await dialog.getByRole('button', { name: 'Save customer', exact: true }).click();
   await dialog.waitFor({ state: 'detached' });
-  await page.getByRole('button', { name: 'Full name', exact: true }).click();
+  await page.getByRole('button', { name: 'Customer', exact: true }).click();
   assert.equal(await page.locator('th[aria-sort="descending"]').count(), 1);
   await page.getByRole('button', { name: 'Credit limit', exact: true }).click();
   assert.equal(await page.locator('th[aria-sort="ascending"]').count(), 1);
@@ -175,7 +175,7 @@ try {
   }
   await page.getByLabel('Search customers').fill('');
   await (await openMore(page)).getByRole('button', { name: 'Audit view', exact: true }).click();
-  assert.equal(await page.locator('thead th').count(), 14, 'Audit contains normal and audit columns');
+  assert.equal(await page.locator('thead th').count(), 9, 'Audit contains normal and audit columns');
   await page.getByRole('button', { name: 'Add customer', exact: true }).click();
   dialog = page.getByRole('dialog', { name: 'Add customer' });
   await dialog.getByLabel('Full name').fill('Alpha customer');
@@ -265,7 +265,7 @@ try {
   }
   await openMenu();
   await page.getByRole('button', { name: 'Materials', exact: true }).click();
-  assert.match(await page.locator('.mobile-list').innerText(), /ID:.*MAT-/s);
+  assert.match(await page.locator('.mobile-list').innerText(), /Modal test paper\s+MAT-/);
   assert.match(await page.locator('.mobile-list').innerText(), /Unit:.*sheet/s);
   await page.getByRole('button', { name: 'More', exact: true }).click();
   await page

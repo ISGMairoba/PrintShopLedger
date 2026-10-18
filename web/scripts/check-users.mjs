@@ -389,7 +389,7 @@ try {
   await dialog.getByRole('button', { name: 'Save user', exact: true }).click();
   await dialog.waitFor({ state: 'detached' });
   await (await openMore(page)).getByRole('button', { name: 'Audit view', exact: true }).click();
-  await page.getByRole('button', { name: 'Created by', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Created', exact: true }).waitFor();
   await page.getByLabel('Search users').fill('amina.print');
   let row = page.locator('tbody tr').filter({ hasText: 'amina.print' });
   await row.getByRole('button', { name: 'Edit', exact: true }).click();
@@ -403,7 +403,7 @@ try {
     'Editing another user preserves the list search',
   );
   assert.equal(
-    await page.getByRole('button', { name: 'Created by', exact: true }).count(),
+    await page.getByRole('button', { name: 'Created', exact: true }).count(),
     1,
     'Editing another user preserves audit view',
   );
@@ -430,7 +430,7 @@ try {
   await page.getByRole('dialog').waitFor({ state: 'detached' });
   await page.getByLabel('User status').selectOption('active');
   await row.getByText('Amina Updated', { exact: true }).waitFor();
-  await page.getByRole('button', { name: 'Name', exact: true }).click();
+  await page.getByRole('button', { name: 'User', exact: true }).click();
   assert.equal(await page.locator('th[aria-sort="descending"]').count(), 1);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.locator('.mobile-list').waitFor();
@@ -439,7 +439,7 @@ try {
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     'Users fits mobile screen',
   );
-  assert.match(await row.innerText(), /Created by:/, 'Audit data remains visible beneath user');
+  assert.match(await row.innerText(), /Created:/, 'Audit data remains visible beneath user');
   await row.getByRole('button', { name: 'More', exact: true }).click();
   await page
     .getByRole('dialog', { name: 'More actions' })

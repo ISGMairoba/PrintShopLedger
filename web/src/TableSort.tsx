@@ -18,10 +18,24 @@ export function useTableSort<T>(initialKey: string, initialDirection: 'asc' | 'd
       selectors[key] ? sortRows(rows, selectors[key], direction) : [...rows],
   };
 }
-export function SortHeader({ column, label, sort }: { column: string; label: string; sort: SortState }) {
+export function SortHeader({
+  column,
+  label,
+  sort,
+  className,
+}: {
+  column: string;
+  label: string;
+  sort: SortState;
+  className?: string;
+}) {
   const active = sort.key === column;
   return (
-    <th scope="col" aria-sort={active ? (sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'}>
+    <th
+      scope="col"
+      className={className}
+      aria-sort={active ? (sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+    >
       <button
         type="button"
         className="sort-button"

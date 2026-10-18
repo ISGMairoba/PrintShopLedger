@@ -2,6 +2,7 @@ import { useFeedbackMessage } from './Feedback';
 import { walletBalance } from './checkout.mjs';
 import CustomerAccount from './CustomerAccount';
 import ResponsiveTable from './ResponsiveTable';
+import { auditCells, auditHeaders } from './AuditColumns';
 import Icon from './Icon';
 import ToolbarActions, { MenuToggle } from './ToolbarActions';
 import { useState } from 'react';
@@ -143,61 +144,52 @@ export default function CustomersPage({
           <div className="table-wrap">
             <ResponsiveTable
               columns={[
-                { index: 1, label: 'Customer', details: [0, 2, 3, 7] },
-                { index: 6, label: 'Outstanding', details: [4, 5, 8] },
+                { index: 0, label: 'Customer', details: [1, 5] },
+                { index: 4, label: 'Outstanding', details: [2, 3] },
                 { index: -1, label: 'Actions', actions: true },
               ]}
-              labels={{ 0: 'ID' }}
+              extraSortOptions={[
+                { key: 'id', label: 'Customer ID' },
+                { key: 'phone', label: 'Phone' },
+                { key: 'wallet', label: 'Wallet' },
+              ]}
             >
-              <table>
+              <table className="customers-table">
                 <thead>
                   <tr>
-                    {heading('id', 'Customer ID')}
-                    {heading('name', 'Full name')}
-                    {heading('phone', 'Phone')}
+                    {heading('name', 'Customer')}
                     {heading('address', 'Address')}
                     {heading('creditLimit', 'Credit limit')}
                     {heading('jobs', 'Jobs')}
-                    {heading('outstanding', 'Outstanding')}
+                    {heading('outstanding', 'Outstanding · wallet')}
                     {heading('status', 'Status')}
-                    {heading('wallet', 'Wallet')}
-                    {audit && (
-                      <>
-                        {heading('createdBy', 'Created by')}
-                        {heading('createdAt', 'Created at')}
-                        {heading('modifiedBy', 'Modified by')}
-                        {heading('modifiedAt', 'Modified at')}
-                      </>
-                    )}
+                    {audit && auditHeaders(sorting)}
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {visible.map((customer) => (
                     <tr key={customer.id}>
-                      <td className="material-id">{customerCode(customer.id, ledger.customers)}</td>
                       <td>
                         <strong>{customer.name}</strong>
+                        {customer.phone && customer.phone !== customer.name && (
+                          <small>{customer.phone}</small>
+                        )}
+                        <small className="record-id">{customerCode(customer.id, ledger.customers)}</small>
                       </td>
-                      <td>{customer.phone || '-'}</td>
                       <td>{customer.address || '-'}</td>
-                      <td>{servicePrice(customer.creditLimit)}</td>
-                      <td>{jobs(customer.id)}</td>
-                      <td>{servicePrice(customerBalance(ledger, customer.id))}</td>
-                      <td>
+                      <td className="cell-fit">{servicePrice(customer.creditLimit)}</td>
+                      <td className="cell-fit">{jobs(customer.id)}</td>
+                      <td className="cell-fit">
+                        {servicePrice(customerBalance(ledger, customer.id))}
+                        <small>Wallet: {servicePrice(walletBalance(ledger, customer.id))}</small>
+                      </td>
+                      <td className="cell-fit">
                         <span className={`badge ${customer.archived ? 'unpaid' : 'paid'}`}>
                           {customer.archived ? 'Archived' : 'Active'}
                         </span>
                       </td>
-                      <td>{servicePrice(walletBalance(ledger, customer.id))}</td>
-                      {audit && (
-                        <>
-                          <td>{customer.createdByLabel}</td>
-                          <td>{date(customer.createdAt)}</td>
-                          <td>{customer.modifiedByLabel}</td>
-                          <td>{date(customer.modifiedAt)}</td>
-                        </>
-                      )}
+                      {audit && auditCells(customer, date)}
                       <td>
                         <div className="material-actions">
                           <button className="text-button" onClick={() => setAccount(customer)}>

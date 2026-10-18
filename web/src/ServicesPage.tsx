@@ -2,6 +2,7 @@ import DialogActions from './DialogActions';
 import { useFeedbackMessage } from './Feedback';
 import CurrencyInput from './CurrencyInput';
 import ResponsiveTable from './ResponsiveTable';
+import { auditCells, auditHeaders } from './AuditColumns';
 import Icon from './Icon';
 import { packList } from './pack-prices.mjs';
 import { newVariantProductEvents } from './variants.mjs';
@@ -371,28 +372,21 @@ export default function ServicesPage({
           <div className="table-wrap">
             <ResponsiveTable
               columns={[
-                { index: 1, label: w('Service'), details: [0, 2, 4] },
-                { index: 3, label: 'Price' },
+                { index: 0, label: w('Service'), details: [1, 3] },
+                { index: 2, label: 'Price' },
                 { index: -1, label: 'Actions', actions: true },
               ]}
-              labels={{ 0: 'ID', 2: w('Material') }}
+              labels={{ 1: w('Material') }}
+              extraSortOptions={[{ key: 'id', label: w('Service ID') }]}
             >
               <table>
                 <thead>
                   <tr>
-                    <SortHeader label={w('Service ID')} column="id" sort={sorting} />
-                    <SortHeader label="Description" column="description" sort={sorting} />
+                    <SortHeader label={w('Service')} column="description" sort={sorting} />
                     <SortHeader label={w('Base material')} column="material" sort={sorting} />
                     <SortHeader label="Price" column="price" sort={sorting} />
                     <SortHeader label="Status" column="status" sort={sorting} />
-                    {audit && (
-                      <>
-                        <SortHeader label="Created by" column="createdBy" sort={sorting} />
-                        <SortHeader label="Created at" column="createdAt" sort={sorting} />
-                        <SortHeader label="Modified by" column="modifiedBy" sort={sorting} />
-                        <SortHeader label="Modified at" column="modifiedAt" sort={sorting} />
-                      </>
-                    )}
+                    {audit && auditHeaders(sorting)}
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -401,9 +395,9 @@ export default function ServicesPage({
                     const material = materials.find((item) => item.id === service.materialId);
                     return (
                       <tr key={service.id}>
-                        <td className="material-id">{serviceCode(service.id, services)}</td>
                         <td>
                           <strong>{service.description}</strong>
+                          <small className="record-id">{serviceCode(service.id, services)}</small>
                           {service.shelfItem && (
                             <small>
                               <span className="badge paid">Shelf</span> Collected when sold
@@ -449,20 +443,13 @@ export default function ServicesPage({
                             {material?.archived ? w(' · Archived material') : ''}
                           </small>
                         </td>
-                        <td>{servicePrice(service.price)}</td>
-                        <td>
+                        <td className="cell-fit">{servicePrice(service.price)}</td>
+                        <td className="cell-fit">
                           <span className={`badge ${service.archived ? 'unpaid' : 'paid'}`}>
                             {service.archived ? 'Archived' : 'Active'}
                           </span>
                         </td>
-                        {audit && (
-                          <>
-                            <td>{service.createdByLabel}</td>
-                            <td>{timestamp(service.createdAt)}</td>
-                            <td>{service.modifiedByLabel}</td>
-                            <td>{timestamp(service.modifiedAt)}</td>
-                          </>
-                        )}
+                        {audit && auditCells(service, timestamp)}
                         <td>
                           <div className="material-actions">
                             {!service.archived && (

@@ -8,6 +8,7 @@ import Icon from './Icon';
 import ToolbarActions, { MenuToggle } from './ToolbarActions';
 import { useDateFilter } from './PeriodFilter';
 import ResponsiveTable from './ResponsiveTable';
+import { auditCells, auditHeaders } from './AuditColumns';
 import { SortHeader, useTableSort } from './TableSort';
 import { expenseCode, expensePaid, expenseStatus, expenseSummary, makeExpenseEvent } from './expenses.mjs';
 import type { Expense, ExpenseEvent, Ledger, LedgerEvent } from './types';
@@ -254,14 +255,7 @@ export default function ExpensesPage({
                     <SortHeader label="Paid" column="paid" sort={sorting} />
                     <SortHeader label="Outstanding" column="outstanding" sort={sorting} />
                     <SortHeader label="Status" column="status" sort={sorting} />
-                    {audit && (
-                      <>
-                        <SortHeader label="Created by" column="createdBy" sort={sorting} />
-                        <SortHeader label="Created at" column="createdAt" sort={sorting} />
-                        <SortHeader label="Modified by" column="modifiedBy" sort={sorting} />
-                        <SortHeader label="Modified at" column="modifiedAt" sort={sorting} />
-                      </>
-                    )}
+                    {audit && auditHeaders(sorting)}
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -295,14 +289,7 @@ export default function ExpensesPage({
                           <small>Pending sync</small>
                         )}
                       </td>
-                      {audit && (
-                        <>
-                          <td>{item.createdByLabel}</td>
-                          <td>{timestamp(item.createdAt)}</td>
-                          <td>{item.modifiedByLabel}</td>
-                          <td>{timestamp(item.modifiedAt)}</td>
-                        </>
-                      )}
+                      {audit && auditCells(item, timestamp)}
                       <td>
                         <div className="material-actions">
                           <button className="text-button" onClick={() => setDetail(item)}>
