@@ -1687,17 +1687,11 @@ label small > .field-error {
 /* ---- Toolbars on medium screens ----
    The tick box shares a row with the buttons when there is room, and "Sort by" sits beside its
    list instead of above it. */
-/* Wide screens: search, filters and buttons on one line, the tick box on its own line below.
-   Narrower screens: the tick box shares the row the buttons wrap onto. */
+/* Search, filters and buttons share the top line (the search box gives way first); the tick
+   box always sits on its own line below them. */
 .toolbar > .check-label {
   flex: 1 1 100%;
   order: 20;
-}
-@media (max-width: 1499px) {
-  .toolbar > .check-label {
-    flex: 0 1 auto;
-    order: 0;
-  }
 }
 /* A toolbar with a heading (Conflict inbox): heading, tick box and buttons centred on one line. */
 .toolbar:has(> h2) {
@@ -1798,4 +1792,14 @@ label small > .field-error {
 /* Audit names wrap at spaces only (a username stays whole). */
 .responsive-records > table:not(.mobile-cards) .audit-cell {
   overflow-wrap: normal;
+}
+
+/* Summary card figures shrink to fit their card instead of running past its edge. */
+.stats article {
+  container-type: inline-size;
+  min-width: 0;
+}
+.stats article strong {
+  font-size: min(27px, 11.5cqi);
+  overflow-wrap: anywhere;
 }
