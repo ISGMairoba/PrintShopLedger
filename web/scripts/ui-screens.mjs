@@ -348,12 +348,14 @@ try {
         .first()
         .fill('Framed');
       await delay(400);
+      await shot('89-jobs-two-items');
       await page
         .getByRole('main')
         .getByRole('button', { name: /Mark as Complete/ })
         .first()
-        .click();
+        .click({ timeout: 3000 });
       const m = page.getByRole('dialog').last();
+      await shot('89-two-items-dialog', false);
       await m.getByRole('button', { name: 'Add another material for Lamination film' }).click();
       await fieldHeights('Material used');
       await m.screenshot({ path: `${out}/${mode}-89-material-used-two-items.png` });
