@@ -586,7 +586,7 @@ try {
   assert.equal(await page.locator('tbody tr').count(), 3, 'Overnight unclosed receipts remain accessible');
   await page.getByRole('button', { name: 'Date', exact: true }).click();
   assert.equal(await page.locator('th[aria-sort="ascending"]').count(), 1);
-  await page.getByRole('button', { name: 'Money received', exact: true }).click();
+  await page.getByRole('button', { name: 'New jobs', exact: true }).click();
   assert.equal(await page.locator('th[aria-sort="ascending"]').count(), 1);
   await context.setOffline(true);
   await page.locator('.sync-status').getByText('Waiting for connection', { exact: false }).waitFor();

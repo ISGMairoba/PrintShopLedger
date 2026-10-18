@@ -211,21 +211,22 @@ export default function MySalesPage({
           <div className="table-wrap">
             <ResponsiveTable
               columns={[
-                { index: 1, label: 'Handover', details: [0, 2, 6] },
-                { index: 4, label: 'Cash', details: [3, 5] },
-                { index: 7, label: 'Actions' },
+                { index: 0, label: 'Handover', details: [2] },
+                { index: 1, label: 'Cash' },
+                { index: 3, label: 'Actions' },
               ]}
-              labels={{ 0: 'ID', 2: 'Received by', 3: 'Expected', 5: 'Difference', 6: 'Date' }}
+              extraSortOptions={[
+                { key: 'id', label: 'Closing ID' },
+                { key: 'to', label: 'Received by' },
+                { key: 'expected', label: 'Expected cash' },
+                { key: 'difference', label: 'Difference' },
+              ]}
             >
               <table>
                 <thead>
                   <tr>
-                    <SortHeader label="Closing ID" column="id" sort={drawerSort} />
-                    <SortHeader label="Closed by" column="from" sort={drawerSort} />
-                    <SortHeader label="Received by" column="to" sort={drawerSort} />
-                    <SortHeader label="Expected cash" column="expected" sort={drawerSort} />
+                    <SortHeader label="Handover" column="from" sort={drawerSort} />
                     <SortHeader label="Counted cash" column="counted" sort={drawerSort} />
-                    <SortHeader label="Difference" column="difference" sort={drawerSort} />
                     <SortHeader label="Date" column="date" sort={drawerSort} />
                     <th>Actions</th>
                   </tr>
@@ -233,13 +234,16 @@ export default function MySalesPage({
                 <tbody>
                   {drawers.map((d) => (
                     <tr key={d.id}>
-                      <td>{d.id.slice(0, 8).toUpperCase()}</td>
-                      <td>{d.fromUserLabel}</td>
-                      <td>{d.toUserLabel}</td>
-                      <td>{currency(d.expectedCash)}</td>
-                      <td>{currency(d.countedCash)}</td>
-                      <td>{currency(d.difference)}</td>
-                      <td>{date(d.closedAt)}</td>
+                      <td>
+                        {d.fromUserLabel} → {d.toUserLabel}
+                        <small className="record-id">{d.id.slice(0, 8).toUpperCase()}</small>
+                      </td>
+                      <td className="cell-fit">
+                        {currency(d.countedCash)}
+                        <small>Expected: {currency(d.expectedCash)}</small>
+                        <small>Difference: {currency(d.difference)}</small>
+                      </td>
+                      <td className="cell-fit">{date(d.closedAt)}</td>
                       <td>
                         <button className="text-button" onClick={() => setDetails(d)}>
                           <Icon name="details" /> Details
@@ -261,31 +265,25 @@ export default function MySalesPage({
           <div className="table-wrap">
             <ResponsiveTable
               columns={[
-                { index: 2, label: 'Transaction', details: [0, 1, 6, 7, 8] },
-                { index: 4, label: 'Received', details: [3, 5] },
-                { index: 9, label: 'Actions' },
+                { index: 0, label: 'Transaction', details: [2, 3] },
+                { index: 1, label: w('New jobs') },
+                { index: 4, label: 'Actions' },
               ]}
-              labels={{
-                0: 'ID',
-                1: 'Customer',
-                3: w('New jobs'),
-                5: 'Wallet used',
-                6: 'Method',
-                7: 'Status',
-                8: 'Date',
-              }}
+              labels={{ 2: 'Drawer', 3: 'Date' }}
+              extraSortOptions={[
+                { key: 'id', label: 'Transaction ID' },
+                { key: 'customer', label: 'Customer' },
+                { key: 'received', label: 'Money received' },
+                { key: 'wallet', label: 'Wallet used' },
+                { key: 'method', label: 'Method' },
+              ]}
             >
               <table>
                 <thead>
                   <tr>
-                    <SortHeader label="Transaction ID" column="id" sort={sorting} />
-                    <SortHeader label="Customer" column="customer" sort={sorting} />
-                    <SortHeader label="Description" column="description" sort={sorting} />
+                    <SortHeader label="Transaction" column="description" sort={sorting} />
                     <SortHeader label={w('New jobs')} column="sales" sort={sorting} />
-                    <SortHeader label="Money received" column="received" sort={sorting} />
-                    <SortHeader label="Wallet used" column="wallet" sort={sorting} />
-                    <SortHeader label="Method" column="method" sort={sorting} />
-                    <SortHeader label="Drawer status" column="status" sort={sorting} />
+                    <SortHeader label="Drawer" column="status" sort={sorting} />
                     <SortHeader label="Date" column="date" sort={sorting} />
                     <th>Actions</th>
                   </tr>
@@ -293,25 +291,30 @@ export default function MySalesPage({
                 <tbody>
                   {records.map((r) => (
                     <tr key={r.id}>
-                      <td>{r.id.slice(0, 8).toUpperCase()}</td>
                       <td>
-                        {r.customerSnapshot.name}
-                        <small>{r.customerSnapshot.phone}</small>
+                        <strong>{saleDescription(r)}</strong>
+                        <small>
+                          {r.customerSnapshot.name}
+                          {r.customerSnapshot.phone ? ` · ${r.customerSnapshot.phone}` : ''}
+                        </small>
+                        <small className="record-id">{r.id.slice(0, 8).toUpperCase()}</small>
                       </td>
-                      <td>{saleDescription(r)}</td>
-                      <td>{currency(r.total)}</td>
-                      <td>{currency(r.cashReceived)}</td>
-                      <td>{currency(r.walletUsed)}</td>
-                      <td>{paymentName(r)}</td>
-                      <td>
+                      <td className="cell-fit">
+                        {currency(r.total)}
+                        <small>
+                          Received: {currency(r.cashReceived)} · {paymentName(r)}
+                        </small>
+                        {r.walletUsed > 0 && <small>Wallet used: {currency(r.walletUsed)}</small>}
+                      </td>
+                      <td className="cell-fit">
                         <span className={`badge ${openIds.has(r.id) ? 'unpaid' : 'paid'}`}>
                           {openIds.has(r.id) ? 'Open' : 'Closed'}
                         </span>
                       </td>
-                      <td>{date(r.createdAt)}</td>
+                      <td className="cell-fit">{date(r.createdAt)}</td>
                       <td>
                         <button className="text-button" onClick={() => onReceipt(r)}>
-                          <Icon name="services" /> Receipt
+                          <Icon name="details" /> Receipt
                         </button>
                       </td>
                     </tr>

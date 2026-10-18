@@ -176,6 +176,7 @@ try {
   browser = await chromium.launch({ headless: true });
   for (const [mode, width, height, mobile, theme] of [
     ['w1920', 1920, 1020, false, 'dark'],
+    ['w1590', 1590, 1000, false, 'dark'],
     ['w1280', 1280, 800, false, 'light'],
     ['w1000', 1000, 800, false, 'dark'],
     ['w390', 390, 844, true, 'light'],
@@ -319,6 +320,7 @@ try {
       ['Payments', '15-payments'],
       ['Stock History', '16-stock-history'],
       ['Expenses', '17-expenses'],
+      ['My Sales', '18-my-sales'],
     ])
       await step(label, async () => {
         await nav(name);
