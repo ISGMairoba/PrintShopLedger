@@ -128,7 +128,7 @@ try {
   await page.getByRole('button', { name: 'Add service', exact: true }).click();
   dialog = page.getByRole('dialog');
   await dialog.getByLabel('Service description').fill('Printing' + 'X'.repeat(140));
-  await dialog.getByLabel('Base material').selectOption({ index: 1 });
+  await dialog.getByLabel('Base material').selectOption({ index: 2 });
   await dialog.getByLabel('Price (₦)').fill('999999999');
   await fits('Service editor');
   await dialog.getByRole('button', { name: 'Save service', exact: true }).click();

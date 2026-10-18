@@ -86,7 +86,7 @@ try {
   await page.getByRole('button', { name: 'Add service', exact: true }).click();
   dialog = page.getByRole('dialog', { name: 'Add service' });
   await dialog.getByLabel('Service description').fill('Modal test printing');
-  await dialog.getByLabel('Base material').selectOption({ index: 1 });
+  await dialog.getByLabel('Base material').selectOption({ index: 2 });
   const price = dialog.getByLabel('Price (₦)');
   await price.fill('70000.50');
   assert.equal(await price.inputValue(), '70,000.50');

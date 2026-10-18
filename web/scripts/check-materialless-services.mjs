@@ -61,12 +61,12 @@ try {
     await page.getByRole('button', { name: 'Add service', exact: true }).click();
     d = page.getByRole('dialog');
     await d.getByLabel('Service description').fill('Printing');
-    await d.getByLabel('Base material').selectOption({ index: 1 });
+    await d.getByLabel('Base material').selectOption({ index: 2 });
     await d.getByLabel('Price (₦)').fill('100');
     await d.getByRole('button', { name: 'Save service', exact: true }).click();
     await d.waitFor({ state: 'detached' });
     const row = page.locator('tbody tr').filter({ hasText: 'Cap pressing' });
-    for (const index of [1, 0]) {
+    for (const index of [2, 0]) {
       await row.getByRole('button', { name: 'Edit', exact: true }).click();
       d = page.getByRole('dialog');
       await d.getByLabel('Base material').selectOption({ index });

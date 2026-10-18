@@ -592,13 +592,13 @@ export default function ServicesPage({
                     onChange={(e) => setMaterialValue(e.target.value)}
                   >
                     <option value="">{w('No material — service only')}</option>
+                    {!privateItem && <option value={CHOICE}>{w('A choice of materials…')}</option>}
                     {options.map((item) => (
                       <option key={item.id} value={item.id} title={item.name}>
                         {shortLabel(item.name)} ({materialCode(item.id, materials)})
                         {item.archived ? ' · Archived' : ''}
                       </option>
                     ))}
-                    {!privateItem && <option value={CHOICE}>{w('A choice of materials…')}</option>}
                   </select>
                 </label>
                 {!privateItem && (
