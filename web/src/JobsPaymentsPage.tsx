@@ -209,14 +209,20 @@ export default function JobsPaymentsPage({
           </label>
           <button
             className="secondary sort-direction"
+            aria-label={
+              (page === 'Jobs' ? jobSorting : paymentSorting).direction === 'asc'
+                ? 'Ascending, reverse sort direction'
+                : 'Descending, reverse sort direction'
+            }
+            title={
+              (page === 'Jobs' ? jobSorting : paymentSorting).direction === 'asc' ? 'Ascending' : 'Descending'
+            }
             onClick={() => {
               const sorting = page === 'Jobs' ? jobSorting : paymentSorting;
               sorting.toggle(sorting.key);
             }}
           >
-            {(page === 'Jobs' ? jobSorting : paymentSorting).direction === 'asc'
-              ? 'Ascending ↑'
-              : 'Descending ↓'}
+            {(page === 'Jobs' ? jobSorting : paymentSorting).direction === 'asc' ? '↑' : '↓'}
           </button>
           <ToolbarActions
             more={

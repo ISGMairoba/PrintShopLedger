@@ -284,11 +284,27 @@ try {
       await delay(400);
       await shot('09-quotation');
     });
-    await step('services audit', async () => {
-      await nav('Services');
-      const more = page.getByRole('button', { name: /More|View options/ }).first();
-      await shot('10-services');
-    });
+    for (const [name, label] of [
+      ['Materials', '11-materials-audit'],
+      ['Customers', '12-customers-audit'],
+      ['Services', '13-services-audit'],
+      ['Expenses', '14-expenses-audit'],
+    ])
+      await step(label, async () => {
+        await nav(name);
+        await page
+          .getByRole('main')
+          .getByRole('button', { name: /Audit view/ })
+          .first()
+          .click();
+        await delay(400);
+        await shot(label);
+        await page
+          .getByRole('main')
+          .getByRole('button', { name: /Audit view/ })
+          .first()
+          .click();
+      });
     await context.close();
   }
 } finally {

@@ -1741,3 +1741,19 @@ label small > .field-error {
 .quotation-items td:first-child .template-breakdown {
   max-width: none;
 }
+/* Column names stay on one line; the sort button beside "Sort by" is a compact arrow. */
+.responsive-records > table:not(.mobile-cards) th {
+  white-space: nowrap;
+}
+.toolbar > button.sort-direction {
+  width: var(--control-h);
+  padding: 0;
+  font-size: 18px;
+}
+.quick-product:not(.quick-variants) {
+  background: var(--surface);
+  color: var(--ink);
+}
+.quick-product:not(.quick-variants):not(:disabled):hover {
+  border-color: var(--brand-link);
+}
