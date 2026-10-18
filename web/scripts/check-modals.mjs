@@ -265,7 +265,7 @@ try {
   }
   await openMenu();
   await page.getByRole('button', { name: 'Materials', exact: true }).click();
-  assert.match(await page.locator('.mobile-list').innerText(), /ID:.*MAT-/s);
+  assert.match(await page.locator('.mobile-list').innerText(), /Modal test paper\s+MAT-/);
   assert.match(await page.locator('.mobile-list').innerText(), /Unit:.*sheet/s);
   await page.getByRole('button', { name: 'More', exact: true }).click();
   await page
