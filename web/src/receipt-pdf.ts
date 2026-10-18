@@ -67,8 +67,10 @@ function drawPage(doc: jsPDF, m: Model, media: ReceiptMedia, watermark: boolean,
     R = W - media.margins.right,
     U = R - L,
     TOP = media.margins.top + 4,
-    bottom = H - media.margins.bottom - 8;
-  const k = clamp(U / 178, 0.6, 1.25) * media.fontScale;
+    k = clamp(U / 178, 0.6, 1.25) * media.fontScale,
+    // The installer credit has its own line at the foot of every page, above the page details.
+    creditY = H - media.margins.bottom - 2 - 3.6 * k,
+    bottom = H - media.margins.bottom - 8 - (credit ? 3.6 * k : 0);
   const INK: Colour = media.color ? [29, 43, 39] : BLACK,
     MUTED: Colour = media.color ? [95, 108, 103] : [70, 70, 70],
     RULE: Colour = media.color ? [220, 226, 222] : [190, 190, 190];
@@ -307,14 +309,7 @@ function drawPage(doc: jsPDF, m: Model, media: ReceiptMedia, watermark: boolean,
     y += 6 * k;
     doc.setDrawColor(...RULE);
     doc.line(L, y - 4 * k, R, y - 4 * k);
-    const used = text(m.footer, W / 2, 10, 'normal', MUTED, 'center', U);
-    if (credit) y += used;
-  }
-  if (credit) {
-    // Under the business's own footer, smaller: the business stays the main voice.
-    page(8 * k);
-    y += (m.footer ? 2 : 6) * k;
-    text(credit, W / 2, 7.5, 'normal', MUTED, 'center', U);
+    text(m.footer, W / 2, 10, 'normal', MUTED, 'center', U);
   }
   const pages = doc.getNumberOfPages();
   for (let p = 1; p <= pages; p++) {
@@ -324,6 +319,8 @@ function drawPage(doc: jsPDF, m: Model, media: ReceiptMedia, watermark: boolean,
     doc.setTextColor(...MUTED);
     doc.text(pdfText(`${m.title} ${m.number}`), L, H - media.margins.bottom - 2);
     if (pages > 1) doc.text(`Page ${p} of ${pages}`, R, H - media.margins.bottom - 2, { align: 'right' });
+    // Anchored to the bottom margin, smaller than the business's own footer.
+    if (credit) doc.text(pdfText(credit), W / 2, creditY, { align: 'center', maxWidth: U });
   }
 }
 
