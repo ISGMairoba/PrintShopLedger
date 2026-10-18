@@ -3,7 +3,8 @@ import { useWords } from './Words';
 import { choiceGroups, suggestedUsage } from './material-choice.mjs';
 import type { Job, Ledger } from './types';
 
-export type UsageDraft = { materialId: string; quantity: string }[];
+/** group: which item the row is for (a template job with several items with a choice of materials). */
+export type UsageDraft = { materialId: string; quantity: string; group?: number }[];
 
 /** A first suggestion: the planned (or first) material of each item, and its size in material units. */
 export function usageDraft(job: Job): UsageDraft {
@@ -12,15 +13,19 @@ export function usageDraft(job: Job): UsageDraft {
     return [
       { materialId: choice.plannedMaterialId ?? choice.options[0], quantity: String(suggestedUsage(job)) },
     ];
-  return choice.groups.map((g) => ({ materialId: g.options[0], quantity: String(g.work) }));
+  return choice.groups.map((g, group) => ({ materialId: g.options[0], quantity: String(g.work), group }));
 }
 
 /** The usages to save, or an error for the person to fix. */
 export function usagesFrom(draft: UsageDraft) {
-  const usages = draft.map((row) => ({ materialId: row.materialId, quantity: Number(row.quantity) }));
+  const usages = draft.map((row) => ({
+    materialId: row.materialId,
+    quantity: Number(row.quantity),
+    ...(row.group !== undefined ? { group: row.group } : {}),
+  }));
   if (!usages.length || usages.some((u) => !u.materialId || !(u.quantity > 0)))
     throw Error('Enter how much of each material was used.');
-  if (new Set(usages.map((u) => u.materialId)).size !== usages.length)
+  if (new Set(usages.map((u) => `${u.group ?? ''}:${u.materialId}`)).size !== usages.length)
     throw Error('Choose each material once. To use more of one, raise its amount.');
   return usages;
 }
@@ -66,7 +71,7 @@ export default function MaterialUsedFields({
         const unit = groupUnit(ledger, group);
         const rows = value
           .map((r, index) => ({ r, index }))
-          .filter(({ r }) => group.options.includes(r.materialId));
+          .filter(({ r }) => (several ? r.group === g : true));
         return (
           <div className="material-used-group" key={g}>
             {several && (
@@ -126,8 +131,9 @@ export default function MaterialUsedFields({
                   onChange([
                     ...value,
                     {
-                      materialId: options.find((m) => !value.some((x) => x.materialId === m!.id))!.id,
+                      materialId: options.find((m) => !rows.some(({ r }) => r.materialId === m!.id))!.id,
                       quantity: '',
+                      ...(several ? { group: g } : {}),
                     },
                   ])
                 }

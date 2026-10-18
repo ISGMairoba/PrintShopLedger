@@ -103,7 +103,8 @@ export const suggestedUsage = (job) => round3(job?.materialChoice?.work ?? 0);
 
 /**
  * The event confirming the material(s) a choice job used.
- * usages: [{ materialId, quantity }]
+ * usages: [{ materialId, quantity, group? }] — group: which item (a template job with several items
+ * with a choice of materials; the same material may then be used for more than one item).
  * @returns {import('./types').JobMaterialEvent}
  */
 export function materialUsedEvent(ledger, job, usages, actor, now = new Date().toISOString()) {
@@ -117,6 +118,7 @@ export function materialUsedEvent(ledger, job, usages, actor, now = new Date().t
         id: crypto.randomUUID(),
         materialId: u.materialId,
         quantity: round3(Number(u.quantity)),
+        ...(job.materialChoice?.groups ? { group: u.group } : {}),
       })),
       modifiedBy: actor.id,
       modifiedByLabel: actor.label,
@@ -137,18 +139,29 @@ export function applyJobMaterial(ledger, event) {
   if (job.materialUsed) throw Error('The material for this job is already confirmed.');
   if (job.productionStatus === 'Cancelled') throw Error('This job is cancelled.');
   if ((job.version ?? 1) !== d.baseVersion) throw Error('Job changed. Review the latest version.');
-  if (!Array.isArray(d.usages) || !d.usages.length || d.usages.length > job.materialChoice.options.length)
+  const groups = job.materialChoice.groups;
+  const most = groups ? groups.reduce((n, g) => n + g.options.length, 0) : job.materialChoice.options.length;
+  if (!Array.isArray(d.usages) || !d.usages.length || d.usages.length > most)
     throw Error('Choose the material or materials used.');
-  for (const group of job.materialChoice.groups ?? [])
-    if (!d.usages.some((u) => group.options.includes(u.materialId)))
-      throw Error(`Confirm the material used for ${group.name}.`);
   const materials = ledger.materials.map((m) => ({ ...m })),
     history = [...ledger.materialHistory],
     seen = new Set();
   for (const usage of d.usages) {
-    if (!job.materialChoice.options.includes(usage.materialId) || seen.has(usage.materialId))
+    // With several items, each line names its item; a material may be used for more than one.
+    if (groups) {
+      const group = groups[usage.group];
+      if (!Number.isInteger(usage.group) || !group || !group.options.includes(usage.materialId))
+        throw Error('Choose a material linked to each item.');
+    } else if ('group' in usage || !job.materialChoice.options.includes(usage.materialId))
       throw Error('Choose each material linked to this service at most once.');
-    seen.add(usage.materialId);
+    const key = `${usage.group ?? ''}:${usage.materialId}`;
+    if (seen.has(key))
+      throw Error(
+        groups
+          ? 'Choose each material once per item. To use more of one, raise its amount.'
+          : 'Choose each material linked to this service at most once.',
+      );
+    seen.add(key);
     const quantity = Number(usage.quantity);
     if (!(quantity > 0) || quantity > 1000000000000 || round3(quantity) !== quantity)
       throw Error('Enter how much of each material was used (up to three decimal places).');
@@ -185,6 +198,8 @@ export function applyJobMaterial(ledger, event) {
       detailsComplete: true,
     });
   }
+  for (const [g, group] of (groups ?? []).entries())
+    if (!d.usages.some((u) => u.group === g)) throw Error(`Confirm the material used for ${group.name}.`);
   const next = {
     ...job,
     materialUsed: {

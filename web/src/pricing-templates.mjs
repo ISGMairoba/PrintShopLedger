@@ -615,10 +615,6 @@ export function priceTemplate(ledger, template, supplied, quantity, stockIds = {
         entry.work = Math.round((entry.work + work) * 1000) / 1000;
         continue;
       }
-      if (choices.some((ch) => ch.options.some((o) => service.materialOptions.includes(o))))
-        throw Error(
-          `${service.description} shares a material with another item with a choice of materials in this template. Link each material to one item only.`,
-        );
       const first = ledger.materials.find((m) => m.id === service.materialOptions[0]);
       choices.push({
         serviceId: service.id,
@@ -709,15 +705,15 @@ export function quoteTemplate(ledger, line) {
 }
 /**
  * The materialChoice of a template job. One choice item: as for the item sold alone. Several:
- * every linked material, the first item's confirmation stage, and one group per item, each
- * confirmed separately. The server builds the same (apply_checkout_event).
+ * every linked material (once each, though items may share one), the first item's confirmation
+ * stage, and one group per item, each confirmed separately. The server builds the same (apply_checkout_event).
  */
 export function templateMaterialChoice(choices) {
   const [first] = choices;
   if (choices.length === 1)
     return { options: first.options, confirmStage: first.confirmStage, work: first.work };
   return {
-    options: choices.flatMap((c) => c.options),
+    options: [...new Set(choices.flatMap((c) => c.options))], // a material shared by items listed once
     confirmStage: first.confirmStage,
     work: Math.round(choices.reduce((n, c) => n + c.work * 1000, 0)) / 1000,
     groups: choices.map((c) => ({ name: c.name, options: c.options, unit: c.unit, work: c.work })),

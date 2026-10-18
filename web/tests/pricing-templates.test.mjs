@@ -599,21 +599,47 @@ test('a template line using an item with a choice of materials confirms its mate
   let after = applyCheckout(ledger, prepareCheckout(ledger, input, actor, id(41), '2026-10-13T08:00:00Z'));
   const twoSaved = after.jobs.find((j) => j.id === two.id);
   assert.throws(
-    () => stageMoveEvents(after, twoSaved, 'Completed', actor, [{ materialId: id(11), quantity: 100 }]),
+    () =>
+      stageMoveEvents(after, twoSaved, 'Completed', actor, [{ materialId: id(11), quantity: 100, group: 0 }]),
     /Confirm the material used for Backing board/,
   );
+  assert.throws(
+    () =>
+      stageMoveEvents(after, twoSaved, 'Completed', actor, [
+        { materialId: id(11), quantity: 100, group: 1 },
+        { materialId: id(16), quantity: 50, group: 1 },
+      ]),
+    /linked to each item/,
+  );
   for (const e of stageMoveEvents(after, twoSaved, 'Completed', actor, [
-    { materialId: id(11), quantity: 60 },
-    { materialId: id(12), quantity: 40 },
-    { materialId: id(16), quantity: 50 },
+    { materialId: id(11), quantity: 60, group: 0 },
+    { materialId: id(12), quantity: 40, group: 0 },
+    { materialId: id(16), quantity: 50, group: 1 },
   ]))
     after = applyEvent(after, e);
   const left = (n) => after.materials.find((m) => m.id === id(n)).available;
   assert.deepEqual([left(11), left(12), left(15), left(16)], [240, 260, 50, 0]);
-  // A material linked to two of the template's choice items would be ambiguous.
+  // Two items may share a material: each line names its item, stock comes off the material once per line.
+  ledger.services.at(-1).description = 'Back lamination';
   ledger.services.at(-1).materialOptions = [id(12), id(16)];
+  const shared = prepareCheckout(ledger, input, actor, id(42), '2026-10-13T08:00:00Z');
+  const sharedJob = shared.data.jobs[0];
+  assert.deepEqual(sharedJob.materialChoice.options, [id(11), id(12), id(16)], 'each material listed once');
+  let third = applyCheckout(ledger, shared);
+  const sharedSaved = third.jobs.find((j) => j.id === sharedJob.id);
   assert.throws(
-    () => prepareCheckout(ledger, input, actor, id(42), '2026-10-13T08:00:00Z'),
-    /shares a material with another item/,
+    () =>
+      stageMoveEvents(third, sharedSaved, 'Completed', actor, [
+        { materialId: id(12), quantity: 50, group: 0 },
+        { materialId: id(12), quantity: 5, group: 0 },
+        { materialId: id(12), quantity: 40, group: 1 },
+      ]),
+    /once per item/,
   );
+  for (const e of stageMoveEvents(third, sharedSaved, 'Completed', actor, [
+    { materialId: id(12), quantity: 50, group: 0 },
+    { materialId: id(12), quantity: 40, group: 1 },
+  ]))
+    third = applyEvent(third, e);
+  assert.equal(third.materials.find((m) => m.id === id(12)).available, 210);
 });
