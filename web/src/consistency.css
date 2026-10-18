@@ -1628,18 +1628,15 @@ label small > .field-error {
   table-layout: auto;
 }
 .responsive-records > table:not(.mobile-cards) :is(th, td) {
-  overflow-wrap: break-word;
   padding: 10px 12px;
 }
 .responsive-records > table:not(.mobile-cards) th {
   hyphens: manual;
 }
-.responsive-records > table:not(.mobile-cards) :is(.cell-fit, td.numeric, th.numeric) {
+.responsive-records > table:not(.mobile-cards) :is(.cell-fit, td.numeric) {
   white-space: nowrap;
-  width: 1%;
 }
 .responsive-records > table:not(.mobile-cards) .audit-cell {
-  width: 1%;
   min-width: 7.5rem;
 }
 .responsive-records > table:not(.mobile-cards) .badge {
@@ -1741,10 +1738,7 @@ label small > .field-error {
 .quotation-items td:first-child .template-breakdown {
   max-width: none;
 }
-/* Column names stay on one line; the sort button beside "Sort by" is a compact arrow. */
-.responsive-records > table:not(.mobile-cards) th {
-  white-space: nowrap;
-}
+/* The sort button beside "Sort by" is a compact arrow. */
 .toolbar > button.sort-direction {
   width: var(--control-h);
   padding: 0;
@@ -1756,9 +1750,6 @@ label small > .field-error {
 }
 .quick-product:not(.quick-variants):not(:disabled):hover {
   border-color: var(--brand-link);
-}
-.responsive-records > table:not(.mobile-cards) th .sort-button {
-  white-space: nowrap;
 }
 .responsive-records > table:not(.mobile-cards) :is(.material-id, .record-id) {
   overflow-wrap: anywhere;

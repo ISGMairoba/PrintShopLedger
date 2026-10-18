@@ -2,7 +2,7 @@ import { useFeedbackMessage } from './Feedback';
 import { walletBalance } from './checkout.mjs';
 import CustomerAccount from './CustomerAccount';
 import ResponsiveTable from './ResponsiveTable';
-import { AuditCells, AuditHeaders } from './AuditColumns';
+import { auditCells, auditHeaders } from './AuditColumns';
 import Icon from './Icon';
 import ToolbarActions, { MenuToggle } from './ToolbarActions';
 import { useState } from 'react';
@@ -163,7 +163,7 @@ export default function CustomersPage({
                     {heading('jobs', 'Jobs')}
                     {heading('outstanding', 'Outstanding · wallet')}
                     {heading('status', 'Status')}
-                    {audit && <AuditHeaders sort={sorting} />}
+                    {audit && auditHeaders(sorting)}
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -189,7 +189,7 @@ export default function CustomersPage({
                           {customer.archived ? 'Archived' : 'Active'}
                         </span>
                       </td>
-                      {audit && <AuditCells record={customer} format={date} />}
+                      {audit && auditCells(customer, date)}
                       <td>
                         <div className="material-actions">
                           <button className="text-button" onClick={() => setAccount(customer)}>

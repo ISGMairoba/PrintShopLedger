@@ -1,6 +1,6 @@
 import { useFeedbackMessage, FeedbackBanner } from './Feedback';
 import ResponsiveTable from './ResponsiveTable';
-import { AuditCells, AuditHeaders } from './AuditColumns';
+import { auditCells, auditHeaders } from './AuditColumns';
 import { useEffect, useState, type FormEvent } from 'react';
 import { supabase } from './cloud';
 import Modal from './Modal';
@@ -326,6 +326,7 @@ export default function UsersPage({ shopId, actorId, businessUserId, role, onlin
                 { index: 2, label: 'Rank', details: [3] },
                 { index: -1, label: 'Actions', actions: true },
               ]}
+              labels={{ 4: 'Status' }}
               extraSortOptions={[
                 { key: 'id', label: 'User ID' },
                 { key: 'lastLogin', label: 'Last login' },
@@ -339,7 +340,7 @@ export default function UsersPage({ shopId, actorId, businessUserId, role, onlin
                     {heading('rank', 'Rank')}
                     {heading('role', 'Access level')}
                     {heading('status', 'Status · last login')}
-                    {audit && <AuditHeaders sort={sorting} />}
+                    {audit && auditHeaders(sorting)}
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -364,7 +365,7 @@ export default function UsersPage({ shopId, actorId, businessUserId, role, onlin
                         </span>
                         <small>Last login: {date(user.lastLogin)}</small>
                       </td>
-                      {audit && <AuditCells record={user} format={date} />}
+                      {audit && auditCells(user, date)}
                       <td>
                         <div className="material-actions">
                           {!user.archived && (

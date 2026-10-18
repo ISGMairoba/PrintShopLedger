@@ -175,7 +175,7 @@ try {
   }
   await page.getByLabel('Search customers').fill('');
   await (await openMore(page)).getByRole('button', { name: 'Audit view', exact: true }).click();
-  assert.equal(await page.locator('thead th').count(), 14, 'Audit contains normal and audit columns');
+  assert.equal(await page.locator('thead th').count(), 9, 'Audit contains normal and audit columns');
   await page.getByRole('button', { name: 'Add customer', exact: true }).click();
   dialog = page.getByRole('dialog', { name: 'Add customer' });
   await dialog.getByLabel('Full name').fill('Alpha customer');

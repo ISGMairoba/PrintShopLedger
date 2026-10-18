@@ -2,7 +2,7 @@ import DialogActions from './DialogActions';
 import { useFeedbackMessage } from './Feedback';
 import CurrencyInput from './CurrencyInput';
 import ResponsiveTable from './ResponsiveTable';
-import { AuditCells, AuditHeaders } from './AuditColumns';
+import { auditCells, auditHeaders } from './AuditColumns';
 import Icon from './Icon';
 import { packList } from './pack-prices.mjs';
 import { newVariantProductEvents } from './variants.mjs';
@@ -386,7 +386,7 @@ export default function ServicesPage({
                     <SortHeader label={w('Base material')} column="material" sort={sorting} />
                     <SortHeader label="Price" column="price" sort={sorting} />
                     <SortHeader label="Status" column="status" sort={sorting} />
-                    {audit && <AuditHeaders sort={sorting} />}
+                    {audit && auditHeaders(sorting)}
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -449,7 +449,7 @@ export default function ServicesPage({
                             {service.archived ? 'Archived' : 'Active'}
                           </span>
                         </td>
-                        {audit && <AuditCells record={service} format={timestamp} />}
+                        {audit && auditCells(service, timestamp)}
                         <td>
                           <div className="material-actions">
                             {!service.archived && (

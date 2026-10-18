@@ -8,8 +8,9 @@ type Audited = {
   modifiedAt?: string | null;
 };
 
-/** Audit view: who created and who last changed a record, each with its time, in two columns. */
-export function AuditHeaders({ sort }: { sort: Sort }) {
+// Audit view: who created and who last changed a record, each with its time, in two columns.
+// These return plain fragments (not components) so ResponsiveTable sees each cell on phones.
+export function auditHeaders(sort: Sort) {
   return (
     <>
       <SortHeader label="Created" column="createdAt" sort={sort} className="audit-heading" />
@@ -17,7 +18,7 @@ export function AuditHeaders({ sort }: { sort: Sort }) {
     </>
   );
 }
-export function AuditCells({ record, format }: { record: Audited; format: (value: string) => string }) {
+export function auditCells(record: Audited, format: (value: string) => string) {
   const at = (value?: string | null) => (value ? format(value) : '');
   return (
     <>

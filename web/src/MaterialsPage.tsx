@@ -2,7 +2,7 @@ import DialogActions from './DialogActions';
 import { useFeedbackMessage } from './Feedback';
 import { useBusinessOptions } from './BusinessOptionsContext';
 import ResponsiveTable from './ResponsiveTable';
-import { AuditCells, AuditHeaders } from './AuditColumns';
+import { auditCells, auditHeaders } from './AuditColumns';
 import Icon from './Icon';
 import ToolbarActions, { MenuToggle } from './ToolbarActions';
 import { useId, useState, type FormEvent } from 'react';
@@ -212,6 +212,7 @@ export default function MaterialsPage({
                 { index: 1, label: 'Available', details: [2] },
                 { index: -1, label: 'Actions', actions: true },
               ]}
+              labels={{ 2: 'Unit' }}
               extraSortOptions={[
                 { key: 'id', label: w('Material ID') },
                 { key: 'requireSize', label: 'Require size' },
@@ -224,7 +225,7 @@ export default function MaterialsPage({
                     <SortHeader label="Available" column="available" sort={sorting} />
                     <SortHeader label="Unit · size" column="unit" sort={sorting} />
                     <SortHeader label="Status" column="status" sort={sorting} />
-                    {audit && <AuditHeaders sort={sorting} />}
+                    {audit && auditHeaders(sorting)}
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -259,7 +260,7 @@ export default function MaterialsPage({
                           {material.archived ? 'Archived' : 'Active'}
                         </span>
                       </td>
-                      {audit && <AuditCells record={material} format={timestamp} />}
+                      {audit && auditCells(material, timestamp)}
                       <td>
                         <div className="material-actions">
                           {!material.archived && (

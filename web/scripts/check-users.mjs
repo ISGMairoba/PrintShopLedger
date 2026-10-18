@@ -439,7 +439,7 @@ try {
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     'Users fits mobile screen',
   );
-  assert.match(await row.innerText(), /Created by:/, 'Audit data remains visible beneath user');
+  assert.match(await row.innerText(), /Created:/, 'Audit data remains visible beneath user');
   await row.getByRole('button', { name: 'More', exact: true }).click();
   await page
     .getByRole('dialog', { name: 'More actions' })
