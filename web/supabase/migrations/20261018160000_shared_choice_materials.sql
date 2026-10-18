@@ -23,7 +23,7 @@ $a$, '']
  select g->>'name' into label from jsonb_array_elements(coalesce(j.metadata->'materialChoice'->'groups','[]'::jsonb)) g
   where not exists(select 1 from jsonb_array_elements(d->'usages') u where g->'options' ? (u->>'materialId')) limit 1;
  if found then raise exception 'Confirm the material used for %.',label;end if;$a$, $b$ grps:=j.metadata->'materialChoice'->'groups';
- if jsonb_typeof(d->'usages') is distinct from 'array' or jsonb_array_length(d->'usages') not between 1 and case when grps is null then jsonb_array_length(opts) else (select sum(jsonb_array_length(x->'options'))::int from jsonb_array_elements(grps) x) end then raise exception 'Choose the material or materials used';end if;$b$],
+ if jsonb_typeof(d->'usages') is distinct from 'array' or jsonb_array_length(d->'usages') not between 1 and (case when grps is null then jsonb_array_length(opts) else (select sum(jsonb_array_length(x->'options'))::int from jsonb_array_elements(grps) x) end) then raise exception 'Choose the material or materials used';end if;$b$],
   array[$a$k not in ('id','materialId','quantity')$a$, $b$k not in ('id','materialId','quantity','group')$b$],
   array[$a$  if not opts ? (usage->>'materialId') or (usage->>'materialId')::uuid=any(mats) then raise exception 'Choose each material linked to this service at most once';end if;$a$, $b$  if grps is null then
    if usage ? 'group' or not opts ? (usage->>'materialId') or (usage->>'materialId')::uuid=any(mats) then raise exception 'Choose each material linked to this service at most once';end if;
