@@ -1,5 +1,5 @@
 import { jsPDF, GState } from 'jspdf';
-import { receiptBusiness, validLogo } from './business-branding.mjs';
+import { poweredByLine, receiptBusiness, validLogo } from './business-branding.mjs';
 import { registerPdfFonts, pdfText, PDF_FONT } from './pdf-common';
 import type { Branding } from './useBusinessBranding';
 import type { ReportSection } from './export-csv';
@@ -140,7 +140,8 @@ export function createReportPdf(business: string | Branding, options: ReportPdfO
       y += 7;
     }
   }
-  // Footer on every page: generated time and page count.
+  // Footer on every page: generated time, the installer credit (when on) and page count.
+  const credit = poweredByLine(business, 'reports');
   const pages = doc.getNumberOfPages();
   const stamp = new Date(options.generatedAt).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' });
   for (let i = 1; i <= pages; i++) {
@@ -150,6 +151,7 @@ export function createReportPdf(business: string | Branding, options: ReportPdfO
     doc.setTextColor(120, 120, 120);
     doc.text(latin(`Generated ${stamp} (Africa/Lagos)`), margin, pageH - 7);
     doc.text(`Page ${i} of ${pages}`, pageW - margin, pageH - 7, { align: 'right' });
+    if (credit) doc.text(latin(credit), pageW / 2, pageH - 7, { align: 'center' });
   }
   return doc;
 }

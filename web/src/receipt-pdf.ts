@@ -1,5 +1,5 @@
 import { jsPDF, GState } from 'jspdf';
-import { receiptBusiness } from './business-branding.mjs';
+import { poweredByLine, receiptBusiness } from './business-branding.mjs';
 import { receiptIntegrityError, receiptModel } from './receipts.mjs';
 import { registerPdfFonts, pdfText, PDF_FONT, rgb } from './pdf-common';
 import type { CheckoutRecord, Quotation, SaleAdjustment } from './types';
@@ -60,7 +60,7 @@ function imageInfo(doc: jsPDF, data: string) {
  * Page receipt (A4, A5, Letter…). Everything is proportional to the printable width, as a
  * fraction of the A4 design, so smaller pages shrink evenly; long receipts continue on new pages.
  */
-function drawPage(doc: jsPDF, m: Model, media: ReceiptMedia, watermark: boolean) {
+function drawPage(doc: jsPDF, m: Model, media: ReceiptMedia, watermark: boolean, credit: string) {
   const W = media.width,
     H = media.height,
     L = media.margins.left,
@@ -307,7 +307,14 @@ function drawPage(doc: jsPDF, m: Model, media: ReceiptMedia, watermark: boolean)
     y += 6 * k;
     doc.setDrawColor(...RULE);
     doc.line(L, y - 4 * k, R, y - 4 * k);
-    text(m.footer, W / 2, 10, 'normal', MUTED, 'center', U);
+    const used = text(m.footer, W / 2, 10, 'normal', MUTED, 'center', U);
+    if (credit) y += used;
+  }
+  if (credit) {
+    // Under the business's own footer, smaller: the business stays the main voice.
+    page(8 * k);
+    y += (m.footer ? 2 : 6) * k;
+    text(credit, W / 2, 7.5, 'normal', MUTED, 'center', U);
   }
   const pages = doc.getNumberOfPages();
   for (let p = 1; p <= pages; p++) {
@@ -321,7 +328,7 @@ function drawPage(doc: jsPDF, m: Model, media: ReceiptMedia, watermark: boolean)
 }
 
 /** Till-roll receipt for paper up to 90 mm wide, black only, scaled to the paper width. Returns the content height. */
-function drawRoll(doc: jsPDF, m: Model, media: ReceiptMedia) {
+function drawRoll(doc: jsPDF, m: Model, media: ReceiptMedia, credit: string) {
   const W = media.width,
     L = media.margins.left,
     R = W - media.margins.right,
@@ -429,6 +436,10 @@ function drawRoll(doc: jsPDF, m: Model, media: ReceiptMedia) {
   }
   y += 1.5 * k;
   y += text(`${m.title} ${m.number}`, C, 6.5, 'normal', 'center');
+  if (credit) {
+    y += 1 * k;
+    y += text(credit, C, 6.5, 'normal', 'center');
+  }
   return y + media.margins.bottom;
 }
 
@@ -446,26 +457,27 @@ export function createReceiptPdf(
   const warning = receiptIntegrityError(record);
   if (warning) throw Error(warning);
   const media = mediaFor(size);
-  return modelPdf(
-    receiptModel(record, business, pending, adjustments, media.layout),
-    media,
-    !!receiptBusiness(business).documents?.watermark,
-  );
+  return modelPdf(receiptModel(record, business, pending, adjustments, media.layout), media, business);
 }
-/** Draw a receipt-shaped model (a receipt or a quotation) on a page or a roll. */
-function modelPdf(m: Model, media: ReceiptMedia, watermark: boolean) {
+/**
+ * Draw a receipt-shaped model (a receipt, quotation or comparison) on a page or a roll, with the
+ * business's watermark and, where Developer turned it on, the installer credit.
+ */
+function modelPdf(m: Model, media: ReceiptMedia, business: string | Branding) {
+  const watermark = !!receiptBusiness(business).documents?.watermark;
+  const credit = poweredByLine(business, media.layout === 'roll' ? 'receipts' : 'pages');
   if (media.layout === 'roll') {
     // Measure on a long strip, then draw again on a page exactly as tall as the content.
     const probe = new jsPDF({ unit: 'mm', format: [media.width, 3000] });
     registerPdfFonts(probe);
-    const height = Math.max(media.width, Math.ceil(drawRoll(probe, m, media)));
+    const height = Math.max(media.width, Math.ceil(drawRoll(probe, m, media, credit)));
     const doc = new jsPDF({
       unit: 'mm',
       format: [media.width, height],
       orientation: height >= media.width ? 'portrait' : 'landscape',
     });
     registerPdfFonts(doc);
-    drawRoll(doc, m, media);
+    drawRoll(doc, m, media, credit);
     return doc;
   }
   const doc = new jsPDF({
@@ -474,7 +486,7 @@ function modelPdf(m: Model, media: ReceiptMedia, watermark: boolean) {
     orientation: media.height >= media.width ? 'portrait' : 'landscape',
   });
   registerPdfFonts(doc);
-  drawPage(doc, m, media, watermark);
+  drawPage(doc, m, media, watermark, credit);
   return doc;
 }
 /** A quotation as a PDF, on A4 or an 80 mm roll, with the business's receipt look. */
@@ -484,11 +496,7 @@ export function createQuotationPdf(
   size: ReceiptPdfSize = 'a4',
 ) {
   const media = mediaFor(size);
-  return modelPdf(
-    quotationModel(quote, business, media.layout) as unknown as Model,
-    media,
-    !!receiptBusiness(business).documents?.watermark,
-  );
+  return modelPdf(quotationModel(quote, business, media.layout) as unknown as Model, media, business);
 }
 export function downloadQuotationPdf(
   quote: Quotation,
@@ -527,6 +535,6 @@ export function createComparisonPdf(
   return modelPdf(
     comparisonModel(template, rows, business, details) as unknown as Model,
     size === 'a5' ? A5_DOCUMENT : A4_RECEIPT,
-    !!receiptBusiness(business).documents?.watermark,
+    business,
   );
 }

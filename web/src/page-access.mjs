@@ -100,9 +100,14 @@ export function validateSettingsTabs(input) {
   }
   return value;
 }
-/** Business Settings tabs this rank may open (Page access only for Developer). */
+/** Tabs only Developer sees, with the settings each changes. Admin and Manager can never be given them. */
+export const developerSettingsTabs = {
+  'Page access': ['pageAccess', 'settingsTabs'],
+  'Installer credit': ['poweredBy'],
+};
+/** Business Settings tabs this rank may open (Page access and Installer credit only for Developer). */
 export function allowedSettingsTabs(access, settings) {
-  if (access === 4) return [...settingsTabs, 'Page access'];
+  if (access === 4) return [...settingsTabs, ...Object.keys(developerSettingsTabs)];
   if (!canAccessPage('Business Settings', access, settings?.pageAccess)) return [];
   return settings?.settingsTabs?.[String(access)] ?? defaultSettingsTabs()[String(access)] ?? [];
 }

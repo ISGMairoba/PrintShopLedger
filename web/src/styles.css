@@ -2470,3 +2470,21 @@ span.danger-text {
 .product-pick small {
   color: var(--surface-subtle);
 }
+
+/* Comparison text for chat: the exact text that Copy text and Share text send. */
+.compare-chat-text {
+  margin-top: 8px;
+}
+.compare-chat-text summary {
+  cursor: pointer;
+  min-height: var(--control-h);
+  display: flex;
+  align-items: center;
+}
+.compare-chat-text textarea {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

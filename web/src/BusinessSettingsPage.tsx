@@ -8,6 +8,7 @@ import LogoVariantsEditor from './LogoVariantsEditor';
 import { resolveLogo, logoLayouts } from './logo-variants.mjs';
 import {
   allowedSettingsTabs,
+  developerSettingsTabs,
   minimumPageAccess,
   pages,
   roleNames,
@@ -15,7 +16,13 @@ import {
   settingsTabs,
 } from './page-access.mjs';
 import { useEffect, useState } from 'react';
-import { defaultBranding, validateBranding, suggestedPalette, contrastText } from './business-branding.mjs';
+import {
+  defaultBranding,
+  validateBranding,
+  suggestedPalette,
+  contrastText,
+  POWERED_BY_MAX,
+} from './business-branding.mjs';
 import type { Branding } from './useBusinessBranding';
 import { termPresets } from './terms.mjs';
 import { useWords } from './Words';
@@ -50,9 +57,8 @@ export default function BusinessSettingsPage({
     [palette, setPalette] = useState<string[]>([]);
   const tabs: string[] = allowedSettingsTabs(accessLevel, settings);
   const tabKeys = (name: string) =>
-    (name === 'Page access'
-      ? ['pageAccess', 'settingsTabs']
-      : settingsTabKeys[name as keyof typeof settingsTabKeys]) as (keyof Branding)[];
+    (developerSettingsTabs[name as keyof typeof developerSettingsTabs] ??
+      settingsTabKeys[name as keyof typeof settingsTabKeys]) as (keyof Branding)[];
   const [tab, setTab] = useState(tabs[0]);
   const dirty = dirtyKeys.length > 0;
   useEffect(() => {
@@ -1016,6 +1022,57 @@ export default function BusinessSettingsPage({
                 </table>
               </div>
               {sectionSave('Page access', ['pageAccess', 'settingsTabs'])}
+            </fieldset>
+            <fieldset hidden={tab !== 'Installer credit'} disabled={busy || !ready}>
+              <legend>Installer credit</legend>
+              <p>
+                A small line naming who installed or supports this app, for example “Installed by Mairoba
+                Studio | 08088850271”. It prints in small grey text under the business’s own footer. Only
+                Developer can see or change this tab.
+              </p>
+              <div className="form-grid">
+                <label>
+                  Credit line
+                  <input
+                    aria-label="Installer credit line"
+                    value={draft.poweredBy.text}
+                    maxLength={POWERED_BY_MAX}
+                    placeholder="Installed by Mairoba Studio | 08088850271"
+                    onChange={(event) => field('poweredBy', { ...draft.poweredBy, text: event.target.value })}
+                  />
+                  <small>
+                    {draft.poweredBy.text.trim().length}/{POWERED_BY_MAX} characters · one line, so it fits an
+                    80 mm receipt
+                  </small>
+                </label>
+              </div>
+              <fieldset className="template-option-set">
+                <legend>Show it on</legend>
+                {(
+                  [
+                    ['receipts', 'Receipt printer receipts (80 mm and other rolls)'],
+                    ['pages', 'Full pages: A4/A5 receipts, quotations and price comparisons'],
+                    ['reports', 'Report PDFs'],
+                    ['shares', 'Text shares pasted in chat'],
+                  ] as const
+                ).map(([key, label]) => (
+                  <label className="check-label" key={key}>
+                    <input
+                      type="checkbox"
+                      checked={draft.poweredBy[key]}
+                      onChange={(event) =>
+                        field('poweredBy', { ...draft.poweredBy, [key]: event.target.checked })
+                      }
+                    />
+                    {label}
+                  </label>
+                ))}
+              </fieldset>
+              {draft.poweredBy.text.trim() &&
+                !(['receipts', 'pages', 'reports', 'shares'] as const).some((k) => draft.poweredBy[k]) && (
+                  <p className="muted">Tick at least one place for the credit to appear.</p>
+                )}
+              {sectionSave('Installer credit', ['poweredBy'])}
             </fieldset>
             <div className="settings-save-status" role="status" aria-live="polite">
               {busy ? 'Saving changes…' : dirty ? 'Unsaved changes' : 'All changes saved'}
