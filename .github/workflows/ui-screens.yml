@@ -20,7 +20,7 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run build
       - run: npx playwright install --with-deps chromium
-      - run: mkdir -p /tmp/ui-screens && node scripts/ui-probe.mjs /tmp/ui-screens | tee /tmp/ui-screens/result.txt
+      - run: mkdir -p /tmp/ui-screens && node scripts/ui-screens.mjs /tmp/ui-screens | tee /tmp/ui-screens/result.txt
       - name: Save screenshots
         run: |
           cd /tmp/ui-screens
