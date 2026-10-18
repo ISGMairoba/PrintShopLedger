@@ -344,10 +344,10 @@ export default function QuotationsPage({
               <Icon name="share" /> Share
             </button>
             <button className="secondary" onClick={() => void pdf(current, 'a4', 'download')}>
-              Download PDF (A4)
+              <Icon name="export" /> Download PDF (A4)
             </button>
             <button className="secondary" onClick={() => void pdf(current, 'roll', 'download')}>
-              Download PDF (80 mm)
+              <Icon name="export" /> Download PDF (80 mm)
             </button>
             {current.status === 'open' && (
               <button
@@ -643,7 +643,7 @@ function QuotationEditor({
                       className="text-button danger-text"
                       onClick={() => setLines((v) => v.filter((l) => l.id !== item.id))}
                     >
-                      Remove
+                      <Icon name="close" /> Remove
                     </button>
                   )}
                 </div>

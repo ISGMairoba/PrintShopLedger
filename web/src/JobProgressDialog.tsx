@@ -1,3 +1,4 @@
+import Icon from './Icon';
 import { useFeedbackMessage } from './Feedback';
 import { jobWorkflow } from './business-options.mjs';
 import { useState } from 'react';
@@ -79,6 +80,7 @@ export default function JobProgressDialog({
             : w('Completion does not mark the job as collected.')}
         </p>
         <button disabled={busy || !path.length}>
+          <Icon name="complete" />{' '}
           {mode === 'next' ? 'Confirm next action' : mode === 'complete' ? 'Mark as Complete' : 'Set action'}
         </button>
       </form>

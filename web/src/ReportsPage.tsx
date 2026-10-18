@@ -172,10 +172,10 @@ function Exports({
         </button>
       )}
       <button disabled={busy} onClick={onCsv}>
-        Download spreadsheet
+        <Icon name="export" /> Download spreadsheet
       </button>
       <button className="secondary" disabled={busy} onClick={onPdf}>
-        {busy ? 'Preparing PDF…' : 'Save as PDF'}
+        <Icon name="export" /> {busy ? 'Preparing PDF…' : 'Save as PDF'}
       </button>
     </div>
   );
@@ -197,7 +197,7 @@ function Shown({
     <p className="report-shown" role="status">
       Showing {shown} of {total} records ({filters.join(', ')}). Downloads include only these records.{' '}
       <button className="text-button" onClick={onClear}>
-        Clear search and filters
+        <Icon name="close" /> Clear search and filters
       </button>
     </p>
   );
@@ -952,7 +952,8 @@ function TransactionsTab({
             {rows.length > limit && (
               <div className="report-more">
                 <button className="secondary" onClick={() => setLimit((n) => n + PAGE)}>
-                  Show {Math.min(PAGE, rows.length - limit)} more ({rows.length - limit} hidden)
+                  <Icon name="add" /> Show {Math.min(PAGE, rows.length - limit)} more ({rows.length - limit}{' '}
+                  hidden)
                 </button>
               </div>
             )}

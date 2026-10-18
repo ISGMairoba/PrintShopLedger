@@ -242,7 +242,7 @@ export function TemplateImportDialog({
           {file.templates.length === 1 ? '' : 's'}
         </button>
         <button type="button" className="secondary" disabled={busy} onClick={onClose}>
-          Cancel
+          <Icon name="close" /> Cancel
         </button>
       </div>
     </Modal>

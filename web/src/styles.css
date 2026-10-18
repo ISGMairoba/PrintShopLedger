@@ -1612,7 +1612,7 @@ nav button {
 .expense-panel td:first-child {
   min-width: 100px;
 }
-.expense-panel .material-actions {
+.mobile-cards .expense-panel .material-actions {
   flex-direction: column;
   align-items: flex-start;
   gap: 8px;

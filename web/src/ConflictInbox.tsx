@@ -1,3 +1,4 @@
+import Icon from './Icon';
 import ToolbarActions from './ToolbarActions';
 import { useFeedbackMessage } from './Feedback';
 import { useEffect, useState } from 'react';
@@ -187,7 +188,7 @@ export default function ConflictInbox({
         </label>
         <ToolbarActions>
           <button className="secondary" disabled={!online || busy} onClick={() => void refresh()}>
-            Refresh inbox
+            <Icon name="sync" /> Refresh inbox
           </button>
         </ToolbarActions>
       </div>
@@ -220,7 +221,7 @@ export default function ConflictInbox({
           <p>{item.message}</p>
           {item.status === 'pending' ? (
             <button disabled={!online || busy} onClick={() => void open(item.event_id)}>
-              Review conflict
+              <Icon name="details" /> Review conflict
             </button>
           ) : (
             <p>
@@ -325,13 +326,13 @@ export default function ConflictInbox({
                 disabled={busy}
                 onClick={() => void open(review.conflict.event_id)}
               >
-                Reload review
+                <Icon name="sync" /> Reload review
               </button>
             </p>
           )}
           {review.conflict.source.kind === 'checkout.completed' ? (
             <button disabled={!online || busy || !reason.trim()} onClick={() => setCheckout(true)}>
-              Review sale and stock
+              <Icon name="details" /> Review sale and stock
             </button>
           ) : (
             <div className="material-actions">
@@ -345,14 +346,14 @@ export default function ConflictInbox({
                   }
                 }}
               >
-                Reapply pending operation
+                <Icon name="restore" /> Reapply pending operation
               </button>
               <button
                 className="secondary"
                 disabled={!online || busy || !reason.trim()}
                 onClick={() => void resolve([]).catch(() => {})}
               >
-                Keep business version
+                <Icon name="sync" /> Keep business version
               </button>
             </div>
           )}

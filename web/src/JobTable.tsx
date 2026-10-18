@@ -166,12 +166,6 @@ export default function JobTable({
                         {job.width != null && job.height != null ? ` (${job.width} × ${job.height})` : ''}
                       </small>
                     )}
-                    {pointOfService && (
-                      <small>
-                        Source: {job.source ?? 'Not recorded'}
-                        {job.sourceNote && ` — ${job.sourceNote}`}
-                      </small>
-                    )}
                     <small>ID: {job.id.slice(0, 8).toUpperCase()}</small>
                   </div>
                 </td>
@@ -197,6 +191,12 @@ export default function JobTable({
                   {materialPending(job) && stage !== 'Cancelled' && (
                     <small className="material-pending">Material to confirm</small>
                   )}
+                  {pointOfService && (
+                    <small>
+                      Source: {job.source ?? 'Not recorded'}
+                      {job.sourceNote && ` — ${job.sourceNote}`}
+                    </small>
+                  )}
                   <progress
                     className="job-progress"
                     aria-label={`Progress for ${job.description || job.service}`}
@@ -205,9 +205,10 @@ export default function JobTable({
                   />
                 </td>
                 <td>
-                  {!pointOfService && <small>Added</small>}
-                  {date(job.createdAt)}
-                  <small>{time(job.createdAt)}</small>
+                  <span className="job-date">
+                    {!pointOfService && <small className="job-date-label">Added </small>}
+                    {date(job.createdAt)}, {time(job.createdAt)}
+                  </span>
                   {!pointOfService && <small>Last payment: {lastPaid ? date(lastPaid) : 'None'}</small>}
                   {job.dueAt && !Number.isNaN(Date.parse(job.dueAt)) && (
                     <small className={`deadline deadline-${deadlineState(job)}`}>
@@ -265,7 +266,7 @@ export default function JobTable({
           {actions(selected)}
           {selected.length > 0 && (
             <button className="text-button" disabled={busy} onClick={() => setSelectedIds([])}>
-              Clear
+              <Icon name="close" /> Clear
             </button>
           )}
         </div>

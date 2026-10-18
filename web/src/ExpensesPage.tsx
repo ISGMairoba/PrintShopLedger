@@ -222,7 +222,7 @@ export default function ExpensesPage({
               </select>
             </label>
             <button type="button" className="secondary history-filter-reset" onClick={reset}>
-              Reset filters
+              <Icon name="sync" /> Reset filters
             </button>
           </div>
         )}
@@ -238,22 +238,24 @@ export default function ExpensesPage({
           <div className="table-wrap">
             <ResponsiveTable
               columns={[
-                { index: 1, label: 'Expense', details: [0, 2, 3, 4, 8] },
-                { index: 5, label: 'Amount', details: [6, 7] },
+                { index: 0, label: 'Expense', details: [1, 2, 4] },
+                { index: 3, label: 'Amount' },
                 { index: -1, label: 'Actions', actions: true },
               ]}
+              extraSortOptions={[
+                { key: 'id', label: 'ID' },
+                { key: 'category', label: 'Category' },
+                { key: 'paid', label: 'Paid' },
+                { key: 'outstanding', label: 'Outstanding' },
+              ]}
             >
-              <table>
+              <table className="expenses-table">
                 <thead>
                   <tr>
-                    <SortHeader label="ID" column="id" sort={sorting} />
-                    <SortHeader label="Description" column="description" sort={sorting} />
-                    <SortHeader label="Category" column="category" sort={sorting} />
+                    <SortHeader label="Expense" column="description" sort={sorting} />
                     <SortHeader label="Supplier / paid to" column="payee" sort={sorting} />
                     <SortHeader label="Date incurred" column="date" sort={sorting} />
                     <SortHeader label="Amount" column="amount" sort={sorting} />
-                    <SortHeader label="Paid" column="paid" sort={sorting} />
-                    <SortHeader label="Outstanding" column="outstanding" sort={sorting} />
                     <SortHeader label="Status" column="status" sort={sorting} />
                     {audit && auditHeaders(sorting)}
                     <th>Actions</th>
@@ -262,7 +264,6 @@ export default function ExpensesPage({
                 <tbody>
                   {visible.map((item) => (
                     <tr key={item.id}>
-                      <td className="material-id">{expenseCode(item.id, ledger.expenses)}</td>
                       <td>
                         <strong>{item.description}</strong>
                         {item.materials.length > 0 && (
@@ -272,14 +273,21 @@ export default function ExpensesPage({
                               .join(' · ')}
                           </small>
                         )}
+                        <small>
+                          {item.category} ·{' '}
+                          <span className="record-id">{expenseCode(item.id, ledger.expenses)}</span>
+                        </small>
                       </td>
-                      <td>{item.category}</td>
                       <td>{item.payee || '—'}</td>
-                      <td>{day(item.incurredOn)}</td>
-                      <td>{currency(item.amount)}</td>
-                      <td>{currency(expensePaid(item))}</td>
-                      <td>{item.voided ? '—' : currency(item.amount - expensePaid(item))}</td>
-                      <td>
+                      <td className="cell-fit">{day(item.incurredOn)}</td>
+                      <td className="cell-fit">
+                        {currency(item.amount)}
+                        <small>Paid: {currency(expensePaid(item))}</small>
+                        {!item.voided && item.amount - expensePaid(item) > 0 && (
+                          <small>Outstanding: {currency(item.amount - expensePaid(item))}</small>
+                        )}
+                      </td>
+                      <td className="cell-fit">
                         <span
                           className={`badge ${item.voided ? 'unpaid' : expenseStatus(item) === 'Paid' ? 'paid' : 'partial'}`}
                         >

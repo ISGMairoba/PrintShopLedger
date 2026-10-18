@@ -134,7 +134,7 @@ export default function StockHistoryPage({ history, materials, pending, ready, d
               setPage(0);
             }}
           >
-            Reset filters
+            <Icon name="sync" /> Reset filters
           </button>
         </div>
         {dates.panel}
@@ -153,22 +153,24 @@ export default function StockHistoryPage({ history, materials, pending, ready, d
           <div className="table-wrap">
             <ResponsiveTable
               columns={[
-                { index: 0, label: w('Material'), details: [4, 5, 6, 7] },
-                { index: 2, label: 'Available', details: [1, 3] },
-                { index: 8, label: 'Actions', actions: true },
+                { index: 0, label: w('Material'), details: [2, 3, 4] },
+                { index: 1, label: 'Available' },
+                { index: 5, label: 'Actions', actions: true },
+              ]}
+              extraSortOptions={[
+                { key: 'before', label: 'Available before' },
+                { key: 'change', label: 'Change' },
+                { key: 'by', label: 'Changed by' },
               ]}
             >
-              <table>
+              <table className="history-table">
                 <thead>
                   <tr>
                     <SortHeader label={w('Material')} column="material" sort={historySorting} />
-                    <SortHeader label="Available before" column="before" sort={historySorting} />
-                    <SortHeader label="Available after" column="after" sort={historySorting} />
-                    <SortHeader label="Change" column="change" sort={historySorting} />
+                    <SortHeader label="Available" column="after" sort={historySorting} />
                     <SortHeader label="Action" column="action" sort={historySorting} />
                     <SortHeader label="Reason / note" column="reason" sort={historySorting} />
-                    <SortHeader label="Changed by" column="by" sort={historySorting} />
-                    <SortHeader label="Date" column="date" sort={historySorting} />
+                    <SortHeader label="Changed" column="date" sort={historySorting} />
                     <th></th>
                   </tr>
                 </thead>
@@ -177,17 +179,15 @@ export default function StockHistoryPage({ history, materials, pending, ready, d
                     <tr key={entry.id}>
                       <td>
                         <strong>{entry.materialName}</strong>
-                        <small>{materialCode(entry.materialId, materials)}</small>
+                        <small className="record-id">{materialCode(entry.materialId, materials)}</small>
                       </td>
-                      <td>{quantity(entry.beforeAvailable)}</td>
-                      <td>
-                        {quantity(entry.afterAvailable)}
-                        <small>{entry.measurementUnit}</small>
-                      </td>
-                      <td>
-                        {entry.beforeAvailable == null
-                          ? '-'
-                          : `${entry.afterAvailable > entry.beforeAvailable ? '+' : ''}${quantity(Math.round((entry.afterAvailable - entry.beforeAvailable) * 1000) / 1000)}`}
+                      <td className="cell-fit">
+                        {quantity(entry.afterAvailable)} {entry.measurementUnit}
+                        <small>
+                          {entry.beforeAvailable == null
+                            ? 'Before: -'
+                            : `Before: ${quantity(entry.beforeAvailable)} · Change: ${entry.afterAvailable > entry.beforeAvailable ? '+' : ''}${quantity(Math.round((entry.afterAvailable - entry.beforeAvailable) * 1000) / 1000)}`}
+                        </small>
                       </td>
                       <td>
                         {w(materialActionLabels[entry.action])}
@@ -205,8 +205,10 @@ export default function StockHistoryPage({ history, materials, pending, ready, d
                         </small>
                       </td>
                       <td>{entry.reason || '-'}</td>
-                      <td>{entry.changedByLabel}</td>
-                      <td>{dateLabel(entry.changedAt)}</td>
+                      <td className="audit-cell">
+                        <span>{entry.changedByLabel}</span>
+                        <small>{dateLabel(entry.changedAt)}</small>
+                      </td>
                       <td>
                         <button className="text-button" onClick={() => setSelected(entry)}>
                           <Icon name="details" /> Details
@@ -233,7 +235,7 @@ export default function StockHistoryPage({ history, materials, pending, ready, d
               disabled={activePage === maxPage}
               onClick={() => setPage(activePage + 1)}
             >
-              Next
+              <Icon name="next" /> Next
             </button>
           </div>
         )}

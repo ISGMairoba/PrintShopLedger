@@ -277,7 +277,7 @@ export default function PrintSettingsPage({
                   )}
                 </select>
                 <button className="secondary" type="button" disabled={busy} onClick={connect}>
-                  Find installed printers
+                  <Icon name="sync" /> Find installed printers
                 </button>
               </label>
               <label>
@@ -519,7 +519,7 @@ export default function PrintSettingsPage({
                 <Icon name="save" /> Save settings
               </button>
               <button className="secondary" disabled={busy} type="button" onClick={() => setDraft(null)}>
-                Cancel
+                <Icon name="close" /> Cancel
               </button>
             </div>
           </form>

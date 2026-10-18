@@ -322,11 +322,11 @@ export default function UsersPage({ shopId, actorId, businessUserId, role, onlin
           <div className="table-wrap">
             <ResponsiveTable
               columns={[
-                { index: 0, label: 'User', details: [1, 4] },
-                { index: 2, label: 'Rank', details: [3] },
+                { index: 0, label: 'User', details: [1, 3] },
+                { index: 2, label: 'Rank' },
                 { index: -1, label: 'Actions', actions: true },
               ]}
-              labels={{ 4: 'Status' }}
+              labels={{ 3: 'Status' }}
               extraSortOptions={[
                 { key: 'id', label: 'User ID' },
                 { key: 'lastLogin', label: 'Last login' },
@@ -338,7 +338,6 @@ export default function UsersPage({ shopId, actorId, businessUserId, role, onlin
                     {heading('name', 'User')}
                     {heading('username', 'Username')}
                     {heading('rank', 'Rank')}
-                    {heading('role', 'Access level')}
                     {heading('status', 'Status · last login')}
                     {audit && auditHeaders(sorting)}
                     <th>Actions</th>
@@ -355,9 +354,7 @@ export default function UsersPage({ shopId, actorId, businessUserId, role, onlin
                       <td>{user.username}</td>
                       <td className="cell-fit">
                         {accessLevels[user.role]} ({user.rank})
-                      </td>
-                      <td className="cell-fit">
-                        {user.accessLevel === 0 ? '0 — Revoked' : user.accessLevel}
+                        {user.accessLevel === 0 && <small className="danger-text">Access revoked</small>}
                       </td>
                       <td className="cell-fit">
                         <span className={`badge ${user.archived ? 'unpaid' : 'paid'}`}>
@@ -401,6 +398,7 @@ export default function UsersPage({ shopId, actorId, businessUserId, role, onlin
                                   setFormError('');
                                 }}
                               >
+                                <Icon name="account" />{' '}
                                 {user.accessLevel === 0 ? 'Grant access' : 'Revoke access'}
                               </button>
                               <button
@@ -411,7 +409,7 @@ export default function UsersPage({ shopId, actorId, businessUserId, role, onlin
                                   setFormError('');
                                 }}
                               >
-                                Reset password
+                                <Icon name="sync" /> Reset password
                               </button>
                             </>
                           )}
@@ -496,7 +494,7 @@ export default function UsersPage({ shopId, actorId, businessUserId, role, onlin
                 <Icon name="save" /> {busy ? 'Saving…' : 'Save user'}
               </button>
               <button type="button" className="secondary" disabled={busy} onClick={() => setEditor(null)}>
-                Cancel
+                <Icon name="close" /> Cancel
               </button>
             </div>
           </form>
@@ -526,10 +524,11 @@ export default function UsersPage({ shopId, actorId, businessUserId, role, onlin
               disabled={busy || !online}
               onClick={() => void changeStatus()}
             >
+              <Icon name="archive" />{' '}
               {busy ? 'Saving…' : confirmation.archived ? 'Restore user' : 'Archive user'}
             </button>
             <button className="secondary" disabled={busy} onClick={() => setConfirmation(null)}>
-              Cancel
+              <Icon name="close" /> Cancel
             </button>
           </div>
         </Modal>
@@ -556,10 +555,11 @@ export default function UsersPage({ shopId, actorId, businessUserId, role, onlin
               className={accessChange.accessLevel === 0 ? '' : 'danger-button'}
               onClick={() => void changeAccess()}
             >
+              <Icon name="account" />{' '}
               {busy ? 'Saving…' : accessChange.accessLevel === 0 ? 'Grant access' : 'Revoke access'}
             </button>
             <button className="secondary" disabled={busy} onClick={() => setAccessChange(null)}>
-              Cancel
+              <Icon name="close" /> Cancel
             </button>
           </div>
         </Modal>
@@ -608,14 +608,16 @@ export default function UsersPage({ shopId, actorId, businessUserId, role, onlin
               The new password replaces the previous password. The password is hashed before storage.
             </p>
             <div className="material-actions">
-              <button disabled={busy || !online}>{busy ? 'Resetting…' : 'Reset password'}</button>
+              <button disabled={busy || !online}>
+                <Icon name="sync" /> {busy ? 'Resetting…' : 'Reset password'}
+              </button>
               <button
                 type="button"
                 className="secondary"
                 disabled={busy}
                 onClick={() => setPasswordReset(null)}
               >
-                Cancel
+                <Icon name="close" /> Cancel
               </button>
             </div>
           </form>

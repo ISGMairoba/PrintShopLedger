@@ -256,7 +256,11 @@ export default function JobsPaymentsPage({
                 <div className="empty-icon">?</div>
                 <h2>{w('Your jobs start here')}</h2>
                 <p>{w('Add a customer, create their job, then record payments against it.')}</p>
-                {!ledger.customers.length && <button onClick={onAddCustomer}>Add your first customer</button>}
+                {!ledger.customers.length && (
+                  <button onClick={onAddCustomer}>
+                    <Icon name="add" /> Add your first customer
+                  </button>
+                )}
               </div>
             ) : (
               <div className="table-wrap">
@@ -293,9 +297,9 @@ export default function JobsPaymentsPage({
                     { key: 'date', label: 'Payment date' },
                   ]}
                   columns={[
-                    { index: 0, label: 'Payment', details: [1] },
+                    { index: 0, label: 'Payment', details: [1, 4] },
                     { index: 2, label: 'Amount', details: [3] },
-                    { index: 4, label: w('Jobs') },
+                    { index: -1, label: 'Actions' },
                   ]}
                 >
                   <table>
@@ -306,6 +310,7 @@ export default function JobsPaymentsPage({
                         <SortHeader label="Amount" column="amount" sort={paymentSorting} />
                         <SortHeader label="Method" column="method" sort={paymentSorting} />
                         <SortHeader label={w('Job allocations')} column="allocations" sort={paymentSorting} />
+                        <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -335,7 +340,15 @@ export default function JobsPaymentsPage({
                                 <small>Money returned to customer</small>
                               </strong>
                             )}
-                            <div className="action-row record-links">
+                            {payment.allocations.map((allocation) => (
+                              <small key={allocation.jobId}>
+                                {ledger.jobs.find((job) => job.id === allocation.jobId)?.description} -{' '}
+                                {currency(allocation.amount)}
+                              </small>
+                            ))}
+                          </td>
+                          <td>
+                            <div className="material-actions stacked-actions">
                               {payment.checkoutId &&
                                 ledger.checkouts.find((r) => r.id === payment.checkoutId) && (
                                   <button
@@ -344,7 +357,7 @@ export default function JobsPaymentsPage({
                                       onReceipt(ledger.checkouts.find((r) => r.id === payment.checkoutId)!)
                                     }
                                   >
-                                    Receipt
+                                    <Icon name="details" /> Receipt
                                   </button>
                                 )}
                               {onCorrectPayment && !payment.refundId && (
@@ -354,16 +367,10 @@ export default function JobsPaymentsPage({
                                   aria-label={`Correct payment ${shortId(payment.id)}`}
                                   onClick={() => onCorrectPayment(payment)}
                                 >
-                                  Correct
+                                  <Icon name="edit" /> Correct
                                 </button>
                               )}
                             </div>
-                            {payment.allocations.map((allocation) => (
-                              <small key={allocation.jobId}>
-                                {ledger.jobs.find((job) => job.id === allocation.jobId)?.description} -{' '}
-                                {currency(allocation.amount)}
-                              </small>
-                            ))}
                           </td>
                         </tr>
                       ))}

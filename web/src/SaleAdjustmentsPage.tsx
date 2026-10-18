@@ -1,3 +1,4 @@
+import Icon from './Icon';
 import { useId, useState } from 'react';
 import DialogActions from './DialogActions';
 import Modal from './Modal';
@@ -143,7 +144,7 @@ export default function SaleAdjustmentsPage({
           disabled={!ready || busy || !canSave || !jobId}
           onClick={() => onAdjust(ledger.jobs.find((j) => j.id === jobId)!)}
         >
-          Adjust selected sale
+          <Icon name="adjustments" /> Adjust selected sale
         </button>
       </div>
       <h3>Adjustment history</h3>

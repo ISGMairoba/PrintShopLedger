@@ -873,7 +873,7 @@ export function CompareOptions({
                 className="text-button danger-text"
                 onClick={() => setSets(sets.filter((_, i) => i !== index))}
               >
-                Remove
+                <Icon name="close" /> Remove
               </button>
             </legend>
             {options ? (
@@ -927,7 +927,7 @@ export function CompareOptions({
           </select>
         )}
         <button type="button" className="secondary" onClick={run}>
-          Compare prices
+          <Icon name="calculator" /> Compare prices
         </button>
       </div>
       {error && (
@@ -991,13 +991,13 @@ export function CompareOptions({
                   <Icon name="share" /> Share PDF
                 </button>
                 <button type="button" className="secondary" onClick={() => void comparisonPdf('a4')}>
-                  A4 PDF
+                  <Icon name="export" /> A4 PDF
                 </button>
                 <button type="button" className="secondary" onClick={() => void comparisonPdf('a5')}>
-                  A5 PDF
+                  <Icon name="export" /> A5 PDF
                 </button>
                 <button type="button" className="secondary" onClick={() => void comparisonPdf('open')}>
-                  Open to print
+                  <Icon name="details" /> Open to print
                 </button>
               </div>
             )}
@@ -1066,7 +1066,7 @@ export function CompareOptions({
                                 onUse({ ...inputs, ...rest }, canonical(qty));
                               }}
                             >
-                              Use option
+                              <Icon name="next" /> Use option
                             </button>
                           )}
                         </td>

@@ -1,3 +1,4 @@
+import Icon from './Icon';
 import { useState } from 'react';
 import Modal from './Modal';
 import { serviceCode, servicePrice } from './services.mjs';
@@ -85,14 +86,14 @@ export default function ServiceConflictReview({ conflict, busy, onResolve, onClo
       </p>
       <div className="material-actions">
         <button disabled={busy} onClick={() => void onResolve('local', materialId || null)}>
-          Keep this device's version
+          <Icon name="restore" /> Keep this device's version
         </button>
         <button
           className="secondary"
           disabled={busy}
           onClick={() => void onResolve('cloud', materialId || null)}
         >
-          Keep business version
+          <Icon name="sync" /> Keep business version
         </button>
       </div>
     </Modal>

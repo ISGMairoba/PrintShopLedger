@@ -666,7 +666,7 @@ export default function CheckoutEditor({
                             className="text-button danger-text"
                             onClick={() => setLines((v) => v.filter((j) => j.id !== item.id))}
                           >
-                            {w('Remove job')}
+                            <Icon name="close" /> {w('Remove job')}
                           </button>
                         )}
                       </div>
@@ -964,7 +964,7 @@ export default function CheckoutEditor({
                 </p>
                 {clash.owner && !clash.owner.archived && (
                   <button type="button" onClick={() => choose(clash.owner!.id, clash.owner!.name)}>
-                    Use {clash.owner.name}
+                    <Icon name="customers" /> Use {clash.owner.name}
                   </button>
                 )}
               </div>
@@ -1115,7 +1115,7 @@ export default function CheckoutEditor({
                       )
                     }
                   >
-                    Use recommended amount
+                    <Icon name="calculator" /> Use recommended amount
                   </button>
                 )}
               </div>
@@ -1131,7 +1131,7 @@ export default function CheckoutEditor({
                 className="secondary"
                 onClick={() => (manual ? setManual(false) : override())}
               >
-                {manual ? 'Use automatic allocation' : 'Override allocation'}
+                <Icon name="edit" /> {manual ? 'Use automatic allocation' : 'Override allocation'}
               </button>
             </div>
             <p className="muted">

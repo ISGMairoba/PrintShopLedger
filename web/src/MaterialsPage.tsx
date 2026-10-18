@@ -454,10 +454,11 @@ export default function MaterialsPage({
                 })
               }
             >
+              <Icon name="archive" />{' '}
               {busy ? 'Saving...' : w(confirmation.archived ? 'Restore material' : 'Archive material')}
             </button>
             <button className="secondary" disabled={busy} onClick={() => setConfirmation(null)}>
-              Cancel
+              <Icon name="close" /> Cancel
             </button>
           </div>
         </Modal>

@@ -1,3 +1,4 @@
+import Icon from './Icon';
 import { useFeedbackMessage, FeedbackBanner } from './Feedback';
 import { TEMPLATE_LIMIT } from './pricing-templates.mjs';
 import { receiptHtml } from './receipts.mjs';
@@ -156,7 +157,7 @@ export default function BusinessSettingsPage({
       }
       onClick={() => void saveSection(label, keys)}
     >
-      Save {w(label).toLowerCase()}
+      <Icon name="save" /> Save {w(label).toLowerCase()}
     </button>
   );
   // Receipt printers and full pages each keep their own receipt settings.
@@ -309,7 +310,7 @@ export default function BusinessSettingsPage({
                     setPalette([]);
                   }}
                 >
-                  Remove logo
+                  <Icon name="close" /> Remove logo
                 </button>
               )}
               <LogoVariantsEditor value={draft} onChange={field} onUpload={logo} busy={busy} />
@@ -389,7 +390,7 @@ export default function BusinessSettingsPage({
                     field('backgrounds', defaults.backgrounds);
                   }}
                 >
-                  Restore default colors
+                  <Icon name="restore" /> Restore default colors
                 </button>
                 {sectionSave('Appearance', ['primary', 'accent', 'theme', 'backgrounds'])}
               </div>
@@ -1084,7 +1085,7 @@ export default function BusinessSettingsPage({
             </div>
             <div className="settings-actions" role="group" aria-label="All settings actions">
               <button disabled={busy || !ready || (!demo && !online) || version !== base || !dirty}>
-                {busy ? 'Saving…' : 'Save business settings'}
+                <Icon name="save" /> {busy ? 'Saving…' : 'Save business settings'}
               </button>
               <button
                 type="button"
@@ -1097,7 +1098,7 @@ export default function BusinessSettingsPage({
                   setMessage('');
                 }}
               >
-                Reload saved settings
+                <Icon name="sync" /> Reload saved settings
               </button>
             </div>
             {modifiedAt && (

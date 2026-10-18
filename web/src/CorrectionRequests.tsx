@@ -74,12 +74,12 @@ function RequestList({
             </div>
             {r.status === 'pending' && onReview && (
               <button className="secondary" disabled={busy} onClick={() => onReview(r)}>
-                Review
+                <Icon name="details" /> Review
               </button>
             )}
             {r.status === 'pending' && onWithdraw && (
               <button className="secondary" disabled={busy} onClick={() => onWithdraw(r)}>
-                Withdraw
+                <Icon name="close" /> Withdraw
               </button>
             )}
           </li>
@@ -132,7 +132,7 @@ export function MyCorrectionsPanel({
           disabled={busy || !online || !jobId}
           onClick={() => onRequest(own.jobs.find((j) => j.id === jobId)!)}
         >
-          Request a correction
+          <Icon name="edit" /> Request a correction
         </button>
       </div>
       {!online && <p className="muted">{w('Connect to the internet to request a correction.')}</p>}
@@ -295,7 +295,7 @@ function RequestReviewDialog({
       footer={
         <div className="dialog-action-buttons">
           <button type="button" className="secondary" disabled={busy} onClick={onClose}>
-            Cancel
+            <Icon name="close" /> Cancel
           </button>
           <button type="submit" form={rejectId} className="secondary" disabled={busy || !canSave}>
             <Icon name="close" /> Reject request

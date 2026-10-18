@@ -1,3 +1,4 @@
+import Icon from './Icon';
 import { useState } from 'react';
 import type { Branding } from './useBusinessBranding';
 import { logoLayouts } from './logo-variants.mjs';
@@ -74,7 +75,7 @@ export default function LogoVariantsEditor({
                     })
                   }
                 >
-                  Remove {mode} version
+                  <Icon name="close" /> Remove {mode} version
                 </button>
               )}
             </section>

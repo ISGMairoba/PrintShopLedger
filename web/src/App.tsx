@@ -1053,7 +1053,7 @@ export default function App() {
                             setMessage('');
                           }}
                         >
-                          Switch user
+                          <Icon name="users" /> Switch user
                         </button>
                       )}
                       {!demo && (
@@ -1069,7 +1069,7 @@ export default function App() {
                             }
                           }}
                         >
-                          Logout
+                          <Icon name="account" /> Logout
                         </button>
                       )}
                       {supabase && (demo || (shop?.accessLevel ?? 0) >= 3) && (
@@ -1096,6 +1096,7 @@ export default function App() {
                             }
                           }}
                         >
+                          <Icon name={demo ? 'account' : 'close'} />{' '}
                           {demo ? 'Business sign in' : 'Sign out business'}
                         </button>
                       )}
@@ -1186,7 +1187,7 @@ export default function App() {
                         disabled={busy}
                         onClick={() => void updateServiceWorker(true)}
                       >
-                        Update app
+                        <Icon name="sync" /> Update app
                       </button>
                     </div>
                   )}
@@ -1205,7 +1206,7 @@ export default function App() {
                         disabled={!online || busy}
                         onClick={() => setSupervisorLogin(true)}
                       >
-                        Supervisor review
+                        <Icon name="audit" /> Supervisor review
                       </button>
                     </div>
                   )}
@@ -1213,7 +1214,7 @@ export default function App() {
                     <div className="notice notice-warning">
                       {heldWork.eventIds.size} pending operations await review. Unaffected sales can continue.{' '}
                       <button className="secondary" onClick={() => setPage('Conflict Inbox')}>
-                        Open conflict inbox
+                        <Icon name="inbox" /> Open conflict inbox
                       </button>
                     </div>
                   )}
@@ -1227,7 +1228,7 @@ export default function App() {
                           setSupervisor('');
                         }}
                       >
-                        End supervisor review
+                        <Icon name="close" /> End supervisor review
                       </button>
                     </div>
                   )}
@@ -1267,7 +1268,7 @@ export default function App() {
                     <div className="notice notice-warning">
                       Sync is paused while you review an edit conflict.{' '}
                       <button className="secondary" onClick={() => setConflictReviewHidden(false)}>
-                        Review changes
+                        <Icon name="details" /> Review changes
                       </button>
                     </div>
                   )}
@@ -1393,7 +1394,9 @@ export default function App() {
                             <input name="ownerName" maxLength={160} required />
                           </label>
                         )}
-                        <button disabled={busy || !online}>Create workspace</button>
+                        <button disabled={busy || !online}>
+                          <Icon name="add" /> Create workspace
+                        </button>
                       </form>
                       <p className="muted">
                         If you should join an existing business, ask its administrator to add your account.

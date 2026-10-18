@@ -97,7 +97,7 @@ export default function ReceiptView({
             </p>
             {ledger && (
               <button className="secondary" disabled={busy} onClick={() => setCorrected((v) => !v)}>
-                {corrected ? 'Original receipt' : 'Corrected receipt'}
+                <Icon name="details" /> {corrected ? 'Original receipt' : 'Corrected receipt'}
               </button>
             )}
             <AdjustmentHistory records={adjustments} />
@@ -127,10 +127,10 @@ export default function ReceiptView({
           <Icon name="share" /> Share
         </button>
         <button className="secondary" disabled={busy || !!warning} onClick={() => void pdf('a4')}>
-          Download PDF (A4)
+          <Icon name="export" /> Download PDF (A4)
         </button>
         <button className="secondary" disabled={busy || !!warning} onClick={() => void pdf('roll')}>
-          Download PDF (80mm)
+          <Icon name="export" /> Download PDF (80mm)
         </button>
         {onCorrectPayment && (
           <button className="secondary" disabled={busy || pending} onClick={onCorrectPayment}>

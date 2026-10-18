@@ -410,7 +410,7 @@ try {
   await row.getByRole('button', { name: 'Revoke access', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Revoke access', exact: true }).click();
   await page.getByRole('dialog').waitFor({ state: 'detached' });
-  await row.getByText('0 — Revoked', { exact: true }).waitFor();
+  await row.getByText('Access revoked', { exact: true }).waitFor();
   await row.getByRole('button', { name: 'Grant access', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Grant access', exact: true }).click();
   await page.getByRole('dialog').waitFor({ state: 'detached' });
