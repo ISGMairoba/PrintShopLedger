@@ -2,6 +2,10 @@
 
 Status: planning draft, 15 October 2026. The finished manual will describe the released app; this outline is not a claim that every workflow has been documented or visually verified.
 
+## Draft now available
+
+The [manual contents](manual/README.md) links the first text drafts of Cashier Quick Start, the owner setup checklist and the glossary. Default labels were checked against release `7b4ea3c`; `tests/manual-examples.test.mjs` checks the part-payment, balance-payment, overpayment and markup/margin examples against application rules. Screenshots, first-time-user testing, remaining chapters and the printable edition are still pending.
+
 ## Purpose and delivery
 
 Help a new cashier complete a sale and recover from common problems, then help an owner configure and supervise the shop. Write in plain English with short actions, actual button names, NGN examples and mobile-first screenshots. Use one fictional shop and customers throughout; no live business records, credentials or personal contact details.
@@ -78,6 +82,6 @@ For money examples, show the before and after balances explicitly. Use a book or
 - Have someone unfamiliar with the app complete the quick-start tasks without verbal help. Treat unfinished or confusing steps as manual defects.
 - Keep screenshots associated with their source chapter and captured release. When UI or business rules change, update affected chapters/screenshots in the same pull request.
 
-## First writing deliverable
+## Next writing deliverable
 
-The next manual-writing increment should be a short **Cashier Quick Start** covering sign-in, menu/status, service sale, customer selection, partial payment, receipt and sync confirmation. Add a one-page owner setup checklist. Validate these before writing the full reference manual. No user credentials are needed to plan or draft fictional examples.
+Review the available Cashier Quick Start, owner setup checklist and glossary with a first-time user. Capture verified screenshots using fictional data, then draft **Finding your way**, **Jobs and production**, and **My Sales and drawer handover**. Keep the printable edition until the core wording and workflows have been reviewed. No user credentials are needed to draft fictional examples.
