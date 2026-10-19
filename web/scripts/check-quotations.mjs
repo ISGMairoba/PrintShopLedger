@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from 'playwright';
+import { pick, pickedValue, pickOptions } from './pick.mjs';
 
 const port = 4182;
 const server = spawn(
@@ -59,7 +60,7 @@ try {
   d = page.getByRole('dialog', { name: 'New quotation' });
   await d.getByLabel('Customer', { exact: true }).fill('Bello Stores');
   await d.getByLabel('Phone').fill('080333');
-  await d.getByLabel('Service', { exact: true }).selectOption({ label: 'Design — ₦10,000.00' });
+  await pick(d, 'Service', { label: 'Design — ₦10,000.00' });
   assert.equal(await d.getByLabel('Description').inputValue(), 'Design');
   await d.getByLabel('Quantity', { exact: true }).fill('2');
   assert.match(await d.locator('.cart-total').innerText(), /₦20,000\.00/);

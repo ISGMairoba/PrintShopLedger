@@ -15,6 +15,7 @@ import { currency } from './receipts.mjs';
 import { saleDay, drawerSnapshot } from './my-sales.mjs';
 import type { Ledger, Job, SupervisedEvent, SaleAdjustment } from './types';
 import { useWords } from './Words';
+import SearchSelect from './SearchSelect';
 export function AdjustmentHistory({ records }: { records: SaleAdjustment[] }) {
   const { w, stage } = useWords();
   return (
@@ -599,25 +600,21 @@ export function SaleAdjustmentEditor({
               <div className="form-grid">
                 <label>
                   {w('Corrected service')}
-                  <select
+                  <SearchSelect
+                    label={w('Corrected service')}
                     value={serviceId}
-                    onChange={(e) => {
-                      const service = ledger.services.find((s) => s.id === e.target.value)!;
+                    required
+                    placeholder={w('Choose a service')}
+                    options={ledger.services
+                      .filter((s) => !s.archived && !s.private)
+                      .map((s) => ({ value: s.id, label: s.description }))}
+                    onChange={(next) => {
+                      const service = ledger.services.find((s) => s.id === next)!;
                       setServiceId(service.id);
                       setMaterialId(service.materialId ?? '');
                       setUnitPrice(String(service.price / 100));
                     }}
-                    required
-                  >
-                    <option value="">{w('Choose a service')}</option>
-                    {ledger.services
-                      .filter((s) => !s.archived && !s.private)
-                      .map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.description}
-                        </option>
-                      ))}
-                  </select>
+                  />
                 </label>
                 {hasMaterialChoice(chosenService) ? (
                   <p className="muted">
@@ -627,16 +624,15 @@ export function SaleAdjustmentEditor({
                 ) : (
                   <label>
                     {w('Corrected material')}
-                    <select value={materialId} onChange={(e) => setMaterialId(e.target.value)}>
-                      <option value="">{w('No material')}</option>
-                      {ledger.materials
+                    <SearchSelect
+                      label={w('Corrected material')}
+                      value={materialId}
+                      pinned={[{ value: '', label: w('No material') }]}
+                      options={ledger.materials
                         .filter((m) => !m.archived)
-                        .map((m) => (
-                          <option key={m.id} value={m.id}>
-                            {m.name}
-                          </option>
-                        ))}
-                    </select>
+                        .map((m) => ({ value: m.id, label: m.name }))}
+                      onChange={setMaterialId}
+                    />
                   </label>
                 )}
                 <label>

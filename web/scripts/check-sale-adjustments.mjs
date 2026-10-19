@@ -5,6 +5,7 @@ import { chromium, webkit } from 'playwright';
 import { emptyLedger, applyEvent } from '../src/domain.mjs';
 import { prepareCheckout, walletBalance } from '../src/checkout.mjs';
 import { drawerSnapshot } from '../src/my-sales.mjs';
+import { pick, pickedValue, pickOptions } from './pick.mjs';
 const openMore = async (scope) => {
   // Pages with a single extra action show it directly; others put it under More.
   const toggle = scope.locator('.toolbar-actions .more-menu > button').first();
@@ -306,8 +307,8 @@ try {
         d = page.getByRole('dialog');
         assert.equal(await d.getByLabel('Related job (optional)').locator('option').count(), 3);
         await d.getByLabel('Related job (optional)').selectOption(uuid(9));
-        assert.equal(await d.getByLabel('Material', { exact: true }).inputValue(), uuid(8));
-        await d.getByLabel('Material', { exact: true }).selectOption(material);
+        assert.equal(await pickedValue(d, 'Material'), uuid(8));
+        await pick(d, 'Material', material);
         assert.equal(await d.getByLabel('Related job (optional)').inputValue(), '');
         assert.equal(await d.getByLabel('Related job (optional)').locator('option').count(), 2);
         await d.getByLabel('Type', { exact: true }).selectOption('Reprint');

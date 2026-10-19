@@ -26,6 +26,7 @@ import {
 import { currency } from './receipts.mjs';
 import { money } from './domain.mjs';
 import { useWords } from './Words';
+import { alphabetical } from './alphabetical.mjs';
 
 export default function PricingTemplatesPage({
   settings,
@@ -578,13 +579,14 @@ export default function PricingTemplatesPage({
                   {w('Stock item')} (optional)
                   <select name="material" defaultValue="">
                     <option value="">No stock — cost only</option>
-                    {ledger.materials
-                      .filter((m) => !m.archived)
-                      .map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.name} ({m.measurementUnit})
-                        </option>
-                      ))}
+                    {alphabetical(
+                      ledger.materials.filter((m) => !m.archived),
+                      (m) => m.name,
+                    ).map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name} ({m.measurementUnit})
+                      </option>
+                    ))}
                   </select>
                   <small>Link a material when templates should take it out of stock.</small>
                 </label>

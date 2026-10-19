@@ -13,6 +13,7 @@ import { materialCode } from './material-display.mjs';
 import type { Expense, ExpenseEvent, ExpenseMaterial, Material } from './types';
 import { useWords } from './Words';
 import { renameActive as wt } from './Words';
+import SearchSelect from './SearchSelect';
 const currency = (value: number) =>
   new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(value / 100);
 type Props = {
@@ -218,32 +219,27 @@ export default function ExpenseEditor({
                       <div className="expense-stock-line" key={index}>
                         <label>
                           {wt('Material')}
-                          <select
-                            aria-label={wt(`Material ${index + 1}`)}
+                          <SearchSelect
+                            label={wt(`Material ${index + 1}`)}
                             value={line.materialId}
                             required
-                            onChange={(e) => {
-                              const m = materials.find((item) => item.id === e.target.value);
+                            placeholder={wt('Choose material')}
+                            options={materials
+                              .filter((m) => !m.archived || m.id === line.materialId)
+                              .map((m) => ({
+                                value: m.id,
+                                label: `${m.name} (${materialCode(m.id, materials)})${m.archived ? ' · Archived' : ''}`,
+                                disabled: lines.some((l, i) => i !== index && l.materialId === m.id),
+                              }))}
+                            onChange={(next) => {
+                              const m = materials.find((item) => item.id === next);
                               update(index, {
-                                materialId: e.target.value,
+                                materialId: next,
                                 name: m?.name ?? '',
                                 measurementUnit: m?.measurementUnit ?? '',
                               });
                             }}
-                          >
-                            <option value="">{wt('Choose material')}</option>
-                            {materials
-                              .filter((m) => !m.archived || m.id === line.materialId)
-                              .map((m) => (
-                                <option
-                                  key={m.id}
-                                  value={m.id}
-                                  disabled={lines.some((l, i) => i !== index && l.materialId === m.id)}
-                                >
-                                  {m.name} ({materialCode(m.id, materials)}){m.archived ? ' · Archived' : ''}
-                                </option>
-                              ))}
-                          </select>
+                          />
                         </label>
                         <label>
                           Quantity received{line.measurementUnit && ` (${line.measurementUnit})`}

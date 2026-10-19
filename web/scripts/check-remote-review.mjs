@@ -5,6 +5,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from 'playwright';
 import { emptyLedger, applyEvent } from '../src/domain.mjs';
 import { prepareCheckout } from '../src/checkout.mjs';
+import { pick, pickedValue, pickOptions } from './pick.mjs';
 const server = spawn(
   process.execPath,
   ['node_modules/vite/bin/vite.js', 'preview', '--host', '127.0.0.1', '--port', '4195', '--strictPort'],
@@ -272,7 +273,7 @@ try {
     assert.equal(cloud.materials.find((m) => m.id === film).available, 95);
     await till.getByRole('button', { name: 'Add job', exact: true }).click();
     let d = till.getByRole('dialog', { name: 'New checkout' });
-    await d.getByLabel('Service', { exact: true }).selectOption(print);
+    await pick(d, 'Service', print);
     await d.getByLabel('Job description').fill('Depends on disputed paper');
     await d.getByLabel('Quantity', { exact: true }).fill('1');
     await d.getByRole('combobox', { name: 'Customer name or phone' }).fill('Customer B');

@@ -2,6 +2,7 @@ import DialogActions from './DialogActions';
 import { useFeedbackMessage } from './Feedback';
 import CurrencyInput from './CurrencyInput';
 import ResponsiveTable from './ResponsiveTable';
+import SearchSelect from './SearchSelect';
 import { auditCells, auditHeaders } from './AuditColumns';
 import Icon from './Icon';
 import { packList } from './pack-prices.mjs';
@@ -574,20 +575,21 @@ export default function ServicesPage({
                 </label>
                 <label>
                   {w('Base material')}
-                  <select
+                  <SearchSelect
+                    label={w('Base material')}
                     name="material"
                     value={materialValue}
-                    onChange={(e) => setMaterialValue(e.target.value)}
-                  >
-                    <option value="">{w('No material — service only')}</option>
-                    {!privateItem && <option value={CHOICE}>{w('A choice of materials…')}</option>}
-                    {options.map((item) => (
-                      <option key={item.id} value={item.id} title={item.name}>
-                        {shortLabel(item.name)} ({materialCode(item.id, materials)})
-                        {item.archived ? ' · Archived' : ''}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setMaterialValue}
+                    pinned={[
+                      { value: '', label: w('No material — service only') },
+                      ...(!privateItem ? [{ value: CHOICE, label: w('A choice of materials…') }] : []),
+                    ]}
+                    options={options.map((item) => ({
+                      value: item.id,
+                      label: `${shortLabel(item.name)} (${materialCode(item.id, materials)})${item.archived ? ' · Archived' : ''}`,
+                      keywords: item.name,
+                    }))}
+                  />
                 </label>
                 {!privateItem && (
                   <label>

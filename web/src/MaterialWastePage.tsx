@@ -7,6 +7,7 @@ import { applyWaste } from './sale-adjustments.mjs';
 import type { Ledger, SupervisedEvent } from './types';
 import { useWords } from './Words';
 import { renameActive as wt } from './Words';
+import SearchSelect from './SearchSelect';
 export default function MaterialWastePage({
   ledger,
   ready,
@@ -153,25 +154,19 @@ export default function MaterialWastePage({
             <fieldset disabled={busy || !!submitted}>
               <label>
                 {wt('Material')}
-                <select
-                  aria-label={wt('Material')}
+                <SearchSelect
+                  label={wt('Material')}
                   value={material}
-                  onChange={(e) => {
-                    setMaterial(e.target.value);
-                    if (jobId && ledger.jobs.find((j) => j.id === jobId)?.materialId !== e.target.value)
-                      setJobId('');
-                  }}
                   required
-                >
-                  <option value="">{wt('Choose a material')}</option>
-                  {ledger.materials
+                  placeholder={wt('Choose a material')}
+                  options={ledger.materials
                     .filter((m) => !m.archived)
-                    .map((m) => (
-                      <option value={m.id} key={m.id}>
-                        {m.name} ({m.measurementUnit})
-                      </option>
-                    ))}
-                </select>
+                    .map((m) => ({ value: m.id, label: `${m.name} (${m.measurementUnit})` }))}
+                  onChange={(next) => {
+                    setMaterial(next);
+                    if (jobId && ledger.jobs.find((j) => j.id === jobId)?.materialId !== next) setJobId('');
+                  }}
+                />
               </label>
               <label>
                 Type

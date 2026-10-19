@@ -7,6 +7,7 @@ import { chromium } from 'playwright';
 import { fixture } from '../tests/pricing-fixture.mjs';
 import { applyEvent } from '../src/domain.mjs';
 import { navigationPages } from '../src/page-access.mjs';
+import { pick } from './pick.mjs';
 
 const out = process.argv[2] ?? '/tmp/ui-screens';
 mkdirSync(out, { recursive: true });
@@ -262,7 +263,7 @@ try {
       await page.getByRole('button', { name: 'Add service', exact: true }).click();
       const d = page.getByRole('dialog').first();
       await d.getByLabel('Service description').fill('Lamination (A4)');
-      await d.getByLabel('Base material').selectOption('__choice');
+      await pick(d, 'Base material', '__choice');
       await d.getByRole('checkbox', { name: /Paper 70gsm/ }).check();
       await d.getByRole('checkbox', { name: /Paper 80gsm/ }).check();
       await d.getByRole('textbox', { name: 'Price (₦)' }).fill('300');
@@ -273,10 +274,7 @@ try {
       await page.getByRole('button', { name: 'Add job', exact: true }).click();
       const c = page.getByRole('dialog', { name: 'New checkout' });
       const line = c.locator('.cart-line').first();
-      const value = await line
-        .getByLabel('Service', { exact: true })
-        .evaluate((el) => [...el.options].find((o) => o.textContent.includes('Lamination'))?.value);
-      await line.getByLabel('Service', { exact: true }).selectOption(value);
+      await pick(line, 'Service', { text: 'Lamination' });
       await line.getByLabel('Quantity', { exact: true }).fill('100');
       await line.getByLabel('Job description').fill('Laminate certificates');
       await c.getByRole('combobox', { name: 'Customer name or phone' }).fill('Book');

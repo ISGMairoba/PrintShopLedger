@@ -8,6 +8,7 @@ import {
   type VariantGroup,
 } from './variants.mjs';
 import type { Ledger, MaterialEvent, Service, ServiceEvent } from './types';
+import { alphabetical } from './alphabetical.mjs';
 
 type Events = (MaterialEvent | ServiceEvent)[];
 type Row = { name: string; stock: string; minimum: string };
@@ -214,7 +215,7 @@ export default function VariantTools({
                 <label>
                   Product
                   <select value={target} onChange={(e) => setTarget(e.target.value)}>
-                    {others.map((g) => (
+                    {alphabetical(others, (g) => g.name).map((g) => (
                       <option key={g.id} value={g.id}>
                         {g.name} ({g.members.map((m) => m.service.variantName).join(', ')})
                       </option>

@@ -4,6 +4,7 @@ import { serviceMaterial } from './material-choice.mjs';
 import { templateDefaults } from './pricing-templates.mjs';
 import type { TemplateSnapshot } from './types';
 import { lineWithDescription, nextDescription } from './job-batches.mjs';
+import SearchSelect from './SearchSelect';
 import { useFeedbackMessage } from './Feedback';
 import { useBusinessOptions } from './BusinessOptionsContext';
 import CurrencyInput from './CurrencyInput';
@@ -30,6 +31,7 @@ import { jobSettingsDefaults } from './business-branding.mjs';
 import { applyOrderDiscount } from './discounts.mjs';
 import { packList, packSummary } from './pack-prices.mjs';
 import { useWords } from './Words';
+import { alphabetical } from './alphabetical.mjs';
 type JobSettings = ReturnType<typeof jobSettingsDefaults>;
 type Props = {
   ledger: Ledger;
@@ -349,9 +351,12 @@ export default function CheckoutEditor({
       ? applyCustomerEvent(ledger, newCustomer)
       : ledger;
   const customer = working.customers.find((c) => c.id === customerId && !c.archived);
-  const matches = working.customers
-    .filter((c) => !c.archived && `${c.name} ${c.phone}`.toLowerCase().includes(query.toLowerCase()))
-    .slice(0, 8);
+  const matches = alphabetical(
+    working.customers.filter(
+      (c) => !c.archived && `${c.name} ${c.phone}`.toLowerCase().includes(query.toLowerCase()),
+    ),
+    (c) => c.name,
+  ).slice(0, 8);
   const choose = (id: string, name: string) => {
     if (!initialCheckout && id !== customerId) setCashOverride(null);
     setCustomerId(id);
@@ -673,14 +678,37 @@ export default function CheckoutEditor({
                       <div className="form-grid">
                         <label>
                           {w('Service')}
-                          <select
-                            aria-label={w('Service')}
+                          <SearchSelect
+                            label={w('Service')}
                             required
                             value={item.serviceId}
-                            onChange={(e) => {
-                              const chosenTemplate = working.pricing?.templates.find(
-                                (t) => t.id === e.target.value,
-                              );
+                            placeholder={w('Select service')}
+                            options={[
+                              ...(working.pricing?.enabled
+                                ? working.pricing.templates
+                                    .filter((t) => !t.archived)
+                                    .map((t) => ({
+                                      value: t.id,
+                                      label: `${t.name} — Template`,
+                                      group: 'Pricing templates',
+                                    }))
+                                : []),
+                              ...working.services
+                                .filter(
+                                  (s) =>
+                                    !s.archived &&
+                                    !s.private &&
+                                    (s.materialId === null ||
+                                      working.materials.some((m) => m.id === s.materialId && !m.archived)),
+                                )
+                                .map((s) => ({
+                                  value: s.id,
+                                  label: `${s.description} — ${currency(s.price)}${s.packPrices?.length ? ` · ${packList(s.packPrices)}` : ''}`,
+                                  group: working.pricing?.enabled ? w('Services') : undefined,
+                                })),
+                            ]}
+                            onChange={(next) => {
+                              const chosenTemplate = working.pricing?.templates.find((t) => t.id === next);
                               // Templates and shelf items fill in their name as the description; staff can
                               // change it. A filled-in name follows the item when another is chosen.
                               const autoOf = (id: string) => {
@@ -694,7 +722,7 @@ export default function CheckoutEditor({
                                   line.id === item.id
                                     ? {
                                         ...line,
-                                        serviceId: e.target.value,
+                                        serviceId: next,
                                         templateSnapshot: undefined,
                                         templateInputs: chosenTemplate
                                           ? templateDefaults(chosenTemplate)
@@ -703,7 +731,7 @@ export default function CheckoutEditor({
                                         description: nextDescription(
                                           line.description,
                                           autoOf(line.serviceId),
-                                          autoOf(e.target.value),
+                                          autoOf(next),
                                         ),
                                         ...(chosenTemplate
                                           ? {
@@ -718,34 +746,7 @@ export default function CheckoutEditor({
                                 ),
                               );
                             }}
-                          >
-                            <option value="">{w('Select service')}</option>
-                            {working.pricing?.enabled && (
-                              <optgroup label="Pricing templates">
-                                {working.pricing.templates
-                                  .filter((t) => !t.archived)
-                                  .map((t) => (
-                                    <option key={t.id} value={t.id}>
-                                      {t.name} — Template
-                                    </option>
-                                  ))}
-                              </optgroup>
-                            )}
-                            {working.services
-                              .filter(
-                                (s) =>
-                                  !s.archived &&
-                                  !s.private &&
-                                  (s.materialId === null ||
-                                    working.materials.some((m) => m.id === s.materialId && !m.archived)),
-                              )
-                              .map((s) => (
-                                <option key={s.id} value={s.id}>
-                                  {s.description} — {currency(s.price)}
-                                  {s.packPrices?.length ? ` · ${packList(s.packPrices)}` : ''}
-                                </option>
-                              ))}
-                          </select>
+                          />
                         </label>
                         {jobSettings.descriptionMode !== 'hidden' && (
                           <label>

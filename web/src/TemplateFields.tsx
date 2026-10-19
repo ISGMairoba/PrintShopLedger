@@ -19,6 +19,7 @@ import {
 import { currency } from './receipts.mjs';
 import Icon from './Icon';
 import type { Ledger, PricingTemplate, TemplateSnapshot, TemplateVariable } from './types';
+import { alphabetical } from './alphabetical.mjs';
 
 /** Whether this person may see costs and the internal job & audit view. */
 export const TemplateAuditContext = createContext(false);
@@ -600,7 +601,11 @@ export function TemplateCalculator({
               setQuantity(startQuantity(next));
             }}
           >
-            {active.map((t) => (
+            {alphabetical(active, (t) =>
+              t.category && t.category.toLowerCase() !== t.name.toLowerCase()
+                ? `${t.category} · ${t.name}`
+                : t.name,
+            ).map((t) => (
               <option key={t.id} value={t.id}>
                 {t.category && t.category.toLowerCase() !== t.name.toLowerCase()
                   ? `${t.category} · ${t.name}`

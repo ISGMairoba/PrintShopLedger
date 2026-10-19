@@ -4,6 +4,7 @@ import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { readFile } from 'node:fs/promises';
 import { chromium } from 'playwright';
+import { pick, pickedValue, pickOptions } from './pick.mjs';
 const openMore = async (scope) => {
   // Pages with a single extra action show it directly; others put it under More.
   const toggle = scope.locator('.toolbar-actions .more-menu > button').first();
@@ -238,7 +239,7 @@ try {
     await customer.getByLabel('Phone number').fill('08022223333');
     await customer.getByRole('button', { name: 'Save customer', exact: true }).click();
     await customer.waitFor({ state: 'detached' });
-    await dialog.getByLabel('Service', { exact: true }).selectOption({ index: 1 });
+    await pick(dialog, 'Service', { index: 0 });
     await dialog.getByLabel('Job description').fill('Client cap');
     assert.equal(await dialog.getByLabel('Job received through').inputValue(), 'Instagram DM');
     await dialog.getByLabel('Payment method', { exact: true }).selectOption('Opay');

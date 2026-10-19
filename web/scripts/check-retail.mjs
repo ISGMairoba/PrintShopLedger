@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from 'playwright';
+import { pick, pickedValue, pickOptions } from './pick.mjs';
 
 const port = 4181;
 const server = spawn(
@@ -59,7 +60,7 @@ try {
   await cd.getByRole('button', { name: 'Save customer', exact: true }).click();
   await cd.waitFor({ state: 'detached' });
   const line = d.locator('.cart-line').first();
-  await line.getByLabel('Service', { exact: true }).selectOption({ label: 'Blue pen — ₦500.00' });
+  await pick(line, 'Service', { label: 'Blue pen — ₦500.00' });
   assert.equal(await line.getByLabel('Job description').inputValue(), 'Blue pen');
   assert.equal(await line.getByLabel('Deadline').count(), 0, 'Shelf items have no deadline');
   await line.getByLabel('Quantity', { exact: true }).fill('3');

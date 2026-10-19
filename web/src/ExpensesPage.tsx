@@ -14,6 +14,7 @@ import { expenseCode, expensePaid, expenseStatus, expenseSummary, makeExpenseEve
 import type { Expense, ExpenseEvent, Ledger, LedgerEvent } from './types';
 import { useWords } from './Words';
 import { renameActive as wt } from './Words';
+import { alphabetical } from './alphabetical.mjs';
 const currency = (value: number) =>
   new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(value / 100);
 const timestamp = (value: string) => new Date(value).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' });
@@ -212,9 +213,14 @@ export default function ExpensesPage({
               Recorded by
               <select aria-label="Recorded by" value={staff} onChange={(e) => setStaff(e.target.value)}>
                 <option value="">All staff</option>
-                {[
-                  ...new Map(ledger.expenses.map((item) => [item.createdBy, item.createdByLabel])).entries(),
-                ].map(([id, label]) => (
+                {alphabetical(
+                  [
+                    ...new Map(
+                      ledger.expenses.map((item) => [item.createdBy, item.createdByLabel]),
+                    ).entries(),
+                  ],
+                  ([, label]) => label,
+                ).map(([id, label]) => (
                   <option key={id} value={id}>
                     {label}
                   </option>
