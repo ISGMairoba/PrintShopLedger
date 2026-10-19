@@ -306,7 +306,10 @@ try {
     });
     await step('search select', async () => {
       await nav('Point of Service');
-      await page.getByRole('button', { name: /Add job/ }).first().click();
+      await page
+        .getByRole('button', { name: /Add job/ })
+        .first()
+        .click();
       const d = page.getByRole('dialog').last();
       const box = d.getByRole('combobox', { name: 'Service', exact: true });
       await box.click();
