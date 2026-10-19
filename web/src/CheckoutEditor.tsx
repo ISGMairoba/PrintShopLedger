@@ -3,7 +3,7 @@ import { TemplateInputs, TemplateEstimate, tryTemplate } from './TemplateFields'
 import { serviceMaterial } from './material-choice.mjs';
 import { templateDefaults } from './pricing-templates.mjs';
 import type { TemplateSnapshot } from './types';
-import { lineWithDescription } from './job-batches.mjs';
+import { lineWithDescription, nextDescription } from './job-batches.mjs';
 import { useFeedbackMessage } from './Feedback';
 import { useBusinessOptions } from './BusinessOptionsContext';
 import CurrencyInput from './CurrencyInput';
@@ -678,11 +678,17 @@ export default function CheckoutEditor({
                             required
                             value={item.serviceId}
                             onChange={(e) => {
-                              const picked = working.services.find((s) => s.id === e.target.value);
                               const chosenTemplate = working.pricing?.templates.find(
                                 (t) => t.id === e.target.value,
                               );
-                              // Shelf items: the product name is a fine description; staff can change it.
+                              // Templates and shelf items fill in their name as the description; staff can
+                              // change it. A filled-in name follows the item when another is chosen.
+                              const autoOf = (id: string) => {
+                                const t = working.pricing?.templates.find((x) => x.id === id);
+                                if (t) return t.name;
+                                const s = working.services.find((x) => x.id === id);
+                                return s?.shelfItem ? s.description.slice(0, 500) : '';
+                              };
                               setLines((items) =>
                                 items.map((line) =>
                                   line.id === item.id
@@ -694,17 +700,18 @@ export default function CheckoutEditor({
                                           ? templateDefaults(chosenTemplate)
                                           : undefined,
                                         templateStockIds: chosenTemplate ? {} : undefined,
+                                        description: nextDescription(
+                                          line.description,
+                                          autoOf(line.serviceId),
+                                          autoOf(e.target.value),
+                                        ),
                                         ...(chosenTemplate
                                           ? {
-                                              description: chosenTemplate.name,
                                               quantity: String(
                                                 chosenTemplate.variables.find((v) => v.key === 'quantity')
                                                   ?.default ?? 1,
                                               ),
                                             }
-                                          : {}),
-                                        ...(picked?.shelfItem && !line.description.trim()
-                                          ? { description: picked.description.slice(0, 500) }
                                           : {}),
                                       }
                                     : line,

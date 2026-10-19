@@ -130,3 +130,18 @@ test('Bulk actions that collect show how many items and how much is still owed',
     owed: 0,
   });
 });
+
+test('a filled-in description follows the item; a typed one stays', async () => {
+  const { nextDescription } = await import('../src/job-batches.mjs');
+  // Template chosen first, then a service: the template's name does not stay behind.
+  assert.equal(nextDescription('Customized Hard Cover A4', 'Customized Hard Cover A4', ''), '');
+  assert.equal(
+    nextDescription('Customized Hard Cover A4', 'Customized Hard Cover A4', 'Envelope'),
+    'Envelope',
+  );
+  assert.equal(nextDescription('', '', 'Jotter Hard Cover'), 'Jotter Hard Cover');
+  assert.equal(
+    nextDescription('Wedding cards for Amina', 'Jotter Hard Cover', 'Envelope'),
+    'Wedding cards for Amina',
+  );
+});
