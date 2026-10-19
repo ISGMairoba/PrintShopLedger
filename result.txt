@@ -1,0 +1,6 @@
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m4198[22m/[39m
+w1920 quick sale: overlapping tiles 0, tiles with spilling text 0
+w1590 quick sale: overlapping tiles 0, tiles with spilling text 0
+w1280 quick sale: overlapping tiles 0, tiles with spilling text 0
+w1000 quick sale: overlapping tiles 0, tiles with spilling text 0
+w390 quick sale: overlapping tiles 0, tiles with spilling text 0
