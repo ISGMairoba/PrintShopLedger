@@ -7,6 +7,7 @@ import { SortHeader, useTableSort } from './TableSort';
 import { materialActionLabels, materialCode } from './material-display.mjs';
 import type { LedgerEvent, Material, MaterialHistoryEntry, MaterialSnapshot } from './types';
 import { useWords } from './Words';
+import SearchSelect from './SearchSelect';
 
 type Props = {
   history: MaterialHistoryEntry[];
@@ -98,18 +99,17 @@ export default function StockHistoryPage({ history, materials, pending, ready, d
             value={search}
             onChange={(e) => change(() => setSearch(e.target.value))}
           />
-          <select
-            aria-label={w('Filter material')}
+          <SearchSelect
+            label={w('Filter material')}
+            className="toolbar-search-select"
             value={materialId}
-            onChange={(e) => change(() => setMaterialId(e.target.value))}
-          >
-            <option value="">{w('All materials')}</option>
-            {materials.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name} ({materialCode(item.id, materials)})
-              </option>
-            ))}
-          </select>
+            pinned={[{ value: '', label: w('All materials') }]}
+            options={materials.map((item) => ({
+              value: item.id,
+              label: `${item.name} (${materialCode(item.id, materials)})`,
+            }))}
+            onChange={(next) => change(() => setMaterialId(next))}
+          />
           <select
             aria-label="Filter action"
             value={action}

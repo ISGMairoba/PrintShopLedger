@@ -2,6 +2,7 @@ import { readCopy } from './local-copy.mjs';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
+import { pick, pickedValue, pickOptions } from './pick.mjs';
 const openFilters = async (scope) => {
   const toggle = scope.locator('.filter-button').first();
   if ((await toggle.count()) && (await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
@@ -101,7 +102,7 @@ try {
   await d.getByLabel('Supplier / paid to').fill('Paper Seller');
   await d.getByLabel('Add purchased materials to stock').check();
   await d.getByRole('button', { name: 'Add material', exact: true }).click();
-  await d.getByLabel('Material 1', { exact: true }).selectOption({ index: 1 });
+  await pick(d, 'Material 1', { index: 0 });
   await d.getByLabel('Quantity received 1', { exact: true }).fill('100');
   await d.getByLabel('Amount paid (₦)').fill('5000');
   await d.getByRole('button', { name: 'Save expense', exact: true }).click();

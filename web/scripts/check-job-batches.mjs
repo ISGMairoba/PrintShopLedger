@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { chromium, webkit } from 'playwright';
+import { pick } from './pick.mjs';
 const openMore = async (scope) => {
   // Pages with a single extra action show it directly; others put it under More.
   const toggle = scope.locator('.toolbar-actions .more-menu > button').first();
@@ -75,17 +76,9 @@ try {
     await cd.getByLabel('Phone number').fill('08012345678');
     await cd.getByRole('button', { name: 'Save customer', exact: true }).click();
     await cd.waitFor({ state: 'detached' });
-    await d
-      .locator('.cart-line')
-      .first()
-      .getByLabel('Service', { exact: true })
-      .selectOption({ label: 'Pressing — ₦1,000.00' });
+    await pick(d.locator('.cart-line').first(), 'Service', { label: 'Pressing — ₦1,000.00' });
     await d.getByRole('button', { name: 'Add another service', exact: true }).click();
-    await d
-      .locator('.cart-line')
-      .nth(1)
-      .getByLabel('Service', { exact: true })
-      .selectOption({ label: 'Binding — ₦2,000.00' });
+    await pick(d.locator('.cart-line').nth(1), 'Service', { label: 'Binding — ₦2,000.00' });
     await d.getByLabel('Money received (₦)').fill('0');
     await d.getByRole('button', { name: 'Complete checkout', exact: true }).click();
     await d.waitFor({ state: 'detached' });
@@ -188,7 +181,7 @@ try {
     d = page.getByRole('dialog', { name: 'New quotation' });
     assert.equal(await d.getByLabel('Description', { exact: true }).count(), 0);
     await d.getByRole('combobox', { name: 'Customer', exact: true }).fill('Quote customer');
-    await d.getByLabel('Service', { exact: true }).selectOption({ label: 'Pressing — ₦1,000.00' });
+    await pick(d, 'Service', { label: 'Pressing — ₦1,000.00' });
     await d.getByRole('button', { name: 'Save quotation', exact: true }).click();
     await d.waitFor({ state: 'detached' });
     assert.match(await page.locator('main').innerText(), /Quote customer/);

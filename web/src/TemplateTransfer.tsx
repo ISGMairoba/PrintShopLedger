@@ -1,3 +1,4 @@
+import { alphabetical } from './alphabetical.mjs';
 import { useMemo, useState } from 'react';
 import Modal from './Modal';
 import Icon from './Icon';
@@ -203,14 +204,15 @@ export function TemplateImportDialog({
                   onChange={(e) => setMapping((current) => ({ ...current, [source.id]: e.target.value }))}
                 >
                   <option value="">Choose local item</option>
-                  {ledger.services
-                    .filter((s) => compatibleTemplateItem(source, s, ledger.materials))
-                    .map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.description}
-                        {s.costing?.key ? ` (${s.costing.key})` : ''}
-                      </option>
-                    ))}
+                  {alphabetical(
+                    ledger.services.filter((s) => compatibleTemplateItem(source, s, ledger.materials)),
+                    (s) => s.description,
+                  ).map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.description}
+                      {s.costing?.key ? ` (${s.costing.key})` : ''}
+                    </option>
+                  ))}
                 </select>
               </label>
             ))}

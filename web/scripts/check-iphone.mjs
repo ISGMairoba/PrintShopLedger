@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { webkit, devices } from 'playwright';
+import { pick, pickedValue, pickOptions } from './pick.mjs';
 const openFilters = async (scope) => {
   const toggle = scope.locator('.filter-button').first();
   if ((await toggle.count()) && (await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
@@ -128,7 +129,7 @@ try {
   await page.getByRole('button', { name: 'Add service', exact: true }).click();
   dialog = page.getByRole('dialog');
   await dialog.getByLabel('Service description').fill('Printing' + 'X'.repeat(140));
-  await dialog.getByLabel('Base material').selectOption({ index: 2 });
+  await pick(dialog, 'Base material', { index: 2 });
   await dialog.getByLabel('Price (₦)').fill('999999999');
   await fits('Service editor');
   await dialog.getByRole('button', { name: 'Save service', exact: true }).click();
@@ -152,7 +153,7 @@ try {
   await dialog.waitFor();
   await dialog.getByRole('combobox', { name: 'Customer name or phone' }).fill('Customer');
   await dialog.getByRole('listbox', { name: 'Customer suggestions' }).getByRole('option').first().tap();
-  await dialog.getByLabel('Service', { exact: true }).selectOption({ index: 1 });
+  await pick(dialog, 'Service', { index: 0 });
   await dialog.getByLabel('Job description').fill('Large job');
   await dialog.getByLabel('Money received (₦)').fill('0');
   await fits('Job editor');

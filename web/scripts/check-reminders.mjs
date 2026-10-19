@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from 'playwright';
+import { pick, pickedValue, pickOptions } from './pick.mjs';
 
 const port = 4183;
 const server = spawn(
@@ -61,7 +62,7 @@ try {
   await cd.getByRole('button', { name: 'Save customer', exact: true }).click();
   await cd.waitFor({ state: 'detached' });
   const line = d.locator('.cart-line').first();
-  await line.getByLabel('Service', { exact: true }).selectOption({ index: 1 });
+  await pick(line, 'Service', { index: 0 });
   await line.getByLabel('Job description').fill('Shop banner');
   await d.getByLabel('Money received (₦)').fill('0');
   await d.getByRole('button', { name: 'Complete checkout', exact: true }).click();

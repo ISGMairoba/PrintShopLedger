@@ -1803,3 +1803,39 @@ label small > .field-error {
   font-size: min(27px, 11.5cqi);
   overflow-wrap: anywhere;
 }
+
+/* ---- Type-to-search drop-downs (SearchSelect) ---- */
+.search-select .listed-combobox-list {
+  max-height: min(320px, 50vh);
+}
+.search-select-group {
+  margin: 0;
+  padding: 8px 12px 4px !important;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.search-select .listed-combobox-list button {
+  padding: 9px 12px;
+  min-height: 0;
+  white-space: normal;
+  font-weight: 500;
+}
+.search-select .listed-combobox-list button.chosen {
+  font-weight: 700;
+}
+.search-select .listed-combobox-list button[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.toolbar > .search-select {
+  flex: 0 1 240px;
+  min-width: 180px;
+}
+@media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
+  .toolbar > .search-select {
+    flex: 1 1 100%;
+  }
+}

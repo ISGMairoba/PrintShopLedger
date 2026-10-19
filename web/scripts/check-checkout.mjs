@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from 'playwright';
+import { pick, pickedValue, pickOptions } from './pick.mjs';
 const server = spawn(
   process.execPath,
   ['node_modules/vite/bin/vite.js', 'preview', '--host', '127.0.0.1', '--port', '4175', '--strictPort'],
@@ -44,7 +45,7 @@ try {
   await page.getByRole('button', { name: 'Add service', exact: true }).click();
   d = page.getByRole('dialog');
   await d.getByLabel('Service description').fill('Printing');
-  await d.getByLabel('Base material').selectOption({ index: 2 });
+  await pick(d, 'Base material', { index: 2 });
   await d.getByLabel('Price (₦)').fill('000100.00');
   await d.getByLabel('Price (₦)').blur();
   assert.equal(await d.getByLabel('Price (₦)').inputValue(), '100.00');
@@ -82,7 +83,7 @@ try {
     const line = d.locator('.cart-line').nth(index);
     assert.equal(await d.count(), 1, 'Checkout stays open');
     assert.equal(await line.count(), 1, 'Cart line remains available');
-    await line.getByLabel('Service', { exact: true }).selectOption({ index: 1 });
+    await pick(line, 'Service', { index: 0 });
     await line.getByLabel('Job description').fill(description);
     await line.getByLabel('Quantity', { exact: true }).fill(String(quantity));
     await line.getByLabel('Job received through').selectOption('WhatsApp');

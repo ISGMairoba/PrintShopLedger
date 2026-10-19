@@ -2,6 +2,7 @@ import { readCopy } from './local-copy.mjs';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
+import { pick, pickedValue, pickOptions } from './pick.mjs';
 const { chromium, webkit } = await import(process.env.PLAYWRIGHT_MODULE ?? 'playwright');
 const server = spawn(
   process.execPath,
@@ -43,7 +44,7 @@ try {
     await nav('Services');
     await page.getByRole('button', { name: 'Add service', exact: true }).click();
     let d = page.getByRole('dialog');
-    assert.equal(await d.getByLabel('Base material').inputValue(), '');
+    assert.equal(await pickedValue(d, 'Base material'), '');
     await d.getByLabel('Service description').fill('Cap pressing');
     await d.getByLabel('Price (₦)').fill('500');
     await d.getByRole('button', { name: 'Save service', exact: true }).click();
@@ -61,7 +62,7 @@ try {
     await page.getByRole('button', { name: 'Add service', exact: true }).click();
     d = page.getByRole('dialog');
     await d.getByLabel('Service description').fill('Printing');
-    await d.getByLabel('Base material').selectOption({ index: 2 });
+    await pick(d, 'Base material', { index: 2 });
     await d.getByLabel('Price (₦)').fill('100');
     await d.getByRole('button', { name: 'Save service', exact: true }).click();
     await d.waitFor({ state: 'detached' });
@@ -69,7 +70,7 @@ try {
     for (const index of [2, 0]) {
       await row.getByRole('button', { name: 'Edit', exact: true }).click();
       d = page.getByRole('dialog');
-      await d.getByLabel('Base material').selectOption({ index });
+      await pick(d, 'Base material', { index });
       await d.getByRole('button', { name: 'Save service', exact: true }).click();
       await d.waitFor({ state: 'detached' });
     }
@@ -80,14 +81,14 @@ try {
     await page.getByRole('button', { name: 'Add job', exact: true }).click();
     d = page.getByRole('dialog', { name: 'New checkout' });
     const line = d.locator('.cart-line').first();
-    await line.getByLabel('Service', { exact: true }).selectOption({ index: 1 });
+    await pick(line, 'Service', { text: 'Cap pressing' });
     await line.getByLabel('Job description').fill('Customer caps');
     await line.getByLabel('Quantity', { exact: true }).fill('5');
     assert.match(await line.innerText(), /No stock deduction/);
     assert.equal(await line.getByLabel('Width', { exact: true }).count(), 0);
     await d.getByRole('button', { name: 'Add another service', exact: true }).click();
     const printing = d.locator('.cart-line').nth(1);
-    await printing.getByLabel('Service', { exact: true }).selectOption({ index: 2 });
+    await pick(printing, 'Service', { text: 'Printing' });
     await printing.getByLabel('Job description').fill('Customer caps');
     await printing.getByLabel('Quantity', { exact: true }).fill('2');
     await d.getByRole('button', { name: 'Add new customer', exact: true }).click();

@@ -7,6 +7,7 @@ import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from 'playwright';
 import { fixture } from '../tests/pricing-fixture.mjs';
+import { pick, pickedValue, pickOptions } from './pick.mjs';
 const port = 4189;
 const server = spawn(
   process.execPath,
@@ -165,11 +166,8 @@ try {
     await page.getByRole('button', { name: 'New quotation', exact: true }).click();
     let d = page.getByRole('dialog', { name: 'New quotation' });
     await d.getByLabel('Customer', { exact: true }).fill('Book customer');
-    await d.getByLabel('Service', { exact: true }).selectOption({ label: 'Books — Template' });
-    assert.equal(
-      await d.getByLabel('Service', { exact: true }).locator('option', { hasText: 'Binding labour' }).count(),
-      0,
-    );
+    await pick(d, 'Service', { label: 'Books — Template' });
+    assert.equal((await pickOptions(d, 'Service')).filter((t) => t.includes('Binding labour')).length, 0);
     await d.getByLabel('Quantity', { exact: true }).fill('50');
     // 650 sheets × ₦10 + 50 × ₦100 = ₦11,500 → +30% = ₦14,950 → ₦15,000.
     await d.getByText('₦15,000.00').first().waitFor();
@@ -398,14 +396,7 @@ try {
     await nav('Point of Service');
     await page.getByRole('button', { name: 'Add job', exact: true }).click();
     d = page.getByRole('dialog', { name: 'New checkout' });
-    assert.equal(
-      await d
-        .getByLabel('Service', { exact: true })
-        .locator('option')
-        .filter({ hasText: 'Books — Template' })
-        .count(),
-      0,
-    );
+    assert.equal((await pickOptions(d, 'Service')).filter((t) => t.includes('Books — Template')).length, 0);
     await d.getByRole('button', { name: 'Close', exact: true }).click();
     assert.deepEqual(errors, []);
     await context.close();

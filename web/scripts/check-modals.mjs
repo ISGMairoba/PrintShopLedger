@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from 'playwright';
+import { pick, pickedValue, pickOptions } from './pick.mjs';
 const openMore = async (scope) => {
   // Pages with a single extra action show it directly; others put it under More.
   const toggle = scope.locator('.toolbar-actions .more-menu > button').first();
@@ -86,7 +87,7 @@ try {
   await page.getByRole('button', { name: 'Add service', exact: true }).click();
   dialog = page.getByRole('dialog', { name: 'Add service' });
   await dialog.getByLabel('Service description').fill('Modal test printing');
-  await dialog.getByLabel('Base material').selectOption({ index: 2 });
+  await pick(dialog, 'Base material', { index: 2 });
   const price = dialog.getByLabel('Price (₦)');
   await price.fill('70000.50');
   assert.equal(await price.inputValue(), '70,000.50');
@@ -203,7 +204,7 @@ try {
   dialog = page.getByRole('dialog', { name: 'New checkout' });
   await dialog.getByRole('combobox', { name: 'Customer name or phone' }).fill('Alpha');
   await dialog.getByRole('listbox', { name: 'Customer suggestions' }).getByRole('option').first().click();
-  await dialog.getByLabel('Service', { exact: true }).selectOption({ index: 1 });
+  await pick(dialog, 'Service', { index: 0 });
   await dialog.getByLabel('Job description').fill('Mobile test job');
   await dialog.getByLabel('Money received (₦)').fill('0');
   await dialog.getByRole('button', { name: 'Complete checkout', exact: true }).click();

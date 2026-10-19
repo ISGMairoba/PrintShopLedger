@@ -15,6 +15,7 @@ import Icon from './Icon';
 import ToolbarActions from './ToolbarActions';
 import ResponsiveTable from './ResponsiveTable';
 import ListedCombobox from './ListedCombobox';
+import SearchSelect from './SearchSelect';
 import { SortHeader, useTableSort } from './TableSort';
 import { useFeedback, useFeedbackMessage } from './Feedback';
 import { useWords } from './Words';
@@ -650,25 +651,42 @@ function QuotationEditor({
                 <div className="form-grid">
                   <label>
                     {w('Service')}
-                    <select
-                      aria-label={w('Service')}
+                    <SearchSelect
+                      label={w('Service')}
                       required
                       value={item.serviceId}
-                      onChange={(e) => {
-                        const t = ledger.pricing?.templates.find((t) => t.id === e.target.value);
+                      placeholder={w('Select service')}
+                      options={[
+                        ...(ledger.pricing?.enabled
+                          ? ledger.pricing.templates
+                              .filter((t) => !t.archived)
+                              .map((t) => ({
+                                value: t.id,
+                                label: `${t.name} — Template`,
+                                group: 'Pricing templates',
+                              }))
+                          : []),
+                        ...services.map((s) => ({
+                          value: s.id,
+                          label: `${s.description} — ${currency(s.price)}`,
+                          group: ledger.pricing?.enabled ? w('Services') : undefined,
+                        })),
+                      ]}
+                      onChange={(next) => {
+                        const t = ledger.pricing?.templates.find((t) => t.id === next);
                         // A name the app filled in follows the item; a typed description stays.
                         const autoOf = (id: string) =>
                           ledger.pricing?.templates.find((x) => x.id === id)?.name ??
                           ledger.services.find((x) => x.id === id)?.description.slice(0, 500) ??
                           '';
                         edit(item.id, {
-                          serviceId: e.target.value,
+                          serviceId: next,
                           templateSnapshot: undefined,
                           templateInputs: t ? templateDefaults(t) : undefined,
                           description: nextDescription(
                             item.description,
                             autoOf(item.serviceId),
-                            autoOf(e.target.value),
+                            autoOf(next),
                           ),
                           ...(t
                             ? {
@@ -677,25 +695,7 @@ function QuotationEditor({
                             : {}),
                         });
                       }}
-                    >
-                      <option value="">{w('Select service')}</option>
-                      {ledger.pricing?.enabled && (
-                        <optgroup label="Pricing templates">
-                          {ledger.pricing.templates
-                            .filter((t) => !t.archived)
-                            .map((t) => (
-                              <option key={t.id} value={t.id}>
-                                {t.name} — Template
-                              </option>
-                            ))}
-                        </optgroup>
-                      )}
-                      {services.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.description} — {currency(s.price)}
-                        </option>
-                      ))}
-                    </select>
+                    />
                   </label>
                   {descriptionMode !== 'hidden' && (
                     <label>

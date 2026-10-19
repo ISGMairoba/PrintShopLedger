@@ -29,6 +29,7 @@ import type {
   TemplateVariable,
 } from './types';
 import { useWords } from './Words';
+import { alphabetical } from './alphabetical.mjs';
 
 type Draft = Omit<PricingTemplate, 'variables' | 'computed' | 'expenses'> & {
   variables: (Omit<TemplateVariable, 'default' | 'min' | 'max'> & {
@@ -942,7 +943,11 @@ export default function TemplateEditor({
                       )}
                       {stockItems.length > 0 && (
                         <optgroup label={w('Material')}>
-                          {stockItems.map((s) => (
+                          {alphabetical(stockItems, (s) =>
+                            s.materialOptions?.length
+                              ? s.description
+                              : (ledger.materials.find((m) => m.id === s.materialId)?.name ?? s.description),
+                          ).map((s) => (
                             <option key={s.id} value={'s:' + s.id}>
                               {s.materialOptions?.length
                                 ? `${s.description} (choice of materials, confirmed in production)`

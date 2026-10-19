@@ -12,6 +12,7 @@ import { resolveExpenseState } from './expense-conflicts.mjs';
 import { listRemoteConflicts, getRemoteConflict, resolveRemoteConflict, type RemoteConflict } from './cloud';
 import type { Ledger, LedgerEvent, CheckoutRecord } from './types';
 import { renameActive } from './Words';
+import { alphabetical } from './alphabetical.mjs';
 type Review = { conflict: RemoteConflict; ledger: Ledger; token: string };
 const fieldLabel = (key: string) =>
   renameActive(
@@ -298,13 +299,14 @@ export default function ConflictInbox({
                 onChange={(e) => setMaterialId(e.target.value || null)}
               >
                 <option value="">{renameActive('No material — service only')}</option>
-                {review.ledger.materials
-                  .filter((item) => !item.archived)
-                  .map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
+                {alphabetical(
+                  review.ledger.materials.filter((item) => !item.archived),
+                  (item) => item.name,
+                ).map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
               </select>
             </label>
           )}
