@@ -109,17 +109,16 @@ export default function SearchSelect({
           spellCheck={false}
           required={required}
           disabled={disabled}
-          onFocus={(e) => {
-            e.currentTarget.select();
-            show();
-          }}
+          // Focus (including a dialog opening) only selects the text; a click, typing or the
+          // down arrow opens the list.
+          onFocus={(e) => e.currentTarget.select()}
           onClick={() => !open && show()}
           onChange={(e) => {
             setQuery(e.target.value);
             setOpen(true);
             setActive(0);
           }}
-          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          onBlur={() => setOpen(false)}
           onKeyDown={(e) => {
             if (e.key === 'ArrowDown') {
               e.preventDefault();
