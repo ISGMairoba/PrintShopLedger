@@ -162,6 +162,8 @@ export default function SearchSelect({
           id={`${id}-list`}
           role="listbox"
           aria-label={`${label} options`}
+          // Scrolling the list (or its scroll bar) keeps the box focused and the list open.
+          onMouseDown={(e) => e.preventDefault()}
         >
           {shown.map((option, index) => {
             const heading = option.group && option.group !== lastGroup ? option.group : null;
