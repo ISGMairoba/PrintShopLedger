@@ -304,6 +304,16 @@ try {
       await d.locator('#checkout-customer-input').scrollIntoViewIfNeeded();
       await shot('04-checkout-customer');
     });
+    await step('search select', async () => {
+      await nav('Point of Service');
+      await page.getByRole('button', { name: /Add job/ }).first().click();
+      const d = page.getByRole('dialog').last();
+      const box = d.getByRole('combobox', { name: 'Service', exact: true });
+      await box.click();
+      await box.fill('env a4');
+      await delay(300);
+      await shot('19-service-search');
+    });
     await step('jobs', async () => {
       await nav('Jobs');
       await shot('05-jobs');
