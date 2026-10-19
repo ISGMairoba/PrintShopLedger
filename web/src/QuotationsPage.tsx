@@ -8,7 +8,7 @@ import {
 import { serviceMaterial } from './material-choice.mjs';
 import { templateDefaults } from './pricing-templates.mjs';
 import type { TemplateSnapshot } from './types';
-import { lineWithDescription } from './job-batches.mjs';
+import { lineWithDescription, nextDescription } from './job-batches.mjs';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import Icon from './Icon';
@@ -655,20 +655,25 @@ function QuotationEditor({
                       required
                       value={item.serviceId}
                       onChange={(e) => {
-                        const picked = ledger.services.find((s) => s.id === e.target.value);
                         const t = ledger.pricing?.templates.find((t) => t.id === e.target.value);
+                        // A name the app filled in follows the item; a typed description stays.
+                        const autoOf = (id: string) =>
+                          ledger.pricing?.templates.find((x) => x.id === id)?.name ??
+                          ledger.services.find((x) => x.id === id)?.description.slice(0, 500) ??
+                          '';
                         edit(item.id, {
                           serviceId: e.target.value,
                           templateSnapshot: undefined,
                           templateInputs: t ? templateDefaults(t) : undefined,
+                          description: nextDescription(
+                            item.description,
+                            autoOf(item.serviceId),
+                            autoOf(e.target.value),
+                          ),
                           ...(t
                             ? {
-                                description: t.name,
                                 quantity: String(t.variables.find((v) => v.key === 'quantity')?.default ?? 1),
                               }
-                            : {}),
-                          ...(!item.description.trim() && picked
-                            ? { description: picked.description.slice(0, 500) }
                             : {}),
                         });
                       }}

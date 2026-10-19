@@ -75,6 +75,15 @@ export function batchProgressEvents(
 
 // Blank optional/hidden descriptions use the service name, keeping receipts, offline events and
 // existing server validation compatible. Existing entered descriptions are never erased.
+/**
+ * The description after choosing another item: a description the person typed stays; one the app
+ * filled in for the previous item (a template's name, a product's name) follows the new item.
+ */
+export function nextDescription(current, previousAuto, nextAuto) {
+  const text = current ?? '';
+  return !text.trim() || (previousAuto && text === previousAuto) ? nextAuto : text;
+}
+
 export function lineWithDescription(line, services, mode = 'required') {
   if (!['required', 'optional', 'hidden'].includes(mode)) throw Error('Choose a valid description setting.');
   if (mode === 'required' || line.description?.trim()) return line;
