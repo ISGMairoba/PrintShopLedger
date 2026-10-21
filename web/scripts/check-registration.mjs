@@ -87,7 +87,7 @@ try {
           : [];
       else if (path.endsWith('/business_settings'))
         result = [{ settings: { ...defaultBranding(), businessName: 'New Print Shop' }, version: 1 }];
-      else if (path.endsWith('/get_ledger')) result = emptyLedger();
+      else if (/\/get_ledger(_changes)?$/.test(path)) result = emptyLedger();
       else if (path.endsWith('/activate-developer')) {
         activated++;
         const body = route.request().postDataJSON();
@@ -95,6 +95,8 @@ try {
         result = { success: true, businessName: 'New Print Shop', username: 'developer' };
       } else if (path === '/auth/v1/logout') result = {};
       else throw Error('Unexpected request: ' + path);
+      // Syncs ask for changes since a cursor; this test server always sends everything.
+      if (path.endsWith('/get_ledger_changes')) result = { cursor: '1', full: true, ledger: result };
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(result) });
     });
     const page = await context.newPage();

@@ -189,7 +189,8 @@ export async function loadState(store, scope, { writable, backup = () => [], cac
   if (!writable) return { needsWrite: true };
   const meta = metaLost ? null : records.get(metaKey(scope));
   const pending = outboxLost ? backup() : (records.get(outboxKey(scope)) ?? backup());
-  const { lastSynced: _lastSynced, ...details } = meta?.details ?? {};
+  // The next sync downloads everything again (no delta from an old cursor).
+  const { lastSynced: _lastSynced, syncCursor: _cursor, fullSyncAt: _full, ...details } = meta?.details ?? {};
   const state = { ...details, ...recovered(pending) };
   for (const key of damaged) await store.delete(key);
   const kept = new Map([...records].filter(([key]) => !damaged.includes(key)));

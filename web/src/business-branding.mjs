@@ -117,7 +117,8 @@ export const defaultBranding = () => ({
   backgrounds: defaultBackgrounds(),
   options: defaultOptions(),
   corrections: { recentDays: 7 },
-  security: { autoLockMinutes: 0 },
+  // syncMinutes: how often devices check for changes made on other devices.
+  security: { autoLockMinutes: 0, syncMinutes: 2 },
   jobs: jobSettingsDefaults(),
   pricing: pricingDefaults(),
   periods: defaultPeriods(),
@@ -221,10 +222,13 @@ export function validateBranding(input) {
     value.corrections.recentDays > 365
   )
     throw Error('Choose a correction history window from 1 to 365 days.');
-  value.security = { autoLockMinutes: 0, ...value.security };
+  value.security = { autoLockMinutes: 0, syncMinutes: 2, ...value.security };
   const lock = value.security.autoLockMinutes;
+  const sync = value.security.syncMinutes;
+  if (!Number.isInteger(sync) || sync < 1 || sync > 60)
+    throw Error('Choose a sync check time from 1 to 60 minutes.');
   if (
-    Object.keys(value.security).some((key) => key !== 'autoLockMinutes') ||
+    Object.keys(value.security).some((key) => key !== 'autoLockMinutes' && key !== 'syncMinutes') ||
     !Number.isInteger(lock) ||
     lock < 0 ||
     lock > 240

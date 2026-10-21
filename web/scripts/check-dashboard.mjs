@@ -50,6 +50,8 @@ try {
         created_at: now,
       };
       let settings = { ...defaultBranding(), businessName: 'Mairoba Studios' };
+      // Saving settings raises their version, which tells devices to download them again.
+      let settingsVersion = 1;
       const ledger = emptyLedger();
       ledger.jobs = [
         {
@@ -147,9 +149,11 @@ try {
               staffName: 'Test User',
             },
           ];
-        else if (path.endsWith('/business_settings')) result = [{ settings, version: 1 }];
-        else if (path.endsWith('/get_ledger')) result = ledger;
+        else if (path.endsWith('/business_settings')) result = [{ settings, version: settingsVersion }];
+        else if (/\/get_ledger(_changes)?$/.test(path)) result = ledger;
         else throw Error('Unexpected request: ' + path);
+        // Syncs ask for changes since a cursor; this test server always sends everything.
+        if (path.endsWith('/get_ledger_changes')) result = { cursor: '1', full: true, ledger: result };
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(result) });
       });
       const page = await context.newPage();
@@ -307,6 +311,7 @@ try {
       await page.getByText(/Offline — showing saved device records/).waitFor();
       await context.setOffline(false);
       if (rank === 2 || rank === 3) {
+        settingsVersion++;
         settings = {
           ...settings,
           pageAccess: { ...settings.pageAccess, [String(rank)]: ['Dashboard', 'My Account'] },
@@ -320,6 +325,7 @@ try {
           .waitFor();
         assert.equal(await page.locator('.dashboard-stats article').count(), 0);
         assert.equal(await page.locator('.dashboard-chart').count(), 0);
+        settingsVersion++;
         settings = {
           ...settings,
           pageAccess: {

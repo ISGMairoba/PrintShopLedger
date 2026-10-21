@@ -573,6 +573,9 @@ export interface LocalState {
   ledger: Ledger;
   pending: LedgerEvent[];
   lastSynced?: string;
+  /** Delta sync: the server cursor of the last download, and when the last full download was. */
+  syncCursor?: string;
+  fullSyncAt?: string;
   /** Set when this device's damaged offline copy was replaced; cleared after the next download. */
   storageRecovered?: string;
 }
