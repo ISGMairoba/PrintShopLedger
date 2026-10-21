@@ -1,3 +1,4 @@
+import { alphabetical } from './alphabetical.mjs';
 import { useMemo, useState } from 'react';
 import Modal from './Modal';
 import Icon from './Icon';
@@ -315,7 +316,7 @@ export default function QuickSale({
             <label>
               Payment method
               <select value={methodLabel} onChange={(e) => setMethodLabel(e.target.value)}>
-                {methods.map((m) => (
+                {alphabetical(methods, (m) => m.label).map((m) => (
                   <option key={m.label}>{m.label}</option>
                 ))}
               </select>
