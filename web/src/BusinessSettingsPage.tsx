@@ -735,6 +735,7 @@ export default function BusinessSettingsPage({
               <label>
                 When a sale or job needs more than is in stock
                 <select
+                  aria-label="When a sale or job needs more than is in stock"
                   value={draft.jobs.stockBelowZero}
                   onChange={(event) => field('jobs', { ...draft.jobs, stockBelowZero: event.target.value })}
                 >
