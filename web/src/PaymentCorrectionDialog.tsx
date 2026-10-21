@@ -1,3 +1,4 @@
+import { alphabetical } from './alphabetical.mjs';
 import { useId, useState } from 'react';
 import DialogActions from './DialogActions';
 import Modal from './Modal';
@@ -150,7 +151,7 @@ export default function PaymentCorrectionDialog({
               Payment method
               <select value={method} onChange={(e) => setMethod(e.target.value)} required>
                 {!methods.some((m) => m.label === method) && method && <option>{method}</option>}
-                {methods.map((m) => (
+                {alphabetical(methods, (m) => m.label).map((m) => (
                   <option key={m.label}>{m.label}</option>
                 ))}
               </select>

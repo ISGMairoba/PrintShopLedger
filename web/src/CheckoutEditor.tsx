@@ -1085,7 +1085,7 @@ export default function CheckoutEditor({
                     value={methodLabel}
                     onChange={(e) => setMethodLabel(e.target.value)}
                   >
-                    {paymentMethods.map((item) => (
+                    {alphabetical(paymentMethods, (item) => item.label).map((item) => (
                       <option key={item.label} value={item.label}>
                         {item.label}
                       </option>

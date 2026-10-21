@@ -1,3 +1,4 @@
+import { alphabetical } from './alphabetical.mjs';
 import Icon from './Icon';
 import { useId, useState } from 'react';
 import DialogActions from './DialogActions';
@@ -767,7 +768,7 @@ export function SaleAdjustmentEditor({
                         {!methods.some((m) => m.label === edit.methodLabel) && (
                           <option>{edit.methodLabel}</option>
                         )}
-                        {methods.map((m) => (
+                        {alphabetical(methods, (m) => m.label).map((m) => (
                           <option key={m.label}>{m.label}</option>
                         ))}
                       </select>
@@ -830,7 +831,7 @@ export function SaleAdjustmentEditor({
                     {!methods.some((m) => m.label === paymentMethod) && paymentMethod && (
                       <option>{paymentMethod}</option>
                     )}
-                    {methods.map((m) => (
+                    {alphabetical(methods, (m) => m.label).map((m) => (
                       <option key={m.label}>{m.label}</option>
                     ))}
                   </select>
@@ -900,7 +901,7 @@ export function SaleAdjustmentEditor({
                 <label>
                   Refund method
                   <select value={method} onChange={(e) => setMethod(e.target.value)} required>
-                    {methods.map((m) => (
+                    {alphabetical(methods, (m) => m.label).map((m) => (
                       <option key={m.label}>{m.label}</option>
                     ))}
                   </select>

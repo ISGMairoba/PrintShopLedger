@@ -1,3 +1,4 @@
+import { alphabetical } from './alphabetical.mjs';
 import DialogActions from './DialogActions';
 import { useFeedbackMessage } from './Feedback';
 import ListedCombobox from './ListedCombobox';
@@ -332,7 +333,7 @@ export default function ExpenseEditor({
                 <label>
                   Payment method
                   <select aria-label="Payment method" name="method" defaultValue={paymentMethods[0].label}>
-                    {paymentMethods.map((item) => (
+                    {alphabetical(paymentMethods, (item) => item.label).map((item) => (
                       <option key={item.label}>{item.label}</option>
                     ))}
                   </select>
