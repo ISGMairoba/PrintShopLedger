@@ -92,7 +92,7 @@ try {
         else if (path.endsWith('/list_correction_requests')) result = [];
         else if (path.endsWith('/business_settings'))
           result = customSettings ? [{ settings: customSettings, version: 1 }] : [];
-        else if (path.endsWith('/get_ledger'))
+        else if (/\/get_ledger(_changes)?$/.test(path))
           result = {
             customers: [],
             jobs: [],
@@ -114,6 +114,8 @@ try {
           else assert.equal(body.password, 'new-test-password');
           result = { message: body.action === 'username' ? 'Username saved.' : 'Password saved.' };
         } else throw Error('Unexpected request: ' + path);
+        // Syncs ask for changes since a cursor; this test server always sends everything.
+        if (path.endsWith('/get_ledger_changes')) result = { cursor: '1', full: true, ledger: result };
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(result) });
       });
       const page = await context.newPage();

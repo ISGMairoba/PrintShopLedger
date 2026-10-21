@@ -186,7 +186,7 @@ try {
       result = { closing, access_token: makeToken(cashierId), refresh_token: 'handover-refresh' };
     } else if (path.endsWith('/business_settings')) result = [];
     else if (path.endsWith('/list_correction_requests')) result = [];
-    else if (path.endsWith('/get_ledger')) {
+    else if (/\/get_ledger(_changes)?$/.test(path)) {
       downloads++;
       if (failDownload) {
         failDownload = false;
@@ -243,6 +243,8 @@ try {
       user.version++;
       result = null;
     } else throw new Error('Unexpected mocked request: ' + path);
+    // Syncs ask for changes since a cursor; this test server always sends everything.
+    if (path.endsWith('/get_ledger_changes')) result = { cursor: '1', full: true, ledger: result };
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(result) });
   });
   const page = await context.newPage();

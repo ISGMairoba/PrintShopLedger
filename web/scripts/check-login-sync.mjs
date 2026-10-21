@@ -127,7 +127,7 @@ try {
           ];
         }
       } else if (path.endsWith('/business_settings')) result = [];
-      else if (path.endsWith('/get_ledger')) result = cloud;
+      else if (/\/get_ledger(_changes)?$/.test(path)) result = cloud;
       else if (path.endsWith('/apply_material_event')) {
         writes++;
         const event = route.request().postDataJSON().p_event;
@@ -175,6 +175,8 @@ try {
           refresh_token: 'mock-refresh',
         };
       else throw Error('Unexpected request ' + path);
+      // Syncs ask for changes since a cursor; this test server always sends everything.
+      if (path.endsWith('/get_ledger_changes')) result = { cursor: '1', full: true, ledger: result };
       await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(result) });
     });
     const page = await context.newPage();

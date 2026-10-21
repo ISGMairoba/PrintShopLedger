@@ -1,5 +1,6 @@
 import { sameEvent } from './sale-adjustments.mjs';
 import { acknowledgeReviews, blockedWork, projectPending } from './sync-dependencies.mjs';
+import { mergeChanges, needsFullSync } from './sync-delta.mjs';
 import { requireConflictReviewer } from './conflict-review';
 import { resolveExpenseState } from './expense-conflicts.mjs';
 import { checkoutReviewBase, replacePendingCheckout, adoptJobStatus } from './checkout-conflicts.mjs';
@@ -190,16 +191,38 @@ async function synchronize(scope: string, shopId: string) {
     }));
   }
   await check();
+  // Download only what changed since the last sync when this device's copy is exactly the
+  // business copy; otherwise (first sync, unsent or held work, every half hour) everything.
+  const before = await readState(scope);
+  const full = needsFullSync(before);
   const { data, error } = await supabase
-    .rpc('get_ledger', { p_shop: shopId })
+    .rpc('get_ledger_changes', { p_shop: shopId, p_since: full ? null : before.syncCursor })
     .abortSignal(AbortSignal.timeout(60000));
   if (error) throw Error(error.message);
   await check();
-  return mutateState(scope, (current) => ({
-    ...current,
-    ledger: projectPending(normalizeLedger(data), current),
-    lastSynced: new Date().toISOString(),
-  }));
+  const now = new Date().toISOString();
+  const result = data as { cursor: string; full: boolean; ledger: Partial<Ledger> };
+  return mutateState(scope, (current) => {
+    if (result.full)
+      return {
+        ...current,
+        ledger: projectPending(normalizeLedger(result.ledger as Ledger), current),
+        syncCursor: result.cursor,
+        fullSyncAt: now,
+        lastSynced: now,
+      };
+    // Work started on this device while the changes were downloading: keep the cursor, so the
+    // next sync (which sends that work) downloads these changes again with everything else.
+    if (current.pending.length || current.syncCursor !== before.syncCursor) return current;
+    return {
+      ...current,
+      ledger: normalizeLedger(
+        mergeChanges(current.ledger, result.ledger as unknown as Record<string, unknown[]>) as Ledger,
+      ),
+      syncCursor: result.cursor,
+      lastSynced: now,
+    };
+  });
 }
 export type RemoteConflict = {
   event_id: string;
