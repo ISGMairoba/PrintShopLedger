@@ -17,6 +17,8 @@ import {
   roundingChoices,
   templateDefaults,
   validateTemplate,
+  productName,
+  variantMembers,
 } from './pricing-templates.mjs';
 import { currency } from './receipts.mjs';
 import type {
@@ -415,6 +417,14 @@ export default function TemplateEditor({
   const costs = ledger.services.filter((s) => !s.archived && s.costing);
   const stockItems = ledger.services.filter(
     (s) => !s.archived && (s.materialId || s.materialOptions?.length),
+  );
+  // Products with variants: a template can take stock from whichever variant is used.
+  const products = alphabetical(
+    [...new Set(ledger.services.filter((s) => s.variantGroup && !s.archived).map((s) => s.variantGroup!))]
+      .map((id) => ({ id, members: variantMembers(ledger, id) }))
+      .filter((g) => g.members.length)
+      .map((g) => ({ id: g.id, name: productName(g.members[0]) })),
+    (g) => g.name,
   );
   const change = (patch: Partial<Draft>) => setD((x) => ({ ...x, ...patch }));
   // New names avoid the template's own names and every cost's formula name.
@@ -916,7 +926,9 @@ export default function TemplateEditor({
                           ? ''
                           : 'variable' in c.stock
                             ? 'v:' + c.stock.variable
-                            : 's:' + c.stock.serviceId
+                            : 'variantGroup' in c.stock
+                              ? 'g:' + c.stock.variantGroup
+                              : 's:' + c.stock.serviceId
                       }
                       onChange={(e) => {
                         const x = e.target.value;
@@ -925,7 +937,9 @@ export default function TemplateEditor({
                             ? null
                             : x.startsWith('v:')
                               ? { variable: x.slice(2) }
-                              : { serviceId: x.slice(2) },
+                              : x.startsWith('g:')
+                                ? { variantGroup: x.slice(2) }
+                                : { serviceId: x.slice(2) },
                         });
                       }}
                     >
@@ -952,6 +966,15 @@ export default function TemplateEditor({
                               {s.materialOptions?.length
                                 ? `${s.description} (choice of materials, confirmed in production)`
                                 : `${ledger.materials.find((m) => m.id === s.materialId)?.name} (via ${s.description})`}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      {products.length > 0 && (
+                        <optgroup label="Product with variants">
+                          {products.map((g) => (
+                            <option key={g.id} value={'g:' + g.id}>
+                              {`${g.name} (variant picked at checkout or confirmed in production)`}
                             </option>
                           ))}
                         </optgroup>

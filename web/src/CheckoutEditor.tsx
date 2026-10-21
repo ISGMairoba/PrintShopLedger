@@ -1,7 +1,7 @@
 import DialogActions from './DialogActions';
 import { TemplateInputs, TemplateEstimate, tryTemplate } from './TemplateFields';
 import { serviceMaterial } from './material-choice.mjs';
-import { templateDefaults } from './pricing-templates.mjs';
+import { editableInputs, templateDefaults } from './pricing-templates.mjs';
 import type { TemplateSnapshot } from './types';
 import { lineWithDescription, nextDescription } from './job-batches.mjs';
 import SearchSelect from './SearchSelect';
@@ -239,6 +239,7 @@ export default function CheckoutEditor({
       ? initialCheckout.jobs.map((j) => ({
           ...line(),
           ...j,
+          ...(j.templateSnapshot ? { templateInputs: editableInputs(j.templateSnapshot) } : {}),
           quantity: String(j.quantity),
           width: j.width == null ? '' : String(j.width),
           height: j.height == null ? '' : String(j.height),
@@ -251,7 +252,7 @@ export default function CheckoutEditor({
         ? fromQuotation.lines.map((q) => ({
             ...newLine(),
             serviceId: q.serviceId,
-            templateInputs: q.templateInputs,
+            templateInputs: q.templateSnapshot ? editableInputs(q.templateSnapshot) : q.templateInputs,
             templateSnapshot: q.templateSnapshot,
             templateStockIds: q.templateSnapshot
               ? Object.fromEntries(q.templateSnapshot.stock.map((s) => [s.materialId, crypto.randomUUID()]))
@@ -780,6 +781,7 @@ export default function CheckoutEditor({
                         {template && (
                           <TemplateInputs
                             template={template}
+                            ledger={working}
                             errorField={templateCheck?.field}
                             error={templateCheck?.error}
                             value={item.templateInputs ?? {}}

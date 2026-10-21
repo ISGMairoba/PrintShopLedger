@@ -199,3 +199,70 @@ test('stock references cannot silently become materialless costs with the same u
     /compatible/,
   );
 });
+
+test('a product with variants transfers as a product reference and maps to a local product', () => {
+  const { ledger } = fixture();
+  const add = (group, n, colour, name = 'Envelope') => {
+    ledger.materials.push({
+      ...ledger.materials[0],
+      id: id(n),
+      name: `${name} — ${colour}`,
+      measurementUnit: 'piece',
+    });
+    ledger.services.push({
+      ...ledger.services[3],
+      id: id(n + 10),
+      description: `${name} — ${colour}`,
+      materialId: id(n),
+      variantGroup: group,
+      variantName: colour,
+      private: false,
+      costing: null,
+    });
+  };
+  add(id(60), 61, 'Blue');
+  add(id(60), 62, 'White');
+  const template = structuredClone(ledger.pricing.templates[0]);
+  template.computed.push({
+    key: 'envelopes',
+    label: 'Envelopes',
+    unit: 'piece',
+    formula: 'quantity',
+    stock: { variantGroup: id(60) },
+  });
+  const file = readTemplateFile(exportTemplateFile([validateTemplate(template)], ledger));
+  const product = file.items.find((s) => s.uses.includes('variants'));
+  assert.deepEqual(product, {
+    id: id(60),
+    name: 'Envelope',
+    key: '',
+    unit: 'piece',
+    stock: true,
+    uses: ['variants'],
+  });
+  // The importing business has its own Envelope product (another group).
+  add(id(80), 81, 'Red');
+  ledger.services = ledger.services.filter((s) => s.variantGroup !== id(60));
+  const mapping = suggestTemplateMappings(file, ledger);
+  assert.equal(mapping[id(60)], id(80));
+  const copy = importTemplateFile(
+    file,
+    ledger,
+    ledger.pricing,
+    mapping,
+    importedTemplateNames(file, ledger.pricing.templates),
+    () => id(101),
+  ).at(-1);
+  assert.deepEqual(copy.computed.at(-1).stock, { variantGroup: id(80) });
+  assert.throws(
+    () =>
+      importTemplateFile(
+        file,
+        ledger,
+        ledger.pricing,
+        { ...mapping, [id(60)]: id(7) },
+        importedTemplateNames(file, ledger.pricing.templates),
+      ),
+    /product with variants/,
+  );
+});

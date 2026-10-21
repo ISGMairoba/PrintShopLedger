@@ -643,3 +643,99 @@ test('a template line using an item with a choice of materials confirms its mate
     third = applyEvent(third, e);
   assert.equal(third.materials.find((m) => m.id === id(12)).available, 210);
 });
+
+test('a template can take stock from a product with variants: picked at checkout or confirmed later', async () => {
+  const { VARIANT_PICK, editableInputs } = await import('../src/pricing-templates.mjs');
+  const { ledger, input } = fixture();
+  const group = id(60);
+  const envelope = (n, colour) => {
+    ledger.materials.push({
+      ...ledger.materials[0],
+      id: id(n),
+      name: `Envelope — ${colour}`,
+      measurementUnit: 'piece',
+      available: 100,
+    });
+    ledger.services.push({
+      ...ledger.services[3],
+      id: id(n + 10),
+      description: `Envelope — ${colour}`,
+      materialId: id(n),
+      variantGroup: group,
+      variantName: colour,
+      private: false,
+      costing: null,
+    });
+  };
+  envelope(62, 'White');
+  envelope(61, 'Blue');
+  const template = bookTemplate();
+  template.computed.push({
+    key: 'envelopes',
+    label: 'Envelopes',
+    unit: 'piece',
+    formula: 'quantity',
+    stock: { variantGroup: group },
+  });
+  ledger.pricing = validatePricingSettings({ enabled: true, templates: [template] });
+  assert.deepEqual(validateTemplate(template).computed.at(-1).stock, { variantGroup: group });
+
+  // Decide in production: a choice of the variants' stock items (in id order), nothing taken now.
+  const later = prepareCheckout(ledger, input, actor, id(40), '2026-10-13T08:00:00Z').data.jobs[0];
+  assert.deepEqual(later.templateSnapshot.choices, [
+    {
+      serviceId: group,
+      name: 'Envelope',
+      options: [id(61), id(62)],
+      confirmStage: 'Printing',
+      unit: 'piece',
+      work: 50,
+    },
+  ]);
+  assert.equal(later.templateSnapshot.variantPicks, undefined);
+  assert.equal(
+    later.templateSnapshot.stock.some((s) => s.materialId === id(61)),
+    false,
+  );
+
+  // Picked at checkout: taken from that variant like any stock item.
+  const line = {
+    ...input.lines[0],
+    templateInputs: { ...input.lines[0].templateInputs, [VARIANT_PICK + 'envelopes']: id(72) },
+  };
+  const picked = prepareCheckout(ledger, { ...input, lines: [line] }, actor, id(41), '2026-10-13T08:00:00Z')
+    .data.jobs[0];
+  assert.equal(picked.templateSnapshot.choices, undefined);
+  assert.equal(picked.materialChoice, undefined);
+  assert.deepEqual(picked.templateSnapshot.variantPicks, { envelopes: id(72) });
+  assert.deepEqual(picked.templateInputs, input.lines[0].templateInputs, 'the pick is not a template input');
+  const stock = picked.templateSnapshot.stock.find((s) => s.materialId === id(62));
+  assert.equal(stock.quantity, 50);
+  assert.equal(stock.serviceId, id(72));
+  assert.ok(templateSpecLines(picked).includes('Envelopes: Envelope — White'));
+  const after = applyCheckout(
+    ledger,
+    prepareCheckout(ledger, { ...input, lines: [line] }, actor, id(41), '2026-10-13T08:00:00Z'),
+  );
+  assert.equal(after.materials.find((m) => m.id === id(62)).available, 50);
+
+  // Editing the line again keeps its pick, even when only its template inputs are passed on.
+  assert.equal(editableInputs(picked.templateSnapshot)[VARIANT_PICK + 'envelopes'], id(72));
+  const again = quoteLine(ledger, {
+    ...picked,
+    templateSnapshot: picked.templateSnapshot,
+    templateInputs: picked.templateInputs,
+  });
+  assert.deepEqual(again.templateSnapshot.variantPicks, { envelopes: id(72) });
+  // Another product's item, or a pick for an item without variants, is refused.
+  const wrong = (pick) =>
+    prepareCheckout(
+      ledger,
+      { ...input, lines: [{ ...line, templateInputs: { ...line.templateInputs, ...pick } }] },
+      actor,
+      id(42),
+      '2026-10-13T08:00:00Z',
+    );
+  assert.throws(() => wrong({ [VARIANT_PICK + 'envelopes']: id(7) }), /choose an available variant/);
+  assert.throws(() => wrong({ [VARIANT_PICK + 'paper_required']: id(72) }), /Template variables changed/);
+});

@@ -6,7 +6,7 @@ import {
   type TemplateStart,
 } from './TemplateFields';
 import { serviceMaterial } from './material-choice.mjs';
-import { templateDefaults } from './pricing-templates.mjs';
+import { editableInputs, templateDefaults } from './pricing-templates.mjs';
 import type { TemplateSnapshot } from './types';
 import { lineWithDescription, nextDescription } from './job-batches.mjs';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
@@ -494,7 +494,7 @@ function QuotationEditor({
       ? quote.lines.map((l) => ({
           id: l.id,
           serviceId: l.serviceId,
-          templateInputs: l.templateInputs,
+          templateInputs: l.templateSnapshot ? editableInputs(l.templateSnapshot) : l.templateInputs,
           templateSnapshot: l.templateSnapshot,
           description: l.description,
           quantity: String(l.quantity),
@@ -729,6 +729,7 @@ function QuotationEditor({
                   {template && (
                     <TemplateInputs
                       template={template}
+                      ledger={ledger}
                       errorField={templateCheck?.field}
                       error={templateCheck?.error}
                       value={item.templateInputs ?? {}}

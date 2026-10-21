@@ -34,8 +34,11 @@ export type TemplateComputed = {
   unit: string;
   formula: string;
   expression?: FormulaTree;
-  /** Take this quantity out of stock: from the selected item of a material variable, or one item. */
-  stock: { variable: string } | { serviceId: string } | null;
+  /**
+   * Take this quantity out of stock: from the selected item of a material variable, one item, or a
+   * product with variants (the variant picked at checkout, or confirmed in production).
+   */
+  stock: { variable: string } | { serviceId: string } | { variantGroup: string } | null;
   /** Show this value on client quotes and documents (off unless chosen). */
   clientVisible?: boolean;
 };
@@ -105,6 +108,8 @@ export type TemplateSnapshot = {
     stockCountEventId: string | null;
   }[];
   /** Items with a choice of materials: confirmed in production, not taken at the sale. */
+  /** Variants picked at checkout, by computed key (the variant's item id). */
+  variantPicks?: Record<string, string>;
   choices?: {
     serviceId: string;
     name: string;

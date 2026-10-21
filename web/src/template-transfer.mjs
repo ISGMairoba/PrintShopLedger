@@ -4,6 +4,8 @@ import {
   formulaText,
   hasCost,
   parseFormula,
+  productName,
+  variantMembers,
   templateProblem,
   validatePricingSettings,
   validateTemplate,
@@ -39,6 +41,23 @@ function dependencies(templates, items) {
           if (t.computed.some((c) => c.stock?.variable === v.key)) add(option.serviceId, 'stock');
         }
     for (const c of t.computed) if (c.stock?.serviceId) add(c.stock.serviceId, 'stock');
+    // A product with variants is referenced by its group: the file names the product, and the
+    // importing business maps it to one of its own products.
+    for (const c of t.computed)
+      if (c.stock?.variantGroup) {
+        const id = c.stock.variantGroup;
+        const member =
+          items.find((s) => s.id === id && s.variantsRef) ?? items.find((s) => s.variantGroup === id);
+        if (!member) throw Error('A referenced product is missing. Repair the template before exporting.');
+        const entry = found.get(id) ?? {
+          item: member.variantsRef
+            ? member
+            : { ...member, id, description: productName(member), costing: null },
+          uses: new Set(),
+        };
+        entry.uses.add('variants');
+        found.set(id, entry);
+      }
     for (const f of [...t.computed, ...t.expenses])
       for (const name of formulaNames(parseFormula(f.formula))) {
         if (locals.has(name)) continue;
@@ -62,7 +81,7 @@ export function exportTemplateFile(templates, ledger) {
     name: item.description,
     key: item.costing?.key ?? '',
     unit: consumptionUnit(item, ledger.materials),
-    stock: item.materialId !== null,
+    stock: item.materialId !== null && item.materialId !== undefined,
     uses: [...uses].sort(),
   }));
   if (items.length > 1000)
@@ -124,7 +143,8 @@ export function readTemplateFile(text) {
       s.unit.length > 80 ||
       !Array.isArray(s.uses) ||
       !s.uses.length ||
-      s.uses.some((u) => !['cost', 'price', 'stock'].includes(u))
+      s.uses.some((u) => !['cost', 'price', 'stock', 'variants'].includes(u)) ||
+      (s.uses.includes('variants') && s.uses.length > 1)
     )
       throw Error('Invalid catalogue references in template file.');
     ids.add(s.id);
@@ -134,7 +154,12 @@ export function readTemplateFile(text) {
   // Derive dependencies again: reject omitted and forged manifests before displaying a review.
   const actual = dependencies(
     templates,
-    items.map((s) => ({ id: s.id, description: s.name, costing: s.key ? { key: s.key } : null })),
+    items.map((s) => ({
+      id: s.id,
+      description: s.name,
+      costing: s.key ? { key: s.key } : null,
+      variantsRef: s.uses.includes('variants'),
+    })),
   );
   if (
     actual.length !== items.length ||
@@ -147,7 +172,22 @@ export function readTemplateFile(text) {
   return { templates, items };
 }
 
+/** Local products with variants that can take a template's stock (for a "variants" reference). */
+export function variantProducts(ledger) {
+  const ids = [
+    ...new Set(ledger.services.filter((s) => s.variantGroup && !s.archived).map((s) => s.variantGroup)),
+  ];
+  return ids
+    .map((id) => ({ id, members: variantMembers(ledger, id) }))
+    .filter((g) => g.members.length)
+    .map((g) => ({
+      id: g.id,
+      name: productName(g.members[0]),
+      unit: consumptionUnit(g.members[0], ledger.materials),
+    }));
+}
 export function compatibleTemplateItem(source, target, materials) {
+  if (source.uses.includes('variants')) return false;
   return (
     !!target &&
     !target.archived &&
@@ -161,8 +201,13 @@ export function compatibleTemplateItem(source, target, materials) {
 
 /** Suggestions require a unique matching formula name and unit; the user reviews every mapping. */
 export function suggestTemplateMappings(file, ledger) {
+  const products = variantProducts(ledger);
   return Object.fromEntries(
     file.items.map((s) => {
+      if (s.uses.includes('variants')) {
+        const matches = products.filter((g) => g.name === s.name && g.unit === s.unit);
+        return [s.id, matches.length === 1 ? matches[0].id : ''];
+      }
       const candidates = ledger.services.filter(
         (target) =>
           compatibleTemplateItem(s, target, ledger.materials) &&
@@ -197,7 +242,14 @@ export function importTemplateFile(
   makeId = () => crypto.randomUUID(),
 ) {
   const targets = new Map();
+  const products = variantProducts(ledger);
   for (const source of file.items) {
+    if (source.uses.includes('variants')) {
+      const product = products.find((g) => g.id === mapping[source.id] && g.unit === source.unit);
+      if (!product) throw Error(`Choose a local product with variants for ${source.name} (${source.unit}).`);
+      targets.set(source.id, product);
+      continue;
+    }
     const target = ledger.services.find((s) => s.id === mapping[source.id]);
     if (!compatibleTemplateItem(source, target, ledger.materials))
       throw Error(`Choose a compatible local item for ${source.name} (${source.unit}).`);
@@ -243,7 +295,11 @@ export function importTemplateFile(
       computed: source.computed.map((c) => ({
         ...c,
         formula: formula(c.formula),
-        stock: c.stock?.serviceId ? { serviceId: targets.get(c.stock.serviceId).id } : c.stock,
+        stock: c.stock?.serviceId
+          ? { serviceId: targets.get(c.stock.serviceId).id }
+          : c.stock?.variantGroup
+            ? { variantGroup: targets.get(c.stock.variantGroup).id }
+            : c.stock,
       })),
       expenses: source.expenses.map((e) => ({
         key: e.key,
