@@ -1,3 +1,4 @@
+import { setStockBelowZeroBlocked } from './stock-rule.mjs';
 import useSyncConflicts from './app/useSyncConflicts';
 import BatchJobProgressDialog from './BatchJobProgressDialog';
 import PricingTemplatesPage from './PricingTemplatesPage';
@@ -896,6 +897,8 @@ export default function App() {
   const currentJob = ledger.jobs.find((job) => job.id === selectedJob);
   // Auto-lock (Business Settings → Security): sign the user out after the idle time. The business
   // stays signed in, so the staff sign-in appears with empty fields.
+  // Saving refuses work that takes stock below zero when the business blocks it.
+  setStockBelowZeroBlocked(branding.settings.jobs.stockBelowZero === 'block');
   const lockMinutes = branding.settings.security.autoLockMinutes;
   useAutoLock({
     minutes: lockMinutes,
