@@ -213,3 +213,29 @@ test('Foreground and muted text meet contrast requirements even on unusual custo
         assert.equal(vars['--brand-primary'], primary);
       }
 });
+
+test('the sync check time defaults to two minutes and stays from 1 to 60 minutes', () => {
+  assert.equal(
+    validateBranding({ ...defaultBranding(), businessName: 'Shop', security: { autoLockMinutes: 5 } })
+      .security.syncMinutes,
+    2,
+  );
+  assert.equal(
+    validateBranding({
+      ...defaultBranding(),
+      businessName: 'Shop',
+      security: { autoLockMinutes: 0, syncMinutes: 10 },
+    }).security.syncMinutes,
+    10,
+  );
+  for (const syncMinutes of [0, 61, 1.5])
+    assert.throws(
+      () =>
+        validateBranding({
+          ...defaultBranding(),
+          businessName: 'Shop',
+          security: { autoLockMinutes: 0, syncMinutes },
+        }),
+      /sync check/,
+    );
+});

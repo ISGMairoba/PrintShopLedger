@@ -632,6 +632,7 @@ export default function App() {
     online,
     paused: busy || legacyConflict,
     pendingKey: state.pending.map((item) => item.id).join(','),
+    pollMs: (branding.settings.security.syncMinutes ?? 2) * 60000,
     run: async () => {
       const target = scope;
       const next = await syncLedger(target, shop!.id);

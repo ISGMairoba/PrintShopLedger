@@ -7,6 +7,8 @@ type Options = {
   online: boolean;
   paused: boolean;
   pendingKey: string;
+  /** How often to check for changes made on other devices. */
+  pollMs: number;
   run: () => Promise<void>;
   onError: (error: unknown) => 'pause' | void;
 };
@@ -25,9 +27,10 @@ export default function useAutoSync(options: Options) {
         latest.current.online &&
         !latest.current.paused &&
         (document.visibilityState === 'visible' || latest.current.pendingKey !== ''),
-      // Changes made here are sent at once; other devices' changes are fetched every two minutes,
-      // and straight away when the app is opened, focused or reconnects.
-      pollMs: 120000,
+      // Changes made here are sent at once; other devices' changes are fetched on the business's
+      // schedule (Settings → Security), and straight away when the app is opened, focused or
+      // reconnects.
+      pollMs: options.pollMs,
       run: () => latest.current.run(),
       onError: (error: unknown) => latest.current.onError(error),
       onStatus: (value: Status) => setStatus(value),
@@ -47,7 +50,7 @@ export default function useAutoSync(options: Options) {
       window.removeEventListener('focus', wake);
       document.removeEventListener('visibilitychange', wake);
     };
-  }, [options.scope, options.enabled]);
+  }, [options.scope, options.enabled, options.pollMs]);
   useEffect(() => {
     scheduler.current?.request();
   }, [options.pendingKey]);

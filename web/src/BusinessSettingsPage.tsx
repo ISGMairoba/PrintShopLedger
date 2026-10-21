@@ -890,13 +890,15 @@ export default function BusinessSettingsPage({
               {sectionSave('Correction settings', ['corrections'])}
             </fieldset>
             <fieldset hidden={tab !== 'Security'} disabled={busy || !ready}>
-              <legend>Auto-lock</legend>
+              <legend>Auto-lock and sync</legend>
               <label>
                 Lock the app after
                 <select
                   aria-label="Lock the app after"
                   value={draft.security.autoLockMinutes}
-                  onChange={(event) => field('security', { autoLockMinutes: Number(event.target.value) })}
+                  onChange={(event) =>
+                    field('security', { ...draft.security, autoLockMinutes: Number(event.target.value) })
+                  }
                 >
                   {[...new Set([0, 1, 2, 5, 10, 15, 20, 30, 45, 60, 90, 120, draft.security.autoLockMinutes])]
                     .sort((x, y) => x - y)
@@ -914,6 +916,30 @@ export default function BusinessSettingsPage({
                 staff sign-in shows with empty fields. The business stays signed in, and unsaved work on the
                 device is kept. While the device is offline it locks only once it is back online, so nobody is
                 locked out of selling without a connection.
+              </p>
+              <label>
+                Check for other devices' changes every
+                <select
+                  aria-label="Check for other devices' changes every"
+                  value={draft.security.syncMinutes}
+                  onChange={(event) =>
+                    field('security', { ...draft.security, syncMinutes: Number(event.target.value) })
+                  }
+                >
+                  {[...new Set([1, 2, 5, 10, 15, 30, 60, draft.security.syncMinutes])]
+                    .sort((x, y) => x - y)
+                    .map((minutes) => (
+                      <option key={minutes} value={minutes}>
+                        {minutes === 1 ? '1 minute' : `${minutes} minutes`}
+                        {minutes === 2 ? ' (recommended)' : ''}
+                      </option>
+                    ))}
+                </select>
+              </label>
+              <p>
+                Work done on a device is always sent straight away. This sets how often each open device
+                fetches work done on other devices; it also fetches when the app is opened or brought back to
+                the front. Checking less often uses less of your cloud data allowance.
               </p>
               {sectionSave('Security settings', ['security'])}
             </fieldset>
