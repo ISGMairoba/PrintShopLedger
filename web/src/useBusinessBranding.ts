@@ -32,6 +32,20 @@ export default function useBusinessBranding(
       return;
     }
     const expected = scope;
+    // Check the version first (a few bytes); download the settings (logos included) only when
+    // they changed since this device last saw them.
+    if (latest.current.version > 0) {
+      const { data: head, error: headError } = await supabase
+        .from('business_settings')
+        .select('version')
+        .eq('shop_id', shopId)
+        .maybeSingle();
+      if (current.current !== expected) return;
+      if (!headError && head && head.version === latest.current.version) {
+        setReady(true);
+        return;
+      }
+    }
     const { data, error } = await supabase
       .from('business_settings')
       .select('settings,version,modified_at,modified_by')
@@ -78,7 +92,9 @@ export default function useBusinessBranding(
     } catch {}
     if (!scope) return;
     void reload();
-    const timer = setInterval(() => void reload(), 60000);
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible') void reload();
+    }, 5 * 60000);
     const listener = (event: StorageEvent) => {
       if (event.key === key) void reload();
     };

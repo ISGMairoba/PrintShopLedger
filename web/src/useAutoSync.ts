@@ -19,7 +19,15 @@ export default function useAutoSync(options: Options) {
     setStatus('waiting');
     if (!options.enabled || !options.scope) return;
     const controller = createAutoSync({
-      canRun: () => latest.current.enabled && latest.current.online && !latest.current.paused,
+      // A hidden tab only syncs to send its own changes; it catches up when shown again.
+      canRun: () =>
+        latest.current.enabled &&
+        latest.current.online &&
+        !latest.current.paused &&
+        (document.visibilityState === 'visible' || latest.current.pendingKey !== ''),
+      // Changes made here are sent at once; other devices' changes are fetched every two minutes,
+      // and straight away when the app is opened, focused or reconnects.
+      pollMs: 120000,
       run: () => latest.current.run(),
       onError: (error: unknown) => latest.current.onError(error),
       onStatus: (value: Status) => setStatus(value),
