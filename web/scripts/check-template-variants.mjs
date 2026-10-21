@@ -123,6 +123,7 @@ try {
     await editor.waitFor({ state: 'detached' });
 
     // Price & compare: the variant can be left for production or picked now.
+    await nav('Pricing Templates');
     const c = page.getByRole('region', { name: 'Price and compare' });
     await c.getByLabel('Quantity', { exact: true }).fill('10');
     const variant = c.getByLabel('Envelope variant', { exact: true });
