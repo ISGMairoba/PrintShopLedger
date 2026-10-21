@@ -262,7 +262,7 @@ try {
       await review.getByLabel('Review reason').fill('Business version confirmed');
       await review.getByRole('button', { name: 'Keep business version', exact: true }).click();
       await review.waitFor({ state: 'detached' });
-      await page.clock.runFor(31000);
+      await page.clock.runFor(121000);
       await page.waitForFunction(() => !document.body.innerText.includes('pending operations await review.'));
       cashierMode = false;
       await page.reload();
