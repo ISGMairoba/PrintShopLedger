@@ -5,6 +5,7 @@ import Icon from './Icon';
 import type { Ledger, PricingSettings, PricingTemplate } from './types';
 import {
   compatibleTemplateItem,
+  variantProducts,
   exportTemplateFile,
   importedTemplateNames,
   importTemplateFile,
@@ -195,7 +196,9 @@ export function TemplateImportDialog({
               <label key={source.id}>
                 {source.name} · {source.unit}
                 <small>
-                  {source.key || 'Stock reference'} · {source.uses.join(', ')}
+                  {source.key ||
+                    (source.uses.includes('variants') ? 'Product with variants' : 'Stock reference')}{' '}
+                  · {source.uses.join(', ')}
                 </small>
                 <select
                   aria-label={`Match ${source.name}`}
@@ -203,16 +206,32 @@ export function TemplateImportDialog({
                   disabled={busy}
                   onChange={(e) => setMapping((current) => ({ ...current, [source.id]: e.target.value }))}
                 >
-                  <option value="">Choose local item</option>
-                  {alphabetical(
-                    ledger.services.filter((s) => compatibleTemplateItem(source, s, ledger.materials)),
-                    (s) => s.description,
-                  ).map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.description}
-                      {s.costing?.key ? ` (${s.costing.key})` : ''}
-                    </option>
-                  ))}
+                  {source.uses.includes('variants') ? (
+                    <>
+                      <option value="">Choose local product with variants</option>
+                      {alphabetical(
+                        variantProducts(ledger).filter((g) => g.unit === source.unit),
+                        (g) => g.name,
+                      ).map((g) => (
+                        <option key={g.id} value={g.id}>
+                          {g.name}
+                        </option>
+                      ))}
+                    </>
+                  ) : (
+                    <>
+                      <option value="">Choose local item</option>
+                      {alphabetical(
+                        ledger.services.filter((s) => compatibleTemplateItem(source, s, ledger.materials)),
+                        (s) => s.description,
+                      ).map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.description}
+                          {s.costing?.key ? ` (${s.costing.key})` : ''}
+                        </option>
+                      ))}
+                    </>
+                  )}
                 </select>
               </label>
             ))}

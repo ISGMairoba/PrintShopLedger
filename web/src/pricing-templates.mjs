@@ -287,6 +287,7 @@ export function validateTemplate(t) {
           throw Error(label + ': choose a material selection variable to take stock from.');
         out.stock = { variable: c.stock.variable };
       } else if (uuid.test(c.stock.serviceId ?? '')) out.stock = { serviceId: c.stock.serviceId };
+      else if (uuid.test(c.stock.variantGroup ?? '')) out.stock = { variantGroup: c.stock.variantGroup };
       else throw Error(label + ': choose where its stock comes from.');
     }
     return out;
@@ -450,6 +451,48 @@ const stockCountOf = (ledger, materialId) =>
     .sort((a, b) => Date.parse(b.changedAt) - Date.parse(a.changedAt) || b.id.localeCompare(a.id))[0]?.id ??
   null;
 
+/**
+ * Variant picks travel with a line's inputs under this prefix ("@variant:" + computed key → the
+ * variant's item id; "" = decide in production). They are kept apart from the template's inputs.
+ */
+export const VARIANT_PICK = '@variant:';
+/** A line's inputs without its variant picks, and the picks by computed key. */
+export function splitVariantPicks(supplied = {}) {
+  const inputs = {},
+    picks = {};
+  for (const [key, value] of Object.entries(supplied ?? {}))
+    if (key.startsWith(VARIANT_PICK)) picks[key.slice(VARIANT_PICK.length)] = value;
+    else inputs[key] = value;
+  return { inputs, picks };
+}
+/** A snapshot's inputs with its variant picks, to edit the line again. */
+export const editableInputs = (snapshot) => ({
+  ...(snapshot?.inputs ?? {}),
+  ...Object.fromEntries(Object.entries(snapshot?.variantPicks ?? {}).map(([k, v]) => [VARIANT_PICK + k, v])),
+});
+/**
+ * The variants of a product that can be sold from stock, in id order (the server uses the same).
+ * @param {import('./types').Ledger} ledger
+ * @param {string} group
+ * @returns {import('./types').Service[]}
+ */
+export function variantMembers(ledger, group) {
+  return ledger.services
+    .filter(
+      (s) =>
+        s.variantGroup === group &&
+        !s.archived &&
+        s.materialId &&
+        ledger.materials.some((m) => m.id === s.materialId && !m.archived),
+    )
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
+/** "Envelope" for the variant "Envelope — Blue". */
+export const productName = (service) =>
+  service.variantName && service.description.endsWith(' — ' + service.variantName)
+    ? service.description.slice(0, -(' — ' + service.variantName).length)
+    : service.description;
+
 /** Check and convert entered values (numbers or text) for every variable. */
 export function templateInputs(template, supplied, quantity) {
   /** @type {Record<string, number>} */
@@ -486,7 +529,17 @@ export function templateInputs(template, supplied, quantity) {
  * price: { cost, raw, amount (kobo), minimum (kobo) }, stock }. Decimal values are exact text.
  */
 export function priceTemplate(ledger, template, supplied, quantity, stockIds = {}) {
-  const inputs = templateInputs(template, supplied, quantity);
+  const { inputs: entered, picks } = splitVariantPicks(supplied);
+  const inputs = templateInputs(template, entered, quantity);
+  for (const [key, value] of Object.entries(picks))
+    if (
+      typeof value !== 'string' ||
+      (value && !uuid.test(value)) ||
+      !template.computed.some((c) => c.key === key && c.stock?.variantGroup)
+    )
+      throw Error('Template variables changed. Review the line.');
+  /** @type {Record<string, string>} */
+  const variantPicks = {};
   const values = new Map([['quantity', decimal(quantity)]]);
   for (const [k, n] of Object.entries(inputs)) values.set(k, decimal(n));
   const costed = new Map(
@@ -599,9 +652,41 @@ export function priceTemplate(ledger, template, supplied, quantity, stockIds = {
   const choices = [];
   for (const c of template.computed) {
     if (!c.stock) continue;
-    const service = c.stock.variable
-      ? selected.get(c.stock.variable)
-      : ledger.services.find((s) => s.id === c.stock.serviceId && !s.archived);
+    let service;
+    if (c.stock.variantGroup) {
+      // A product with variants: the variant picked at checkout, or a choice of the variants'
+      // stock items confirmed in production.
+      const members = variantMembers(ledger, c.stock.variantGroup);
+      if (!members.length)
+        throw Error(`${c.label}: its product is no longer available. Review the template.`);
+      const pick = picks[c.key];
+      if (pick) {
+        service = members.find((s) => s.id === pick);
+        if (!service) throw new FieldError(`${c.label}: choose an available variant.`, VARIANT_PICK + c.key);
+        variantPicks[c.key] = pick;
+      } else {
+        const x = values.get(c.key);
+        const work = Number(floorDiv(2n * x.n * 1000n + x.d, 2n * x.d)) / 1000;
+        if (work === 0) continue;
+        const entry = choices.find((ch) => ch.serviceId === c.stock.variantGroup);
+        if (entry) {
+          entry.work = Math.round((entry.work + work) * 1000) / 1000;
+          continue;
+        }
+        choices.push({
+          serviceId: c.stock.variantGroup,
+          name: productName(members[0]),
+          options: members.map((m) => m.materialId),
+          confirmStage: members[0].confirmStage ?? 'Printing',
+          unit: ledger.materials.find((m) => m.id === members[0].materialId)?.measurementUnit ?? 'item',
+          work,
+        });
+        continue;
+      }
+    } else
+      service = c.stock.variable
+        ? selected.get(c.stock.variable)
+        : ledger.services.find((s) => s.id === c.stock.serviceId && !s.archived);
     if (!service) throw Error(`${c.label}: its stock item is no longer available. Review the template.`);
     if (service.materialId === null) {
       // A choice of materials: nothing is taken now. The job asks which material(s) were used for
@@ -658,6 +743,7 @@ export function priceTemplate(ledger, template, supplied, quantity, stockIds = {
     price: { cost: canonical(cost), raw: canonical(raw), amount, minimum: minimumKobo },
     stock,
     ...(choices.length ? { choices } : {}),
+    ...(Object.keys(variantPicks).length ? { variantPicks } : {}),
   };
 }
 
@@ -680,7 +766,10 @@ export function quoteTemplate(ledger, line) {
   const snapshot = priceTemplate(
     ledger,
     template,
-    line.templateInputs ?? line.templateSnapshot?.inputs ?? {},
+    // Lines that only carry the template's inputs keep the variants their snapshot picked.
+    line.templateInputs && Object.keys(line.templateInputs).some((k) => k.startsWith(VARIANT_PICK))
+      ? line.templateInputs
+      : { ...editableInputs(line.templateSnapshot), ...(line.templateInputs ?? {}) },
     line.quantity,
     stockIds,
   );
@@ -899,5 +988,13 @@ export const templateSpecLines = (job) =>
           computedSpecs(job.templateSnapshot.template, job.templateSnapshot.outputs, true).map(
             (s) => `${s.label}: ${s.value}`,
           ),
+        )
+        // The variant picked for an item (e.g. "Envelopes: Envelope — Blue").
+        .concat(
+          Object.entries(job.templateSnapshot.variantPicks ?? {}).flatMap(([key, serviceId]) => {
+            const item = job.templateSnapshot.template.computed.find((c) => c.key === key);
+            const stock = job.templateSnapshot.stock.find((x) => x.serviceId === serviceId);
+            return item && stock ? [`${item.label}: ${stock.name}`] : [];
+          }),
         )
     : [];

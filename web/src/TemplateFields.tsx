@@ -15,6 +15,9 @@ import {
   snapshotValue,
   templateDefaults,
   valueLabel,
+  VARIANT_PICK,
+  productName,
+  variantMembers,
 } from './pricing-templates.mjs';
 import { currency } from './receipts.mjs';
 import Icon from './Icon';
@@ -127,13 +130,23 @@ export function TemplateInputs({
   errorField = '',
   error = '',
   onChange,
+  ledger,
 }: {
   template: PricingTemplate;
   value: Record<string, number | string>;
   errorField?: string;
   error?: string;
   onChange: (value: Record<string, number | string>) => void;
+  /** With the ledger, items that take stock from a product with variants offer a variant pick. */
+  ledger?: Ledger;
 }) {
+  const products = ledger
+    ? template.computed.flatMap((c) =>
+        c.stock && 'variantGroup' in c.stock
+          ? [{ computed: c, members: variantMembers(ledger, c.stock.variantGroup) }]
+          : [],
+      )
+    : [];
   return (
     <>
       {template.variables
@@ -147,6 +160,38 @@ export function TemplateInputs({
             onChange={(next) => onChange({ ...value, [v.key]: next })}
           />
         ))}
+      {products.map(({ computed: c, members }) => {
+        const key = VARIANT_PICK + c.key;
+        const name = members[0] ? productName(members[0]) : c.label;
+        return (
+          <label key={key} className={errorField === key ? 'has-error' : undefined}>
+            {name} variant
+            <select
+              aria-label={`${name} variant`}
+              value={String(value[key] ?? '')}
+              onChange={(e) => onChange({ ...value, [key]: e.target.value })}
+            >
+              <option value="">Decide in production</option>
+              {alphabetical(members, (m) => m.variantName ?? m.description).map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.variantName ?? m.description}
+                </option>
+              ))}
+            </select>
+            {errorField === key ? (
+              <small className="danger-text" role="alert">
+                {error}
+              </small>
+            ) : (
+              <small>
+                {value[key]
+                  ? 'Taken from stock at checkout.'
+                  : 'Staff confirm the variant used in production.'}
+              </small>
+            )}
+          </label>
+        );
+      })}
     </>
   );
 }
@@ -631,6 +676,7 @@ export function TemplateCalculator({
           errorField={priced.field}
           error={priced.error}
           onChange={setInputs}
+          ledger={ledger}
         />
       </div>
       <div className="template-breakdown">

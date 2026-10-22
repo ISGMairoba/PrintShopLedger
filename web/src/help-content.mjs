@@ -705,6 +705,7 @@ export const helpTopics = [
     ],
     notes: [
       'Give an item a formula name under Services → Edit → Use in pricing templates.',
+      'A computed value can take stock from a product with variants: under Take from stock, choose the product. At checkout, pick the variant, or leave Decide in production and confirm the variant used at the confirmation stage.',
       'Saving templates needs a connection.',
     ],
     pages: ['Pricing Templates'],
