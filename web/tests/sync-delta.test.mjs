@@ -26,7 +26,7 @@ test('changed records replace theirs in place; new ones are added', () => {
   assert.equal(ledger.jobs[1].amount, 2, 'the old copy is not changed');
 });
 
-test('a full download is needed at first, with unsent work, after a repair and every half hour', () => {
+test('a full download is needed at first, with unsent work, after a repair, after Sync all and once a day', () => {
   const now = Date.parse('2026-10-21T22:00:00Z');
   const ready = { syncCursor: '123', fullSyncAt: new Date(now - 60000).toISOString(), pending: [] };
   assert.equal(needsFullSync(ready, now), false);
@@ -34,6 +34,11 @@ test('a full download is needed at first, with unsent work, after a repair and e
   assert.equal(needsFullSync({ ...ready, pending: [{ id: 'e' }] }, now), true);
   assert.equal(needsFullSync({ ...ready, syncConflicts: { e: 'held' } }, now), true);
   assert.equal(needsFullSync({ ...ready, storageRecovered: 'x' }, now), true);
+  assert.equal(needsFullSync({ ...ready, fullSyncAt: undefined }, now), true, 'Sync all');
+  assert.equal(
+    needsFullSync({ ...ready, fullSyncAt: new Date(now - 23 * 3600000).toISOString() }, now),
+    false,
+  );
   assert.equal(
     needsFullSync({ ...ready, fullSyncAt: new Date(now - FULL_SYNC_EVERY - 1).toISOString() }, now),
     true,

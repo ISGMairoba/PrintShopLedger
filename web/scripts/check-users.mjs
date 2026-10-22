@@ -33,6 +33,7 @@ try {
   const actor = '11111111-1111-4111-8111-111111111111',
     shop = '22222222-2222-4222-8222-222222222222';
   const now = new Date().toISOString();
+  const cursors = [];
   let downloads = 0,
     uploads = 0,
     failDownload = false;
@@ -188,6 +189,7 @@ try {
     else if (path.endsWith('/list_correction_requests')) result = [];
     else if (/\/get_ledger(_changes)?$/.test(path)) {
       downloads++;
+      if (path.endsWith('/get_ledger_changes')) cursors.push(route.request().postDataJSON()?.p_since ?? null);
       if (failDownload) {
         failDownload = false;
         await route.fulfill({
@@ -259,6 +261,15 @@ try {
     'Manual sync button removed',
   );
   assert.ok(downloads > 0, 'Workspace syncs on opening');
+  // My Account → Sync all downloads the whole business again (no cursor).
+  await page
+    .getByRole('navigation', { name: 'Main' })
+    .getByRole('button', { name: 'My Account', exact: true })
+    .click();
+  const asked = cursors.length;
+  await page.getByRole('button', { name: 'Sync all', exact: true }).click();
+  await page.getByText('Everything was downloaded again.', { exact: true }).waitFor();
+  assert.ok(cursors.length > asked && cursors.at(-1) === null, 'Sync all asks for everything');
   async function sidebarScrollCheck() {
     const before = await page.evaluate(() => {
       const rect = (selector) => {

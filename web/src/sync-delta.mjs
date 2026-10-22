@@ -1,8 +1,9 @@
 // Delta sync: after one full download, a device asks only for what changed since its cursor
 // (public.get_ledger_changes) and merges it into its copy. A full download still happens on the
 // first sync, after a repair, whenever this device has unsent or held work (its copy then
-// carries local changes on top of the business copy), and every half hour as a safety net.
-export const FULL_SYNC_EVERY = 30 * 60 * 1000;
+// carries local changes on top of the business copy), once a day as a safety net, and when
+// someone presses Sync all (which clears fullSyncAt).
+export const FULL_SYNC_EVERY = 24 * 60 * 60 * 1000;
 
 /** Whether the next download must be the whole business. */
 export function needsFullSync(state, now = Date.now()) {
