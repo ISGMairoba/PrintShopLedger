@@ -1,3 +1,4 @@
+import { notEnoughStock } from './stock-rule.mjs';
 import DialogActions from './DialogActions';
 import { TemplateInputs, TemplateEstimate, tryTemplate } from './TemplateFields';
 import { serviceMaterial } from './material-choice.mjs';
@@ -507,11 +508,18 @@ export default function CheckoutEditor({
       };
     });
   }
-  const shortage = preview?.data.jobs.reduce(
-    (s: Record<string, number>, j) =>
-      j.materialId === null ? s : { ...s, [j.materialId]: (s[j.materialId] ?? 0) + j.materialNeeded },
-    {},
-  );
+  // Stock each line takes now: its material, and the stock items of a template line.
+  const shortage = preview?.data.jobs.reduce((s: Record<string, number>, j) => {
+    const next = { ...s };
+    if (j.materialId !== null) next[j.materialId] = (next[j.materialId] ?? 0) + j.materialNeeded;
+    for (const x of j.templateSnapshot?.stock ?? [])
+      next[x.materialId] = Math.round(((next[x.materialId] ?? 0) + x.quantity) * 1000) / 1000;
+    return next;
+  }, {});
+  const blockShort = jobSettings.stockBelowZero === 'block';
+  const short = shortage
+    ? working.materials.filter((m) => (shortage[m.id] ?? 0) > 0 && m.available - shortage[m.id] < 0)
+    : [];
   return (
     <>
       <Modal
@@ -523,6 +531,7 @@ export default function CheckoutEditor({
           <DialogActions
             form={formId}
             busy={busy}
+            disabled={blockShort && short.length > 0}
             onCancel={onClose}
             summary={
               !paymentOnly && (
@@ -1213,16 +1222,19 @@ export default function CheckoutEditor({
                 can still save this order.
               </p>
             )}
-            {shortage &&
-              working.materials
-                .filter((m) => m.available - (shortage[m.id] ?? 0) < 0 && (shortage[m.id] ?? 0) > 0)
-                .map((m) => (
-                  <p className="notice notice-warning" role="status" key={m.id}>
-                    Stock warning: {m.name} will have{' '}
-                    {Math.round((m.available - shortage[m.id]) * 1000) / 1000} {m.measurementUnit}. Saving is
-                    allowed; later restocking adds to this balance.
-                  </p>
-                ))}
+            {short.map((m) =>
+              blockShort ? (
+                <p className="notice notice-error" role="alert" key={m.id}>
+                  {notEnoughStock(m, m.available, shortage![m.id])}
+                </p>
+              ) : (
+                <p className="notice notice-warning" role="status" key={m.id}>
+                  Stock warning: {m.name} will have{' '}
+                  {Math.round((m.available - shortage![m.id]) * 1000) / 1000} {m.measurementUnit}. Saving is
+                  allowed; later restocking adds to this balance.
+                </p>
+              ),
+            )}
             {previewError && customer && <p className="muted">{previewError}</p>}
           </fieldset>
         </form>

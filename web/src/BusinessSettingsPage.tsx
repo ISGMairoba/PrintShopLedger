@@ -731,6 +731,23 @@ export default function BusinessSettingsPage({
                 </select>
               </label>
               <p>The recommended amount is always shown beside the box, with a button to use it.</p>
+              <h3>Stock below zero</h3>
+              <label>
+                When a sale or job needs more than is in stock
+                <select
+                  aria-label="When a sale or job needs more than is in stock"
+                  value={draft.jobs.stockBelowZero}
+                  onChange={(event) => field('jobs', { ...draft.jobs, stockBelowZero: event.target.value })}
+                >
+                  <option value="allow">Allow it, with a warning</option>
+                  <option value="block">Don't allow it until an admin updates the stock</option>
+                </select>
+              </label>
+              <p>
+                Applies to every stock item: sales, quick sales, materials confirmed in production and waste.
+                Work saved without a connection is checked again when it syncs; if the stock has run out by
+                then, it waits in the conflict inbox until the stock is updated.
+              </p>
               {sectionSave('Job and payment settings', ['jobs'])}
               <h3>Words</h3>
               <p>

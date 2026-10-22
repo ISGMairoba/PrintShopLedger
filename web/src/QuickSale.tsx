@@ -1,3 +1,4 @@
+import { stockBelowZeroBlocked } from './stock-rule.mjs';
 import { alphabetical } from './alphabetical.mjs';
 import { useMemo, useState } from 'react';
 import Modal from './Modal';
@@ -53,6 +54,12 @@ export default function QuickSale({
   const products = useMemo(() => shelfProducts(ledger), [ledger]);
   const [query, setQuery] = useState('');
   const [cart, setCart] = useState<{ serviceId: string; quantity: number }[]>([]);
+  // When the business blocks stock below zero, a cart that needs more than is in stock cannot be sold.
+  const blocked = stockBelowZeroBlocked();
+  const anyShort = cart.some((line) => {
+    const p = products.find((x) => x.id === line.serviceId);
+    return p?.stock != null && line.quantity > p.stock;
+  });
   const [customerText, setCustomerText] = useState(WALK_IN_NAME);
   const [methodLabel, setMethodLabel] = useState(methods[0]?.label ?? 'Cash');
   const [received, setReceived] = useState<string | null>(null);
@@ -229,7 +236,11 @@ export default function QuickSale({
                           <small>
                             {currency(p?.price ?? 0)} each
                             {short && (
-                              <span className="stock-near-text"> · More than the {p!.stock} in stock</span>
+                              <span className={blocked ? 'danger-text' : 'stock-near-text'}>
+                                {' '}
+                                · More than the {p!.stock} in stock
+                                {blocked ? '. Ask an admin to update the stock first.' : ''}
+                              </span>
                             )}
                           </small>
                         </td>
@@ -357,7 +368,11 @@ export default function QuickSale({
                 <small>{currency(total - tendered)} will be owed on the customer's account.</small>
               )}
             </div>
-            <button type="button" disabled={busy || !cart.length || !priced} onClick={() => void complete()}>
+            <button
+              type="button"
+              disabled={busy || !cart.length || !priced || (blocked && anyShort)}
+              onClick={() => void complete()}
+            >
               <Icon name="complete" /> {busy ? 'Saving…' : `Complete sale · ${currency(total)}`}
             </button>
           </div>

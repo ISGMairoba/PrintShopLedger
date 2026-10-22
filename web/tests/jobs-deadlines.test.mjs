@@ -40,8 +40,10 @@ test('job settings default for older saved settings and are validated', () => {
     defaultDuration: { value: 0, unit: 'days' },
     paymentPrefill: 'suggested',
     descriptionMode: 'required',
+    stockBelowZero: 'allow',
   });
   assert.equal(loaded.receipt.showBusinessName, true);
+  assert.throws(() => validateJobSettings({ stockBelowZero: 'sometimes' }), /below zero/);
   assert.throws(() => validateJobSettings({ defaultDuration: { value: 1.5, unit: 'days' } }), /duration/);
   assert.throws(() => validateJobSettings({ defaultDuration: { value: 800, unit: 'hours' } }), /duration/);
   assert.throws(() => validateJobSettings({ paymentPrefill: 'half' }), /payment amount/);

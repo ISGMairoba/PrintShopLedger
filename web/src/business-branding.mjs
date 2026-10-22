@@ -44,6 +44,8 @@ export const jobSettingsDefaults = () => ({
   defaultDuration: { value: 0, unit: 'days' },
   paymentPrefill: 'suggested',
   descriptionMode: 'required',
+  // 'allow': stock may go below zero (with a warning); 'block': nothing takes more than is in stock.
+  stockBelowZero: 'allow',
 });
 // The period each page opens with. 'all' is offered only where a page can list everything.
 export const defaultPeriods = () => ({
@@ -382,7 +384,10 @@ export function validateJobSettings(input) {
     throw Error('Choose how the payment amount is filled in.');
   if (!['required', 'optional', 'hidden'].includes(value.descriptionMode))
     throw Error('Choose whether job descriptions are required, optional or hidden.');
+  if (!['allow', 'block'].includes(value.stockBelowZero))
+    throw Error('Choose whether stock may go below zero.');
   return {
+    stockBelowZero: value.stockBelowZero,
     descriptionMode: value.descriptionMode,
     defaultDuration: { value: duration.value, unit: duration.unit },
     paymentPrefill: value.paymentPrefill,
