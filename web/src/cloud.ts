@@ -279,6 +279,9 @@ export async function resolveRemoteConflict(
   if (error) throw Error(error.message);
 }
 
+/** Sync all: the next sync downloads the whole business again instead of only the changes. */
+export const requestFullSync = (scope: string) =>
+  mutateState(scope, ({ fullSyncAt: _full, ...current }) => current);
 export async function syncLedger(scope: string, shopId: string) {
   if (!navigator.locks) throw new Error('Cloud sync requires a browser with Web Locks support.');
   return navigator.locks.request(`printshopledger-sync:${scope}`, () => synchronize(scope, shopId));

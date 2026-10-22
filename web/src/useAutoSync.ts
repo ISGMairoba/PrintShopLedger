@@ -57,5 +57,7 @@ export default function useAutoSync(options: Options) {
   useEffect(() => {
     if (options.online && !options.paused) scheduler.current?.wake();
   }, [options.online, options.paused]);
-  return status;
+  /** Sync straight away (used by Sync all once it has asked for a full download). */
+  const syncNow = () => scheduler.current?.wake();
+  return [status, syncNow] as const;
 }

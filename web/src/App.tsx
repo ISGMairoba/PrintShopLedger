@@ -73,6 +73,7 @@ import {
   businessAuth,
   passwordRecoveryLink,
   syncLedger,
+  requestFullSync,
   MaterialSyncConflict,
   ServiceSyncConflict,
   CustomerSyncConflict,
@@ -627,7 +628,7 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [supervisor]);
   const slowSyncs = useRef(0);
-  const syncStatus = useAutoSync({
+  const [syncStatus, syncNow] = useAutoSync({
     scope,
     enabled: !demo && !!scope && ready && !switchUser,
     online,
@@ -1592,7 +1593,21 @@ export default function App() {
                               setStaffEpoch((value) => value + 1);
                             }}
                           />
-                          <DeviceStorageCard pending={state.pending.length} lastSynced={state.lastSynced} />
+                          <DeviceStorageCard
+                            pending={state.pending.length}
+                            lastSynced={state.lastSynced}
+                            syncing={syncStatus === 'syncing'}
+                            onSyncAll={
+                              demo || !scope
+                                ? undefined
+                                : async () => {
+                                    const target = scope;
+                                    const next = await requestFullSync(target);
+                                    if (activeScope.current === target) setState(next);
+                                    syncNow();
+                                  }
+                            }
+                          />
                         </>
                       ) : page === 'Edit Products' ? (
                         <EditProductsPage

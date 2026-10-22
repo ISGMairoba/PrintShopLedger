@@ -1839,3 +1839,14 @@ label small > .field-error {
     flex: 1 1 100%;
   }
 }
+
+/* My Account → This device: Sync all sits under the storage details. */
+.device-sync-all {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  margin-top: 12px;
+}
+.device-sync-all p {
+  margin: 0;
+}
