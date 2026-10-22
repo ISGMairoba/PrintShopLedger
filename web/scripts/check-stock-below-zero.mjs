@@ -85,7 +85,7 @@ try {
     await page.getByRole('button', { name: 'Add job', exact: true }).click();
     const d = page.getByRole('dialog', { name: 'New checkout' });
     const line = d.locator('.cart-line').first();
-    await pick(line, 'Service', { label: 'Art card' });
+    await pick(line, 'Service', { text: 'Art card' });
     if (await line.getByLabel('Job description').count())
       await line.getByLabel('Job description').fill('Cards');
     await line.getByLabel('Quantity', { exact: true }).fill('120');
