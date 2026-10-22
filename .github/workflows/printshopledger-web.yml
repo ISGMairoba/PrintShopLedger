@@ -55,6 +55,7 @@ jobs:
         run: node scripts/run-check.mjs node scripts/check-pricing-templates.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/run-check.mjs node scripts/check-template-variants.mjs
+      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/run-check.mjs node scripts/check-stock-below-zero.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/run-check.mjs node scripts/check-product-edit.mjs
