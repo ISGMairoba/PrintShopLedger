@@ -53,6 +53,10 @@ test('sales use the range rate; a custom-price service uses the price typed at t
   const ranged = line(id(50), 30);
   assert.equal(ranged.unitPrice, 8000);
   assert.equal(ranged.amount, 240000);
+  assert.equal(ranged.priceRange, '26–100');
+  assert.equal(line(id(50), 5).priceRange, '1–25');
+  assert.equal(line(id(50), 500).priceRange, '101+');
+  assert.equal(line(id(51), 1, { unitPrice: 5 }).priceRange, undefined);
   assert.equal(line(id(50), 5).amount, 50000);
   const custom = line(id(51), 2, { unitPrice: 1250000 });
   assert.equal(custom.unitPrice, 1250000);
@@ -81,4 +85,42 @@ test('ranges and custom prices exclude pack prices, shelf sales and templates-on
   assert.doesNotThrow(() => validateService({ ...base, customPrice: true }, ledger));
   assert.doesNotThrow(() => validateService({ ...base, priceTiers: tiers }, ledger));
   void actor;
+});
+
+test('products with variants share their quantity ranges', async () => {
+  const { newVariantProductEvents, syncVariantEvents, variantGroups } = await import('../src/variants.mjs');
+  const { applyEvent } = await import('../src/domain.mjs');
+  const { ledger } = fixture();
+  const events = newVariantProductEvents(
+    ledger,
+    {
+      name: 'Envelope',
+      unit: 'piece',
+      price: 10000,
+      priceTiers: tiers,
+      variants: [
+        { name: 'Blue', stock: 10 },
+        { name: 'White', stock: 10 },
+      ],
+    },
+    actor,
+  );
+  let next = events.reduce(applyEvent, ledger);
+  const [group] = variantGroups(next);
+  assert.deepEqual(
+    group.members.map((m) => m.service.priceTiers),
+    [validPriceTiers(tiers), validPriceTiers(tiers)],
+  );
+  const change = syncVariantEvents(
+    next,
+    group.id,
+    { name: 'Envelope', price: 10000, packPrices: [], priceTiers: [{ from: 50, price: 7000 }] },
+    actor,
+  );
+  assert.ok(change.summary.includes('Change the quantity ranges of all 2 variants'));
+  next = change.events.reduce(applyEvent, next);
+  assert.deepEqual(
+    variantGroups(next)[0].members.map((m) => m.service.priceTiers),
+    [[{ from: 50, price: 7000 }], [{ from: 50, price: 7000 }]],
+  );
 });

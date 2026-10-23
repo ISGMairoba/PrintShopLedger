@@ -89,6 +89,9 @@ export function receiptModel(record, business, pending = false, adjustments = []
       o.showJobId ? (j.ref ?? shortRef(j.id)) : '',
       o.showQuantity && item?.quantity !== undefined && item?.quantity !== null ? `Qty ${item.quantity}` : '',
       item?.packBreakdown?.length ? packSummary(item.unitPrice ?? 0, item.packBreakdown, item.quantity) : '',
+      item?.priceRange
+        ? `${item.quantity} × ${currency(item.unitPrice ?? 0)} (${item.priceRange} range price)`
+        : '',
       o.showSize && item?.requireSize ? `Size ${item.width} × ${item.height}` : '',
       ...templateSpecLines(item),
       o.showSource && item?.source

@@ -4,6 +4,7 @@
 // Each variant is priced on its own, so pieces of different variants never make up a pack.
 import { applyEvent } from './domain.mjs';
 import { validPackPrices } from './pack-prices.mjs';
+import { validPriceTiers } from './price-tiers.mjs';
 import { productEditEvents } from './product-edit.mjs';
 
 const SEP = ' — ';
@@ -65,7 +66,19 @@ const amount = (value, what) => {
  * Events for one new variant (its stock item and its item for sale), checked against the ledger.
  * @returns {ProductEvents}
  */
-function newVariant({ group, product, variant, unit, price, packPrices, shelfItem, stock, minimum, audit }) {
+function newVariant({
+  group,
+  product,
+  variant,
+  unit,
+  price,
+  packPrices,
+  priceTiers = [],
+  shelfItem,
+  stock,
+  minimum,
+  audit,
+}) {
   const materialId = crypto.randomUUID();
   return [
     {
@@ -92,6 +105,7 @@ function newVariant({ group, product, variant, unit, price, packPrices, shelfIte
         price,
         shelfItem,
         packPrices,
+        priceTiers,
         variantGroup: group,
         variantName: variant,
         ...audit,
@@ -128,6 +142,7 @@ export function newVariantProductEvents(ledger, input, actor, now = new Date().t
   const audit = { modifiedBy: actor.id, modifiedByLabel: actor.label, modifiedAt: now };
   const group = crypto.randomUUID();
   const packPrices = validPackPrices(input.packPrices);
+  const priceTiers = validPriceTiers(input.priceTiers);
   const events = variants.flatMap((v, i) =>
     newVariant({
       group,
@@ -136,6 +151,7 @@ export function newVariantProductEvents(ledger, input, actor, now = new Date().t
       unit: input.unit,
       price: input.price,
       packPrices,
+      priceTiers,
       shelfItem: input.shelfItem ?? true,
       stock: v.stock,
       minimum: v.minimum,
@@ -163,6 +179,7 @@ export function addVariantEvents(ledger, groupId, input, actor, now = new Date()
     unit: first.material?.measurementUnit ?? 'piece',
     price: first.service.price,
     packPrices: first.service.packPrices ?? [],
+    priceTiers: first.service.priceTiers ?? [],
     shelfItem: first.service.shelfItem ?? true,
     stock: input.stock,
     minimum: input.minimum,
@@ -180,7 +197,7 @@ export function addVariantEvents(ledger, groupId, input, actor, now = new Date()
 export function syncVariantEvents(
   ledger,
   groupId,
-  { name, price, packPrices, unit },
+  { name, price, packPrices, priceTiers, unit },
   actor,
   now = new Date().toISOString(),
 ) {
@@ -188,6 +205,7 @@ export function syncVariantEvents(
   if (!group) throw Error('Choose a product with variants.');
   const product = cleanName(name, 'a name');
   const packs = validPackPrices(packPrices);
+  const tiers = validPriceTiers(priceTiers === undefined ? group.members[0].service.priceTiers : priceTiers);
   const newUnit = unit === undefined ? null : String(unit).trim();
   if (newUnit !== null && (!newUnit || newUnit.length > 40)) throw Error('Choose a unit.');
   const audit = { modifiedBy: actor.id, modifiedByLabel: actor.label, modifiedAt: now };
@@ -196,7 +214,8 @@ export function syncVariantEvents(
   for (const { service, material } of group.members) {
     const title = variantTitle(product, service.variantName);
     const samePacks = JSON.stringify(validPackPrices(service.packPrices ?? [])) === JSON.stringify(packs);
-    if (title !== service.description || price !== service.price || !samePacks)
+    const sameTiers = JSON.stringify(validPriceTiers(service.priceTiers ?? [])) === JSON.stringify(tiers);
+    if (title !== service.description || price !== service.price || !samePacks || !sameTiers)
       events.push({
         id: crypto.randomUUID(),
         kind: 'service.updated',
@@ -210,6 +229,7 @@ export function syncVariantEvents(
           private: service.private ?? false,
           costing: service.costing ?? null,
           packPrices: packs,
+          priceTiers: tiers,
           variantGroup: service.variantGroup,
           variantName: service.variantName,
           ...audit,
@@ -244,6 +264,9 @@ export function syncVariantEvents(
       : []),
     ...(JSON.stringify(validPackPrices(first.packPrices ?? [])) !== JSON.stringify(packs)
       ? [`Change the pack prices of all ${group.members.length} variants`]
+      : []),
+    ...(JSON.stringify(validPriceTiers(first.priceTiers ?? [])) !== JSON.stringify(tiers)
+      ? [`Change the quantity ranges of all ${group.members.length} variants`]
       : []),
   ];
   check(ledger, events);
@@ -372,6 +395,7 @@ export function makeVariantsEvents(ledger, serviceId, input, actor, now = new Da
         unit: material.measurementUnit,
         price: service.price,
         packPrices: service.packPrices ?? [],
+        priceTiers: service.priceTiers ?? [],
         shelfItem: service.shelfItem ?? true,
         stock: v.stock,
         minimum: v.minimum,
@@ -422,6 +446,7 @@ export function joinVariantsEvents(
         description: title,
         price: first.service.price,
         packPrices: first.service.packPrices ?? [],
+        priceTiers: first.service.priceTiers ?? [],
         variantGroup: group.id,
         variantName: variant,
       },
@@ -434,6 +459,8 @@ export function joinVariantsEvents(
   if (first.service.price !== service.price) summary.push(`Use ${group.name}'s price`);
   if (JSON.stringify(first.service.packPrices ?? []) !== JSON.stringify(service.packPrices ?? []))
     summary.push(`Use ${group.name}'s pack prices`);
+  if (JSON.stringify(first.service.priceTiers ?? []) !== JSON.stringify(service.priceTiers ?? []))
+    summary.push(`Use ${group.name}'s quantity ranges`);
   return { events, summary };
 }
 

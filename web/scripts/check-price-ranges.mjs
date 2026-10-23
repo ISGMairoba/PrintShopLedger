@@ -128,6 +128,7 @@ try {
     await page.screenshot({ path: `/tmp/price-ranges-${mobile ? 'mobile' : 'desktop'}.png`, fullPage: true });
     await d.getByRole('button', { name: 'Complete checkout', exact: true }).click();
     await d.waitFor({ state: 'detached' });
+    assert.match(await page.getByRole('dialog').innerText(), /30 × ₦80\.00 \(26–100 range price\)/);
     await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
     const state = await readCopy(page, 'local-trial');
     const jobs = state.ledger.jobs;

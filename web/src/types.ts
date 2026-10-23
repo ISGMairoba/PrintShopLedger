@@ -199,6 +199,8 @@ export interface Job {
   };
   /** Packs this job was sold as (pack-priced products): [{ quantity, price, count }]. */
   packBreakdown?: { quantity: number; price: number; count: number }[];
+  /** Charged by quantity range: the range the quantity fell in, e.g. "26–100". */
+  priceRange?: string;
   materialNeeded?: number;
   measurementUnit?: string;
   requireSize?: boolean;
