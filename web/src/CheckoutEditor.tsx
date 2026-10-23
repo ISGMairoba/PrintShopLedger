@@ -31,6 +31,7 @@ import { defaultDueAt, durationLabel, fromLocalInput, toLocalInput } from './job
 import { jobSettingsDefaults } from './business-branding.mjs';
 import { applyOrderDiscount } from './discounts.mjs';
 import { packList, packSummary } from './pack-prices.mjs';
+import { tierList } from './price-tiers.mjs';
 import { useWords } from './Words';
 import { alphabetical } from './alphabetical.mjs';
 type JobSettings = ReturnType<typeof jobSettingsDefaults>;
@@ -67,6 +68,8 @@ export type QuotationStart = {
     width: number | null;
     height: number | null;
     discount?: { kind: string; value: number; reason?: string };
+    /** The price entered on the quotation, for a custom-price service. */
+    unitPrice?: number;
   }[];
   orderDiscount: { kind: string; value: number; reason?: string } | null;
   changes: string[];
@@ -193,12 +196,27 @@ type CartLine = {
   workflow?: string[];
   /** This job's own discount, as typed. */
   discountDraft?: DiscountDraft;
+  /** A custom-price service: the price per item as typed (₦). */
+  priceText?: string;
 };
 /** A cart line as checkout expects it: the typed discount becomes the stored discount. */
-const toLine = ({ discountDraft: draft, ...item }: CartLine) => {
-  const discount = draft ? discountSpec(draft) : null;
-  return discount ? { ...item, discount } : item;
+const typedPrice = (text: string) => {
+  try {
+    return text.trim() ? money(text) : Number.NaN;
+  } catch {
+    return Number.NaN;
+  }
 };
+const toLine = ({ discountDraft: draft, priceText, ...item }: CartLine) => {
+  const discount = draft ? discountSpec(draft) : null;
+  const priced = priceText === undefined ? item : { ...item, unitPrice: typedPrice(priceText) };
+  return discount ? { ...priced, discount } : priced;
+};
+/** The typed price for a custom-price service's line, from its saved price per item. */
+const priceTextFor = (ledger: Ledger, serviceId: string, unitPrice?: number) =>
+  ledger.services.find((s) => s.id === serviceId)?.customPrice
+    ? { priceText: ((unitPrice ?? 0) / 100).toFixed(2) }
+    : {};
 const line = (): CartLine => ({
   id: crypto.randomUUID(),
   serviceId: '',
@@ -241,6 +259,7 @@ export default function CheckoutEditor({
           ...line(),
           ...j,
           ...(j.templateSnapshot ? { templateInputs: editableInputs(j.templateSnapshot) } : {}),
+          ...priceTextFor(ledger, j.serviceId, j.unitPrice),
           quantity: String(j.quantity),
           width: j.width == null ? '' : String(j.width),
           height: j.height == null ? '' : String(j.height),
@@ -254,6 +273,7 @@ export default function CheckoutEditor({
             ...newLine(),
             serviceId: q.serviceId,
             templateInputs: q.templateSnapshot ? editableInputs(q.templateSnapshot) : q.templateInputs,
+            ...priceTextFor(ledger, q.serviceId, q.unitPrice),
             templateSnapshot: q.templateSnapshot,
             templateStockIds: q.templateSnapshot
               ? Object.fromEntries(q.templateSnapshot.stock.map((s) => [s.materialId, crypto.randomUUID()]))
@@ -713,7 +733,9 @@ export default function CheckoutEditor({
                                 )
                                 .map((s) => ({
                                   value: s.id,
-                                  label: `${s.description} — ${currency(s.price)}${s.packPrices?.length ? ` · ${packList(s.packPrices)}` : ''}`,
+                                  label: s.customPrice
+                                    ? `${s.description} — price entered at sale`
+                                    : `${s.description} — ${currency(s.price)}${s.packPrices?.length ? ` · ${packList(s.packPrices)}` : ''}${s.priceTiers?.length ? ` · ${tierList(s.price, s.priceTiers)}` : ''}`,
                                   group: working.pricing?.enabled ? w('Services') : undefined,
                                 })),
                             ]}
@@ -738,6 +760,12 @@ export default function CheckoutEditor({
                                           ? templateDefaults(chosenTemplate)
                                           : undefined,
                                         templateStockIds: chosenTemplate ? {} : undefined,
+                                        // A custom-price service starts at its suggested price.
+                                        priceText: working.services.find((x) => x.id === next)?.customPrice
+                                          ? (
+                                              (working.services.find((x) => x.id === next)?.price ?? 0) / 100
+                                            ).toFixed(2)
+                                          : undefined,
                                         description: nextDescription(
                                           line.description,
                                           autoOf(line.serviceId),
@@ -787,6 +815,21 @@ export default function CheckoutEditor({
                             </small>
                           )}
                         </label>
+                        {service?.customPrice && (
+                          <label>
+                            Price per item (₦)
+                            <CurrencyInput
+                              aria-label="Price per item (₦)"
+                              value={item.priceText ?? ''}
+                              required
+                              onValueChange={(value) =>
+                                setLines((items) =>
+                                  items.map((l) => (l.id === item.id ? { ...l, priceText: value } : l)),
+                                )
+                              }
+                            />
+                          </label>
+                        )}
                         {template && (
                           <TemplateInputs
                             template={template}
@@ -917,6 +960,13 @@ export default function CheckoutEditor({
                               (price {currency(quote.grossAmount)}, discount −{currency(quote.lineDiscount)})
                             </small>
                           )}
+                          {service?.priceTiers?.length ? (
+                            <small>
+                              {' '}
+                              {quote.quantity} × {currency(quote.unitPrice)} (range price:{' '}
+                              {tierList(service.price, service.priceTiers)})
+                            </small>
+                          ) : null}
                           {service?.packPrices?.length && !quote.requireSize ? (
                             <small>
                               {packSummary(service.price, service.packPrices, quote.quantity) ||

@@ -1850,3 +1850,22 @@ label small > .field-error {
 .device-sync-all p {
   margin: 0;
 }
+
+/* Pricing template editor: the section tabs stay at the top of the dialog while a long list of
+   variables or expenses scrolls under them. */
+.modal-body > .template-editor-tabs {
+  position: sticky;
+  top: -24px;
+  z-index: 3;
+  margin: 0 -24px 16px;
+  padding: 10px 24px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line, rgba(0, 0, 0, 0.08));
+}
+@media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
+  .modal-body > .template-editor-tabs {
+    top: -18px;
+    margin-inline: -18px;
+    padding-inline: 18px;
+  }
+}

@@ -1,3 +1,4 @@
+import { tierPrice } from './price-tiers.mjs';
 // Quotations: priced offers for a customer. Saving one never touches stock, jobs or money.
 // "Create order" opens a normal checkout filled from the quotation; once that sale is saved the
 // quotation is marked converted and linked to it. Prices are worked out with the same rules as
@@ -211,9 +212,9 @@ export function quotationCheckout(ledger, quote) {
       }
     } else if (!service || service.archived)
       changes.push(`${l.description}: ${l.service} is no longer available`);
-    else if (service.price !== l.unitPrice)
+    else if (!service.customPrice && tierPrice(service.price, service.priceTiers, l.quantity) !== l.unitPrice)
       changes.push(
-        `${l.description}: price changed from ${currency(l.unitPrice)} to ${currency(service.price)}`,
+        `${l.description}: price changed from ${currency(l.unitPrice)} to ${currency(tierPrice(service.price, service.priceTiers, l.quantity))}`,
       );
     return {
       serviceId: l.serviceId,
@@ -222,6 +223,8 @@ export function quotationCheckout(ledger, quote) {
       width: l.width,
       height: l.height,
       ...(l.discount ? { discount: l.discount } : {}),
+      // A custom-price service keeps the price entered on the quotation.
+      ...(service?.customPrice ? { unitPrice: l.unitPrice } : {}),
       ...(l.templateSnapshot
         ? { templateInputs: l.templateInputs, templateSnapshot: l.templateSnapshot }
         : {}),
