@@ -557,6 +557,13 @@ export type ReminderEvent = {
 };
 export interface Ledger {
   pricing?: PricingSettings;
+  /** A device keeping recent history only: counts and daily totals of the records it dropped. */
+  historySummary?: {
+    cutoff: string;
+    stages: Record<string, number>;
+    customerJobs: Record<string, number>;
+    daily: Record<string, { sales: number; collected: number; refunded: number }>;
+  };
   saleAdjustments: SaleAdjustment[];
   materialWaste: MaterialWaste[];
   expenses: Expense[];

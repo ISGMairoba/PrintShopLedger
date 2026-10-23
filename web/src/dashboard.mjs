@@ -113,6 +113,12 @@ export function dashboardSummary(ledger, from, to) {
   const days = Math.round((Date.parse(to) - Date.parse(from)) / 86400000) + 1,
     previousTo = shiftDay(from, -1),
     previousFrom = shiftDay(from, -days);
+  // Days a device no longer keeps records for, as totals (historySummary.daily).
+  const carried = (key) =>
+    Object.entries(ledger.historySummary?.daily ?? {}).reduce(
+      (n, [day, totals]) => (day >= previousFrom && day <= previousTo ? n + totals[key] : n),
+      0,
+    );
   const previous = (value) => {
     const day = businessDay(value);
     return day >= previousFrom && day <= previousTo;
@@ -141,12 +147,16 @@ export function dashboardSummary(ledger, from, to) {
           a.available - b.available ||
           a.name.localeCompare(b.name),
       ),
+    // A device keeping recent history only counts its dropped jobs from historySummary.
     stages: Object.entries(
-      ledger.jobs.reduce((s, j) => {
-        const key = j.productionStatus || 'Queued';
-        s[key] = (s[key] || 0) + 1;
-        return s;
-      }, {}),
+      ledger.jobs.reduce(
+        (s, j) => {
+          const key = j.productionStatus || 'Queued';
+          s[key] = (s[key] || 0) + 1;
+          return s;
+        },
+        { ...(ledger.historySummary?.stages ?? {}) },
+      ),
     ).map(([name, count]) => ({ name, count })),
     services: [...serviceMap.values()],
     sources: [...sourceMap.values()],
@@ -160,11 +170,15 @@ export function dashboardSummary(ledger, from, to) {
     previous: {
       from: previousFrom,
       to: previousTo,
-      sales: sum(
-        ledger.jobs.filter((j) => previous(j.createdAt)),
-        'amount',
-      ),
+      sales:
+        carried('sales') +
+        sum(
+          ledger.jobs.filter((j) => previous(j.createdAt)),
+          'amount',
+        ),
       netCollected:
+        carried('collected') -
+        carried('refunded') +
         sum(
           ledger.payments.filter((p) => !p.refundId && previous(p.paidOn)),
           'amount',

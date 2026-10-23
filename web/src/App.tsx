@@ -1597,6 +1597,7 @@ export default function App() {
                             pending={state.pending.length}
                             lastSynced={state.lastSynced}
                             syncing={syncStatus === 'syncing'}
+                            history={scope ? { ledger: state.ledger, scope } : undefined}
                             onSyncAll={
                               demo || !scope
                                 ? undefined

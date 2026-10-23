@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { storageHealth } from './storage';
 import { useWords } from './Words';
 import Icon from './Icon';
+import HistoryCheck from './HistoryCheck';
+import type { Ledger } from './types';
 
 const mb = (bytes: number | null) => (bytes === null ? '—' : `${Math.round(bytes / 1048576)} MB`);
 export const LOW_SPACE = 200 * 1048576;
@@ -12,12 +14,15 @@ export default function DeviceStorageCard({
   lastSynced,
   syncing = false,
   onSyncAll,
+  history,
 }: {
   pending: number;
   lastSynced?: string;
   syncing?: boolean;
   /** Download the whole business again (instead of only what changed). */
   onSyncAll?: () => Promise<void>;
+  /** The device's ledger, for the history check. */
+  history?: { ledger: Ledger; scope: string };
 }) {
   const { w } = useWords();
   const [asked, setAsked] = useState(''),
@@ -82,6 +87,7 @@ export default function DeviceStorageCard({
           )}
         </div>
       )}
+      {history && <HistoryCheck ledger={history.ledger} scope={history.scope} />}
       {low && (
         <p className="notice" role="status">
           {w(

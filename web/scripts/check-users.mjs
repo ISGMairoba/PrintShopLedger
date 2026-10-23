@@ -270,6 +270,9 @@ try {
   await page.getByRole('button', { name: 'Sync all', exact: true }).click();
   await page.getByText('Everything was downloaded again.', { exact: true }).waitFor();
   assert.ok(cursors.length > asked && cursors.at(-1) === null, 'Sync all asks for everything');
+  // The history check (stage 1) runs on this device and finds every figure the same.
+  await page.getByRole('button', { name: 'Check now', exact: true }).click();
+  await page.locator('.history-check [role="status"]').getByText(/All \d+ figures match/).waitFor();
   async function sidebarScrollCheck() {
     const before = await page.evaluate(() => {
       const rect = (selector) => {
