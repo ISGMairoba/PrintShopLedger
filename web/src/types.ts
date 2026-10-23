@@ -317,6 +317,10 @@ export interface Service {
   costing?: ServiceCosting | null;
   /** Prices for packs of this product (kobo for `quantity` pieces); sold as packs plus loose pieces. */
   packPrices?: PackPrice[];
+  /** Price by quantity range: from this quantity up, `price` (kobo) per item; below the first, `price`. */
+  priceTiers?: PriceTier[];
+  /** The price is entered at each sale (e.g. consultation); `price` is only the suggested amount. */
+  customPrice?: boolean;
   /** Variants of one product (colours, sizes…) share this id; each has its own stock item. */
   variantGroup?: string | null;
   /** This variant's name, e.g. "Blue". */
@@ -337,6 +341,10 @@ export interface Service {
 }
 /** Template use: a formula name, and optionally a cost (amount in kobo for `per` units). */
 export type ServiceCosting = { key: string; amount?: number; per?: number; unit?: string };
+export interface PriceTier {
+  from: number;
+  price: number;
+}
 export interface PackPrice {
   quantity: number;
   price: number;
@@ -345,6 +353,8 @@ export interface ServiceCommand {
   materialOptions?: string[];
   confirmStage?: string;
   packPrices?: PackPrice[];
+  priceTiers?: PriceTier[];
+  customPrice?: boolean;
   variantGroup?: string | null;
   variantName?: string | null;
   shelfItem?: boolean;

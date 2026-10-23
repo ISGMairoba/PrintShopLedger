@@ -3,7 +3,7 @@
 // work exactly as for any other sale. Walk-in buyers share one "Walk-in customer" record.
 import { quoteLine } from './checkout.mjs';
 import { applyOrderDiscount, validDiscount } from './discounts.mjs';
-import { packTotal } from './pack-prices.mjs';
+import { countPrice } from './price-tiers.mjs';
 import { variantBase } from './variants.mjs';
 
 export const WALK_IN_NAME = 'Walk-in customer';
@@ -16,7 +16,7 @@ export const WALK_IN_PHONE = 'Walk-in';
  */
 export function shelfProducts(ledger) {
   return ledger.services
-    .filter((s) => s.shelfItem && !s.archived && !s.private)
+    .filter((s) => s.shelfItem && !s.archived && !s.private && !s.customPrice)
     .map((s) => {
       const material = s.materialId ? ledger.materials.find((m) => m.id === s.materialId) : null;
       return {
@@ -24,6 +24,7 @@ export function shelfProducts(ledger) {
         name: s.description,
         price: s.price,
         packPrices: s.packPrices ?? [],
+        priceTiers: s.priceTiers ?? [],
         variantGroup: s.variantGroup ?? null,
         variantName: s.variantName ?? null,
         productName: variantBase(s),
@@ -126,7 +127,7 @@ export function cartTotal(ledger, cart) {
   for (const line of cart) {
     const service = ledger.services.find((s) => s.id === line.serviceId);
     if (!service) throw Error('A product in the cart is no longer available.');
-    total += packTotal(service.price, service.packPrices, line.quantity);
+    total += countPrice(service, line.quantity);
   }
   return total;
 }

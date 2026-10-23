@@ -513,7 +513,7 @@ export default function TemplateEditor({
         Define editable and computed variables and expenses, then preview the price. Costs come from{' '}
         {w('services')} with a template cost.
       </p>
-      <div className="settings-tabs" role="tablist" aria-label="Template sections">
+      <div className="settings-tabs template-editor-tabs" role="tablist" aria-label="Template sections">
         {tabs.map((name) => (
           <button
             key={name}

@@ -2,6 +2,7 @@ import { normalizeLedger } from './materials.mjs';
 import { materialCode } from './material-display.mjs';
 import { hasCost, validCosting } from './pricing-templates.mjs';
 import { validPackPrices } from './pack-prices.mjs';
+import { validPriceTiers } from './price-tiers.mjs';
 import { validConfirmStage, validMaterialOptions } from './material-choice.mjs';
 export const serviceCode = (id, services = []) => materialCode(id, services).replace('MAT-', 'SVC-');
 export const servicePrice = (price) =>
@@ -39,6 +40,21 @@ export function validateService(data, ledger, existing) {
   if (data.private !== undefined && typeof data.private !== 'boolean')
     throw new Error('Choose whether this is used in templates only.');
   const packs = validPackPrices(data.packPrices);
+  const tiers = validPriceTiers(data.priceTiers === undefined ? existing?.priceTiers : data.priceTiers);
+  const packed = data.packPrices === undefined ? !!existing?.packPrices?.length : packs.length > 0;
+  if (data.customPrice !== undefined && typeof data.customPrice !== 'boolean')
+    throw new Error('Choose whether the price is entered at each sale.');
+  const custom = data.customPrice ?? existing?.customPrice ?? false;
+  if (tiers.length && packed) throw new Error('Use pack prices or quantity ranges, not both.');
+  if (custom) {
+    // A custom-price service (e.g. consultation): staff enter the price at each sale.
+    if (packed || tiers.length)
+      throw new Error('A service priced at each sale cannot also have pack prices or quantity ranges.');
+    if (data.shelfItem) throw new Error('A service priced at each sale cannot be sold off the shelf.');
+    if (data.private) throw new Error('A service priced at each sale cannot be used in templates only.');
+    if ((data.materialOptions ?? existing?.materialOptions ?? []).length)
+      throw new Error('A service priced at each sale cannot have a choice of materials.');
+  }
   if (
     !!data.variantGroup !== !!data.variantName ||
     (data.variantName !== undefined &&
@@ -127,6 +143,8 @@ export function applyServiceEvent(input, event) {
       private: data.private ?? false,
       costing: validCosting(data.costing),
       packPrices: validPackPrices(data.packPrices),
+      priceTiers: validPriceTiers(data.priceTiers),
+      ...(data.customPrice ? { customPrice: true } : {}),
       ...(data.variantGroup
         ? { variantGroup: data.variantGroup, variantName: String(data.variantName).trim() }
         : {}),
@@ -157,11 +175,15 @@ export function applyServiceEvent(input, event) {
       costing: data.costing === undefined ? (existing.costing ?? null) : validCosting(data.costing),
       packPrices:
         data.packPrices === undefined ? (existing.packPrices ?? []) : validPackPrices(data.packPrices),
+      priceTiers:
+        data.priceTiers === undefined ? (existing.priceTiers ?? []) : validPriceTiers(data.priceTiers),
       ...audit,
       version: existing.version + 1,
     };
     delete next.materialOptions;
     delete next.confirmStage;
+    delete next.customPrice;
+    if (data.customPrice ?? existing.customPrice) next.customPrice = true;
     Object.assign(next, choiceFields(ledger, data, existing));
     // Joining or leaving a product's variants: null clears the link (left out keeps it).
     if (data.variantGroup !== undefined) {

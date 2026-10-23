@@ -11,7 +11,8 @@ import { useWords } from './Words';
 import { currency } from './receipts.mjs';
 import { money } from './domain.mjs';
 import { prepareCheckout } from './checkout.mjs';
-import { packList, packSummary, packTotal } from './pack-prices.mjs';
+import { packList, packSummary } from './pack-prices.mjs';
+import { countPrice, tierList, tierPrice } from './price-tiers.mjs';
 import { DiscountFields, discountSpec, noDiscount, type DiscountDraft } from './CheckoutEditor';
 import {
   WALK_IN_NAME,
@@ -160,6 +161,9 @@ export default function QuickSale({
                         <strong>{tile.name}</strong>
                         <span>{currency(first.price)}</span>
                         {first.packPrices.length > 0 && <small>{packList(first.packPrices)}</small>}
+                        {first.priceTiers.length > 0 && (
+                          <small>{tierList(first.price, first.priceTiers)}</small>
+                        )}
                         <small>
                           {total} {first.unit} left in all
                         </small>
@@ -198,6 +202,7 @@ export default function QuickSale({
                       <strong>{p.name}</strong>
                       <span>{currency(p.price)}</span>
                       {p.packPrices.length > 0 && <small>{packList(p.packPrices)}</small>}
+                      {p.priceTiers.length > 0 && <small>{tierList(p.price, p.priceTiers)}</small>}
                       <small>
                         {p.stock === null
                           ? 'Not stock-tracked'
@@ -234,7 +239,7 @@ export default function QuickSale({
                         <td>
                           {p?.name}
                           <small>
-                            {currency(p?.price ?? 0)} each
+                            {currency(tierPrice(p?.price ?? 0, p?.priceTiers, line.quantity))} each
                             {short && (
                               <span className={blocked ? 'danger-text' : 'stock-near-text'}>
                                 {' '}
@@ -285,7 +290,7 @@ export default function QuickSale({
                           </div>
                         </td>
                         <td className="numeric">
-                          {currency(packTotal(p?.price ?? 0, p?.packPrices, line.quantity))}
+                          {p ? currency(countPrice(p, line.quantity)) : ''}
                           {p && packSummary(p.price, p.packPrices, line.quantity) && (
                             <small>{packSummary(p.price, p.packPrices, line.quantity)}</small>
                           )}

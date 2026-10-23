@@ -1,3 +1,6 @@
+import CurrencyInput from './CurrencyInput';
+import { money } from './domain.mjs';
+import { tierList } from './price-tiers.mjs';
 import {
   TemplateInputs,
   TemplateEstimate,
@@ -62,6 +65,15 @@ type Line = {
   width: string;
   height: string;
   discountDraft: DiscountDraft;
+  /** A custom-price service: the price per item as typed (₦). */
+  priceText?: string;
+};
+const typedPrice = (text: string) => {
+  try {
+    return text.trim() ? money(text) : Number.NaN;
+  } catch {
+    return Number.NaN;
+  }
 };
 const newLine = (): Line => ({
   id: crypto.randomUUID(),
@@ -501,6 +513,9 @@ function QuotationEditor({
           width: l.width == null ? '' : String(l.width),
           height: l.height == null ? '' : String(l.height),
           discountDraft: discountDraft(l.discount),
+          ...(ledger.services.find((x) => x.id === l.serviceId)?.customPrice
+            ? { priceText: (l.unitPrice / 100).toFixed(2) }
+            : {}),
         }))
       : start
         ? [
@@ -526,10 +541,14 @@ function QuotationEditor({
       (s.materialId === null || ledger.materials.some((m) => m.id === s.materialId && !m.archived)),
   );
   const input = () => ({
-    lines: lines.map(({ discountDraft: draft, ...l }) => {
+    lines: lines.map(({ discountDraft: draft, priceText, ...l }) => {
       const discount = discountSpec(draft);
       return lineWithDescription(
-        { ...l, ...(discount ? { discount } : {}) },
+        {
+          ...l,
+          ...(discount ? { discount } : {}),
+          ...(priceText !== undefined ? { unitPrice: typedPrice(priceText) } : {}),
+        },
         [
           ...ledger.services,
           ...(ledger.pricing?.templates ?? []).map((t) => ({ id: t.id, description: t.name })),
@@ -668,7 +687,9 @@ function QuotationEditor({
                           : []),
                         ...services.map((s) => ({
                           value: s.id,
-                          label: `${s.description} — ${currency(s.price)}`,
+                          label: s.customPrice
+                            ? `${s.description} — price entered at sale`
+                            : `${s.description} — ${currency(s.price)}${s.priceTiers?.length ? ` · ${tierList(s.price, s.priceTiers)}` : ''}`,
                           group: ledger.pricing?.enabled ? w('Services') : undefined,
                         })),
                       ]}
@@ -683,6 +704,9 @@ function QuotationEditor({
                           serviceId: next,
                           templateSnapshot: undefined,
                           templateInputs: t ? templateDefaults(t) : undefined,
+                          priceText: ledger.services.find((x) => x.id === next)?.customPrice
+                            ? ((ledger.services.find((x) => x.id === next)?.price ?? 0) / 100).toFixed(2)
+                            : undefined,
                           description: nextDescription(
                             item.description,
                             autoOf(item.serviceId),
@@ -726,6 +750,17 @@ function QuotationEditor({
                       </small>
                     )}
                   </label>
+                  {ledger.services.find((x) => x.id === item.serviceId)?.customPrice && (
+                    <label>
+                      Price per item (₦)
+                      <CurrencyInput
+                        aria-label="Price per item (₦)"
+                        value={item.priceText ?? ''}
+                        required
+                        onValueChange={(value) => edit(item.id, { priceText: value })}
+                      />
+                    </label>
+                  )}
                   {template && (
                     <TemplateInputs
                       template={template}

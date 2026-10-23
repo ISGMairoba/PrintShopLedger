@@ -8,6 +8,7 @@ import Icon from './Icon';
 import { packList } from './pack-prices.mjs';
 import { newVariantProductEvents } from './variants.mjs';
 import PackPricesField, { packDraft, packPricesFrom, type PackDraft } from './PackPricesField';
+import PriceTiersField, { tierDraft, tiersFrom, type TierDraft } from './PriceTiersField';
 import ToolbarActions, { MenuToggle } from './ToolbarActions';
 import { useId, useState, type FormEvent } from 'react';
 import Modal from './Modal';
@@ -61,6 +62,9 @@ export default function ServicesPage({
   const [privateItem, setPrivateItem] = useState(false);
   const [costKey, setCostKey] = useState('');
   const [packs, setPacks] = useState<PackDraft>([]);
+  const [tiers, setTiers] = useState<TierDraft>([]);
+  // How the service is priced: one price, packs, quantity ranges, or entered at each sale.
+  const [pricing, setPricing] = useState<'single' | 'packs' | 'ranges' | 'custom'>('single');
   // Material: '' = none, a material id = one fixed material, CHOICE = a choice of materials.
   const [materialValue, setMaterialValue] = useState('');
   const [choiceIds, setChoiceIds] = useState<string[]>([]);
@@ -91,6 +95,16 @@ export default function ServicesPage({
   const openEditor = (target: Service | 'new') => {
     const s = target === 'new' ? null : target;
     setPacks(packDraft(s?.packPrices));
+    setTiers(tierDraft(s?.priceTiers));
+    setPricing(
+      s?.customPrice
+        ? 'custom'
+        : s?.priceTiers?.length
+          ? 'ranges'
+          : s?.packPrices?.length
+            ? 'packs'
+            : 'single',
+    );
     setPriceText(s ? (s.price / 100).toFixed(2) : '');
     setCosted(!!s?.costing);
     setPrivateItem(!!s?.private);
@@ -180,10 +194,13 @@ export default function ServicesPage({
         materialOptions: materialValue === CHOICE ? choiceIds : [],
         ...(materialValue === CHOICE ? { confirmStage } : {}),
         price,
-        shelfItem: !privateItem && materialValue !== CHOICE && data.get('shelfItem') === 'on',
+        shelfItem:
+          !privateItem && materialValue !== CHOICE && pricing !== 'custom' && data.get('shelfItem') === 'on',
         private: privateItem,
         costing,
-        packPrices: privateItem ? [] : packPricesFrom(packs),
+        packPrices: !privateItem && pricing === 'packs' ? packPricesFrom(packs) : [],
+        priceTiers: !privateItem && pricing === 'ranges' ? tiersFrom(tiers) : [],
+        customPrice: !privateItem && pricing === 'custom',
       });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Enter a valid price.');
@@ -593,7 +610,11 @@ export default function ServicesPage({
                 </label>
                 {!privateItem && (
                   <label>
-                    Price (₦)
+                    {pricing === 'custom'
+                      ? 'Suggested price (₦)'
+                      : pricing === 'ranges'
+                        ? 'Price each for small orders (₦)'
+                        : 'Price (₦)'}
                     <CurrencyInput
                       name="price"
                       defaultValue={editing ? (editing.price / 100).toFixed(2) : ''}
@@ -662,14 +683,40 @@ export default function ServicesPage({
                   </label>
                 </fieldset>
               )}
-              {!privateItem && materialValue !== CHOICE && (
+              {!privateItem && (
+                <label>
+                  How it is priced
+                  <select
+                    aria-label="How it is priced"
+                    value={pricing}
+                    onChange={(e) => setPricing(e.target.value as typeof pricing)}
+                  >
+                    <option value="single">One price per item</option>
+                    <option value="packs">Pack prices (e.g. 25 for ₦1,500)</option>
+                    <option value="ranges">Price by quantity range (e.g. 1–25, 26–100, 101+)</option>
+                    {materialValue !== CHOICE && (
+                      <option value="custom">Price entered at each sale (e.g. consultation)</option>
+                    )}
+                  </select>
+                  {pricing === 'custom' && (
+                    <small>
+                      Staff type the price for each sale. The suggested price fills in first and can be
+                      changed.
+                    </small>
+                  )}
+                </label>
+              )}
+              {!privateItem && materialValue !== CHOICE && pricing !== 'custom' && (
                 <label className="checkbox">
                   <input type="checkbox" name="shelfItem" defaultChecked={editing?.shelfItem ?? false} />
                   Sold off the shelf
                 </label>
               )}
-              {!privateItem && (
+              {!privateItem && pricing === 'packs' && (
                 <PackPricesField value={packs} onChange={setPacks} unitPrice={kobo(priceText)} />
+              )}
+              {!privateItem && pricing === 'ranges' && (
+                <PriceTiersField value={tiers} onChange={setTiers} basePrice={kobo(priceText)} />
               )}
               <label className="checkbox">
                 <input

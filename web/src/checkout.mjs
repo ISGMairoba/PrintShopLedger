@@ -1,3 +1,4 @@
+import { tierPrice, usesTiers } from './price-tiers.mjs';
 import { validDueAt } from './job-deadlines.mjs';
 import { applyOrderDiscount, discountKobo, validDiscount } from './discounts.mjs';
 import { packBreakdown, packTotal, usesPacks } from './pack-prices.mjs';
@@ -91,11 +92,19 @@ export function quoteLine(ledger, line) {
     divisor = 1000000000n;
   }
   const needed = Number((raw * 1000n + divisor / 2n) / divisor) / 1000;
+  // The price per item: entered at the sale for a custom-price service, the rate of the quantity's
+  // range for a service priced by range, else the service price.
+  let unitPrice = service.price;
+  if (service.customPrice) {
+    unitPrice = Number(line.unitPrice);
+    if (!Number.isSafeInteger(unitPrice) || unitPrice < 0 || unitPrice > 100000000000)
+      throw Error(`Enter the price for ${service.description}.`);
+  } else if (usesTiers(service)) unitPrice = tierPrice(service.price, service.priceTiers, quantity);
   // Products with pack prices are priced as packs plus loose pieces.
   const packs = usesPacks(service, material) ? packBreakdown(service.packPrices, quantity) : [];
   const total = usesPacks(service, material)
     ? packTotal(service.price, service.packPrices, quantity)
-    : Number((BigInt(service.price) * raw + divisor / 2n) / divisor);
+    : Number((BigInt(unitPrice) * raw + divisor / 2n) / divisor);
   amount(total);
   if (!Number.isFinite(needed) || needed <= 0 || needed > 1000000000000)
     throw Error('Material usage is outside the supported range.');
@@ -140,7 +149,7 @@ export function quoteLine(ledger, line) {
     amount: total - lineDiscount,
     grossAmount: total,
     lineDiscount,
-    unitPrice: service.price,
+    unitPrice,
     ...(packs.length ? { packBreakdown: packs } : {}),
     service: service.description,
     materialId: choice ? null : (material?.id ?? null),
