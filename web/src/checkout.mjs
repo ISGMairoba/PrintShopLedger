@@ -1,4 +1,4 @@
-import { tierPrice, usesTiers } from './price-tiers.mjs';
+import { tierLabel, tierPrice, usesTiers } from './price-tiers.mjs';
 import { validDueAt } from './job-deadlines.mjs';
 import { applyOrderDiscount, discountKobo, validDiscount } from './discounts.mjs';
 import { packBreakdown, packTotal, usesPacks } from './pack-prices.mjs';
@@ -126,6 +126,7 @@ export function quoteLine(ledger, line) {
     orderDiscountShare: _share,
     discountAmount: _discount,
     packBreakdown: _packs,
+    priceRange: _range,
     materialChoice: givenChoice,
     ...rest
   } = line;
@@ -150,6 +151,10 @@ export function quoteLine(ledger, line) {
     grossAmount: total,
     lineDiscount,
     unitPrice,
+    // Charged by quantity range: the range it fell in, shown on the receipt.
+    ...(usesTiers(service) && !service.customPrice
+      ? { priceRange: tierLabel(service.price, service.priceTiers, quantity) }
+      : {}),
     ...(packs.length ? { packBreakdown: packs } : {}),
     service: service.description,
     materialId: choice ? null : (material?.id ?? null),

@@ -8,6 +8,7 @@ import Icon from './Icon';
 import { packList } from './pack-prices.mjs';
 import { newVariantProductEvents } from './variants.mjs';
 import PackPricesField, { packDraft, packPricesFrom, type PackDraft } from './PackPricesField';
+import { tierList } from './price-tiers.mjs';
 import PriceTiersField, { tierDraft, tiersFrom, type TierDraft } from './PriceTiersField';
 import ToolbarActions, { MenuToggle } from './ToolbarActions';
 import { useId, useState, type FormEvent } from 'react';
@@ -225,7 +226,8 @@ export default function ServicesPage({
               name,
               unit: String(data.get('unit')).trim(),
               price,
-              packPrices: packPricesFrom(packs),
+              packPrices: pricing === 'ranges' ? [] : packPricesFrom(packs),
+              priceTiers: pricing === 'ranges' ? tiersFrom(tiers) : [],
               variants: variantRows,
             },
             actor,
@@ -262,7 +264,8 @@ export default function ServicesPage({
             materialId,
             price,
             shelfItem: true,
-            packPrices: packPricesFrom(packs),
+            packPrices: pricing === 'ranges' ? [] : packPricesFrom(packs),
+            priceTiers: pricing === 'ranges' ? tiersFrom(tiers) : [],
             ...audit,
           },
         },
@@ -342,6 +345,8 @@ export default function ServicesPage({
               title="Creates the stock item and its shelf item together"
               onClick={() => {
                 setPacks([]);
+                setTiers([]);
+                setPricing('single');
                 setPriceText('');
                 setWithVariants(false);
                 setVariantRows(blankVariants());
@@ -429,6 +434,10 @@ export default function ServicesPage({
                           {service.packPrices?.length ? (
                             <small>Packs: {packList(service.packPrices)}</small>
                           ) : null}
+                          {service.priceTiers?.length ? (
+                            <small>Ranges: {tierList(service.price, service.priceTiers)}</small>
+                          ) : null}
+                          {service.customPrice && <small>Price entered at each sale</small>}
                           {service.costing && (
                             <small>
                               In templates as <code>{service.costing.key}</code>
@@ -936,7 +945,22 @@ export default function ServicesPage({
                   </button>
                 </fieldset>
               )}
-              <PackPricesField value={packs} onChange={setPacks} unitPrice={kobo(priceText)} />
+              <label>
+                How it is priced
+                <select
+                  aria-label="How it is priced"
+                  value={pricing === 'ranges' ? 'ranges' : 'packs'}
+                  onChange={(e) => setPricing(e.target.value === 'ranges' ? 'ranges' : 'packs')}
+                >
+                  <option value="packs">One price, with pack prices if needed</option>
+                  <option value="ranges">Price by quantity range (e.g. 1–25, 26–100, 101+)</option>
+                </select>
+              </label>
+              {pricing === 'ranges' ? (
+                <PriceTiersField value={tiers} onChange={setTiers} basePrice={kobo(priceText)} />
+              ) : (
+                <PackPricesField value={packs} onChange={setPacks} unitPrice={kobo(priceText)} />
+              )}
               <button type="submit">
                 <Icon name="save" /> {busy ? 'Saving...' : 'Save product'}
               </button>

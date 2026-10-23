@@ -3,6 +3,7 @@
 // the ledger as it will be after the one before, so they save, sync and audit like any other edit.
 import { applyEvent } from './domain.mjs';
 import { validPackPrices } from './pack-prices.mjs';
+import { validPriceTiers } from './price-tiers.mjs';
 
 /**
  * Services and products that can be edited here, with their stock item (if any).
@@ -45,6 +46,9 @@ export function productEditEvents(ledger, serviceId, changes, actor, now = new D
   const packs =
     changes.packPrices === undefined ? (service.packPrices ?? []) : validPackPrices(changes.packPrices);
   const packsChanged = JSON.stringify(packs) !== JSON.stringify(validPackPrices(service.packPrices ?? []));
+  const tiers =
+    changes.priceTiers === undefined ? (service.priceTiers ?? []) : validPriceTiers(changes.priceTiers);
+  const tiersChanged = JSON.stringify(tiers) !== JSON.stringify(validPriceTiers(service.priceTiers ?? []));
   const audit = { modifiedBy: actor.id, modifiedByLabel: actor.label, modifiedAt: now };
   const events = [],
     summary = [];
@@ -53,7 +57,7 @@ export function productEditEvents(ledger, serviceId, changes, actor, now = new D
     working = applyEvent(working, event); // checks it exactly as saving will
     events.push(event);
   };
-  if (name !== service.description || changes.price !== service.price || packsChanged) {
+  if (name !== service.description || changes.price !== service.price || packsChanged || tiersChanged) {
     push({
       id: crypto.randomUUID(),
       kind: 'service.updated',
@@ -67,12 +71,15 @@ export function productEditEvents(ledger, serviceId, changes, actor, now = new D
         private: service.private ?? false,
         costing: service.costing ?? null,
         packPrices: packs,
+        priceTiers: tiers,
         ...audit,
       },
     });
     if (name !== service.description) summary.push(`Rename “${service.description}” to “${name}”`);
     if (changes.price !== service.price) summary.push('Change the price');
     if (packsChanged) summary.push(packs.length ? 'Change the pack prices' : 'Remove the pack prices');
+    if (tiersChanged)
+      summary.push(tiers.length ? 'Change the quantity ranges' : 'Remove the quantity ranges');
   }
   if (!material) {
     if (changes.stock && changes.stock.mode !== 'none') throw Error('This service has no stock item.');

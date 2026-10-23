@@ -73,3 +73,15 @@ export function countPrice(service, quantity) {
   const unit = tierPrice(service.price, service.priceTiers, quantity);
   return Number((BigInt(unit) * BigInt(Math.round(Number(quantity) * 1000)) + 500n) / 1000n);
 }
+
+/** The range a quantity falls in, e.g. "26–100" or "101+" (for receipts). */
+export function tierLabel(base, tiers, quantity) {
+  const rows = tierRows(base, tiers);
+  const q = Number(quantity);
+  const sorted = [{ from: 1 }, ...[...(tiers ?? [])].sort((a, b) => a.from - b.from)];
+  let index = 0;
+  sorted.forEach((t, i) => {
+    if (q >= t.from) index = i;
+  });
+  return rows[index].label;
+}

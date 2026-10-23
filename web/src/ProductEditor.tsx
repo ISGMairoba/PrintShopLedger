@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import VariantTools from './VariantTools';
 import Modal from './Modal';
 import PackPricesField, { packDraft, packPricesFrom, type PackDraft } from './PackPricesField';
+import PriceTiersField, { tierDraft, tiersFrom, type TierDraft } from './PriceTiersField';
 import Icon from './Icon';
 import CurrencyInput from './CurrencyInput';
 import { useFeedbackMessage } from './Feedback';
@@ -47,6 +48,8 @@ export default function ProductEditor({
     quantity: string;
     reason: string;
     packs: PackDraft;
+    tiers: TierDraft;
+    pricing: 'single' | 'packs' | 'ranges';
   };
   const fieldsFor = (id: string): Fields => {
     const p = products.find((x) => x.service.id === id);
@@ -63,13 +66,28 @@ export default function ProductEditor({
       quantity: '',
       reason: '',
       packs: packDraft(p?.service.packPrices),
+      tiers: tierDraft(p?.service.priceTiers),
+      pricing: p?.service.priceTiers?.length ? 'ranges' : p?.service.packPrices?.length ? 'packs' : 'single',
     };
   };
   const [f, setF] = useState<Fields>(() => fieldsFor(initialServiceId));
   const [error, setError] = useFeedbackMessage('error');
   const [done, setDone] = useState('');
   const set = (patch: Partial<Fields>) => setF((x) => ({ ...x, ...patch }));
-  const { serviceId, name, price, renameStock, unit, minimum, mode, quantity, reason, packs } = f;
+  const {
+    serviceId,
+    name,
+    price,
+    renameStock,
+    unit,
+    minimum,
+    mode,
+    quantity,
+    reason,
+    packs,
+    tiers,
+    pricing,
+  } = f;
   const chosen = products.find((p) => p.service.id === serviceId) ?? null;
   const group = chosen ? variantGroupOf(ledger, chosen.service) : null;
   // After variants change, reload the fields from the updated ledger (names change with them).
@@ -98,7 +116,8 @@ export default function ProductEditor({
     ...(unit ? { unit } : {}),
     minimumStock: minimum === '' ? 0 : Number(minimum),
     stock: { mode, quantity: Number(quantity || 0), reason },
-    packPrices: packPricesFrom(packs),
+    packPrices: pricing === 'packs' ? packPricesFrom(packs) : [],
+    priceTiers: pricing === 'ranges' ? tiersFrom(tiers) : [],
   });
   let preview: string[] = [],
     problem = '';
@@ -324,7 +343,34 @@ export default function ProductEditor({
                   </label>
                 )}
               </div>
-              {!chosen.service.private && !chosen.material?.requireSize && (
+              {!chosen.service.private && !chosen.service.customPrice && (
+                <label>
+                  {group ? 'How it is priced (all variants)' : 'How it is priced'}
+                  <select
+                    aria-label="How it is priced"
+                    value={pricing}
+                    onChange={(e) => set({ pricing: e.target.value as Fields['pricing'] })}
+                  >
+                    <option value="single">One price per item</option>
+                    {!chosen.material?.requireSize && <option value="packs">Pack prices</option>}
+                    <option value="ranges">Price by quantity range</option>
+                  </select>
+                </label>
+              )}
+              {!chosen.service.private && !chosen.service.customPrice && pricing === 'ranges' && (
+                <PriceTiersField
+                  value={tiers}
+                  onChange={(next) => set({ tiers: next })}
+                  basePrice={(() => {
+                    try {
+                      return money(price || '0');
+                    } catch {
+                      return null;
+                    }
+                  })()}
+                />
+              )}
+              {!chosen.service.private && !chosen.material?.requireSize && pricing === 'packs' && (
                 <PackPricesField
                   value={packs}
                   onChange={(next) => set({ packs: next })}
