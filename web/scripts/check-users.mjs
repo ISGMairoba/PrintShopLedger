@@ -274,7 +274,7 @@ try {
   await page.getByRole('button', { name: 'Check now', exact: true }).click();
   await page
     .locator('.history-check [role="status"]')
-    .getByText(/All \d+ figures match/)
+    .getByText(/All \d+ figures match in every window/)
     .waitFor();
   async function sidebarScrollCheck() {
     const before = await page.evaluate(() => {

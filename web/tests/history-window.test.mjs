@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { emptyLedger, applyEvent, customerBalance } from '../src/domain.mjs';
 import { prepareCheckout, walletBalance } from '../src/checkout.mjs';
-import { historyCheck, trimHistory } from '../src/history-window.mjs';
+import { historyCheck, historyChecks, trimHistory } from '../src/history-window.mjs';
 
 const actor = { id: '10000000-0000-4000-8000-000000000001', label: 'Cashier' };
 const ids = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
@@ -152,4 +152,19 @@ test('every checked figure is the same from the full and the trimmed copy', () =
   const none = historyCheck(ledger, { now: '2026-10-23T12:00:00.000Z', cutoff: '2026-01-01' });
   assert.equal(none.dropped.jobs, 0);
   assert.deepEqual(none.differences, []);
+});
+
+test('the check tries short windows too, for a young business', () => {
+  const results = historyChecks(business(), '2026-10-23T12:00:00.000Z');
+  assert.deepEqual(
+    results.map((r) => [r.label, r.cutoff]),
+    [
+      ['7 days', '2026-10-16'],
+      ['14 days', '2026-10-09'],
+      ['30 days', '2026-09-23'],
+      ['3 months', '2026-07-23'],
+    ],
+  );
+  for (const r of results) assert.deepEqual(r.differences, [], r.label);
+  assert.ok(results[0].dropped.jobs >= 3);
 });
