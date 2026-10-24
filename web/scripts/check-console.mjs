@@ -209,7 +209,7 @@ try {
     // A business's overview.
     await list.getByRole('button', { name: 'Mairoba Studios', exact: true }).click();
     await page.getByRole('heading', { name: 'Mairoba Studios', exact: true }).waitFor();
-    assert.match(await page.locator('.stats').innerText(), /120[\s\S]*480 jobs[\s\S]*4\.4 MB/);
+    assert.match(await page.locator('.stats').innerText(), /120[\s\S]*480 jobs[\s\S]*4\.3 MB/);
     assert.match(await page.getByRole('table', { name: 'Staff accounts' }).innerText(), /Ada[\s\S]*Manager/);
     assert.equal(await page.locator('.console-bars i').count(), 30);
     assert.ok(new URL(page.url()).search.includes('business='));
