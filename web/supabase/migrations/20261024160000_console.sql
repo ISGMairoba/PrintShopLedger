@@ -71,7 +71,7 @@ create or replace function public.console_businesses() returns jsonb
 language plpgsql stable security definer set search_path to '' as $f$
 begin
   perform private.require_console();
-  return coalesce((select jsonb_agg(row order by row->>'name') from (
+  return coalesce((select jsonb_agg(x.rw order by x.rw->>'name') from (
     select jsonb_build_object(
       'id', s.id, 'name', s.name, 'createdAt', s.created_at,
       'ownerEmail', private.console_owner_email(s.id),
@@ -81,7 +81,7 @@ begin
       'sales30', coalesce((select sum(j.amount) from public.jobs j where j.shop_id = s.id and j.created_at > now() - interval '30 days'), 0),
       'events7', (select count(*) from public.ledger_events e where e.shop_id = s.id and e.received_at > now() - interval '7 days'),
       'lastActivity', (select max(e.received_at) from public.ledger_events e where e.shop_id = s.id)
-    ) row from public.shops s
+    ) as rw from public.shops s
   ) x), '[]'::jsonb);
 end $f$;
 
@@ -121,11 +121,11 @@ begin
       'events', coalesce((select sum(pg_column_size(x.*)) from public.ledger_events x where x.shop_id = s.id), 0),
       'settings', coalesce((select sum(pg_column_size(x.*)) from public.business_settings x where x.shop_id = s.id), 0)
     ),
-    'daily', coalesce((select jsonb_agg(jsonb_build_object('day', d.day, 'events', d.events, 'sales', d.sales) order by d.day) from (
-        select g.day::date day,
-          (select count(*) from public.ledger_events e where e.shop_id = s.id and (e.received_at at time zone 'Africa/Lagos')::date = g.day::date) events,
-          coalesce((select sum(j.amount) from public.jobs j where j.shop_id = s.id and (j.created_at at time zone 'Africa/Lagos')::date = g.day::date), 0) sales
-        from generate_series((now() at time zone 'Africa/Lagos')::date - 29, (now() at time zone 'Africa/Lagos')::date, interval '1 day') g(day)
+    'daily', coalesce((select jsonb_agg(jsonb_build_object('day', d.dd, 'events', d.events, 'sales', d.sales) order by d.dd) from (
+        select g.dd::date as dd,
+          (select count(*) from public.ledger_events e where e.shop_id = s.id and (e.received_at at time zone 'Africa/Lagos')::date = g.dd::date) as events,
+          coalesce((select sum(j.amount) from public.jobs j where j.shop_id = s.id and (j.created_at at time zone 'Africa/Lagos')::date = g.dd::date), 0) as sales
+        from generate_series((now() at time zone 'Africa/Lagos')::date - 29, (now() at time zone 'Africa/Lagos')::date, interval '1 day') as g(dd)
       ) d), '[]'::jsonb)
   ) into result from public.shops s where s.id = p_shop;
   perform private.console_log(p_shop, 'business.viewed');
