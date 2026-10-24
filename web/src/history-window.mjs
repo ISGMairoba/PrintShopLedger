@@ -258,6 +258,30 @@ export function trimHistory(ledger, cutoff) {
   };
 }
 
+/** YYYY-MM-DD, `days` days before `day`. */
+export const daysBefore = (day, days) =>
+  new Date(Date.parse(day + 'T12:00:00Z') - days * 86400000).toISOString().slice(0, 10);
+/** The windows the check tries: short ones while the business is young, up to 3 months. */
+export const CHECK_WINDOWS = [
+  { label: '7 days', days: 7 },
+  { label: '14 days', days: 14 },
+  { label: '30 days', days: 30 },
+  { label: '3 months', months: 3 },
+];
+/**
+ * The history check for every window in CHECK_WINDOWS: [{ label, ...historyCheck }].
+ * @param {import('./types').Ledger} ledger
+ */
+export function historyChecks(ledger, now = new Date().toISOString()) {
+  const today = businessDay(now);
+  return CHECK_WINDOWS.map((w) => ({
+    label: w.label,
+    ...historyCheck(ledger, {
+      now,
+      cutoff: w.days ? daysBefore(today, w.days) : monthsBefore(today, w.months),
+    }),
+  }));
+}
 /** YYYY-MM-DD, `months` months before `day`. */
 export function monthsBefore(day, months) {
   const d = new Date(day + 'T12:00:00Z');

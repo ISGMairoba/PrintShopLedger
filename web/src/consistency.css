@@ -1880,6 +1880,10 @@ label small > .field-error {
 .history-check :is(h3, p) {
   margin: 0;
 }
+.history-check-windows {
+  margin: 0;
+  padding-left: 18px;
+}
 .history-check-differences {
   display: grid;
   gap: 8px;
