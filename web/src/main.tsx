@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './styles.css';
@@ -6,6 +6,9 @@ import './branding.css';
 import './feedback.css';
 import './consistency.css';
 import { FeedbackProvider } from './Feedback';
+// The developer console (/console) is a separate part of the app, loaded only when opened.
+const ConsoleApp = lazy(() => import('./console/ConsoleApp'));
+const isConsole = window.location.pathname === '/console' || window.location.pathname.startsWith('/console/');
 
 // Scroll bars stay hidden until needed (consistency.css): an area shows its bar while it scrolls.
 {
@@ -29,7 +32,13 @@ import { FeedbackProvider } from './Feedback';
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <FeedbackProvider>
-      <App />
+      {isConsole ? (
+        <Suspense fallback={<p className="console-loading">Loading the console…</p>}>
+          <ConsoleApp />
+        </Suspense>
+      ) : (
+        <App />
+      )}
     </FeedbackProvider>
   </React.StrictMode>,
 );
