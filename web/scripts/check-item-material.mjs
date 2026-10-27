@@ -82,7 +82,7 @@ try {
     await page.getByRole('button', { name: 'Add service', exact: true }).click();
     let d = page.getByRole('dialog', { name: 'Add service', exact: true });
     await d.locator('input[name="description"]').fill('Inline stock test');
-    await d.locator('input[name="price"]').fill('250');
+    await d.getByLabel('Price (₦)', { exact: true }).fill('250');
     await d.getByRole('combobox', { name: 'Base material', exact: true }).click();
     assert.deepEqual((await d.getByRole('option').allTextContents()).slice(0, 3), [
       'No material — service only',
@@ -115,6 +115,8 @@ try {
     assert.equal(material.available, 15);
     assert.equal(material.name, 'Inline material updated');
     await page.reload();
+    await page.getByRole('button', { name: 'Try locally on this device' }).click();
+    await nav('Services');
     await page.getByRole('row').filter({ hasText: 'Inline stock test' }).waitFor();
     if (mobile) await row.getByRole('button', { name: /More/ }).click();
     await row.getByRole('button', { name: 'Edit', exact: true }).click();
