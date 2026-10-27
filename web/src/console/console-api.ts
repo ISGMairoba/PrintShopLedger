@@ -11,6 +11,7 @@ export type BusinessRow = {
   jobs: number;
   sales30: number;
   events7: number;
+  devices7?: number;
   lastActivity: string | null;
 };
 export type StaffRow = {
@@ -150,3 +151,24 @@ export async function staffAction(body: Record<string, unknown>) {
   }
   return data;
 }
+
+export type DeviceRow = {
+  id: string;
+  name: string;
+  userLabel: string;
+  appVersion: string;
+  pending: number;
+  held: number;
+  lastSynced: string | null;
+  history: { checkedAt?: string; checked?: number; differing?: number };
+  firstSeen: string;
+  lastSeen: string;
+  signOutRequestedAt: string | null;
+  signedOutAt: string | null;
+};
+export const devices = (shopId: string) => call<DeviceRow[]>('console_devices', { p_shop: shopId });
+export const deviceAction = (
+  shopId: string,
+  deviceId: string,
+  action: 'sign-out' | 'cancel-sign-out' | 'forget',
+) => call<null>('console_device_action', { p_shop: shopId, p_device: deviceId, p_action: action });

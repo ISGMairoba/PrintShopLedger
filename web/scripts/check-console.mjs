@@ -192,6 +192,27 @@ try {
         const body = route.request().postDataJSON();
         saved.push(['staff', body.p_action, body.p_data.id, body.p_data.role ?? null]);
         result = null;
+      } else if (path.endsWith('/console_devices'))
+        result = [
+          {
+            id: 'd1',
+            name: 'Chrome on Android',
+            userLabel: 'Ada',
+            appVersion: 'abc1234 2026-10-27',
+            pending: 2,
+            held: 1,
+            lastSynced: now,
+            history: { checkedAt: now, checked: 412, differing: 0 },
+            firstSeen: now,
+            lastSeen: now,
+            signOutRequestedAt: null,
+            signedOutAt: null,
+          },
+        ];
+      else if (path.endsWith('/console_device_action')) {
+        const body = route.request().postDataJSON();
+        saved.push(['device', body.p_action, body.p_device]);
+        result = null;
       } else if (path.endsWith('/console-staff')) {
         const body = route.request().postDataJSON();
         saved.push(['function', body.action, body.username ?? body.memberId]);
@@ -265,6 +286,17 @@ try {
         ['function', 'create', 'bola'],
       ],
     );
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    // Devices: who uses each device, its sync and History check; sign one out.
+    await page.getByRole('tab', { name: 'Devices', exact: true }).click();
+    const deviceTable = page.getByRole('table', { name: 'Devices' });
+    assert.match(
+      await deviceTable.innerText(),
+      /Chrome on Android[\s\S]*Ada[\s\S]*In use[\s\S]*2 unsent[\s\S]*1 waiting for review[\s\S]*All 412 match/,
+    );
+    await deviceTable.getByRole('button', { name: 'Sign out', exact: true }).click();
+    await page.getByText('Chrome on Android will sign out the next time it syncs.').waitFor();
+    assert.deepEqual(saved.at(-1), ['device', 'sign-out', 'd1']);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.getByRole('tab', { name: 'Overview', exact: true }).click();
     assert.match(await page.locator('.stats').innerText(), /120[\s\S]*480 jobs[\s\S]*4\.3 MB/);
