@@ -47,6 +47,7 @@ type Props = {
   onReceipt: (record: CheckoutRecord) => void;
   /** Business defaults: new-job deadline and how the payment amount starts. */
   jobSettings?: JobSettings;
+  defaultTerms?: string;
   /** What this user may discount: the cap per job (%) and whether flat/whole-order is allowed. */
   discountPolicy?: { maxPercent: number; canFlat: boolean };
   /** Start from an accepted quotation: its lines, customer and discounts. */
@@ -239,10 +240,14 @@ export default function CheckoutEditor({
   onClose,
   onReceipt,
   jobSettings = jobSettingsDefaults(),
+  defaultTerms = '',
   discountPolicy = { maxPercent: 0, canFlat: false },
   fromQuotation,
   startTemplate,
 }: Props) {
+  const [termsAndConditions, setTermsAndConditions] = useState(
+    initialCheckout ? (initialCheckout.termsAndConditions ?? '') : defaultTerms,
+  );
   const formId = useId();
   const options = useBusinessOptions(),
     jobSources = options.jobSources;
@@ -455,6 +460,7 @@ export default function CheckoutEditor({
         ledger,
         {
           customerId,
+          termsAndConditions,
           newCustomer,
           lines: cartLines,
           countedMaterialJobs,
@@ -627,6 +633,7 @@ export default function CheckoutEditor({
                 ledger,
                 {
                   customerId,
+                  termsAndConditions,
                   newCustomer,
                   lines: cartLines,
                   countedMaterialJobs,
@@ -1163,6 +1170,25 @@ export default function CheckoutEditor({
                 <input maxLength={200} value={reference} onChange={(e) => setReference(e.target.value)} />
               </label>
             </div>
+            <details>
+              <summary>Terms &amp; conditions</summary>
+              <label>
+                Terms for this sales document
+                <textarea
+                  maxLength={5000}
+                  aria-label="Terms for this sales document"
+                  value={termsAndConditions}
+                  onChange={(e) => setTermsAndConditions(e.target.value)}
+                />
+              </label>
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => setTermsAndConditions(defaultTerms)}
+              >
+                Use current default terms
+              </button>
+            </details>
             {!initialCheckout && recommended !== null && (
               <div className="payment-recommendation">
                 <p>

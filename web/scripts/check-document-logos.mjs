@@ -69,6 +69,12 @@ try {
     };
     await page.getByRole('button', { name: 'Try locally on this device' }).click();
     await nav();
+    await page
+      .getByLabel('Default invoice / sales document terms', { exact: true })
+      .fill('Sales terms: collect after payment.');
+    await page
+      .getByLabel('Default quotation terms', { exact: true })
+      .fill('Quote terms: deposit before production.');
     await page.getByLabel('Watermark logo', { exact: true }).selectOption('icon');
     await page
       .getByLabel('Show a faint watermark on full-page documents and report PDFs', { exact: true })
@@ -91,6 +97,10 @@ try {
     await page.getByRole('button', { name: 'Try locally on this device' }).click();
     await nav();
     assert.equal(await page.getByLabel('Watermark logo', { exact: true }).inputValue(), 'icon');
+    assert.equal(
+      await page.getByLabel('Default quotation terms', { exact: true }).inputValue(),
+      'Quote terms: deposit before production.',
+    );
     assert.equal(await page.getByLabel('Full-page logo position', { exact: true }).inputValue(), 'top-right');
     await page.screenshot({
       path: `/tmp/document-logos-${mobile ? 'mobile' : 'desktop'}.png`,
@@ -106,7 +116,19 @@ try {
           b.receiptPage.logoPosition = position;
           return {
             position,
-            receipt: createReceiptPdf(sampleReceipt(), b, false, [], 'a4').output('datauristring'),
+            receipt: createReceiptPdf(
+              {
+                ...sampleReceipt(),
+                termsAndConditions: Array.from(
+                  { length: 50 },
+                  (_, i) => `Clause ${i + 1}: Customer approval is required before production starts.`,
+                ).join('\n'),
+              },
+              b,
+              false,
+              [],
+              'a4',
+            ).output('datauristring'),
             report: createReportPdf(b, {
               title: 'Sales report',
               sections: [],

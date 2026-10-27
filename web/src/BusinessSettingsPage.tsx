@@ -613,6 +613,43 @@ export default function BusinessSettingsPage({
                       'Changes affect receipt and report branding, not saved job amounts or payment balances.',
                     )}
                   </small>
+                  <h3>Terms &amp; conditions</h3>
+                  <label>
+                    Default invoice / sales document terms
+                    <textarea
+                      maxLength={5000}
+                      aria-label="Default invoice / sales document terms"
+                      value={draft.documents?.invoiceTerms ?? ''}
+                      onChange={(e) =>
+                        field('documents', { ...draft.documents, invoiceTerms: e.target.value })
+                      }
+                    />
+                  </label>
+                  <label>
+                    Default quotation terms
+                    <textarea
+                      maxLength={5000}
+                      aria-label="Default quotation terms"
+                      value={draft.documents?.quotationTerms ?? ''}
+                      onChange={(e) =>
+                        field('documents', { ...draft.documents, quotationTerms: e.target.value })
+                      }
+                    />
+                  </label>
+                  <small>
+                    New documents copy these defaults. Edit them before saving a document; changing defaults
+                    does not change saved documents. Leave blank to omit the section.
+                  </small>
+                  <label className="check-label">
+                    <input
+                      type="checkbox"
+                      checked={draft.documents?.showTermsOnRoll ?? false}
+                      onChange={(e) =>
+                        field('documents', { ...draft.documents, showTermsOnRoll: e.target.checked })
+                      }
+                    />
+                    Show saved terms on small receipts
+                  </label>
                   {sectionSave('Receipt settings', ['receipt', 'receiptPage', 'documents'])}
                 </div>
                 <div className="receipt-preview">
@@ -623,7 +660,13 @@ export default function BusinessSettingsPage({
                   <div
                     className={`receipt-sheet ${previewLayout}`}
                     dangerouslySetInnerHTML={{
-                      __html: receiptHtml(sampleReceipt(), draft, false, [], { layout: previewLayout }),
+                      __html: receiptHtml(
+                        { ...sampleReceipt(), termsAndConditions: draft.documents.invoiceTerms },
+                        draft,
+                        false,
+                        [],
+                        { layout: previewLayout },
+                      ),
                     }}
                   />
                 </div>

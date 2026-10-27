@@ -13,12 +13,16 @@ perform public.apply_customer_event(shop,jsonb_build_object('id',gen_random_uuid
 base:=jsonb_build_object('id',qid,'customerId',cust,'customerName','Ada','customerPhone','080111','note','Deliver Friday','validUntil','2026-10-27','orderDiscount',null,
   'lines',jsonb_build_array(jsonb_build_object('id',gen_random_uuid(),'serviceId',svc,'service','Flyers','description','A5 flyers','quantity',100,'width',null,'height',null,'unitPrice',5000,'grossAmount',500000,'discountAmount',50000,'amount',450000)),
   'subtotal',500000,'discountTotal',50000,'total',450000,'modifiedBy',u);
+base := base || jsonb_build_object('termsAndConditions','Payment before production.');
 perform public.apply_quotation_event(shop,jsonb_build_object('id',gen_random_uuid(),'kind','quotation.saved','data',base));
 select data into q from public.quotations where id=qid;
+if q->>'termsAndConditions' <> 'Payment before production.' then raise exception 'Terms snapshot lost'; end if;
 if q->>'status'<>'open' or (q->>'version')::int<>1 or (q->>'total')::int<>450000 or q->>'createdByLabel' is null then raise exception 'Create failed: %',q;end if;
 perform public.apply_quotation_event(shop,jsonb_build_object('id',gen_random_uuid(),'kind','quotation.saved','data',base||jsonb_build_object('note','Changed','baseVersion',1)));
 select data into q from public.quotations where id=qid;
 if q->>'note'<>'Changed' or (q->>'version')::int<>2 then raise exception 'Update failed';end if;
+failed:=false;begin perform public.apply_quotation_event(shop,jsonb_build_object('id',gen_random_uuid(),'kind','quotation.saved','data',base||jsonb_build_object('termsAndConditions',repeat('x',5001))));exception when others then failed:=sqlerrm like '%5,000%';end;
+if not failed then raise exception 'Oversized terms accepted';end if;
 failed:=false;begin perform public.apply_quotation_event(shop,jsonb_build_object('id',gen_random_uuid(),'kind','quotation.saved','data',base||jsonb_build_object('total',1)));exception when others then failed:=sqlerrm like '%add up%';end;
 if not failed then raise exception 'Bad totals accepted';end if;
 failed:=false;begin perform public.apply_quotation_event(shop,jsonb_build_object('id',gen_random_uuid(),'kind','quotation.saved','data',base||jsonb_build_object('lines','[]'::jsonb,'subtotal',0,'discountTotal',0,'total',0)));exception when others then failed:=true;end;

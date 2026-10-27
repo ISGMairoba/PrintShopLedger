@@ -321,6 +321,17 @@ function drawPage(doc: jsPDF, m: Model, media: ReceiptMedia, watermark: string, 
       y += 2 * k;
     }
   }
+  if (m.termsAndConditions) {
+    page(14 * k);
+    y += 5 * k;
+    text('Terms & conditions', L, 10, 'bold');
+    y += 5 * k;
+    const rows = doc.splitTextToSize(pdfText(m.termsAndConditions), U) as string[];
+    for (const row of rows) {
+      page(4.5 * k);
+      y += text(row || ' ', L, 8.5, 'normal', MUTED);
+    }
+  }
   if (m.footer) {
     page(14 * k);
     y += 6 * k;
@@ -443,6 +454,11 @@ function drawRoll(doc: jsPDF, m: Model, media: ReceiptMedia, credit: string) {
       for (const line of a.lines) y += text(line, L + 1.5 * k, 6.5, 'normal', 'left', U - 1.5 * k);
       y += 1 * k;
     }
+  }
+  if (m.termsAndConditions) {
+    y += 2.5 * k;
+    y += text('Terms & conditions', L, 8, 'bold');
+    for (const row of m.termsAndConditions.split('\n')) y += text(row || ' ', L, 7, 'normal', 'left', U);
   }
   if (m.footer) {
     y += 2.5 * k;

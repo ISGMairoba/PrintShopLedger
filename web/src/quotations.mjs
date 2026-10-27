@@ -1,3 +1,4 @@
+import { validDocumentTerms } from './document-terms.mjs';
 import { resolveWatermark, logoPosition, documentHeaderHtml } from './document-logos.mjs';
 import { tierPrice } from './price-tiers.mjs';
 // Quotations: priced offers for a customer. Saving one never touches stock, jobs or money.
@@ -120,6 +121,7 @@ export function prepareQuotation(ledger, input, actor, policy = null, now = new 
       customerPhone,
       ...priced,
       validUntil: input.validUntil,
+      termsAndConditions: validDocumentTerms(input.termsAndConditions),
       note,
       modifiedBy: actor.id,
       modifiedByLabel: actor.label,
@@ -152,6 +154,7 @@ export function applyQuotationEvent(input, event) {
     next = {
       ...old,
       ...fields,
+      termsAndConditions: validDocumentTerms(d.termsAndConditions ?? old?.termsAndConditions),
       orderDiscount: d.orderDiscount ?? null,
       status: old?.status ?? 'open',
       version: (old?.version ?? 0) + 1,
@@ -306,6 +309,8 @@ export function quotationModel(quote, business, layout = 'page', now = new Date(
       primary: b.primary || '#124b40',
       accent: b.accent || '#d9a126',
     },
+    termsAndConditions:
+      layout !== 'roll' || b.documents.showTermsOnRoll ? (quote.termsAndConditions ?? '') : '',
     title: 'Quotation',
     itemHeading: renameTerms('Item', b.terms),
     number: quotationRef(quote.id),

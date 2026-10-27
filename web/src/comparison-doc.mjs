@@ -75,6 +75,7 @@ export function comparisonModel(template, rows, business, details = {}) {
       primary: b.primary || '#124b40',
       accent: b.accent || '#d9a126',
     },
+    termsAndConditions: '',
     title: 'Price options',
     itemHeading: renameTerms('Option', b.terms),
     number: ref,

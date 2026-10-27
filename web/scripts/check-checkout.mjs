@@ -90,6 +90,10 @@ try {
   }
   let pdfChecked = false;
   async function finish() {
+    await d.locator('summary').filter({ hasText: 'Terms & conditions' }).click();
+    await d
+      .getByLabel('Terms for this sales document', { exact: true })
+      .fill('Sales terms: collect after payment.');
     await d.getByRole('button', { name: 'Complete checkout', exact: true }).click();
     await d.waitFor({ state: 'detached' });
     const receipt = page.getByRole('dialog');
@@ -131,6 +135,9 @@ try {
   await finish();
   const state = () => readCopy(page, 'local-trial');
   let saved = await state();
+  assert.ok(
+    saved.ledger.checkouts.some((c) => c.termsAndConditions === 'Sales terms: collect after payment.'),
+  );
   assert.equal(saved.ledger.jobs.length, 2);
   assert.equal(saved.ledger.customers.length, 1);
   assert.equal(saved.ledger.materials[0].available, -55);
