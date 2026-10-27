@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from 'playwright';
+import { defaultBranding } from '../src/business-branding.mjs';
 const port = 4199;
 const server = spawn(
   process.execPath,
@@ -49,6 +50,9 @@ try {
     };
     let member = null; // the first sign-in is a business account: not on the team
     const calls = [];
+    let settingsVersion = 5,
+      settings = { ...defaultBranding(), businessName: 'Mairoba Studios' };
+    const saved = [];
     await context.route('https://*.supabase.co/**', async (route) => {
       const path = new URL(route.request().url()).pathname;
       calls.push(path.split('/').pop());
@@ -176,7 +180,23 @@ try {
           },
         ];
       else if (path.endsWith('/console_set_member')) result = null;
-      else throw Error('Unexpected request: ' + path);
+      else if (path.endsWith('/console_business_settings'))
+        result = { settings, version: settingsVersion, modifiedAt: now };
+      else if (path.endsWith('/console_save_business_settings')) {
+        const body = route.request().postDataJSON();
+        saved.push(['settings', body.p_version, body.p_settings.businessName]);
+        settings = body.p_settings;
+        settingsVersion += 1;
+        result = { shop_id: shop, settings, version: settingsVersion, modified_at: now };
+      } else if (path.endsWith('/console_save_staff')) {
+        const body = route.request().postDataJSON();
+        saved.push(['staff', body.p_action, body.p_data.id, body.p_data.role ?? null]);
+        result = null;
+      } else if (path.endsWith('/console-staff')) {
+        const body = route.request().postDataJSON();
+        saved.push(['function', body.action, body.username ?? body.memberId]);
+        result = { success: true };
+      } else throw Error('Unexpected request: ' + path);
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(result) });
     });
     const page = await context.newPage();
@@ -209,6 +229,44 @@ try {
     // A business's overview.
     await list.getByRole('button', { name: 'Mairoba Studios', exact: true }).click();
     await page.getByRole('heading', { name: 'Mairoba Studios', exact: true }).waitFor();
+    // Business settings: the business's own settings page, saved from the console.
+    await page.getByRole('tab', { name: 'Business settings', exact: true }).click();
+    await page.getByLabel('Business name', { exact: true }).fill('Mairoba Studios Ltd');
+    await page.getByRole('button', { name: 'Save business details', exact: true }).click();
+    await page.getByRole('button', { name: 'Save business details', exact: true }).isDisabled();
+    for (let i = 0; i < 50 && !saved.some((x) => x[0] === 'settings'); i++) await delay(100);
+    assert.deepEqual(
+      saved.find((x) => x[0] === 'settings'),
+      ['settings', 5, 'Mairoba Studios Ltd'],
+    );
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    // Staff & access: change a role, remove access, set a password, add staff.
+    await page.getByRole('tab', { name: 'Staff & access', exact: true }).click();
+    await page.getByLabel('Role of Ada', { exact: true }).selectOption('admin');
+    await page.getByText('Ada is now admin.').waitFor();
+    const staffTable = page.getByRole('table', { name: 'Staff accounts' });
+    await staffTable.getByRole('row', { name: /Ada/ }).getByRole('button', { name: 'Remove access' }).click();
+    await page.getByText('Ada can no longer sign in.').waitFor();
+    await staffTable.getByRole('row', { name: /Ada/ }).getByRole('button', { name: 'Set password' }).click();
+    await page.getByLabel('New password', { exact: true }).fill('a-new-staff-password');
+    await page.getByRole('button', { name: 'Set password', exact: true }).last().click();
+    await page.getByText('New password set for Ada. Tell them in person.').waitFor();
+    await page.getByLabel('Name', { exact: true }).fill('Bola');
+    await page.getByLabel('Username', { exact: true }).fill('bola');
+    await page.getByLabel('Starting password', { exact: true }).fill('a-staff-start-password');
+    await page.getByRole('button', { name: 'Add staff', exact: true }).click();
+    await page.getByText('Staff account added.').waitFor();
+    assert.deepEqual(
+      saved.filter((x) => x[0] !== 'settings'),
+      [
+        ['staff', 'edit', 's1', 'admin'],
+        ['staff', 'revoke', 's1', null],
+        ['function', 'reset-password', 's1'],
+        ['function', 'create', 'bola'],
+      ],
+    );
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await page.getByRole('tab', { name: 'Overview', exact: true }).click();
     assert.match(await page.locator('.stats').innerText(), /120[\s\S]*480 jobs[\s\S]*4\.3 MB/);
     assert.match(await page.getByRole('table', { name: 'Staff accounts' }).innerText(), /Ada[\s\S]*Manager/);
     assert.equal(await page.locator('.console-bars i').count(), 30);
