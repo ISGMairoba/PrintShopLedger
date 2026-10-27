@@ -37,15 +37,17 @@ function historySummary(scope: string) {
 }
 
 /**
- * Report this device after a sync. Resolves to true when the console asked it to sign out.
+ * Report this device after a sync. Resolves to { signOut } when the console asked it to sign out,
+ * and { deviceLimit } when it is a new device and the business already uses all its devices.
  * Never throws: a failed report only waits for the next sync.
  */
 export async function reportDevice(scope: string, shopId: string, state: LocalState, force = false) {
   const id = deviceId();
-  if (!supabase || !id) return false;
+  const none = { signOut: false, deviceLimit: 0 };
+  if (!supabase || !id) return none;
   const held = Object.keys(state.syncConflicts ?? {}).length;
   const key = `${shopId}:${state.pending.length}:${held}`;
-  if (!force && key === last.key && Date.now() - last.at < EVERY) return false;
+  if (!force && key === last.key && Date.now() - last.at < EVERY) return none;
   try {
     const { data, error } = await supabase
       .rpc('report_device', {
@@ -61,11 +63,13 @@ export async function reportDevice(scope: string, shopId: string, state: LocalSt
         },
       })
       .abortSignal(AbortSignal.timeout(15000));
-    if (error) return false;
-    last = { at: Date.now(), key };
-    return !!(data as { signOut?: boolean } | null)?.signOut;
+    if (error) return none;
+    const result = (data ?? {}) as { signOut?: boolean; deviceLimit?: number };
+    // A refused new device asks again on its next sync.
+    if (!result.deviceLimit) last = { at: Date.now(), key };
+    return { signOut: !!result.signOut, deviceLimit: Number(result.deviceLimit ?? 0) };
   } catch {
-    return false;
+    return none;
   }
 }
 /** Tell the console this device has signed out. */

@@ -75,6 +75,7 @@ try {
     else if (path.endsWith('/business_settings')) result = [{ settings, version: 1 }];
     else if (path.endsWith('/get_ledger_changes'))
       result = { cursor: '1', full: true, ledger: emptyLedger() };
+    else if (path.endsWith('/my_subscription')) result = { state: 'none' };
     else if (path.endsWith('/report_device')) {
       reports.push(route.request().postDataJSON());
       result = { signOut: true };

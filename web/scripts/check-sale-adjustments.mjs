@@ -152,6 +152,7 @@ try {
               },
             ];
           else if (path.endsWith('/business_settings')) result = [];
+          else if (path.endsWith('/my_subscription')) result = { state: 'none' };
           else if (path.endsWith('/report_device') || path.endsWith('/ack_device_sign_out'))
             result = { signOut: false };
           else if (/\/get_ledger(_changes)?$/.test(path)) result = cloud;

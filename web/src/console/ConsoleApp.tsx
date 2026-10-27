@@ -31,6 +31,7 @@ import {
   type ConsoleMember,
   type TeamMember,
 } from './console-api';
+import { ConsolePlans, ConsoleSubscription, stateLabels } from './ConsoleSubscription';
 
 const when = (value: string | null) =>
   value
@@ -65,11 +66,15 @@ const actionLabels: Record<string, string> = {
   'device.sign-out': 'Asked a device to sign out',
   'device.cancel-sign-out': 'Cancelled a device sign-out',
   'device.forget': 'Removed a device from the list',
+  'plan.saved': 'Saved a plan',
+  'subscription.saved': 'Changed the subscription',
+  'subscription.payment': 'Recorded a payment',
 };
 
 type View =
   | { page: 'businesses' }
   | { page: 'business'; id: string }
+  | { page: 'plans' }
   | { page: 'activity' }
   | { page: 'team' };
 const readView = (): View => {
@@ -77,7 +82,7 @@ const readView = (): View => {
   const id = params.get('business');
   const page = params.get('page');
   if (id) return { page: 'business', id };
-  if (page === 'activity' || page === 'team') return { page };
+  if (page === 'activity' || page === 'team' || page === 'plans') return { page };
   return { page: 'businesses' };
 };
 const writeView = (view: View) => {
@@ -119,6 +124,7 @@ export default function ConsoleApp() {
           {(
             [
               ['businesses', 'Businesses', 'customers'],
+              ['plans', 'Plans', 'payments'],
               ['activity', 'Activity log', 'history'],
               ['team', 'Team', 'users'],
             ] as const
@@ -151,6 +157,7 @@ export default function ConsoleApp() {
       <main className="console-main">
         {view.page === 'businesses' && <Businesses onOpen={(id) => go({ page: 'business', id })} />}
         {view.page === 'business' && <Business id={view.id} onBack={() => go({ page: 'businesses' })} />}
+        {view.page === 'plans' && <ConsolePlans />}
         {view.page === 'activity' && <Activity />}
         {view.page === 'team' && <Team me={me} />}
       </main>
@@ -269,6 +276,7 @@ function Businesses({ onOpen }: { onOpen: (id: string) => void }) {
               <thead>
                 <tr>
                   <th>Business</th>
+                  <th>Subscription</th>
                   <th className="numeric">Staff</th>
                   <th className="numeric">Customers</th>
                   <th className="numeric">Jobs</th>
@@ -284,6 +292,13 @@ function Businesses({ onOpen }: { onOpen: (id: string) => void }) {
                         {b.name}
                       </button>
                       <small>{b.ownerEmail ?? 'No business account'}</small>
+                    </td>
+                    <td>
+                      {stateLabels[b.subscription ?? 'none']}
+                      <small>
+                        {b.plan ?? 'No plan'}
+                        {b.expiresAt ? ` · until ${when(b.expiresAt).split(',')[0]}` : ''}
+                      </small>
                     </td>
                     <td className="numeric">{b.staff}</td>
                     <td className="numeric">{b.customers}</td>
@@ -344,7 +359,7 @@ function BusinessView({
   onBack: () => void;
   onChanged: () => void;
 }) {
-  const [tab, setTab] = useState<'overview' | 'settings' | 'staff' | 'devices'>('overview');
+  const [tab, setTab] = useState<'overview' | 'settings' | 'staff' | 'devices' | 'subscription'>('overview');
   const storage = Object.values(data.storageBytes).reduce((n, b) => n + b, 0);
   const peak = Math.max(1, ...data.daily.map((d) => d.events));
   const staff = data.staff.filter((s) => s.role !== 'developer');
@@ -369,6 +384,7 @@ function BusinessView({
             ['settings', 'Business settings', 'settings'],
             ['staff', 'Staff & access', 'users'],
             ['devices', 'Devices', 'drawer'],
+            ['subscription', 'Subscription', 'payments'],
           ] as const
         ).map(([key, label, icon]) => (
           <button
@@ -386,6 +402,7 @@ function BusinessView({
       {tab === 'settings' && <ConsoleSettings shopId={data.id} onSaved={onChanged} />}
       {tab === 'staff' && <ConsoleStaff data={data} onChanged={onChanged} />}
       {tab === 'devices' && <ConsoleDevices shopId={data.id} onChanged={onChanged} />}
+      {tab === 'subscription' && <ConsoleSubscription shopId={data.id} onChanged={onChanged} />}
       {tab === 'overview' && (
         <>
           <section className="stats">

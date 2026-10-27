@@ -1,4 +1,5 @@
 import { checkStockBelowZero } from './stock-rule.mjs';
+import { checkWritesAllowed } from './subscription-rule.mjs';
 import { assertIndependent } from './sync-dependencies.mjs';
 import { applyEvent } from './domain.mjs';
 import { loadState, writeState, damagedStorage } from './storage-core.mjs';
@@ -148,6 +149,7 @@ export async function storageHealth() {
 
 export const saveEvent = (scope: string, event: LedgerEvent, cloud: boolean) =>
   mutateState(scope, (state) => {
+    checkWritesAllowed();
     assertIndependent(state, event);
     const ledger = applyEvent(state.ledger, event);
     checkStockBelowZero(state.ledger, ledger);
@@ -160,6 +162,7 @@ export const saveEvent = (scope: string, event: LedgerEvent, cloud: boolean) =>
 
 export const saveEvents = (scope: string, events: LedgerEvent[], cloud: boolean) =>
   mutateState(scope, (state) => {
+    checkWritesAllowed();
     for (const event of events) assertIndependent(state, event);
     const ledger = events.reduce((ledger, event) => applyEvent(ledger, event), state.ledger);
     checkStockBelowZero(state.ledger, ledger);
