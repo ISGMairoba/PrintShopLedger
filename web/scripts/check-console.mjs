@@ -279,6 +279,10 @@ try {
     page.on('pageerror', (e) => errors.push(e.message));
     await page.goto(`http://127.0.0.1:${port}/console`);
     await page.getByRole('heading', { name: 'PrintShopLedger console', exact: true }).waitFor();
+    await page.screenshot({
+      path: `/tmp/console-signin-${mobile ? 'mobile' : 'desktop'}.png`,
+      fullPage: true,
+    });
     const signIn = async () => {
       await page.getByLabel('Console email', { exact: true }).fill('team@example.invalid');
       await page.getByLabel('Password', { exact: true }).fill('a-long-test-password');
@@ -305,6 +309,11 @@ try {
     await page.getByRole('heading', { name: 'Mairoba Studios', exact: true }).waitFor();
     // Business settings: the business's own settings page, saved from the console.
     await page.getByRole('tab', { name: 'Business settings', exact: true }).click();
+    await page.getByLabel('Business name', { exact: true }).waitFor();
+    await page.screenshot({
+      path: `/tmp/console-settings-${mobile ? 'mobile' : 'desktop'}.png`,
+      fullPage: true,
+    });
     await page.getByLabel('Business name', { exact: true }).fill('Mairoba Studios Ltd');
     await page.getByRole('button', { name: 'Save business details', exact: true }).click();
     await page.getByRole('button', { name: 'Save business details', exact: true }).isDisabled();
@@ -316,12 +325,24 @@ try {
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     // Staff & access: change a role, remove access, set a password, add staff.
     await page.getByRole('tab', { name: 'Staff & access', exact: true }).click();
+    await page.screenshot({
+      path: `/tmp/console-staff-${mobile ? 'mobile' : 'desktop'}.png`,
+      fullPage: true,
+    });
     await page.getByLabel('Role of Ada', { exact: true }).selectOption('admin');
     await page.getByText('Ada is now admin.').waitFor();
     const staffTable = page.getByRole('table', { name: 'Staff accounts' });
     await staffTable.getByRole('row', { name: /Ada/ }).getByRole('button', { name: 'Remove access' }).click();
     await page.getByText('Ada can no longer sign in.').waitFor();
-    await staffTable.getByRole('row', { name: /Ada/ }).getByRole('button', { name: 'Set password' }).click();
+    if (mobile) {
+      // On phones the other actions are under More.
+      await staffTable.getByRole('row', { name: /Ada/ }).getByRole('button', { name: 'More' }).click();
+      await page.getByRole('dialog').getByRole('button', { name: 'Set password' }).click();
+    } else
+      await staffTable
+        .getByRole('row', { name: /Ada/ })
+        .getByRole('button', { name: 'Set password' })
+        .click();
     await page.getByLabel('New password', { exact: true }).fill('a-new-staff-password');
     await page.getByRole('button', { name: 'Set password', exact: true }).last().click();
     await page.getByText('New password set for Ada. Tell them in person.').waitFor();
@@ -343,6 +364,11 @@ try {
     // Devices: who uses each device, its sync and History check; sign one out.
     await page.getByRole('tab', { name: 'Devices', exact: true }).click();
     const deviceTable = page.getByRole('table', { name: 'Devices' });
+    await deviceTable.waitFor();
+    await page.screenshot({
+      path: `/tmp/console-devices-${mobile ? 'mobile' : 'desktop'}.png`,
+      fullPage: true,
+    });
     assert.match(
       await deviceTable.innerText(),
       /Chrome on Android[\s\S]*Ada[\s\S]*In use[\s\S]*2 unsent[\s\S]*1 waiting for review[\s\S]*All 412 match/,
@@ -362,6 +388,10 @@ try {
     await page.getByLabel('Reports', { exact: true }).check();
     await page.getByLabel('Point of Service', { exact: true }).check();
     await page.getByLabel('Message to the business', { exact: true }).fill('Please renew.');
+    await page.screenshot({
+      path: `/tmp/console-subscription-form-${mobile ? 'mobile' : 'desktop'}.png`,
+      fullPage: true,
+    });
     await page.getByLabel('Reason (for the activity log)', { exact: true }).fill('Agreed by phone');
     await page.getByRole('button', { name: 'Save subscription', exact: true }).click();
     await page.getByText('Subscription saved.', { exact: false }).waitFor();
@@ -405,10 +435,18 @@ try {
     // Plans: add one with a device limit.
     await page.getByRole('button', { name: 'Plans', exact: true }).click();
     await page.getByRole('table', { name: 'Plans' }).waitFor();
+    await page.screenshot({
+      path: `/tmp/console-plans-${mobile ? 'mobile' : 'desktop'}.png`,
+      fullPage: true,
+    });
     await page.getByRole('button', { name: 'Add plan', exact: true }).click();
     await page.getByLabel('Name', { exact: true }).fill('Pro Shop');
     await page.getByLabel('Price (₦)', { exact: true }).fill('20000');
     await page.getByLabel('Most devices', { exact: true }).fill('5');
+    await page.screenshot({
+      path: `/tmp/console-plan-form-${mobile ? 'mobile' : 'desktop'}.png`,
+      fullPage: true,
+    });
     await page.getByRole('button', { name: 'Save plan', exact: true }).click();
     await page.getByText('Pro Shop saved.').waitFor();
     assert.deepEqual(saved.at(-1), [
@@ -425,13 +463,18 @@ try {
     ]);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.getByRole('button', { name: 'Activity log', exact: true }).click();
-    assert.match(
-      await page.getByRole('table', { name: 'Console activity' }).innerText(),
-      /Owner[\s\S]*Opened business/,
-    );
+    await page.getByRole('table', { name: 'Console activity' }).waitFor();
+    await page.screenshot({
+      path: `/tmp/console-activity-${mobile ? 'mobile' : 'desktop'}.png`,
+      fullPage: true,
+    });
+    const activityText = await page.getByRole('table', { name: 'Console activity' }).innerText();
+    assert.match(activityText, /Owner/);
+    assert.match(activityText, /Opened business/);
     await page.getByRole('button', { name: 'Team', exact: true }).click();
     const teamTable = page.getByRole('table', { name: 'Console team' });
     await teamTable.waitFor();
+    await page.screenshot({ path: `/tmp/console-team-${mobile ? 'mobile' : 'desktop'}.png`, fullPage: true });
     await teamTable.getByRole('button', { name: 'Make owner', exact: true }).click();
     await page.getByText('Helper is now an owner.').waitFor();
     assert.ok(calls.includes('console_set_member'));
