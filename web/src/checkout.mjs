@@ -1,3 +1,4 @@
+import { validDocumentTerms } from './document-terms.mjs';
 import { tierLabel, tierPrice, usesTiers } from './price-tiers.mjs';
 import { validDueAt } from './job-deadlines.mjs';
 import { applyOrderDiscount, discountKobo, validDiscount } from './discounts.mjs';
@@ -336,6 +337,9 @@ export function prepareCheckout(
     data: {
       id,
       customerId: customer.id,
+      ...(input.termsAndConditions === undefined
+        ? {}
+        : { termsAndConditions: validDocumentTerms(input.termsAndConditions) }),
       newCustomer: input.newCustomer ?? null,
       customerSnapshot: {
         id: customer.id,
@@ -374,6 +378,7 @@ export function applyCheckout(ledger, event) {
       customerId: data.customerId,
       newCustomer: data.newCustomer,
       lines: data.jobs,
+      termsAndConditions: data.termsAndConditions,
       countedMaterialJobs: data.countedMaterialJobs,
       cashReceived: data.cashReceived,
       useWallet: data.useWallet,

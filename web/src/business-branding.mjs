@@ -1,3 +1,4 @@
+import { validDocumentTerms } from './document-terms.mjs';
 import { logoPositions } from './document-logos.mjs';
 import {
   logoVariantsDefaults,
@@ -150,7 +151,13 @@ export const defaultBranding = () => ({
     footer: 'Thank you for your business.',
     ...receiptContentDefaults(),
   },
-  documents: { watermark: false, watermarkLogoLayout: '' },
+  documents: {
+    watermark: false,
+    watermarkLogoLayout: '',
+    invoiceTerms: '',
+    quotationTerms: '',
+    showTermsOnRoll: false,
+  },
   poweredBy: poweredByDefaults(),
 });
 export function validLogo(value) {
@@ -204,7 +211,15 @@ export function validateBranding(input) {
   const watermarkLogoLayout = value.documents.watermarkLogoLayout ?? '';
   if (!['', 'complete', 'stacked', 'horizontal', 'wordmark', 'icon'].includes(watermarkLogoLayout))
     throw Error('Choose a valid watermark logo.');
-  value.documents = { watermark: value.documents.watermark, watermarkLogoLayout };
+  if (value.documents.showTermsOnRoll !== undefined && typeof value.documents.showTermsOnRoll !== 'boolean')
+    throw Error('Invalid receipt terms option.');
+  value.documents = {
+    watermark: value.documents.watermark,
+    watermarkLogoLayout,
+    invoiceTerms: validDocumentTerms(value.documents.invoiceTerms),
+    quotationTerms: validDocumentTerms(value.documents.quotationTerms),
+    showTermsOnRoll: value.documents.showTermsOnRoll ?? false,
+  };
   value.poweredBy = validatePoweredBy(value.poweredBy);
   value.options = validateOptions(value.options);
   if (value.pageAccessVersion !== PAGE_ACCESS_VERSION) value.pageAccess = upgradePageAccess(value.pageAccess);

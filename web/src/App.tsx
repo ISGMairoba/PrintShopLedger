@@ -463,6 +463,14 @@ export default function App() {
   async function completeCheckout(operation: CheckoutEvent): Promise<CheckoutRecord> {
     if (busy || !ready || !scope || legacyConflict) throw Error('Please wait until the workspace is ready.');
     const target = scope;
+    operation = {
+      ...operation,
+      data: {
+        ...operation.data,
+        termsAndConditions:
+          operation.data.termsAndConditions ?? branding.settings.documents.invoiceTerms ?? '',
+      },
+    };
     setBusy(true);
     try {
       let next = await saveEvent(target, operation, !demo);
@@ -1302,6 +1310,7 @@ export default function App() {
                         label: shop?.staffName || session!.user.email || session!.user.id,
                       }}
                       jobSettings={branding.settings.jobs}
+                      defaultTerms={branding.settings.documents.invoiceTerms}
                       discountPolicy={discountPolicy(
                         branding.settings.discounts,
                         demo ? 4 : (shop?.accessLevel ?? 0),
@@ -1906,6 +1915,7 @@ export default function App() {
                       onClose={() => setForm(null)}
                       onReceipt={setReceipt}
                       jobSettings={branding.settings.jobs}
+                      defaultTerms={branding.settings.documents.invoiceTerms}
                       discountPolicy={discountPolicy(
                         branding.settings.discounts,
                         demo ? 4 : (shop?.accessLevel ?? 0),
@@ -1994,6 +2004,7 @@ export default function App() {
                           onClose={() => setQuoteOrder(null)}
                           onReceipt={setReceipt}
                           jobSettings={branding.settings.jobs}
+                          defaultTerms={branding.settings.documents.invoiceTerms}
                           discountPolicy={discountPolicy(
                             branding.settings.discounts,
                             demo ? 4 : (shop?.accessLevel ?? 0),

@@ -386,6 +386,7 @@ export default function QuotationsPage({
       {editor && (
         <QuotationEditor
           descriptionMode={branding.jobs.descriptionMode}
+          defaultTerms={branding.documents.quotationTerms}
           ledger={ledger}
           quote={editor === 'new' ? null : editor}
           start={editor === 'new' ? pendingStart : null}
@@ -472,6 +473,7 @@ function QuotationSummary({ quote }: { quote: Quotation }) {
 }
 
 function QuotationEditor({
+  defaultTerms,
   ledger,
   descriptionMode,
   quote,
@@ -484,6 +486,7 @@ function QuotationEditor({
 }: {
   ledger: Ledger;
   descriptionMode: string;
+  defaultTerms: string;
   quote: Quotation | null;
   start: TemplateStart | null;
   busy: boolean;
@@ -501,6 +504,9 @@ function QuotationEditor({
   const [phone, setPhone] = useState(quote?.customerPhone ?? '');
   const [validUntil, setValidUntil] = useState(quote?.validUntil ?? defaultValidUntil());
   const [note, setNote] = useState(quote?.note ?? '');
+  const [termsAndConditions, setTermsAndConditions] = useState(
+    quote ? (quote.termsAndConditions ?? '') : defaultTerms,
+  );
   const [lines, setLines] = useState<Line[]>(() =>
     quote
       ? quote.lines.map((l) => ({
@@ -584,6 +590,7 @@ function QuotationEditor({
           customerName: savedCustomer ? savedCustomer.name : customerText,
           customerPhone: savedCustomer ? savedCustomer.phone : phone,
           validUntil,
+          termsAndConditions,
           note,
           ...input(),
         },
@@ -857,6 +864,18 @@ function QuotationEditor({
               placeholder="Optional: delivery time, terms, design notes"
             />
           </label>
+          <label>
+            Quotation terms &amp; conditions
+            <textarea
+              maxLength={5000}
+              aria-label="Quotation terms & conditions"
+              value={termsAndConditions}
+              onChange={(e) => setTermsAndConditions(e.target.value)}
+            />
+          </label>
+          <button type="button" className="text-button" onClick={() => setTermsAndConditions(defaultTerms)}>
+            Use current default terms
+          </button>
           <div className="cart-total" role="status">
             {priced.ok ? (
               <>

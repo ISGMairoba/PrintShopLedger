@@ -64,6 +64,9 @@ try {
   assert.equal(await d.getByLabel('Description').inputValue(), 'Design');
   await d.getByLabel('Quantity', { exact: true }).fill('2');
   assert.match(await d.locator('.cart-total').innerText(), /₦20,000\.00/);
+  await d
+    .getByLabel('Quotation terms & conditions', { exact: true })
+    .fill('Quote terms: deposit before production.');
   await d.getByRole('button', { name: 'Save quotation', exact: true }).click();
   await d.waitFor({ state: 'detached' });
   assert.match(await page.locator('table').innerText(), /Bello Stores[\s\S]*₦20,000\.00[\s\S]*Open/);
@@ -71,6 +74,10 @@ try {
   // Edit it directly.
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
   d = page.getByRole('dialog', { name: /Edit quotation Q-/ });
+  assert.equal(
+    await d.getByLabel('Quotation terms & conditions', { exact: true }).inputValue(),
+    'Quote terms: deposit before production.',
+  );
   await d.getByLabel('Quantity', { exact: true }).fill('3');
   await d.getByRole('button', { name: 'Save quotation', exact: true }).click();
   await d.waitFor({ state: 'detached' });

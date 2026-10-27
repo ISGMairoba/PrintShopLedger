@@ -387,6 +387,7 @@ export interface CheckoutJob extends Job {
   serviceVersion: number;
 }
 export interface CheckoutRecord {
+  termsAndConditions?: string;
   /** Whole-order discount as entered, and all discounts on this checkout in kobo. */
   orderDiscount?: { kind: 'percent' | 'amount'; value: number; reason?: string } | null;
   discountTotal?: number;
@@ -497,6 +498,7 @@ export interface QuotationLine {
   amount: number;
 }
 export interface Quotation {
+  termsAndConditions?: string;
   id: string;
   customerId: string | null;
   customerName: string;
