@@ -119,6 +119,7 @@
 }
 .console-main .panel > .toolbar {
   padding: 0;
+  border-bottom: 0;
   margin: 0 0 16px;
   gap: 16px;
 }
@@ -128,8 +129,10 @@
 }
 .console-main .toolbar input[type="search"] {
   max-width: 320px;
+  margin-left: auto;
 }
 .console-main .panel > :is(.table-wrap, .responsive-records) {
+  width: auto;
   margin: 16px -24px -22px;
   border-top: 1px solid #e3e8e3;
 }
@@ -398,6 +401,9 @@ td .console-badge + small {
   }
   .console-user > span {
     display: none;
+  }
+  .console-nav button {
+    padding: 0 10px;
   }
   .console-title h1 {
     font-size: 23px;
