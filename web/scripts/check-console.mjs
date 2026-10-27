@@ -75,6 +75,9 @@ try {
             sales30: 125000000,
             events7: 340,
             lastActivity: now,
+            plan: 'Standard',
+            subscription: 'active',
+            expiresAt: '2099-11-30T22:59:59Z',
           },
           {
             id: '44444444-4444-4444-8444-444444444444',
@@ -213,6 +216,56 @@ try {
         const body = route.request().postDataJSON();
         saved.push(['device', body.p_action, body.p_device]);
         result = null;
+      } else if (path.endsWith('/console_plans'))
+        result = [
+          {
+            id: 'standard',
+            name: 'Standard',
+            price: 5000000,
+            periodDays: 30,
+            maxDevices: 3,
+            description: 'Small shops',
+            archived: false,
+            businesses: 1,
+          },
+        ];
+      else if (path.endsWith('/console_subscription'))
+        result = {
+          subscription: {
+            planId: 'standard',
+            status: 'active',
+            startsAt: '2026-10-01T00:00:00+01:00',
+            expiresAt: '2099-11-30T22:59:59Z',
+            graceDays: 3,
+            expiryMode: 'read_only',
+            pagesOff: [],
+            message: '',
+            maxDevices: null,
+          },
+          state: 'active',
+          devices: 2,
+          payments: [
+            {
+              id: 'p1',
+              amount: 5000000,
+              paidOn: '2026-10-01',
+              method: 'Transfer',
+              reference: 'TRF-1',
+              extendedTo: '2099-11-30T22:59:59Z',
+              note: '',
+              recordedAt: now,
+              recordedBy: 'Owner',
+            },
+          ],
+        };
+      else if (
+        path.endsWith('/console_save_subscription') ||
+        path.endsWith('/console_record_payment') ||
+        path.endsWith('/console_save_plan')
+      ) {
+        const body = route.request().postDataJSON();
+        saved.push([path.split('/').pop(), body.p_sub ?? body.p_payment ?? body.p_plan]);
+        result = null;
       } else if (path.endsWith('/console-staff')) {
         const body = route.request().postDataJSON();
         saved.push(['function', body.action, body.username ?? body.memberId]);
@@ -298,6 +351,43 @@ try {
     await page.getByText('Chrome on Android will sign out the next time it syncs.').waitFor();
     assert.deepEqual(saved.at(-1), ['device', 'sign-out', 'd1']);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    // Subscription: plan, dates and what happens on expiry; a payment extends it.
+    await page.getByRole('tab', { name: 'Subscription', exact: true }).click();
+    assert.match(await page.locator('.stats').innerText(), /Active[\s\S]*Standard[\s\S]*2 of 3/);
+    assert.match(
+      await page.getByRole('table', { name: 'Payments' }).innerText(),
+      /₦50,000\.00[\s\S]*Transfer/,
+    );
+    await page.getByLabel('When it runs out').selectOption('pages_off');
+    await page.getByLabel('Reports', { exact: true }).check();
+    await page.getByLabel('Point of Service', { exact: true }).check();
+    await page.getByLabel('Message to the business', { exact: true }).fill('Please renew.');
+    await page.getByLabel('Reason (for the activity log)', { exact: true }).fill('Agreed by phone');
+    await page.getByRole('button', { name: 'Save subscription', exact: true }).click();
+    await page.getByText('Subscription saved.', { exact: false }).waitFor();
+    const sub = saved.at(-1);
+    assert.equal(sub[0], 'console_save_subscription');
+    assert.equal(sub[1].planId, 'standard');
+    assert.equal(sub[1].expiryMode, 'pages_off');
+    assert.deepEqual(sub[1].pagesOff, ['Reports', 'Point of Service']);
+    assert.equal(sub[1].expiresAt, '2099-11-30T23:59:59+01:00');
+    assert.equal(sub[1].maxDevices, null);
+    assert.equal(sub[1].reason, 'Agreed by phone');
+    assert.equal(await page.getByLabel('Amount (₦)', { exact: true }).inputValue(), '50000');
+    assert.equal(await page.getByLabel('Extend the subscription to the end of').inputValue(), '2099-12-30');
+    await page.getByLabel('Method', { exact: true }).fill('Cash');
+    await page.getByRole('button', { name: 'Record payment', exact: true }).click();
+    await page.getByText('Payment recorded. The subscription now runs until', { exact: false }).waitFor();
+    const paid = saved.at(-1);
+    assert.equal(paid[0], 'console_record_payment');
+    assert.equal(paid[1].amount, 5000000);
+    assert.equal(paid[1].method, 'Cash');
+    assert.equal(paid[1].extendedTo, '2099-12-30T23:59:59+01:00');
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await page.screenshot({
+      path: `/tmp/console-subscription-${mobile ? 'mobile' : 'desktop'}.png`,
+      fullPage: true,
+    });
     await page.getByRole('tab', { name: 'Overview', exact: true }).click();
     assert.match(await page.locator('.stats').innerText(), /120[\s\S]*480 jobs[\s\S]*4\.3 MB/);
     assert.match(await page.getByRole('table', { name: 'Staff accounts' }).innerText(), /Ada[\s\S]*Manager/);
@@ -311,6 +401,29 @@ try {
     // Back, the activity log and the team.
     await page.goBack();
     await list.waitFor();
+    assert.match(await list.innerText(), /Active[\s\S]*Standard/);
+    // Plans: add one with a device limit.
+    await page.getByRole('button', { name: 'Plans', exact: true }).click();
+    await page.getByRole('table', { name: 'Plans' }).waitFor();
+    await page.getByRole('button', { name: 'Add plan', exact: true }).click();
+    await page.getByLabel('Name', { exact: true }).fill('Pro Shop');
+    await page.getByLabel('Price (₦)', { exact: true }).fill('20000');
+    await page.getByLabel('Most devices', { exact: true }).fill('5');
+    await page.getByRole('button', { name: 'Save plan', exact: true }).click();
+    await page.getByText('Pro Shop saved.').waitFor();
+    assert.deepEqual(saved.at(-1), [
+      'console_save_plan',
+      {
+        id: 'pro-shop',
+        name: 'Pro Shop',
+        price: 2000000,
+        periodDays: 30,
+        maxDevices: 5,
+        description: '',
+        archived: false,
+      },
+    ]);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.getByRole('button', { name: 'Activity log', exact: true }).click();
     assert.match(
       await page.getByRole('table', { name: 'Console activity' }).innerText(),

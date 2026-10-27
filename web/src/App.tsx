@@ -1,3 +1,5 @@
+import useSubscription, { subscriptionNotice } from './useSubscription';
+import { setWritesBlocked } from './subscription-rule.mjs';
 import { confirmSignedOut, reportDevice } from './device-report';
 import { setStockBelowZeroBlocked } from './stock-rule.mjs';
 import useSyncConflicts from './app/useSyncConflicts';
@@ -210,6 +212,15 @@ export default function App() {
     online,
     demo,
   );
+  // The subscription set in the developer console: banners, pages turned off, read-only or locked.
+  const subscription = useSubscription(scope, shop?.id, online, demo);
+  const restriction = demo ? '' : (subscription.restriction ?? '');
+  setWritesBlocked(
+    restriction === 'read_only' || restriction === 'locked'
+      ? 'This business’s PrintShopLedger subscription has ended, so new work cannot be recorded until it is renewed.'
+      : '',
+  );
+  const subscriptionBanner = demo ? null : subscriptionNotice(subscription);
   // Catalogue edits need an Admin or higher who can open Services (the server checks this too).
   const canEditCatalogue =
     demo ||
@@ -218,6 +229,7 @@ export default function App() {
       shop.accessLevel >= 2 &&
       canAccessPage('Services', shop.accessLevel, branding.settings.pageAccess));
   const allowed = (item: Page) =>
+    !(restriction === 'pages_off' && (subscription.pagesOff ?? []).includes(item)) &&
     (item !== 'Pricing Templates' || branding.settings.pricing.enabled) &&
     (item !== 'Edit Products' || demo || (!!shop && shop.role !== 'cashier' && shop.accessLevel >= 2)) &&
     (demo || canAccessPage(item, shop?.accessLevel ?? 0, branding.settings.pageAccess));
@@ -654,7 +666,20 @@ export default function App() {
         channel.current?.postMessage('changed');
       }
       // Tell the developer console how this device is doing; it may ask the device to sign out.
-      if (await reportDevice(target, shopId, next)) {
+      const report = await reportDevice(target, shopId, next);
+      if (report.deviceLimit) {
+        await Promise.all([
+          supabase!.auth.signOut({ scope: 'local' }),
+          businessAuth!.auth.signOut({ scope: 'local' }),
+        ]);
+        setSession(null);
+        setBusinessSession(null);
+        setShop(null);
+        setMessage(
+          `This business already uses its ${report.deviceLimit} devices. Ask the owner to sign out a device it no longer uses, or to upgrade the plan. Any unsent work is kept on this device.`,
+          'error',
+        );
+      } else if (report.signOut) {
         await confirmSignedOut(shopId);
         await Promise.all([
           supabase!.auth.signOut({ scope: 'local' }),
@@ -1027,6 +1052,35 @@ export default function App() {
       />
     );
 
+  if (restriction === 'locked')
+    return (
+      <main className="auth">
+        <section className="auth-card">
+          <h1>{shop?.name ?? 'PrintShopLedger'}</h1>
+          <p role="alert">
+            This business’s PrintShopLedger subscription has ended. Contact PrintShopLedger to renew; your
+            records are safe and come back as soon as it is renewed.
+          </p>
+          {subscription.message && <p>{subscription.message}</p>}
+          <button
+            type="button"
+            className="secondary"
+            onClick={async () => {
+              await Promise.all([
+                supabase!.auth.signOut({ scope: 'local' }),
+                businessAuth!.auth.signOut({ scope: 'local' }),
+              ]);
+              setSession(null);
+              setBusinessSession(null);
+              setShop(null);
+            }}
+          >
+            <Icon name="close" /> Sign out business
+          </button>
+        </section>
+      </main>
+    );
+
   return (
     <BusinessOptionsContext.Provider value={branding.settings.options}>
       <TermsProvider value={branding.settings.terms}>
@@ -1194,6 +1248,14 @@ export default function App() {
                       </span>
                     )}
                   </header>
+                  {subscriptionBanner && (
+                    <p
+                      className={`notice subscription-notice ${subscriptionBanner.tone === 'error' ? 'notice-error' : subscriptionBanner.tone === 'warning' ? 'notice-warning' : ''}`}
+                      role={subscriptionBanner.tone === 'info' ? 'status' : 'alert'}
+                    >
+                      {subscriptionBanner.text}
+                    </p>
+                  )}
                   {helpFor !== undefined && (
                     <HelpPanel
                       page={helpFor}

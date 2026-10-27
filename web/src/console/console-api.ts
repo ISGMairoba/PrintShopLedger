@@ -13,6 +13,9 @@ export type BusinessRow = {
   events7: number;
   devices7?: number;
   lastActivity: string | null;
+  plan?: string | null;
+  subscription?: SubscriptionState;
+  expiresAt?: string | null;
 };
 export type StaffRow = {
   id: string;
@@ -172,3 +175,62 @@ export const deviceAction = (
   deviceId: string,
   action: 'sign-out' | 'cancel-sign-out' | 'forget',
 ) => call<null>('console_device_action', { p_shop: shopId, p_device: deviceId, p_action: action });
+
+export type SubscriptionState = 'none' | 'trial' | 'active' | 'grace' | 'expired' | 'suspended';
+export type ExpiryMode = 'warn' | 'read_only' | 'pages_off' | 'locked';
+export type Plan = {
+  id: string;
+  name: string;
+  price: number;
+  periodDays: number;
+  maxDevices: number | null;
+  description: string;
+  archived: boolean;
+  businesses?: number;
+};
+export type Subscription = {
+  planId: string | null;
+  status: 'trial' | 'active' | 'suspended';
+  startsAt: string;
+  expiresAt: string | null;
+  graceDays: number;
+  expiryMode: ExpiryMode;
+  pagesOff: string[];
+  message: string;
+  maxDevices: number | null;
+  updatedAt?: string;
+};
+export type Payment = {
+  id: string;
+  amount: number;
+  paidOn: string;
+  method: string;
+  reference: string;
+  extendedTo: string | null;
+  note: string;
+  recordedAt: string;
+  recordedBy: string | null;
+};
+export type SubscriptionDetail = {
+  subscription: Subscription | null;
+  state: SubscriptionState;
+  devices: number;
+  payments: Payment[];
+};
+export const plans = () => call<Plan[]>('console_plans');
+export const savePlan = (plan: Plan) => call<null>('console_save_plan', { p_plan: plan });
+export const subscription = (shopId: string) =>
+  call<SubscriptionDetail>('console_subscription', { p_shop: shopId });
+export const saveSubscription = (shopId: string, sub: Subscription & { reason: string }) =>
+  call<null>('console_save_subscription', { p_shop: shopId, p_sub: sub });
+export const recordPayment = (
+  shopId: string,
+  payment: {
+    amount: number;
+    paidOn: string;
+    method: string;
+    reference: string;
+    extendedTo: string | null;
+    note: string;
+  },
+) => call<null>('console_record_payment', { p_shop: shopId, p_payment: payment });
