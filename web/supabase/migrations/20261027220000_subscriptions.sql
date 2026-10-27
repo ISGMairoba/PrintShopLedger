@@ -101,6 +101,8 @@ declare mode text; done_at timestamptz; ends timestamptz;
 begin
   mode := private.subscription_restriction(new.shop_id);
   if mode not in ('read_only', 'locked') then return new; end if;
+  -- The console team can still fix a business (staff, settings) while it is read-only or locked.
+  if private.console_role() is not null then return new; end if;
   select case when s.status = 'suspended' then s.updated_at else s.expires_at + make_interval(days => s.grace_days) end
     into ends from public.subscriptions s where s.shop_id = new.shop_id;
   begin
@@ -115,16 +117,12 @@ drop trigger if exists enforce_subscription on public.ledger_events;
 create trigger enforce_subscription before insert on public.ledger_events
   for each row execute function private.enforce_subscription();
 
--- Locked businesses cannot download their records.
+-- Locked businesses cannot download their records. get_ledger_changes runs with the caller's rights,
+-- so it asks my_subscription (which checks membership) rather than the private helper.
 do $mig$
 declare src text;
-  a text := $x$  if not public.is_shop_member(p_shop) then raise exception 'Business access denied'; end if;
-  ledger := public.get_ledger(p_shop);$x$;
-  b text := $x$  if not public.is_shop_member(p_shop) then raise exception 'Business access denied'; end if;
-  if private.subscription_restriction(p_shop) = 'locked' then
-    raise exception 'This business''s subscription has ended. Contact PrintShopLedger to renew.' using errcode = 'PSLSB';
-  end if;
-  ledger := public.get_ledger(p_shop);$x$;
+  a text := $x$ledger := public.get_ledger(p_shop);$x$;
+  b text := $x$if public.my_subscription(p_shop)->>'restriction' = 'locked' then raise exception 'This business''s subscription has ended. Contact PrintShopLedger to renew.' using errcode = 'PSLSB'; end if; ledger := public.get_ledger(p_shop);$x$;
 begin
   src := pg_get_functiondef('public.get_ledger_changes(uuid,text)'::regprocedure);
   if (length(src) - length(replace(src, a, ''))) / length(a) <> 1 then raise exception 'get_ledger_changes changed; review the subscriptions migration'; end if;
