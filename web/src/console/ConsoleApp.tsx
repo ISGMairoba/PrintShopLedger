@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import Icon from '../Icon';
+import ResponsiveTable from '../ResponsiveTable';
+import './console.css';
 import BusinessSettingsPage from '../BusinessSettingsPage';
 import { BusinessOptionsContext } from '../BusinessOptionsContext';
 import { TermsProvider } from '../Words';
@@ -31,7 +33,7 @@ import {
   type ConsoleMember,
   type TeamMember,
 } from './console-api';
-import { ConsolePlans, ConsoleSubscription, stateLabels } from './ConsoleSubscription';
+import { Badge, ConsolePlans, ConsoleSubscription, StateBadge } from './ConsoleSubscription';
 
 const when = (value: string | null) =>
   value
@@ -114,13 +116,16 @@ export default function ConsoleApp() {
   return (
     <div className="console">
       <header className="console-header">
-        <div>
-          <strong>PrintShopLedger console</strong>
-          <small>
-            {me.name} · {me.role === 'owner' ? 'Owner' : 'Support'}
-          </small>
+        <div className="console-brand">
+          <span className="console-mark" aria-hidden="true">
+            P
+          </span>
+          <span>
+            <strong>PrintShopLedger</strong>
+            <small>Developer console</small>
+          </span>
         </div>
-        <nav className="settings-tabs" aria-label="Console">
+        <nav className="console-nav" aria-label="Console">
           {(
             [
               ['businesses', 'Businesses', 'customers'],
@@ -132,16 +137,20 @@ export default function ConsoleApp() {
             <button
               key={page}
               type="button"
-              className={
-                view.page === page || (page === 'businesses' && view.page === 'business')
-                  ? 'active'
-                  : 'secondary'
+              aria-current={
+                view.page === page || (page === 'businesses' && view.page === 'business') ? 'page' : undefined
               }
               onClick={() => go({ page } as View)}
             >
               <Icon name={icon} /> {label}
             </button>
           ))}
+        </nav>
+        <div className="console-user">
+          <span>
+            {me.name}
+            <small>{me.role === 'owner' ? 'Owner' : 'Support'}</small>
+          </span>
           <button
             type="button"
             className="secondary"
@@ -152,7 +161,7 @@ export default function ConsoleApp() {
           >
             <Icon name="close" /> Sign out
           </button>
-        </nav>
+        </div>
       </header>
       <main className="console-main">
         {view.page === 'businesses' && <Businesses onOpen={(id) => go({ page: 'business', id })} />}
@@ -183,7 +192,10 @@ function ConsoleSignIn({ onSignedIn }: { onSignedIn: (me: ConsoleMember) => void
   }
   return (
     <main className="auth">
-      <section className="auth-card">
+      <section className="auth-card console-signin">
+        <span className="console-mark" aria-hidden="true">
+          P
+        </span>
         <h1>PrintShopLedger console</h1>
         <p className="muted">
           For the PrintShopLedger team. Sign in with your console email, not a business account.
@@ -263,7 +275,7 @@ function Businesses({ onOpen }: { onOpen: (id: string) => void }) {
           <input
             type="search"
             aria-label="Search businesses"
-            placeholder="Search name or email"
+            placeholder="Search by name or email"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -271,7 +283,12 @@ function Businesses({ onOpen }: { onOpen: (id: string) => void }) {
         {error && <p role="alert">{error}</p>}
         {!data && !error && <p className="muted">Loading…</p>}
         {data && (
-          <div className="table-wrap">
+          <ResponsiveTable
+            columns={[
+              { index: 0, label: 'Business', details: [1, 2, 3, 4] },
+              { index: 5, label: 'Sales (30 days)', details: [6] },
+            ]}
+          >
             <table aria-label="Businesses">
               <thead>
                 <tr>
@@ -294,7 +311,7 @@ function Businesses({ onOpen }: { onOpen: (id: string) => void }) {
                       <small>{b.ownerEmail ?? 'No business account'}</small>
                     </td>
                     <td>
-                      {stateLabels[b.subscription ?? 'none']}
+                      <StateBadge state={b.subscription ?? 'none'} />
                       <small>
                         {b.plan ?? 'No plan'}
                         {b.expiresAt ? ` · until ${when(b.expiresAt).split(',')[0]}` : ''}
@@ -315,7 +332,7 @@ function Businesses({ onOpen }: { onOpen: (id: string) => void }) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </ResponsiveTable>
         )}
       </section>
     </>
@@ -365,17 +382,15 @@ function BusinessView({
   const staff = data.staff.filter((s) => s.role !== 'developer');
   return (
     <>
-      <section className="panel console-title">
-        <button type="button" className="secondary" onClick={onBack}>
-          <Icon name="restore" /> Businesses
+      <section className="console-title">
+        <button type="button" className="link-button console-back" onClick={onBack}>
+          ← All businesses
         </button>
-        <div>
-          <h1>{data.name}</h1>
-          <p className="muted">
-            {data.ownerEmail ?? 'No business account'} · Joined {when(data.createdAt)} · Settings version{' '}
-            {data.settingsVersion ?? '—'} ({when(data.settingsChangedAt)})
-          </p>
-        </div>
+        <h1>{data.name}</h1>
+        <p className="muted">
+          {data.ownerEmail ?? 'No business account'} · Joined {when(data.createdAt)} · Settings version{' '}
+          {data.settingsVersion ?? '—'} ({when(data.settingsChangedAt)})
+        </p>
       </section>
       <div className="settings-tabs" role="tablist" aria-label="Business sections">
         {(
@@ -451,7 +466,7 @@ function BusinessView({
           </section>
           <section className="panel">
             <h2>Staff accounts</h2>
-            <div className="table-wrap">
+            <div className="table-wrap console-scroll">
               <table aria-label="Staff accounts">
                 <thead>
                   <tr>
@@ -471,7 +486,15 @@ function BusinessView({
                         {s.role === 'developer' ? 'Developer' : s.role[0].toUpperCase() + s.role.slice(1)}
                       </td>
                       <td>{ago(s.lastActivity)}</td>
-                      <td>{s.archived ? 'Turned off' : s.accessLevel === 0 ? 'No access' : 'Active'}</td>
+                      <td>
+                        {s.archived ? (
+                          <Badge tone="muted">Turned off</Badge>
+                        ) : s.accessLevel === 0 ? (
+                          <Badge tone="warn">No access</Badge>
+                        ) : (
+                          <Badge tone="good">Active</Badge>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -574,7 +597,7 @@ function ConsoleStaff({ data, onChanged }: { data: BusinessDetail; onChanged: ()
           </p>
         )}
         {problem && <p role="alert">{problem}</p>}
-        <div className="table-wrap">
+        <div className="table-wrap console-scroll">
           <table aria-label="Staff accounts">
             <thead>
               <tr>
@@ -618,7 +641,15 @@ function ConsoleStaff({ data, onChanged }: { data: BusinessDetail; onChanged: ()
                       ))}
                     </select>
                   </td>
-                  <td>{s.archived ? 'Turned off' : s.accessLevel === 0 ? 'No access' : 'Active'}</td>
+                  <td>
+                    {s.archived ? (
+                      <Badge tone="muted">Turned off</Badge>
+                    ) : s.accessLevel === 0 ? (
+                      <Badge tone="warn">No access</Badge>
+                    ) : (
+                      <Badge tone="good">Active</Badge>
+                    )}
+                  </td>
                   <td>
                     <div className="material-actions">
                       {!s.archived && (
@@ -768,7 +799,12 @@ function ConsoleStaff({ data, onChanged }: { data: BusinessDetail; onChanged: ()
 function ActivityTable({ rows, showBusiness = true }: { rows: ConsoleAction[]; showBusiness?: boolean }) {
   if (!rows.length) return <p className="muted">Nothing yet.</p>;
   return (
-    <div className="table-wrap">
+    <ResponsiveTable
+      columns={[
+        { index: 2, label: 'What', details: [1, ...(showBusiness ? [3] : [])] },
+        { index: 0, label: 'When' },
+      ]}
+    >
       <table aria-label="Console activity">
         <thead>
           <tr>
@@ -799,7 +835,7 @@ function ActivityTable({ rows, showBusiness = true }: { rows: ConsoleAction[]; s
           ))}
         </tbody>
       </table>
-    </div>
+    </ResponsiveTable>
   );
 }
 
@@ -851,7 +887,7 @@ function Team({ me }: { me: ConsoleMember }) {
         )}
         {problem && <p role="alert">{problem}</p>}
         {data && (
-          <div className="table-wrap">
+          <div className="table-wrap console-scroll">
             <table aria-label="Console team">
               <thead>
                 <tr>
@@ -869,7 +905,13 @@ function Team({ me }: { me: ConsoleMember }) {
                       <small>{m.email}</small>
                     </td>
                     <td>{m.role === 'owner' ? 'Owner' : 'Support'}</td>
-                    <td>{m.disabled ? 'Turned off' : 'Active'}</td>
+                    <td>
+                      {m.disabled ? (
+                        <Badge tone="muted">Turned off</Badge>
+                      ) : (
+                        <Badge tone="good">Active</Badge>
+                      )}
+                    </td>
                     {owner && (
                       <td>
                         {m.userId !== me.userId && (
@@ -1048,7 +1090,12 @@ function ConsoleDevices({ shopId, onChanged }: { shopId: string; onChanged: () =
         <p className="muted">No device has reported yet. Devices appear after their next sync.</p>
       )}
       {data && data.length > 0 && (
-        <div className="table-wrap">
+        <ResponsiveTable
+          columns={[
+            { index: 0, label: 'Device', details: [1, 2, 3] },
+            { index: 4, label: 'Actions', actions: true },
+          ]}
+        >
           <table aria-label="Devices">
             <thead>
               <tr>
@@ -1124,7 +1171,7 @@ function ConsoleDevices({ shopId, onChanged }: { shopId: string; onChanged: () =
               ))}
             </tbody>
           </table>
-        </div>
+        </ResponsiveTable>
       )}
     </section>
   );

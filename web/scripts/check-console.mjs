@@ -460,10 +460,9 @@ try {
       path: `/tmp/console-activity-${mobile ? 'mobile' : 'desktop'}.png`,
       fullPage: true,
     });
-    assert.match(
-      await page.getByRole('table', { name: 'Console activity' }).innerText(),
-      /Owner[\s\S]*Opened business/,
-    );
+    const activityText = await page.getByRole('table', { name: 'Console activity' }).innerText();
+    assert.match(activityText, /Owner/);
+    assert.match(activityText, /Opened business/);
     await page.getByRole('button', { name: 'Team', exact: true }).click();
     const teamTable = page.getByRole('table', { name: 'Console team' });
     await teamTable.waitFor();

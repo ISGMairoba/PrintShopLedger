@@ -1,5 +1,6 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import Icon from '../Icon';
+import ResponsiveTable from '../ResponsiveTable';
 import { money } from '../domain.mjs';
 import { pages } from '../page-access.mjs';
 import { currency } from '../receipts.mjs';
@@ -38,6 +39,22 @@ export const stateLabels: Record<SubscriptionState, string> = {
   expired: 'Expired',
   suspended: 'Suspended',
 };
+const stateTones: Record<SubscriptionState, Tone> = {
+  none: 'muted',
+  trial: 'info',
+  active: 'good',
+  grace: 'warn',
+  expired: 'bad',
+  suspended: 'bad',
+};
+export type Tone = 'good' | 'info' | 'warn' | 'bad' | 'muted';
+/** A small coloured status label. */
+export function Badge({ tone, children }: { tone: Tone; children: ReactNode }) {
+  return <span className={`console-badge console-badge-${tone}`}>{children}</span>;
+}
+export function StateBadge({ state }: { state: SubscriptionState }) {
+  return <Badge tone={stateTones[state]}>{stateLabels[state]}</Badge>;
+}
 const modeLabels: [ExpiryMode, string, string][] = [
   ['warn', 'Show a reminder only', 'Everything keeps working; the app shows the message.'],
   [
@@ -156,7 +173,9 @@ export function ConsoleSubscription({ shopId, onChanged }: { shopId: string; onC
       <section className="stats">
         <article>
           <span>Subscription</span>
-          <strong>{stateLabels[detail.state]}</strong>
+          <strong>
+            <StateBadge state={detail.state} />
+          </strong>
           <small>{planList.find((p) => p.id === sub?.planId)?.name ?? 'No plan chosen'}</small>
         </article>
         <article>
@@ -186,7 +205,8 @@ export function ConsoleSubscription({ shopId, onChanged }: { shopId: string; onC
         {problem && <p role="alert">{problem}</p>}
         <form onSubmit={save}>
           <fieldset disabled={busy}>
-            <div className="form-grid">
+            <h3 className="console-subhead">Plan and dates</h3>
+            <div className="form-grid console-grid-3">
               <label>
                 Plan
                 <select
@@ -263,6 +283,9 @@ export function ConsoleSubscription({ shopId, onChanged }: { shopId: string; onC
                 />
                 <small>Leave empty to use the plan's limit.</small>
               </label>
+            </div>
+            <h3 className="console-subhead">When it runs out</h3>
+            <div className="form-grid">
               <label>
                 When it runs out
                 <select
@@ -310,30 +333,40 @@ export function ConsoleSubscription({ shopId, onChanged }: { shopId: string; onC
                 ))}
               </fieldset>
             )}
-            <label>
-              Reason (for the activity log)
-              <input maxLength={300} value={draft.reason} onChange={(e) => set('reason', e.target.value)} />
-            </label>
-            <div className="material-actions">
-              <button
-                type="button"
-                className="secondary"
-                onClick={() => {
-                  setDraft(toDraft(sub));
-                  setProblem('');
-                }}
-              >
-                <Icon name="close" /> Cancel
-              </button>
-              <button type="submit">
-                <Icon name="save" /> Save subscription
-              </button>
+            <div className="console-form-footer">
+              <label>
+                Reason (for the activity log)
+                <input
+                  maxLength={300}
+                  placeholder="Optional, e.g. agreed by phone"
+                  value={draft.reason}
+                  onChange={(e) => set('reason', e.target.value)}
+                />
+              </label>
+              <div className="material-actions">
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => {
+                    setDraft(toDraft(sub));
+                    setProblem('');
+                  }}
+                >
+                  <Icon name="close" /> Cancel
+                </button>
+                <button type="submit">
+                  <Icon name="save" /> Save subscription
+                </button>
+              </div>
             </div>
           </fieldset>
         </form>
       </section>
       <section className="panel">
         <h2>Record a payment</h2>
+        <p className="muted">
+          Payments are recorded by hand. Extending the date also makes the subscription active.
+        </p>
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -364,7 +397,7 @@ export function ConsoleSubscription({ shopId, onChanged }: { shopId: string; onC
           }}
         >
           <fieldset disabled={busy}>
-            <div className="form-grid">
+            <div className="form-grid console-grid-3">
               <label>
                 Amount (₦)
                 <input
@@ -403,19 +436,27 @@ export function ConsoleSubscription({ shopId, onChanged }: { shopId: string; onC
                 <input name="note" maxLength={500} />
               </label>
             </div>
-            <button type="submit">
-              <Icon name="payments" /> Record payment
-            </button>
+            <div className="console-form-footer">
+              <span />
+              <button type="submit">
+                <Icon name="payments" /> Record payment
+              </button>
+            </div>
           </fieldset>
         </form>
       </section>
       <section className="panel">
-        <h2>Payments</h2>
+        <h2>Payment history</h2>
         {lastPaidTo && <p className="muted">Last payment extended it to {shown(lastPaidTo)}.</p>}
         {detail.payments.length === 0 ? (
           <p className="muted">No payments recorded yet.</p>
         ) : (
-          <div className="table-wrap">
+          <ResponsiveTable
+            columns={[
+              { index: 1, label: 'Amount', details: [0, 2] },
+              { index: 3, label: 'Extended to', details: [4] },
+            ]}
+          >
             <table aria-label="Payments">
               <thead>
                 <tr>
@@ -444,7 +485,7 @@ export function ConsoleSubscription({ shopId, onChanged }: { shopId: string; onC
                 ))}
               </tbody>
             </table>
-          </div>
+          </ResponsiveTable>
         )}
       </section>
     </>
@@ -525,7 +566,13 @@ export function ConsolePlans() {
         {!list && !problem && <p className="muted">Loading…</p>}
         {list && list.length === 0 && <p className="muted">No plans yet.</p>}
         {list && list.length > 0 && (
-          <div className="table-wrap">
+          <ResponsiveTable
+            columns={[
+              { index: 0, label: 'Plan', details: [2, 3, 4] },
+              { index: 1, label: 'Price' },
+              { index: 5, label: 'Actions', actions: true },
+            ]}
+          >
             <table aria-label="Plans">
               <thead>
                 <tr>
@@ -542,10 +589,8 @@ export function ConsolePlans() {
                   <tr key={p.id}>
                     <td>
                       {p.name}
-                      <small>
-                        {p.archived ? 'Archived · ' : ''}
-                        {p.description || p.id}
-                      </small>
+                      {p.archived && <Badge tone="muted">Archived</Badge>}
+                      <small>{p.description || p.id}</small>
                     </td>
                     <td className="numeric">{currency(p.price)}</td>
                     <td className="numeric">{p.periodDays}</td>
@@ -581,7 +626,7 @@ export function ConsolePlans() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </ResponsiveTable>
         )}
       </section>
       {editing && (
