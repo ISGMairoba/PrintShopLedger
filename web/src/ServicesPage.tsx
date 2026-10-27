@@ -1,3 +1,4 @@
+import { itemMaterialEvents } from './item-material.mjs';
 import DialogActions from './DialogActions';
 import { useFeedbackMessage } from './Feedback';
 import CurrencyInput from './CurrencyInput';
@@ -37,6 +38,17 @@ type Props = {
 const timestamp = (value: string) => new Date(value).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' });
 /** The material select's value for a choice of materials. */
 const CHOICE = '__choice';
+const CREATE = '__create_material';
+type StockDraft = {
+  id?: string;
+  name: string;
+  unit: string;
+  minimum: string;
+  requireSize: boolean;
+  mode: 'none' | 'add' | 'set';
+  quantity: string;
+  reason: string;
+};
 
 export default function ServicesPage({
   services,
@@ -68,6 +80,8 @@ export default function ServicesPage({
   const [pricing, setPricing] = useState<'single' | 'packs' | 'ranges' | 'custom'>('single');
   // Material: '' = none, a material id = one fixed material, CHOICE = a choice of materials.
   const [materialValue, setMaterialValue] = useState('');
+  const [itemName, setItemName] = useState('');
+  const [stockDraft, setStockDraft] = useState<StockDraft | null>(null);
   const [choiceIds, setChoiceIds] = useState<string[]>([]);
   const [confirmStage, setConfirmStage] = useState('Printing');
   const { jobStages } = useBusinessOptions();
@@ -95,6 +109,7 @@ export default function ServicesPage({
   };
   const openEditor = (target: Service | 'new') => {
     const s = target === 'new' ? null : target;
+    setItemName(s?.description ?? '');
     setPacks(packDraft(s?.packPrices));
     setTiers(tierDraft(s?.priceTiers));
     setPricing(
@@ -113,8 +128,34 @@ export default function ServicesPage({
     setMaterialValue(s?.materialOptions?.length ? CHOICE : (s?.materialId ?? ''));
     setChoiceIds(s?.materialOptions ?? []);
     setConfirmStage(s?.confirmStage ?? defaultConfirmStage);
+    setStockDraft(null);
     setEditor(target);
   };
+  const linkedMaterial = materials.find((m) => m.id === materialValue);
+  const sharedMaterialUsers = linkedMaterial
+    ? services.filter(
+        (s) =>
+          !s.archived &&
+          s.id !== editing?.id &&
+          (s.materialId === linkedMaterial.id || s.materialOptions?.includes(linkedMaterial.id)),
+      )
+    : [];
+  function chooseMaterial(value: string) {
+    setMaterialValue(value);
+    setStockDraft(
+      value === CREATE
+        ? {
+            name: itemName.slice(0, 160),
+            unit: units.includes('piece') ? 'piece' : (units[0] ?? ''),
+            minimum: '0',
+            requireSize: false,
+            mode: 'none',
+            quantity: '0',
+            reason: '',
+          }
+        : null,
+    );
+  }
   const activeMaterials = materials.filter((item) => !item.archived);
   const options = materials.filter((item) => !item.archived || item.id === editing?.materialId);
   const sorting = useTableSort<Service>('description');
@@ -187,11 +228,11 @@ export default function ServicesPage({
                 : {}),
             }
           : null;
-      await commit(editing ? 'service.updated' : 'service.created', {
+      const values = {
         id,
         baseVersion: editing?.version,
         description: String(data.get('description')).trim(),
-        materialId: materialValue === CHOICE ? null : materialValue || null,
+        materialId: materialValue === CHOICE || materialValue === CREATE ? null : materialValue || null,
         materialOptions: materialValue === CHOICE ? choiceIds : [],
         ...(materialValue === CHOICE ? { confirmStage } : {}),
         price,
@@ -202,7 +243,21 @@ export default function ServicesPage({
         packPrices: !privateItem && pricing === 'packs' ? packPricesFrom(packs) : [],
         priceTiers: !privateItem && pricing === 'ranges' ? tiersFrom(tiers) : [],
         customPrice: !privateItem && pricing === 'custom',
-      });
+      };
+      const event: ServiceEvent = {
+        id: crypto.randomUUID(),
+        kind: editing ? 'service.updated' : 'service.created',
+        data: {
+          ...values,
+          modifiedBy: actor.id,
+          modifiedByLabel: actor.label,
+          modifiedAt: new Date().toISOString(),
+        },
+      };
+      if (materialValue === CREATE && !stockDraft) throw Error('Enter base material details.');
+      await onSaveMany(itemMaterialEvents(ledgerFor(), event, stockDraft));
+      setError('');
+      setEditor(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Enter a valid price.');
     }
@@ -594,7 +649,8 @@ export default function ServicesPage({
                   <input
                     name="description"
                     maxLength={500}
-                    defaultValue={editing?.description ?? ''}
+                    value={itemName}
+                    onChange={(e) => setItemName(e.target.value)}
                     placeholder="e.g. A4 colour printing"
                     required
                   />
@@ -605,10 +661,11 @@ export default function ServicesPage({
                     label={w('Base material')}
                     name="material"
                     value={materialValue}
-                    onChange={setMaterialValue}
+                    onChange={chooseMaterial}
                     pinned={[
                       { value: '', label: w('No material — service only') },
                       ...(!privateItem ? [{ value: CHOICE, label: w('A choice of materials…') }] : []),
+                      { value: CREATE, label: 'Create base material' },
                     ]}
                     options={options.map((item) => ({
                       value: item.id,
@@ -633,6 +690,137 @@ export default function ServicesPage({
                   </label>
                 )}
               </div>
+              {linkedMaterial && !stockDraft && (
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={linkedMaterial.archived}
+                  onClick={() =>
+                    setStockDraft({
+                      id: linkedMaterial.id,
+                      name: linkedMaterial.name,
+                      unit: linkedMaterial.measurementUnit,
+                      minimum: String(linkedMaterial.minimumStock ?? 0),
+                      requireSize: linkedMaterial.requireSize,
+                      mode: 'none',
+                      quantity: '',
+                      reason: '',
+                    })
+                  }
+                >
+                  <Icon name="edit" /> Edit base material
+                </button>
+              )}
+              {stockDraft && (
+                <fieldset className="material-choice">
+                  <legend>{stockDraft.id ? 'Edit base material' : 'Create base material'}</legend>
+                  {!!sharedMaterialUsers.length && (
+                    <p className="notice" role="note">
+                      This stock item is also used by{' '}
+                      {sharedMaterialUsers.map((s) => s.description).join(', ')}. Changes apply to all of
+                      them.
+                    </p>
+                  )}
+                  {linkedMaterial && (
+                    <p>
+                      Current stock: {linkedMaterial.available} {linkedMaterial.measurementUnit}
+                    </p>
+                  )}
+                  <div className="form-grid">
+                    <label>
+                      Material name
+                      <input
+                        aria-label="Material name"
+                        maxLength={160}
+                        value={stockDraft.name}
+                        placeholder="Uses the item name if left empty"
+                        onChange={(e) => setStockDraft({ ...stockDraft, name: e.target.value })}
+                      />
+                    </label>
+                    <label>
+                      Material unit
+                      <select
+                        aria-label="Material unit"
+                        required
+                        value={stockDraft.unit}
+                        onChange={(e) => setStockDraft({ ...stockDraft, unit: e.target.value })}
+                      >
+                        {[...new Set([stockDraft.unit, ...units])].filter(Boolean).map((unit) => (
+                          <option key={unit}>{unit}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      Minimum stock
+                      <input
+                        aria-label="Material minimum stock"
+                        type="number"
+                        min="0"
+                        step="0.001"
+                        required
+                        value={stockDraft.minimum}
+                        onChange={(e) => setStockDraft({ ...stockDraft, minimum: e.target.value })}
+                      />
+                    </label>
+                  </div>
+                  <label className="checkbox">
+                    <input
+                      type="checkbox"
+                      checked={stockDraft.requireSize}
+                      onChange={(e) => setStockDraft({ ...stockDraft, requireSize: e.target.checked })}
+                    />
+                    Require size
+                  </label>
+                  {stockDraft.id && (
+                    <label>
+                      Stock change
+                      <select
+                        aria-label="Material stock change"
+                        value={stockDraft.mode}
+                        onChange={(e) =>
+                          setStockDraft({
+                            ...stockDraft,
+                            mode: e.target.value as StockDraft['mode'],
+                            quantity: '',
+                            reason: '',
+                          })
+                        }
+                      >
+                        <option value="none">Leave stock unchanged</option>
+                        <option value="add">Add to stock</option>
+                        <option value="set">Set counted stock</option>
+                      </select>
+                    </label>
+                  )}
+                  {(!stockDraft.id || stockDraft.mode !== 'none') && (
+                    <label>
+                      {stockDraft.id ? 'Stock quantity' : 'Opening stock'}
+                      <input
+                        aria-label={stockDraft.id ? 'Material stock quantity' : 'Material opening stock'}
+                        type="number"
+                        min={stockDraft.mode === 'add' ? '0.001' : '0'}
+                        step="0.001"
+                        required
+                        value={stockDraft.quantity}
+                        onChange={(e) => setStockDraft({ ...stockDraft, quantity: e.target.value })}
+                      />
+                    </label>
+                  )}
+                  {stockDraft.id && stockDraft.mode !== 'none' && (
+                    <label>
+                      Reason
+                      <input
+                        aria-label="Material stock reason"
+                        required
+                        maxLength={500}
+                        value={stockDraft.reason}
+                        onChange={(e) => setStockDraft({ ...stockDraft, reason: e.target.value })}
+                      />
+                    </label>
+                  )}
+                  <small>The material and item changes are saved together when you save this item.</small>
+                </fieldset>
+              )}
               <label className="checkbox">
                 <input
                   type="checkbox"
