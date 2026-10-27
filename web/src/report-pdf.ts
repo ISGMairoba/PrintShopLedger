@@ -1,3 +1,4 @@
+import { documentHeaderGeometry, resolveWatermark } from './document-logos.mjs';
 import { jsPDF, GState } from 'jspdf';
 import { poweredByLine, receiptBusiness, validLogo } from './business-branding.mjs';
 import { registerPdfFonts, pdfText, PDF_FONT } from './pdf-common';
@@ -32,14 +33,23 @@ export function createReportPdf(business: string | Branding, options: ReportPdfO
       /* A broken logo must not block the report. */
     }
   }
-  // Faint centred logo behind each page's content, when the business turns it on.
+  const watermarkData = resolveWatermark(b);
+  let mark: { type: string; w: number; h: number } | null = null;
+  if (watermarkData) {
+    try {
+      const image = doc.getImageProperties(watermarkData);
+      mark = { type: image.fileType, w: image.width, h: image.height };
+    } catch {
+      /* Ignore broken artwork. */
+    }
+  }
   const watermark = () => {
-    if (!logo || !b.documents?.watermark) return;
-    const scale = Math.min(150 / logo.w, 110 / logo.h),
-      w = logo.w * scale,
-      h = logo.h * scale;
+    if (!mark) return;
+    const scale = Math.min(150 / mark.w, 110 / mark.h),
+      w = mark.w * scale,
+      h = mark.h * scale;
     doc.setGState(new GState({ opacity: 0.07 }));
-    doc.addImage(logo.data, logo.type, (pageW - w) / 2, (pageH - h) / 2, w, h, 'watermark', 'FAST');
+    doc.addImage(watermarkData, mark.type, (pageW - w) / 2, (pageH - h) / 2, w, h, 'watermark', 'FAST');
     doc.setGState(new GState({ opacity: 1 }));
   };
   const newPage = () => {
@@ -49,6 +59,7 @@ export function createReportPdf(business: string | Branding, options: ReportPdfO
   };
   watermark();
   let y = margin;
+  let textX = margin;
   const write = (
     text: string,
     size: number,
@@ -61,7 +72,7 @@ export function createReportPdf(business: string | Branding, options: ReportPdfO
     doc.setTextColor(...colour);
     for (const row of doc.splitTextToSize(latin(text), width) as string[]) {
       if (y > bottom) y = newPage();
-      doc.text(row, margin, y + size * 0.35);
+      doc.text(row, textX, y + size * 0.35);
       y += size * 0.45;
     }
   };
@@ -72,14 +83,18 @@ export function createReportPdf(business: string | Branding, options: ReportPdfO
     const scale = Math.min(70 / logo.w, 32 / logo.h),
       w = logo.w * scale,
       h = logo.h * scale;
-    doc.addImage(logo.data, logo.type, pageW - margin - w, margin, w, h, 'logo', 'FAST');
-    logoBottom = margin + h;
-    textWidth = usable - w - 8;
+    const layout = documentHeaderGeometry(b.receiptPage?.logoPosition, margin, margin, usable, w, h);
+    doc.addImage(logo.data, logo.type, layout.x, layout.y, w, h, 'logo', 'FAST');
+    logoBottom = layout.bottom;
+    textWidth = layout.textWidth;
+    textX = layout.textX;
+    y = layout.textY;
   }
   write(b.businessName || 'Business', 14, 'bold', [20, 20, 20], textWidth);
   const contacts = [b.address, [b.phones, b.email, b.website].filter(Boolean).join('  |  ')].filter(Boolean);
   for (const line of contacts) write(line, 8.5, 'normal', [90, 90, 90], textWidth);
   y = Math.max(y, logoBottom) + 5;
+  textX = margin;
   doc.setDrawColor(200, 205, 200);
   doc.line(margin, y - 2, margin + usable, y - 2);
   y += 2;

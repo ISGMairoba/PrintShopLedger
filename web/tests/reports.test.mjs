@@ -452,7 +452,7 @@ test('Watermark setting defaults off, validates, and older saved settings still 
   const old = defaultBranding();
   old.businessName = 'Shop';
   delete old.documents;
-  assert.deepEqual(validateBranding(old).documents, { watermark: false });
+  assert.deepEqual(validateBranding(old).documents, { watermark: false, watermarkLogoLayout: '' });
   assert.throws(() => validateBranding({ ...old, documents: { watermark: 'yes' } }), /document options/);
   assert.equal(receiptBusiness({ businessName: 'x' }).documents.watermark, false);
   assert.equal(validateBranding({ ...old, documents: { watermark: true } }).documents.watermark, true);

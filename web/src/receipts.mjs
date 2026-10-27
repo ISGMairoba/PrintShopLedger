@@ -1,3 +1,4 @@
+import { resolveWatermark, logoPosition, documentHeaderHtml } from './document-logos.mjs';
 import { paymentName } from './business-options.mjs';
 import { templateSpecLines } from './pricing-templates.mjs';
 import { escapeHtml } from './print-settings.mjs';
@@ -186,6 +187,8 @@ export function receiptModel(record, business, pending = false, adjustments = []
     business: {
       // A wordmark logo can stand in for the name; the name always shows when there is no logo.
       name: o.showBusinessName || !(o.showLogo && b.logo && validLogo(b.logo)) ? b.businessName : '',
+      logoPosition: logoPosition(o.logoPosition),
+      watermarkLogo: resolveWatermark(b),
       logo: o.showLogo && b.logo && validLogo(b.logo) ? b.logo : '',
       address: o.showAddress ? b.address : '',
       contacts,
@@ -291,7 +294,12 @@ export function receiptHtml(record, business, pending = false, adjustments = [],
         .map(([k, v]) => `<td class="k">${e(k)}</td><td>${e(v)}</td>`)
         .join('')}</tr>`,
     );
-  return `<style>${css}</style><div class="psl-w"><table class="head"><tr>${m.business.name ? `<td><h1>${e(m.business.name)}</h1>${contact ? `<p class="contact">${contact}</p>` : ''}</td><td class="r">${logo}</td>` : `<td>${logo}${contact ? `<p class="contact">${contact}</p>` : ''}</td>`}</tr></table><table class="band"><tr><td class="t">${e(m.title)}</td><td class="r">No. ${e(m.number)}</td></tr></table>${notices}<table class="meta">${metaRows.join('')}</table>${m.items.length ? `<table class="items"><thead><tr><th>${e(m.itemHeading ?? 'Job')}</th>${cols.map(([h]) => `<th class="r">${h}</th>`).join('')}</tr></thead><tbody>${items}</tbody></table>` : ''}<table class="sum">${totals}</table>${m.account.length ? `<table class="acct">${m.account.map((a) => row(a.label, a.value)).join('')}</table>` : ''}${m.note ? `<p class="adj">Note: ${e(m.note)}</p>` : ''}${adjustmentsHtml}${m.footer ? `<p class="foot">${e(m.footer)}</p>` : ''}${creditHtml}</div>`;
+  const identity = `${m.business.name ? `<h1>${e(m.business.name)}</h1>` : ''}${contact ? `<p class="contact">${contact}</p>` : ''}`;
+  const header = documentHeaderHtml(identity, logo, m.business.logoPosition);
+  const watermark = m.business.watermarkLogo
+    ? `<img class="document-watermark" src="${e(m.business.watermarkLogo)}" alt=""/>`
+    : '';
+  return `<style>${css}.psl-w{position:relative;isolation:isolate}.psl-w .document-watermark{position:absolute;top:110px;left:15%;width:70%;max-height:400px;object-fit:contain;opacity:.06;z-index:-1;pointer-events:none}.psl-w .head-logo .logo{display:inline-block}</style><div class="psl-w">${watermark}${header}<table class="band"><tr><td class="t">${e(m.title)}</td><td class="r">No. ${e(m.number)}</td></tr></table>${notices}<table class="meta">${metaRows.join('')}</table>${m.items.length ? `<table class="items"><thead><tr><th>${e(m.itemHeading ?? 'Job')}</th>${cols.map(([h]) => `<th class="r">${h}</th>`).join('')}</tr></thead><tbody>${items}</tbody></table>` : ''}<table class="sum">${totals}</table>${m.account.length ? `<table class="acct">${m.account.map((a) => row(a.label, a.value)).join('')}</table>` : ''}${m.note ? `<p class="adj">Note: ${e(m.note)}</p>` : ''}${adjustmentsHtml}${m.footer ? `<p class="foot">${e(m.footer)}</p>` : ''}${creditHtml}</div>`;
 }
 
 /** Narrow receipt layout for roll paper up to 90mm wide. */

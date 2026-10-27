@@ -1,3 +1,4 @@
+import { resolveWatermark, logoPosition, documentHeaderHtml } from './document-logos.mjs';
 import { tierPrice } from './price-tiers.mjs';
 // Quotations: priced offers for a customer. Saving one never touches stock, jobs or money.
 // "Create order" opens a normal checkout filled from the quotation; once that sale is saved the
@@ -297,6 +298,8 @@ export function quotationModel(quote, business, layout = 'page', now = new Date(
   return {
     business: {
       name: o.showBusinessName || !(o.showLogo && b.logo && validLogo(b.logo)) ? b.businessName : '',
+      logoPosition: logoPosition(o.logoPosition),
+      watermarkLogo: resolveWatermark(b),
       logo: o.showLogo && b.logo && validLogo(b.logo) ? b.logo : '',
       address: o.showAddress ? b.address : '',
       contacts: o.showContacts ? [b.phones, b.email, b.website, b.socials].filter(Boolean) : [],

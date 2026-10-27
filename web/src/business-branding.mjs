@@ -1,3 +1,4 @@
+import { logoPositions } from './document-logos.mjs';
 import {
   logoVariantsDefaults,
   logoUsageDefaults,
@@ -136,10 +137,12 @@ export const defaultBranding = () => ({
     showContacts: true,
     footer: 'Thank you for your business.',
     logoLayout: '',
+    logoPosition: 'right',
     ...receiptContentDefaults(),
   },
   receiptPage: {
     logoLayout: '',
+    logoPosition: 'right',
     showLogo: true,
     showBusinessName: true,
     showAddress: true,
@@ -147,7 +150,7 @@ export const defaultBranding = () => ({
     footer: 'Thank you for your business.',
     ...receiptContentDefaults(),
   },
-  documents: { watermark: false },
+  documents: { watermark: false, watermarkLogoLayout: '' },
   poweredBy: poweredByDefaults(),
 });
 export function validLogo(value) {
@@ -198,7 +201,10 @@ export function validateBranding(input) {
   value.documents ??= { watermark: false };
   if (typeof value.documents !== 'object' || typeof value.documents.watermark !== 'boolean')
     throw Error('Invalid document options.');
-  value.documents = { watermark: value.documents.watermark };
+  const watermarkLogoLayout = value.documents.watermarkLogoLayout ?? '';
+  if (!['', 'complete', 'stacked', 'horizontal', 'wordmark', 'icon'].includes(watermarkLogoLayout))
+    throw Error('Choose a valid watermark logo.');
+  value.documents = { watermark: value.documents.watermark, watermarkLogoLayout };
   value.poweredBy = validatePoweredBy(value.poweredBy);
   value.options = validateOptions(value.options);
   if (value.pageAccessVersion !== PAGE_ACCESS_VERSION) value.pageAccess = upgradePageAccess(value.pageAccess);
@@ -396,6 +402,8 @@ export function validateJobSettings(input) {
 export function validateReceiptOptions(input) {
   if (!input || typeof input !== 'object') throw Error('Invalid receipt options.');
   const value = { ...input };
+  value.logoPosition ??= 'right';
+  if (!Object.hasOwn(logoPositions, value.logoPosition)) throw Error('Choose a valid logo position.');
   value.logoLayout ??= '';
   if (!['', 'complete', 'stacked', 'horizontal', 'wordmark', 'icon'].includes(value.logoLayout))
     throw Error('Choose a valid receipt logo layout.');
