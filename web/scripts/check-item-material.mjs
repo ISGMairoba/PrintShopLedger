@@ -100,7 +100,6 @@ try {
     const materialId = service.materialId;
     assert.equal(state.ledger.materials.find((m) => m.id === materialId).available, 10);
     const row = page.getByRole('row').filter({ hasText: 'Inline stock test' });
-    if (mobile) await row.getByRole('button', { name: /More/ }).click();
     await row.getByRole('button', { name: 'Edit', exact: true }).click();
     d = page.getByRole('dialog', { name: 'Edit service', exact: true });
     await d.getByRole('button', { name: 'Edit base material', exact: true }).click();
@@ -118,7 +117,6 @@ try {
     await page.getByRole('button', { name: 'Try locally on this device' }).click();
     await nav('Services');
     await page.getByRole('row').filter({ hasText: 'Inline stock test' }).waitFor();
-    if (mobile) await row.getByRole('button', { name: /More/ }).click();
     await row.getByRole('button', { name: 'Edit', exact: true }).click();
     d = page.getByRole('dialog', { name: 'Edit service', exact: true });
     await d.getByRole('button', { name: 'Edit base material', exact: true }).click();
