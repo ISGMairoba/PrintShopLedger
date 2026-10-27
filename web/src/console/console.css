@@ -112,7 +112,9 @@
   font-size: 17px;
 }
 .console-main .panel > h2 + .muted,
-.console-main .panel > .muted {
+.console-main .panel > .muted,
+.console-main .panel > .toolbar + .muted {
+  padding: 0;
   margin: 0 0 16px;
   font-size: 13px;
   max-width: 75ch;
@@ -120,6 +122,7 @@
 .console-main .panel > .toolbar {
   padding: 0;
   border-bottom: 0;
+  justify-content: space-between;
   margin: 0 0 16px;
   gap: 16px;
 }

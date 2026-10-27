@@ -334,7 +334,15 @@ try {
     const staffTable = page.getByRole('table', { name: 'Staff accounts' });
     await staffTable.getByRole('row', { name: /Ada/ }).getByRole('button', { name: 'Remove access' }).click();
     await page.getByText('Ada can no longer sign in.').waitFor();
-    await staffTable.getByRole('row', { name: /Ada/ }).getByRole('button', { name: 'Set password' }).click();
+    if (mobile) {
+      // On phones the other actions are under More.
+      await staffTable.getByRole('row', { name: /Ada/ }).getByRole('button', { name: 'More' }).click();
+      await page.getByRole('dialog').getByRole('button', { name: 'Set password' }).click();
+    } else
+      await staffTable
+        .getByRole('row', { name: /Ada/ })
+        .getByRole('button', { name: 'Set password' })
+        .click();
     await page.getByLabel('New password', { exact: true }).fill('a-new-staff-password');
     await page.getByRole('button', { name: 'Set password', exact: true }).last().click();
     await page.getByText('New password set for Ada. Tell them in person.').waitFor();

@@ -466,7 +466,12 @@ function BusinessView({
           </section>
           <section className="panel">
             <h2>Staff accounts</h2>
-            <div className="table-wrap console-scroll">
+            <ResponsiveTable
+              columns={[
+                { index: 0, label: 'Name', details: [1, 3] },
+                { index: 4, label: 'Status', details: [2] },
+              ]}
+            >
               <table aria-label="Staff accounts">
                 <thead>
                   <tr>
@@ -499,7 +504,7 @@ function BusinessView({
                   ))}
                 </tbody>
               </table>
-            </div>
+            </ResponsiveTable>
           </section>
           <section className="panel">
             <h2>Console activity for this business</h2>
@@ -597,7 +602,13 @@ function ConsoleStaff({ data, onChanged }: { data: BusinessDetail; onChanged: ()
           </p>
         )}
         {problem && <p role="alert">{problem}</p>}
-        <div className="table-wrap console-scroll">
+        <ResponsiveTable
+          columns={[
+            { index: 0, label: 'Name', details: [2] },
+            { index: 1, label: 'Role' },
+            { index: 3, label: 'Actions', actions: true },
+          ]}
+        >
           <table aria-label="Staff accounts">
             <thead>
               <tr>
@@ -700,7 +711,7 @@ function ConsoleStaff({ data, onChanged }: { data: BusinessDetail; onChanged: ()
               ))}
             </tbody>
           </table>
-        </div>
+        </ResponsiveTable>
       </section>
       {password && (
         <section className="panel">
@@ -887,7 +898,20 @@ function Team({ me }: { me: ConsoleMember }) {
         )}
         {problem && <p role="alert">{problem}</p>}
         {data && (
-          <div className="table-wrap console-scroll">
+          <ResponsiveTable
+            columns={
+              owner
+                ? [
+                    { index: 0, label: 'Name', details: [2] },
+                    { index: 1, label: 'Role' },
+                    { index: 3, label: 'Actions', actions: true },
+                  ]
+                : [
+                    { index: 0, label: 'Name', details: [2] },
+                    { index: 1, label: 'Role' },
+                  ]
+            }
+          >
             <table aria-label="Console team">
               <thead>
                 <tr>
@@ -955,7 +979,7 @@ function Team({ me }: { me: ConsoleMember }) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </ResponsiveTable>
         )}
       </section>
       {owner && (
