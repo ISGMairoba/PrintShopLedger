@@ -490,7 +490,7 @@ try {
     ]);
     // The free trial for new businesses.
     await page.getByLabel('Give every new business a free trial', { exact: true }).check();
-    await page.getByLabel('Trial plan', { exact: true }).selectOption('standard');
+    await page.getByLabel('Trial plan').selectOption('standard');
     await page.getByLabel('Trial length (days)', { exact: true }).fill('21');
     await page.screenshot({
       path: `/tmp/console-trial-${mobile ? 'mobile' : 'desktop'}.png`,
