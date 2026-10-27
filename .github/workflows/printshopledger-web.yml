@@ -116,6 +116,7 @@ jobs:
             /tmp/job-batches-*.png
             /tmp/pricing-templates-*.png
             /tmp/expenses-mobile*.png
+            /tmp/console-*.png
           retention-days: 7
 
 
