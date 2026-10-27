@@ -89,6 +89,9 @@ export const supabase = url && key ? createClient(url, key, { auth: { detectSess
 // Business identity remains signed in while the operational staff session changes.
 export const businessAuth =
   url && key ? createClient(url, key, { auth: { storageKey: 'printshopledger-business-auth' } }) : null;
+// The developer console signs in on its own, never with a business's account.
+export const consoleAuth =
+  url && key ? createClient(url, key, { auth: { storageKey: 'printshopledger-console-auth' } }) : null;
 
 async function synchronize(scope: string, shopId: string) {
   if (!supabase || !navigator.onLine) throw Error('Connect to the internet to sync.');
