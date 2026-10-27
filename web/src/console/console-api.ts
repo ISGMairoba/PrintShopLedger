@@ -15,6 +15,7 @@ export type BusinessRow = {
 };
 export type StaffRow = {
   id: string;
+  version: number;
   name: string;
   username: string;
   role: string;
@@ -120,4 +121,32 @@ export async function changePassword(password: string) {
   if (password.length < 12) throw Error('Use a password of at least 12 characters.');
   const { error } = await client().auth.updateUser({ password });
   if (error) throw Error(error.message);
+}
+
+export type SavedSettings = { settings: unknown; version: number; modifiedAt: string } | null;
+export const businessSettings = (id: string) =>
+  call<SavedSettings>('console_business_settings', { p_shop: id });
+export const saveBusinessSettings = (id: string, version: number, settings: unknown) =>
+  call<{ version: number; modified_at: string }>('console_save_business_settings', {
+    p_shop: id,
+    p_version: version,
+    p_settings: settings,
+  });
+/** Change a staff member: edit (name, username, role), grant, revoke, archive or restore. */
+export const saveStaff = (shopId: string, action: string, data: Record<string, unknown>) =>
+  call<null>('console_save_staff', { p_shop: shopId, p_action: action, p_data: data });
+/** Add staff or set a staff password (console-staff server function). */
+export async function staffAction(body: Record<string, unknown>) {
+  const { data, error } = await client().functions.invoke('console-staff', { body });
+  if (error) {
+    const context = (error as { context?: Response }).context;
+    const message = context
+      ? await context
+          .json()
+          .then((x) => x?.error)
+          .catch(() => '')
+      : '';
+    throw Error(message || error.message);
+  }
+  return data;
 }

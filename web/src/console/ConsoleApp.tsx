@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import Icon from '../Icon';
+import BusinessSettingsPage from '../BusinessSettingsPage';
+import { BusinessOptionsContext } from '../BusinessOptionsContext';
+import { TermsProvider } from '../Words';
+import { validateBranding } from '../business-branding.mjs';
+import type { Branding } from '../useBusinessBranding';
 import { currency } from '../receipts.mjs';
 import {
   activity,
@@ -12,6 +17,11 @@ import {
   signOut,
   team,
   teamAction,
+  businessSettings,
+  saveBusinessSettings,
+  saveStaff,
+  staffAction,
+  type StaffRow,
   type BusinessDetail,
   type BusinessRow,
   type ConsoleAction,
@@ -41,6 +51,14 @@ const actionLabels: Record<string, string> = {
   'team.member_set': 'Changed team member',
   'team.member_added': 'Added team member',
   'team.password_reset': 'Reset team member password',
+  'settings.saved': 'Saved business settings',
+  'staff.created': 'Added staff',
+  'staff.edit': 'Changed staff',
+  'staff.grant': 'Gave staff access',
+  'staff.revoke': 'Removed staff access',
+  'staff.archive': 'Archived staff',
+  'staff.restore': 'Restored staff',
+  'staff.password_reset': 'Set staff password',
 };
 
 type View =
@@ -281,7 +299,7 @@ function Businesses({ onOpen }: { onOpen: (id: string) => void }) {
 }
 
 function Business({ id, onBack }: { id: string; onBack: () => void }) {
-  const { data, error } = useLoad(() => business(id), [id]);
+  const { data, error, reload } = useLoad(() => business(id), [id]);
   const log = useLoad(() => activity(id), [id]);
   if (error)
     return (
@@ -293,18 +311,31 @@ function Business({ id, onBack }: { id: string; onBack: () => void }) {
       </section>
     );
   if (!data) return <p className="muted">Loading…</p>;
-  return <BusinessView data={data} log={log.data ?? []} onBack={onBack} />;
+  return (
+    <BusinessView
+      data={data}
+      log={log.data ?? []}
+      onBack={onBack}
+      onChanged={() => {
+        reload();
+        log.reload();
+      }}
+    />
+  );
 }
 
 function BusinessView({
   data,
   log,
   onBack,
+  onChanged,
 }: {
   data: BusinessDetail;
   log: ConsoleAction[];
   onBack: () => void;
+  onChanged: () => void;
 }) {
+  const [tab, setTab] = useState<'overview' | 'settings' | 'staff'>('overview');
   const storage = Object.values(data.storageBytes).reduce((n, b) => n + b, 0);
   const peak = Math.max(1, ...data.daily.map((d) => d.events));
   const staff = data.staff.filter((s) => s.role !== 'developer');
@@ -322,76 +353,385 @@ function BusinessView({
           </p>
         </div>
       </section>
-      <section className="stats">
-        <article>
-          <span>Customers</span>
-          <strong>{data.records.customers}</strong>
-          <small>
-            {data.records.jobs} jobs · {data.records.payments} payments
-          </small>
-        </article>
-        <article>
-          <span>Catalogue</span>
-          <strong>{data.records.services}</strong>
-          <small>
-            {data.records.materials} stock items · {data.records.stockChanges} stock changes
-          </small>
-        </article>
-        <article>
-          <span>Stored in the cloud</span>
-          <strong>{kb(storage)}</strong>
-          <small>{data.records.events} recorded changes</small>
-        </article>
-        <article>
-          <span>Staff</span>
-          <strong>{staff.filter((s) => !s.archived).length}</strong>
-          <small>{staff.filter((s) => s.archived).length} turned off</small>
-        </article>
-      </section>
+      <div className="settings-tabs" role="tablist" aria-label="Business sections">
+        {(
+          [
+            ['overview', 'Overview', 'dashboard'],
+            ['settings', 'Business settings', 'settings'],
+            ['staff', 'Staff & access', 'users'],
+          ] as const
+        ).map(([key, label, icon]) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={tab === key}
+            className={tab === key ? 'active' : 'secondary'}
+            onClick={() => setTab(key)}
+          >
+            <Icon name={icon} /> {label}
+          </button>
+        ))}
+      </div>
+      {tab === 'settings' && <ConsoleSettings shopId={data.id} onSaved={onChanged} />}
+      {tab === 'staff' && <ConsoleStaff data={data} onChanged={onChanged} />}
+      {tab === 'overview' && (
+        <>
+          <section className="stats">
+            <article>
+              <span>Customers</span>
+              <strong>{data.records.customers}</strong>
+              <small>
+                {data.records.jobs} jobs · {data.records.payments} payments
+              </small>
+            </article>
+            <article>
+              <span>Catalogue</span>
+              <strong>{data.records.services}</strong>
+              <small>
+                {data.records.materials} stock items · {data.records.stockChanges} stock changes
+              </small>
+            </article>
+            <article>
+              <span>Stored in the cloud</span>
+              <strong>{kb(storage)}</strong>
+              <small>{data.records.events} recorded changes</small>
+            </article>
+            <article>
+              <span>Staff</span>
+              <strong>{staff.filter((s) => !s.archived).length}</strong>
+              <small>{staff.filter((s) => s.archived).length} turned off</small>
+            </article>
+          </section>
+          <section className="panel">
+            <h2>Activity, last 30 days</h2>
+            <p className="muted">Changes recorded per day (sales, payments, stock, settings…).</p>
+            <div
+              className="console-bars"
+              role="img"
+              aria-label="Changes recorded per day over the last 30 days"
+            >
+              {data.daily.map((d) => (
+                <span key={d.day} title={`${d.day}: ${d.events} changes, ${currency(d.sales)} sales`}>
+                  <i style={{ height: `${Math.round((d.events / peak) * 100)}%` }} />
+                </span>
+              ))}
+            </div>
+            <small className="muted">
+              {data.daily[0]?.day} to {data.daily.at(-1)?.day} · busiest day {peak} changes
+            </small>
+          </section>
+          <section className="panel">
+            <h2>Staff accounts</h2>
+            <div className="table-wrap">
+              <table aria-label="Staff accounts">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Username</th>
+                    <th>Role</th>
+                    <th>Last activity</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.staff.map((s) => (
+                    <tr key={s.id}>
+                      <td>{s.name}</td>
+                      <td>{s.username}</td>
+                      <td>
+                        {s.role === 'developer' ? 'Developer' : s.role[0].toUpperCase() + s.role.slice(1)}
+                      </td>
+                      <td>{ago(s.lastActivity)}</td>
+                      <td>{s.archived ? 'Turned off' : s.accessLevel === 0 ? 'No access' : 'Active'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+          <section className="panel">
+            <h2>Console activity for this business</h2>
+            <ActivityTable rows={log} showBusiness={false} />
+          </section>
+        </>
+      )}
+    </>
+  );
+}
+
+/** The business's own Business Settings page, saved from the console with every tab. */
+function ConsoleSettings({ shopId, onSaved }: { shopId: string; onSaved: () => void }) {
+  const { data, error, reload } = useLoad(() => businessSettings(shopId), [shopId]);
+  if (error) return <p role="alert">{error}</p>;
+  if (!data) return <p className="muted">Loading…</p>;
+  if (data.settings === null)
+    return (
+      <p className="muted">This business has not saved its settings yet. Open it once in the app first.</p>
+    );
+  let settings: Branding;
+  try {
+    settings = validateBranding(data.settings);
+  } catch (cause) {
+    return (
+      <p role="alert">
+        The saved settings could not be read: {cause instanceof Error ? cause.message : String(cause)}
+      </p>
+    );
+  }
+  return (
+    <BusinessOptionsContext.Provider value={settings.options}>
+      <TermsProvider value={settings.terms}>
+        <BusinessSettingsPage
+          key={data.version}
+          settings={settings}
+          version={data.version}
+          ready
+          online
+          demo={false}
+          modifiedAt={data.modifiedAt}
+          accessLevel={4}
+          onSave={async (next, version) => {
+            const saved = await saveBusinessSettings(shopId, version, validateBranding(next));
+            reload();
+            onSaved();
+            return saved;
+          }}
+          onReload={async () => reload()}
+        />
+      </TermsProvider>
+    </BusinessOptionsContext.Provider>
+  );
+}
+
+const roleOptions = [
+  ['cashier', 'Cashier'],
+  ['admin', 'Admin'],
+  ['manager', 'Manager'],
+  ['developer', 'Developer'],
+] as const;
+
+/** Staff accounts: add, change role, turn access off or on, set a password. */
+function ConsoleStaff({ data, onChanged }: { data: BusinessDetail; onChanged: () => void }) {
+  const [busy, setBusy] = useState(false),
+    [message, setMessage] = useState(''),
+    [problem, setProblem] = useState(''),
+    [password, setPassword] = useState<StaffRow | null>(null);
+  async function act(work: () => Promise<unknown>, done: string) {
+    setBusy(true);
+    setMessage('');
+    setProblem('');
+    try {
+      await work();
+      setMessage(done);
+      onChanged();
+    } catch (cause) {
+      setProblem(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setBusy(false);
+    }
+  }
+  const base = (s: StaffRow) => ({ id: s.id, version: s.version });
+  return (
+    <>
       <section className="panel">
-        <h2>Activity, last 30 days</h2>
-        <p className="muted">Changes recorded per day (sales, payments, stock, settings…).</p>
-        <div className="console-bars" role="img" aria-label="Changes recorded per day over the last 30 days">
-          {data.daily.map((d) => (
-            <span key={d.day} title={`${d.day}: ${d.events} changes, ${currency(d.sales)} sales`}>
-              <i style={{ height: `${Math.round((d.events / peak) * 100)}%` }} />
-            </span>
-          ))}
-        </div>
-        <small className="muted">
-          {data.daily[0]?.day} to {data.daily.at(-1)?.day} · busiest day {peak} changes
-        </small>
-      </section>
-      <section className="panel">
-        <h2>Staff accounts</h2>
+        <h2>Staff & access</h2>
+        <p className="muted">
+          The console acts as the business's Developer. Which pages each role can open is set under Business
+          settings → Page access.
+        </p>
+        {message && (
+          <p role="status" className="notice notice-success">
+            {message}
+          </p>
+        )}
+        {problem && <p role="alert">{problem}</p>}
         <div className="table-wrap">
           <table aria-label="Staff accounts">
             <thead>
               <tr>
                 <th>Name</th>
-                <th>Username</th>
                 <th>Role</th>
-                <th>Last activity</th>
                 <th>Status</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {data.staff.map((s) => (
                 <tr key={s.id}>
-                  <td>{s.name}</td>
-                  <td>{s.username}</td>
-                  <td>{s.role === 'developer' ? 'Developer' : s.role[0].toUpperCase() + s.role.slice(1)}</td>
-                  <td>{ago(s.lastActivity)}</td>
+                  <td>
+                    {s.name}
+                    <small>
+                      {s.username} · last active {ago(s.lastActivity)}
+                    </small>
+                  </td>
+                  <td>
+                    <select
+                      aria-label={`Role of ${s.name}`}
+                      value={s.role}
+                      disabled={busy || s.archived}
+                      onChange={(e) =>
+                        act(
+                          () =>
+                            saveStaff(data.id, 'edit', {
+                              ...base(s),
+                              name: s.name,
+                              username: s.username,
+                              role: e.target.value,
+                            }),
+                          `${s.name} is now ${e.target.value}.`,
+                        )
+                      }
+                    >
+                      {roleOptions.map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
                   <td>{s.archived ? 'Turned off' : s.accessLevel === 0 ? 'No access' : 'Active'}</td>
+                  <td>
+                    <div className="material-actions">
+                      {!s.archived && (
+                        <button
+                          type="button"
+                          className="secondary"
+                          disabled={busy}
+                          onClick={() =>
+                            act(
+                              () => saveStaff(data.id, s.accessLevel === 0 ? 'grant' : 'revoke', base(s)),
+                              s.accessLevel === 0
+                                ? `${s.name} can sign in again.`
+                                : `${s.name} can no longer sign in.`,
+                            )
+                          }
+                        >
+                          <Icon name={s.accessLevel === 0 ? 'restore' : 'close'} />{' '}
+                          {s.accessLevel === 0 ? 'Give access' : 'Remove access'}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="secondary"
+                        disabled={busy}
+                        onClick={() =>
+                          act(
+                            () => saveStaff(data.id, s.archived ? 'restore' : 'archive', base(s)),
+                            s.archived ? `${s.name} is back.` : `${s.name} is archived.`,
+                          )
+                        }
+                      >
+                        <Icon name={s.archived ? 'restore' : 'archive'} />{' '}
+                        {s.archived ? 'Restore' : 'Archive'}
+                      </button>
+                      {!s.archived && (
+                        <button
+                          type="button"
+                          className="secondary"
+                          disabled={busy}
+                          onClick={() => setPassword(s)}
+                        >
+                          <Icon name="account" /> Set password
+                        </button>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </section>
+      {password && (
+        <section className="panel">
+          <h2>Set a password for {password.name}</h2>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const f = new FormData(e.currentTarget);
+              const target = password;
+              void act(
+                () =>
+                  staffAction({
+                    action: 'reset-password',
+                    shopId: data.id,
+                    memberId: target.id,
+                    name: target.name,
+                    password: String(f.get('password')),
+                  }).then(() => setPassword(null)),
+                `New password set for ${target.name}. Tell them in person.`,
+              );
+            }}
+          >
+            <fieldset disabled={busy}>
+              <label>
+                New password
+                <input name="password" type="password" minLength={12} autoComplete="new-password" required />
+              </label>
+              <div className="material-actions">
+                <button type="button" className="secondary" onClick={() => setPassword(null)}>
+                  <Icon name="close" /> Cancel
+                </button>
+                <button type="submit">
+                  <Icon name="save" /> Set password
+                </button>
+              </div>
+            </fieldset>
+          </form>
+        </section>
+      )}
       <section className="panel">
-        <h2>Console activity for this business</h2>
-        <ActivityTable rows={log} showBusiness={false} />
+        <h2>Add staff</h2>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const f = new FormData(form);
+            void act(
+              () =>
+                staffAction({
+                  action: 'create',
+                  shopId: data.id,
+                  name: String(f.get('name')),
+                  username: String(f.get('username')),
+                  role: String(f.get('role')),
+                  password: String(f.get('password')),
+                }).then(() => form.reset()),
+              'Staff account added.',
+            );
+          }}
+        >
+          <fieldset disabled={busy}>
+            <div className="form-grid">
+              <label>
+                Name
+                <input name="name" maxLength={160} required />
+              </label>
+              <label>
+                Username
+                <input name="username" maxLength={40} required pattern="[a-zA-Z0-9][a-zA-Z0-9._\-]{2,39}" />
+              </label>
+              <label>
+                Role
+                <select name="role" defaultValue="cashier">
+                  {roleOptions.map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Starting password
+                <input name="password" type="password" minLength={12} autoComplete="new-password" required />
+              </label>
+            </div>
+            <button type="submit">
+              <Icon name="add" /> Add staff
+            </button>
+          </fieldset>
+        </form>
       </section>
     </>
   );
@@ -417,6 +757,10 @@ function ActivityTable({ rows, showBusiness = true }: { rows: ConsoleAction[]; s
               <td>{a.actorName}</td>
               <td>
                 {actionLabels[a.action] ?? a.action}
+                {typeof a.details?.staff === 'string' && a.details.staff && <small>{a.details.staff}</small>}
+                {Array.isArray(a.details?.changed) && (a.details.changed as string[]).length > 0 && (
+                  <small>Changed: {(a.details.changed as string[]).join(', ')}</small>
+                )}
                 {a.reason && <small>Reason: {a.reason}</small>}
               </td>
               {showBusiness && <td>{a.business ?? '—'}</td>}
