@@ -1,3 +1,4 @@
+import { documentHeaderGeometry, resolveWatermark } from './document-logos.mjs';
 import { jsPDF, GState } from 'jspdf';
 import { poweredByLine, receiptBusiness } from './business-branding.mjs';
 import { receiptIntegrityError, receiptModel } from './receipts.mjs';
@@ -60,7 +61,7 @@ function imageInfo(doc: jsPDF, data: string) {
  * Page receipt (A4, A5, Letter…). Everything is proportional to the printable width, as a
  * fraction of the A4 design, so smaller pages shrink evenly; long receipts continue on new pages.
  */
-function drawPage(doc: jsPDF, m: Model, media: ReceiptMedia, watermark: boolean, credit: string) {
+function drawPage(doc: jsPDF, m: Model, media: ReceiptMedia, watermark: string, credit: string) {
   const W = media.width,
     H = media.height,
     L = media.margins.left,
@@ -77,17 +78,18 @@ function drawPage(doc: jsPDF, m: Model, media: ReceiptMedia, watermark: boolean,
   const brand = media.color ? rgb(m.business.primary) : BLACK,
     accent = media.color ? rgb(m.business.accent) : BLACK;
   const logo = m.business.logo ? imageInfo(doc, m.business.logo) : null;
+  const watermarkInfo = watermark ? imageInfo(doc, watermark) : null;
   const mark = () => {
-    if (!logo || !watermark) return;
-    const s = Math.min((U * 0.73) / logo.w, (H * 0.34) / logo.h);
+    if (!watermarkInfo) return;
+    const s = Math.min((U * 0.73) / watermarkInfo.w, (H * 0.34) / watermarkInfo.h);
     doc.setGState(new GState({ opacity: 0.06 }));
     doc.addImage(
-      m.business.logo,
-      logo.type,
-      (W - logo.w * s) / 2,
-      (H - logo.h * s) / 2,
-      logo.w * s,
-      logo.h * s,
+      watermark,
+      watermarkInfo.type,
+      (W - watermarkInfo.w * s) / 2,
+      (H - watermarkInfo.h * s) / 2,
+      watermarkInfo.w * s,
+      watermarkInfo.h * s,
       'wm',
       'FAST',
     );
@@ -121,25 +123,40 @@ function drawPage(doc: jsPDF, m: Model, media: ReceiptMedia, watermark: boolean,
     lines.forEach((line, i) => doc.text(line, x, y + i * s * 0.42, { align }));
     return lines.length * s * 0.42;
   };
-  // Header: identity left, logo right. Without the name (a wordmark logo), the logo leads on the left.
-  let logoH = 0,
-    textW = U;
-  if (logo && m.business.name) {
-    const s = Math.min((U * 0.34) / logo.w, (28 * k) / logo.h);
-    doc.addImage(m.business.logo, logo.type, R - logo.w * s, TOP - 4, logo.w * s, logo.h * s, 'logo', 'FAST');
-    logoH = logo.h * s;
-    textW = U - logo.w * s - 8 * k;
-  }
+  let textX = L,
+    textW = U,
+    logoBottom = TOP - 4;
   y = TOP + 2 * k;
-  if (logo && !m.business.name) {
-    const s = Math.min((U * 0.5) / logo.w, (28 * k) / logo.h);
-    doc.addImage(m.business.logo, logo.type, L, TOP - 4, logo.w * s, logo.h * s, 'logo', 'FAST');
-    y = TOP - 4 + logo.h * s + 4 * k;
+  if (logo) {
+    const scale = Math.min((U * (m.business.name ? 0.34 : 0.5)) / logo.w, (28 * k) / logo.h);
+    const layout = documentHeaderGeometry(
+      m.business.logoPosition,
+      L,
+      TOP - 4,
+      U,
+      logo.w * scale,
+      logo.h * scale,
+      8 * k,
+    );
+    doc.addImage(
+      m.business.logo,
+      logo.type,
+      layout.x,
+      layout.y,
+      logo.w * scale,
+      logo.h * scale,
+      'logo',
+      'FAST',
+    );
+    logoBottom = layout.bottom;
+    textX = layout.textX;
+    textW = layout.textWidth;
+    y = layout.textY + 6 * k;
   }
-  if (m.business.name) y += text(m.business.name, L, 17, 'bold', brand, 'left', textW) + 1 * k;
+  if (m.business.name) y += text(m.business.name, textX, 17, 'bold', brand, 'left', textW) + 1 * k;
   for (const line of [m.business.address, m.business.contacts.join('  |  ')].filter(Boolean))
-    y += text(line, L, 8.8, 'normal', MUTED, 'left', textW);
-  y = Math.max(y, TOP - 4 + logoH) + 5 * k;
+    y += text(line, textX, 8.8, 'normal', MUTED, 'left', textW);
+  y = Math.max(y, logoBottom) + 5 * k;
   // Title band
   const band = 11 * k;
   doc.setFillColor(...brand);
@@ -461,7 +478,7 @@ export function createReceiptPdf(
  * business's watermark and, where Developer turned it on, the installer credit.
  */
 function modelPdf(m: Model, media: ReceiptMedia, business: string | Branding) {
-  const watermark = !!receiptBusiness(business).documents?.watermark;
+  const watermark = resolveWatermark(receiptBusiness(business));
   const credit = poweredByLine(business, media.layout === 'roll' ? 'receipts' : 'pages');
   if (media.layout === 'roll') {
     // Measure on a long strip, then draw again on a page exactly as tall as the content.

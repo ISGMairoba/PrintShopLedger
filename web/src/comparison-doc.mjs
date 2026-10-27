@@ -1,3 +1,4 @@
+import { resolveWatermark, logoPosition, documentHeaderHtml } from './document-logos.mjs';
 // A client comparison as a document: each priced option of one template, with only the details the
 // client may see. Drawn by the same PDF code as quotations (A4, A5 or any page size).
 import { poweredByLine, receiptBusiness, validLogo } from './business-branding.mjs';
@@ -66,6 +67,8 @@ export function comparisonModel(template, rows, business, details = {}) {
   return {
     business: {
       name: o.showBusinessName || !(o.showLogo && b.logo && validLogo(b.logo)) ? b.businessName : '',
+      logoPosition: logoPosition(o.logoPosition),
+      watermarkLogo: resolveWatermark(b),
       logo: o.showLogo && b.logo && validLogo(b.logo) ? b.logo : '',
       address: o.showAddress ? b.address : '',
       contacts: o.showContacts ? [b.phones, b.email, b.website, b.socials].filter(Boolean) : [],

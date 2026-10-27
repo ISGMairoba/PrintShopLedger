@@ -1,3 +1,4 @@
+import { logoPositions, resolveWatermark } from './document-logos.mjs';
 import Icon from './Icon';
 import { useFeedbackMessage, FeedbackBanner } from './Feedback';
 import { TEMPLATE_LIMIT } from './pricing-templates.mjs';
@@ -436,6 +437,22 @@ export default function BusinessSettingsPage({
                       ))}
                     </select>
                   </label>
+                  {previewLayout !== 'narrow' && (
+                    <label>
+                      Full-page logo position
+                      <select
+                        aria-label="Full-page logo position"
+                        value={opts.logoPosition ?? 'right'}
+                        onChange={(e) => receipt('logoPosition', e.target.value)}
+                      >
+                        {Object.entries(logoPositions).map(([key, label]) => (
+                          <option key={key} value={key}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
                   <small>
                     {previewLayout === 'narrow'
                       ? 'Used on 80mm and 58mm receipts, including roll PDFs.'
@@ -564,8 +581,32 @@ export default function BusinessSettingsPage({
                         field('documents', { ...draft.documents, watermark: e.target.checked })
                       }
                     />
-                    Show logo as a faint watermark on report PDFs
+                    Show a faint watermark on full-page documents and report PDFs
                   </label>
+                  <label>
+                    Watermark logo
+                    <select
+                      aria-label="Watermark logo"
+                      value={draft.documents?.watermarkLogoLayout ?? ''}
+                      onChange={(e) =>
+                        field('documents', { ...draft.documents, watermarkLogoLayout: e.target.value })
+                      }
+                    >
+                      <option value="">Use full-page document logo</option>
+                      {Object.entries(logoLayouts).map(([key, label]) => (
+                        <option key={key} value={key}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {draft.documents?.watermark && resolveWatermark(draft) && (
+                    <img
+                      src={resolveWatermark(draft)}
+                      alt="Selected watermark logo"
+                      style={{ maxWidth: 120, maxHeight: 70, objectFit: 'contain', opacity: 0.35 }}
+                    />
+                  )}
                   {!resolveLogo(draft) && <small>Add a logo under Profile & logo to use a watermark.</small>}
                   <small>
                     {w(
