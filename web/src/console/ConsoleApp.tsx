@@ -22,6 +22,9 @@ import {
   saveStaff,
   staffAction,
   type StaffRow,
+  type DeviceRow,
+  devices,
+  deviceAction,
   type BusinessDetail,
   type BusinessRow,
   type ConsoleAction,
@@ -59,6 +62,9 @@ const actionLabels: Record<string, string> = {
   'staff.archive': 'Archived staff',
   'staff.restore': 'Restored staff',
   'staff.password_reset': 'Set staff password',
+  'device.sign-out': 'Asked a device to sign out',
+  'device.cancel-sign-out': 'Cancelled a device sign-out',
+  'device.forget': 'Removed a device from the list',
 };
 
 type View =
@@ -285,7 +291,10 @@ function Businesses({ onOpen }: { onOpen: (id: string) => void }) {
                     <td className="numeric">{currency(b.sales30)}</td>
                     <td>
                       {ago(b.lastActivity)}
-                      <small>{b.events7} changes in 7 days</small>
+                      <small>
+                        {b.events7} changes in 7 days
+                        {b.devices7 !== undefined ? ` · ${b.devices7} devices` : ''}
+                      </small>
                     </td>
                   </tr>
                 ))}
@@ -335,7 +344,7 @@ function BusinessView({
   onBack: () => void;
   onChanged: () => void;
 }) {
-  const [tab, setTab] = useState<'overview' | 'settings' | 'staff'>('overview');
+  const [tab, setTab] = useState<'overview' | 'settings' | 'staff' | 'devices'>('overview');
   const storage = Object.values(data.storageBytes).reduce((n, b) => n + b, 0);
   const peak = Math.max(1, ...data.daily.map((d) => d.events));
   const staff = data.staff.filter((s) => s.role !== 'developer');
@@ -359,6 +368,7 @@ function BusinessView({
             ['overview', 'Overview', 'dashboard'],
             ['settings', 'Business settings', 'settings'],
             ['staff', 'Staff & access', 'users'],
+            ['devices', 'Devices', 'drawer'],
           ] as const
         ).map(([key, label, icon]) => (
           <button
@@ -375,6 +385,7 @@ function BusinessView({
       </div>
       {tab === 'settings' && <ConsoleSettings shopId={data.id} onSaved={onChanged} />}
       {tab === 'staff' && <ConsoleStaff data={data} onChanged={onChanged} />}
+      {tab === 'devices' && <ConsoleDevices shopId={data.id} onChanged={onChanged} />}
       {tab === 'overview' && (
         <>
           <section className="stats">
@@ -758,6 +769,9 @@ function ActivityTable({ rows, showBusiness = true }: { rows: ConsoleAction[]; s
               <td>
                 {actionLabels[a.action] ?? a.action}
                 {typeof a.details?.staff === 'string' && a.details.staff && <small>{a.details.staff}</small>}
+                {typeof a.details?.device === 'string' && a.details.device && (
+                  <small>{a.details.device}</small>
+                )}
                 {Array.isArray(a.details?.changed) && (a.details.changed as string[]).length > 0 && (
                   <small>Changed: {(a.details.changed as string[]).join(', ')}</small>
                 )}
@@ -967,5 +981,134 @@ function Team({ me }: { me: ConsoleMember }) {
         </form>
       </section>
     </>
+  );
+}
+
+/** Each phone or computer using the business: who, when, app version, unsent work, History check. */
+function ConsoleDevices({ shopId, onChanged }: { shopId: string; onChanged: () => void }) {
+  const { data, error, reload } = useLoad(() => devices(shopId), [shopId]);
+  const [busy, setBusy] = useState(false),
+    [message, setMessage] = useState(''),
+    [problem, setProblem] = useState('');
+  async function act(device: DeviceRow, action: 'sign-out' | 'cancel-sign-out' | 'forget', done: string) {
+    setBusy(true);
+    setMessage('');
+    setProblem('');
+    try {
+      await deviceAction(shopId, device.id, action);
+      setMessage(done);
+      reload();
+      onChanged();
+    } catch (cause) {
+      setProblem(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setBusy(false);
+    }
+  }
+  const status = (d: DeviceRow) =>
+    d.signOutRequestedAt && (!d.signedOutAt || d.signedOutAt < d.signOutRequestedAt)
+      ? 'Sign-out requested'
+      : d.signedOutAt && d.signOutRequestedAt
+        ? `Signed out ${ago(d.signedOutAt)}`
+        : Date.now() - Date.parse(d.lastSeen) < 15 * 60000
+          ? 'In use'
+          : 'Idle';
+  return (
+    <section className="panel">
+      <h2>Devices</h2>
+      <p className="muted">
+        Each phone or computer reports itself when it syncs, at most every few minutes. Signing a device out
+        happens the next time it syncs; any unsent work stays on it and sends after the next sign-in.
+      </p>
+      {message && (
+        <p role="status" className="notice notice-success">
+          {message}
+        </p>
+      )}
+      {(problem || error) && <p role="alert">{problem || error}</p>}
+      {!data && !error && <p className="muted">Loading…</p>}
+      {data && !data.length && (
+        <p className="muted">No device has reported yet. Devices appear after their next sync.</p>
+      )}
+      {data && data.length > 0 && (
+        <div className="table-wrap">
+          <table aria-label="Devices">
+            <thead>
+              <tr>
+                <th>Device</th>
+                <th>Last seen</th>
+                <th>Sync</th>
+                <th>History check</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((d) => (
+                <tr key={d.id}>
+                  <td>
+                    {d.name || 'Unknown device'}
+                    <small>
+                      {d.userLabel || 'No staff signed in'} · app {d.appVersion || '—'}
+                    </small>
+                  </td>
+                  <td>
+                    {ago(d.lastSeen)}
+                    <small>{status(d)}</small>
+                  </td>
+                  <td>
+                    {d.pending ? `${d.pending} unsent` : 'All sent'}
+                    {d.held > 0 && <small className="danger-text">{d.held} waiting for review</small>}
+                    <small>Last sync {ago(d.lastSynced)}</small>
+                  </td>
+                  <td>
+                    {d.history?.checked
+                      ? d.history.differing
+                        ? `${d.history.differing} differ`
+                        : `All ${d.history.checked} match`
+                      : 'Not run yet'}
+                    {d.history?.checkedAt && <small>{ago(d.history.checkedAt)}</small>}
+                  </td>
+                  <td>
+                    <div className="material-actions">
+                      {status(d) === 'Sign-out requested' ? (
+                        <button
+                          type="button"
+                          className="secondary"
+                          disabled={busy}
+                          onClick={() => act(d, 'cancel-sign-out', 'Sign-out cancelled.')}
+                        >
+                          <Icon name="restore" /> Cancel sign-out
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="secondary"
+                          disabled={busy}
+                          onClick={() =>
+                            act(d, 'sign-out', `${d.name} will sign out the next time it syncs.`)
+                          }
+                        >
+                          <Icon name="close" /> Sign out
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="secondary"
+                        disabled={busy}
+                        onClick={() =>
+                          act(d, 'forget', `${d.name} removed from the list. It reappears if used again.`)
+                        }
+                      >
+                        <Icon name="archive" /> Remove from list
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }

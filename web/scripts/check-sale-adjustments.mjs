@@ -152,6 +152,8 @@ try {
               },
             ];
           else if (path.endsWith('/business_settings')) result = [];
+          else if (path.endsWith('/report_device') || path.endsWith('/ack_device_sign_out'))
+            result = { signOut: false };
           else if (/\/get_ledger(_changes)?$/.test(path)) result = cloud;
           else if (path.endsWith('/apply_supervised_event')) {
             const event = route.request().postDataJSON().p_event;

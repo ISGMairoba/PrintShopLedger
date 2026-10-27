@@ -1,3 +1,4 @@
+import { confirmSignedOut, reportDevice } from './device-report';
 import { setStockBelowZeroBlocked } from './stock-rule.mjs';
 import useSyncConflicts from './app/useSyncConflicts';
 import BatchJobProgressDialog from './BatchJobProgressDialog';
@@ -645,11 +646,27 @@ export default function App() {
     pollMs: (branding.settings.security.syncMinutes ?? 2) * 60000,
     run: async () => {
       const target = scope;
-      const next = await syncLedger(target, shop!.id);
+      const shopId = shop!.id;
+      const next = await syncLedger(target, shopId);
       slowSyncs.current = 0;
       if (activeScope.current === target) {
         setState(next);
         channel.current?.postMessage('changed');
+      }
+      // Tell the developer console how this device is doing; it may ask the device to sign out.
+      if (await reportDevice(target, shopId, next)) {
+        await confirmSignedOut(shopId);
+        await Promise.all([
+          supabase!.auth.signOut({ scope: 'local' }),
+          businessAuth!.auth.signOut({ scope: 'local' }),
+        ]);
+        setSession(null);
+        setBusinessSession(null);
+        setShop(null);
+        setMessage(
+          'This device was signed out by PrintShopLedger support. Any unsent work is kept and sends after the next sign-in.',
+          'warning',
+        );
       }
     },
     onError: (error) => {

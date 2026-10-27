@@ -150,6 +150,8 @@ try {
             },
           ];
         else if (path.endsWith('/business_settings')) result = [{ settings, version: settingsVersion }];
+        else if (path.endsWith('/report_device') || path.endsWith('/ack_device_sign_out'))
+          result = { signOut: false };
         else if (/\/get_ledger(_changes)?$/.test(path)) result = ledger;
         else throw Error('Unexpected request: ' + path);
         // Syncs ask for changes since a cursor; this test server always sends everything.
