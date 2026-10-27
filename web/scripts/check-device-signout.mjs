@@ -93,7 +93,7 @@ try {
   await page.getByLabel('Business password', { exact: true }).fill('test-password');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   // After its first sync the device reports itself, is asked to sign out, confirms and signs out.
-  await page.getByText('This device was signed out by PrintShopLedger support.', { exact: false }).waitFor();
+  await page.getByText('This device was signed out by PrintShopLedger support.', { exact: false }).first().waitFor();
   await page.getByLabel('Business email', { exact: true }).waitFor();
   assert.equal(acknowledged, 1);
   const report = reports[0];
