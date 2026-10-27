@@ -258,13 +258,30 @@ try {
             },
           ],
         };
+      else if (path.endsWith('/console_trial_settings'))
+        result = {
+          enabled: false,
+          planId: null,
+          days: 14,
+          graceDays: 3,
+          expiryMode: 'read_only',
+          pagesOff: [],
+          message: '',
+        };
+      else if (path.endsWith('/console_business_backup'))
+        result = {
+          format: 'printshopledger-backup',
+          version: 1,
+          business: { id: shop, name: 'Mairoba Studios' },
+        };
       else if (
+        path.endsWith('/console_save_trial_settings') ||
         path.endsWith('/console_save_subscription') ||
         path.endsWith('/console_record_payment') ||
         path.endsWith('/console_save_plan')
       ) {
         const body = route.request().postDataJSON();
-        saved.push([path.split('/').pop(), body.p_sub ?? body.p_payment ?? body.p_plan]);
+        saved.push([path.split('/').pop(), body.p_sub ?? body.p_payment ?? body.p_plan ?? body.p_trial]);
         result = null;
       } else if (path.endsWith('/console-staff')) {
         const body = route.request().postDataJSON();
@@ -307,6 +324,16 @@ try {
     // A business's overview.
     await list.getByRole('button', { name: 'Mairoba Studios', exact: true }).click();
     await page.getByRole('heading', { name: 'Mairoba Studios', exact: true }).waitFor();
+    // A full backup downloads as one file.
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByRole('button', { name: 'Download backup', exact: true }).click(),
+    ]);
+    assert.match(download.suggestedFilename(), /^mairoba-studios-backup-\d{4}-\d{2}-\d{2}\.json$/);
+    const backupFile = JSON.parse(
+      await (await import('node:fs/promises')).readFile(await download.path(), 'utf8'),
+    );
+    assert.equal(backupFile.format, 'printshopledger-backup');
     // Business settings: the business's own settings page, saved from the console.
     await page.getByRole('tab', { name: 'Business settings', exact: true }).click();
     await page.getByLabel('Business name', { exact: true }).waitFor();
@@ -459,6 +486,28 @@ try {
         maxDevices: 5,
         description: '',
         archived: false,
+      },
+    ]);
+    // The free trial for new businesses.
+    await page.getByLabel('Give every new business a free trial', { exact: true }).check();
+    await page.getByLabel('Trial plan', { exact: true }).selectOption('standard');
+    await page.getByLabel('Trial length (days)', { exact: true }).fill('21');
+    await page.screenshot({
+      path: `/tmp/console-trial-${mobile ? 'mobile' : 'desktop'}.png`,
+      fullPage: true,
+    });
+    await page.getByRole('button', { name: 'Save trial', exact: true }).click();
+    await page.getByText('New businesses now get a 21-day trial.').waitFor();
+    assert.deepEqual(saved.at(-1), [
+      'console_save_trial_settings',
+      {
+        enabled: true,
+        planId: 'standard',
+        days: 21,
+        graceDays: 3,
+        expiryMode: 'read_only',
+        pagesOff: [],
+        message: '',
       },
     ]);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);

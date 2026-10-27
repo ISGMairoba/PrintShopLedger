@@ -10,6 +10,9 @@ import {
   savePlan,
   saveSubscription,
   subscription as loadSubscription,
+  trialSettings as loadTrial,
+  saveTrialSettings as saveTrial,
+  type TrialSettings,
   type ExpiryMode,
   type Plan,
   type Subscription,
@@ -312,26 +315,11 @@ export function ConsoleSubscription({ shopId, onChanged }: { shopId: string; onC
               </label>
             </div>
             {draft.expiryMode === 'pages_off' && (
-              <fieldset className="console-pages">
-                <legend>Pages to turn off when it runs out</legend>
-                {pages.map((page) => (
-                  <label className="check-label" key={page}>
-                    <input
-                      type="checkbox"
-                      checked={draft.pagesOff.includes(page)}
-                      onChange={(e) =>
-                        set(
-                          'pagesOff',
-                          e.target.checked
-                            ? [...draft.pagesOff, page]
-                            : draft.pagesOff.filter((p) => p !== page),
-                        )
-                      }
-                    />
-                    {page}
-                  </label>
-                ))}
-              </fieldset>
+              <PagesOff
+                legend="Pages to turn off when it runs out"
+                value={draft.pagesOff}
+                onChange={(next) => set('pagesOff', next)}
+              />
             )}
             <div className="console-form-footer">
               <label>
@@ -489,6 +477,200 @@ export function ConsoleSubscription({ shopId, onChanged }: { shopId: string; onC
         )}
       </section>
     </>
+  );
+}
+
+function PagesOff({
+  legend,
+  value,
+  onChange,
+}: {
+  legend: string;
+  value: string[];
+  onChange: (next: string[]) => void;
+}) {
+  return (
+    <fieldset className="console-pages">
+      <legend>{legend}</legend>
+      {pages.map((page) => (
+        <label className="check-label" key={page}>
+          <input
+            type="checkbox"
+            checked={value.includes(page)}
+            onChange={(e) => onChange(e.target.checked ? [...value, page] : value.filter((p) => p !== page))}
+          />
+          {page}
+        </label>
+      ))}
+    </fieldset>
+  );
+}
+
+/** The free trial every new business starts on. */
+function TrialPanel({ plans }: { plans: Plan[] }) {
+  const [trial, setTrial] = useState<TrialSettings | null>(null),
+    [saved, setSaved] = useState<TrialSettings | null>(null),
+    [busy, setBusy] = useState(false),
+    [message, setMessage] = useState(''),
+    [problem, setProblem] = useState('');
+  useEffect(() => {
+    let live = true;
+    loadTrial()
+      .then((t) => {
+        if (!live) return;
+        setTrial(t);
+        setSaved(t);
+      })
+      .catch((cause) => live && setProblem(errorText(cause)));
+    return () => {
+      live = false;
+    };
+  }, []);
+  if (!trial)
+    return (
+      <section className="panel">
+        <h2>Free trial for new businesses</h2>
+        {problem ? <p role="alert">{problem}</p> : <p className="muted">Loading…</p>}
+      </section>
+    );
+  const set = <K extends keyof TrialSettings>(key: K, value: TrialSettings[K]) =>
+    setTrial((t) => (t ? { ...t, [key]: value } : t));
+  return (
+    <section className="panel">
+      <h2>Free trial for new businesses</h2>
+      <p className="muted">
+        Every business that registers from now on starts on this trial automatically. Existing businesses are
+        not changed; set theirs on each business's Subscription tab.
+      </p>
+      {message && (
+        <p role="status" className="notice notice-success">
+          {message}
+        </p>
+      )}
+      {problem && <p role="alert">{problem}</p>}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          setBusy(true);
+          setMessage('');
+          setProblem('');
+          const next = { ...trial, pagesOff: trial.expiryMode === 'pages_off' ? trial.pagesOff : [] };
+          saveTrial(next)
+            .then(() => {
+              setSaved(next);
+              setMessage(
+                next.enabled
+                  ? `New businesses now get a ${next.days}-day trial.`
+                  : 'New businesses no longer get a trial.',
+              );
+            })
+            .catch((cause) => setProblem(errorText(cause)))
+            .finally(() => setBusy(false));
+        }}
+      >
+        <fieldset disabled={busy}>
+          <label className="check-label">
+            <input
+              type="checkbox"
+              checked={trial.enabled}
+              onChange={(e) => set('enabled', e.target.checked)}
+            />
+            Give every new business a free trial
+          </label>
+          {trial.enabled && (
+            <>
+              <div className="form-grid console-grid-3">
+                <label>
+                  Trial plan
+                  <select value={trial.planId ?? ''} onChange={(e) => set('planId', e.target.value || null)}>
+                    <option value="">No plan</option>
+                    {plans
+                      .filter((p) => !p.archived || p.id === trial.planId)
+                      .map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                          {p.maxDevices ? ` — up to ${p.maxDevices} devices` : ''}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <label>
+                  Trial length (days)
+                  <input
+                    type="number"
+                    min={1}
+                    max={365}
+                    required
+                    value={trial.days}
+                    onChange={(e) => set('days', Number(e.target.value))}
+                  />
+                </label>
+                <label>
+                  Grace days
+                  <input
+                    type="number"
+                    min={0}
+                    max={60}
+                    required
+                    value={trial.graceDays}
+                    onChange={(e) => set('graceDays', Number(e.target.value))}
+                  />
+                </label>
+                <label>
+                  When the trial runs out
+                  <select
+                    value={trial.expiryMode}
+                    onChange={(e) => set('expiryMode', e.target.value as ExpiryMode)}
+                  >
+                    {modeLabels.map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                  <small>{modeLabels.find(([value]) => value === trial.expiryMode)?.[2]}</small>
+                </label>
+                <label className="console-span-2">
+                  Message to the business
+                  <textarea
+                    maxLength={500}
+                    rows={2}
+                    placeholder="e.g. Your free trial has ended. Call 0800 000 0000 to subscribe."
+                    value={trial.message}
+                    onChange={(e) => set('message', e.target.value)}
+                  />
+                </label>
+              </div>
+              {trial.expiryMode === 'pages_off' && (
+                <PagesOff
+                  legend="Pages to turn off when the trial runs out"
+                  value={trial.pagesOff}
+                  onChange={(next) => set('pagesOff', next)}
+                />
+              )}
+            </>
+          )}
+          <div className="console-form-footer">
+            <span />
+            <div className="material-actions">
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  setTrial(saved);
+                  setProblem('');
+                }}
+              >
+                <Icon name="close" /> Cancel
+              </button>
+              <button type="submit">
+                <Icon name="save" /> Save trial
+              </button>
+            </div>
+          </div>
+        </fieldset>
+      </form>
+    </section>
   );
 }
 
@@ -723,6 +905,7 @@ export function ConsolePlans() {
           </form>
         </section>
       )}
+      {list && <TrialPanel plans={list} />}
     </>
   );
 }

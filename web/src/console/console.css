@@ -412,3 +412,15 @@ td .console-badge + small {
     font-size: 23px;
   }
 }
+@media (min-width: 900px) {
+  .console-main .form-grid.console-grid-3 > .console-span-2 {
+    grid-column: span 2;
+  }
+}
+.console-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
