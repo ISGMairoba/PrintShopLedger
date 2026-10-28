@@ -6,9 +6,13 @@ import './branding.css';
 import './feedback.css';
 import './consistency.css';
 import { FeedbackProvider } from './Feedback';
+import { installInputGuard } from './input-guard.mjs';
 // The developer console (/console) is a separate part of the app, loaded only when opened.
 const ConsoleApp = lazy(() => import('./console/ConsoleApp'));
 const isConsole = window.location.pathname === '/console' || window.location.pathname.startsWith('/console/');
+
+// Number and phone fields refuse letters as they are typed (input-guard.mjs).
+installInputGuard();
 
 // Scroll bars stay hidden until needed (consistency.css): an area shows its bar while it scrolls.
 {
