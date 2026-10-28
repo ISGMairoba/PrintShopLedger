@@ -45,7 +45,8 @@ try {
     created_at: now,
   };
   const settings = { ...defaultBranding(), businessName: 'Mairoba Studios' };
-  const run = async (name, subscription, report) => {
+  const problems = [];
+  const run = async (name, subscription, report, beforeSignIn) => {
     const context = await browser.newContext({
       viewport: { width: 1280, height: 900 },
       serviceWorkers: 'block',
@@ -74,7 +75,10 @@ try {
       else if (path.endsWith('/business_settings')) result = [{ settings, version: 1 }];
       else if (path.endsWith('/get_ledger_changes'))
         result = { cursor: '1', full: true, ledger: emptyLedger() };
-      else if (path.endsWith('/my_subscription')) result = subscription;
+      else if (path.endsWith('/report_problems')) {
+        problems.push(route.request().postDataJSON());
+        result = null;
+      } else if (path.endsWith('/my_subscription')) result = subscription;
       else if (path.endsWith('/report_device')) result = report;
       else if (path.endsWith('/ack_device_sign_out')) result = null;
       else throw Error('Unexpected request: ' + path);
@@ -85,6 +89,7 @@ try {
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
     await page.goto(`http://127.0.0.1:${port}`);
+    await beforeSignIn?.(page);
     await page.getByLabel('Business email', { exact: true }).fill('shop@example.invalid');
     await page.getByLabel('Business password', { exact: true }).fill('test-password');
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
@@ -104,12 +109,25 @@ try {
         message: 'Call 0800 to renew.',
       },
       { signOut: false, deviceLimit: 0 },
+      // An app error before signing in is noted, then sent to the console with the first sync.
+      (page) =>
+        page.evaluate(() =>
+          window.dispatchEvent(
+            new ErrorEvent('error', { message: 'Test problem', error: new Error('Test problem') }),
+          ),
+        ),
     );
     await page.getByText('Some pages are turned off until it is renewed.', { exact: false }).waitFor();
     await page.getByText('Call 0800 to renew.', { exact: false }).first().waitFor();
     const nav = page.getByRole('navigation', { name: 'Main' });
     await nav.getByRole('button', { name: 'Point of Service', exact: true }).waitFor();
     assert.equal(await nav.getByRole('button', { name: 'Reports', exact: true }).count(), 0);
+    for (let i = 0; i < 50 && !problems.length; i++) await delay(100);
+    assert.equal(problems[0].p_shop, shop);
+    assert.equal(problems[0].p_items[0].kind, 'error');
+    assert.equal(problems[0].p_items[0].message, 'Test problem');
+    assert.equal(problems[0].p_items[0].count, 1);
+    assert.equal(await page.evaluate(() => localStorage.getItem('printshopledger:problems:v1')), null);
     assert.deepEqual(errors, []);
     await context.close();
   }

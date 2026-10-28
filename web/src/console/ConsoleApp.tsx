@@ -34,6 +34,7 @@ import {
   type ConsoleMember,
   type TeamMember,
 } from './console-api';
+import ConsoleProblems from './ConsoleProblems';
 import { Badge, ConsolePlans, ConsoleSubscription, StateBadge } from './ConsoleSubscription';
 
 const when = (value: string | null) =>
@@ -57,6 +58,8 @@ const actionLabels: Record<string, string> = {
   'business.viewed': 'Opened business',
   'business.backup': 'Downloaded a backup',
   'trial.saved': 'Changed the free trial',
+  'problem.resolve': 'Marked a problem fixed',
+  'problem.reopen': 'Opened a problem again',
   'team.member_set': 'Changed team member',
   'team.member_added': 'Added team member',
   'team.password_reset': 'Reset team member password',
@@ -80,6 +83,7 @@ type View =
   | { page: 'businesses' }
   | { page: 'business'; id: string }
   | { page: 'plans' }
+  | { page: 'problems' }
   | { page: 'activity' }
   | { page: 'team' };
 const readView = (): View => {
@@ -87,7 +91,7 @@ const readView = (): View => {
   const id = params.get('business');
   const page = params.get('page');
   if (id) return { page: 'business', id };
-  if (page === 'activity' || page === 'team' || page === 'plans') return { page };
+  if (page === 'activity' || page === 'team' || page === 'plans' || page === 'problems') return { page };
   return { page: 'businesses' };
 };
 const writeView = (view: View) => {
@@ -132,6 +136,7 @@ export default function ConsoleApp() {
           {(
             [
               ['businesses', 'Businesses', 'customers'],
+              ['problems', 'Problems', 'audit'],
               ['plans', 'Plans', 'payments'],
               ['activity', 'Activity log', 'history'],
               ['team', 'Team', 'users'],
@@ -170,6 +175,7 @@ export default function ConsoleApp() {
         {view.page === 'businesses' && <Businesses onOpen={(id) => go({ page: 'business', id })} />}
         {view.page === 'business' && <Business id={view.id} onBack={() => go({ page: 'businesses' })} />}
         {view.page === 'plans' && <ConsolePlans />}
+        {view.page === 'problems' && <AllProblems />}
         {view.page === 'activity' && <Activity />}
         {view.page === 'team' && <Team me={me} />}
       </main>
@@ -312,6 +318,13 @@ function Businesses({ onOpen }: { onOpen: (id: string) => void }) {
                         {b.name}
                       </button>
                       <small>{b.ownerEmail ?? 'No business account'}</small>
+                      {!!b.problems && (
+                        <small>
+                          <Badge tone="bad">
+                            {b.problems} open {b.problems === 1 ? 'problem' : 'problems'}
+                          </Badge>
+                        </small>
+                      )}
                     </td>
                     <td>
                       <StateBadge state={b.subscription ?? 'none'} />
@@ -379,7 +392,9 @@ function BusinessView({
   onBack: () => void;
   onChanged: () => void;
 }) {
-  const [tab, setTab] = useState<'overview' | 'settings' | 'staff' | 'devices' | 'subscription'>('overview');
+  const [tab, setTab] = useState<'overview' | 'settings' | 'staff' | 'devices' | 'subscription' | 'problems'>(
+    'overview',
+  );
   const storage = Object.values(data.storageBytes).reduce((n, b) => n + b, 0);
   const peak = Math.max(1, ...data.daily.map((d) => d.events));
   const staff = data.staff.filter((s) => s.role !== 'developer');
@@ -406,6 +421,7 @@ function BusinessView({
             ['staff', 'Staff & access', 'users'],
             ['devices', 'Devices', 'drawer'],
             ['subscription', 'Subscription', 'payments'],
+            ['problems', 'Problems', 'audit'],
           ] as const
         ).map(([key, label, icon]) => (
           <button
@@ -424,6 +440,7 @@ function BusinessView({
       {tab === 'staff' && <ConsoleStaff data={data} onChanged={onChanged} />}
       {tab === 'devices' && <ConsoleDevices shopId={data.id} onChanged={onChanged} />}
       {tab === 'subscription' && <ConsoleSubscription shopId={data.id} onChanged={onChanged} />}
+      {tab === 'problems' && <ConsoleProblems shopId={data.id} onChanged={onChanged} />}
       {tab === 'overview' && (
         <>
           <section className="stats">
@@ -839,6 +856,9 @@ function ActivityTable({ rows, showBusiness = true }: { rows: ConsoleAction[]; s
               <td>
                 {actionLabels[a.action] ?? a.action}
                 {typeof a.details?.staff === 'string' && a.details.staff && <small>{a.details.staff}</small>}
+                {a.action.startsWith('problem.') && typeof a.details?.message === 'string' && (
+                  <small>{a.details.message}</small>
+                )}
                 {typeof a.details?.device === 'string' && a.details.device && (
                   <small>{a.details.device}</small>
                 )}
@@ -1252,4 +1272,9 @@ function BackupButton({ shopId, name, onDone }: { shopId: string; name: string; 
       {problem && <p role="alert">{problem}</p>}
     </div>
   );
+}
+
+function AllProblems() {
+  const { data } = useLoad(businesses, []);
+  return <ConsoleProblems businesses={data ?? []} />;
 }

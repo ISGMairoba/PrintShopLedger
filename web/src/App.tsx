@@ -1,6 +1,7 @@
 import useSubscription, { subscriptionNotice } from './useSubscription';
 import { setWritesBlocked } from './subscription-rule.mjs';
-import { confirmSignedOut, reportDevice } from './device-report';
+import { confirmSignedOut, reportDevice, sendProblems } from './device-report';
+import { recordProblem } from './problem-log.mjs';
 import { setStockBelowZeroBlocked } from './stock-rule.mjs';
 import useSyncConflicts from './app/useSyncConflicts';
 import BatchJobProgressDialog from './BatchJobProgressDialog';
@@ -667,6 +668,7 @@ export default function App() {
       }
       // Tell the developer console how this device is doing; it may ask the device to sign out.
       const report = await reportDevice(target, shopId, next);
+      void sendProblems(shopId);
       if (report.deviceLimit) {
         await Promise.all([
           supabase!.auth.signOut({ scope: 'local' }),
@@ -710,6 +712,12 @@ export default function App() {
           );
         return;
       }
+      if (!/subscription has ended/i.test(errorMessage(error)))
+        recordProblem('sync', errorMessage(error), {
+          stack: error instanceof Error ? String(error.stack ?? '').slice(0, 1500) : '',
+          appVersion: typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'dev',
+          pending: state.pending.length,
+        });
       setMessage(errorMessage(error), 'error');
       if (
         error instanceof ExpenseSyncConflict ||
