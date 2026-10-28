@@ -12,6 +12,7 @@ import {
   activity,
   business,
   businesses,
+  businessBackup,
   changePassword,
   currentMember,
   setMember,
@@ -54,6 +55,8 @@ const kb = (bytes: number) =>
   bytes < 1048576 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / 1048576).toFixed(1)} MB`;
 const actionLabels: Record<string, string> = {
   'business.viewed': 'Opened business',
+  'business.backup': 'Downloaded a backup',
+  'trial.saved': 'Changed the free trial',
   'team.member_set': 'Changed team member',
   'team.member_added': 'Added team member',
   'team.password_reset': 'Reset team member password',
@@ -386,7 +389,10 @@ function BusinessView({
         <button type="button" className="link-button console-back" onClick={onBack}>
           ← All businesses
         </button>
-        <h1>{data.name}</h1>
+        <div className="console-title-row">
+          <h1>{data.name}</h1>
+          <BackupButton shopId={data.id} name={data.name} onDone={onChanged} />
+        </div>
         <p className="muted">
           {data.ownerEmail ?? 'No business account'} · Joined {when(data.createdAt)} · Settings version{' '}
           {data.settingsVersion ?? '—'} ({when(data.settingsChangedAt)})
@@ -1198,5 +1204,52 @@ function ConsoleDevices({ shopId, onChanged }: { shopId: string; onChanged: () =
         </ResponsiveTable>
       )}
     </section>
+  );
+}
+
+/** Downloads everything about one business as a single file, for safekeeping. */
+function BackupButton({ shopId, name, onDone }: { shopId: string; name: string; onDone: () => void }) {
+  const [busy, setBusy] = useState(false),
+    [problem, setProblem] = useState('');
+  return (
+    <div className="console-backup">
+      <button
+        type="button"
+        className="secondary"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          setProblem('');
+          try {
+            const backup = await businessBackup(shopId);
+            const date = new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Lagos' });
+            const file = `${
+              name
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-|-$/g, '') || 'business'
+            }-backup-${date}.json`;
+            const url = URL.createObjectURL(
+              new Blob([JSON.stringify(backup, null, 1)], { type: 'application/json' }),
+            );
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = file;
+            document.body.append(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 10000);
+            onDone();
+          } catch (cause) {
+            setProblem(cause instanceof Error ? cause.message : String(cause));
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        <Icon name="export" /> {busy ? 'Preparing backup…' : 'Download backup'}
+      </button>
+      {problem && <p role="alert">{problem}</p>}
+    </div>
   );
 }

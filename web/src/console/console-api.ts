@@ -234,3 +234,19 @@ export const recordPayment = (
     note: string;
   },
 ) => call<null>('console_record_payment', { p_shop: shopId, p_payment: payment });
+
+export type TrialSettings = {
+  enabled: boolean;
+  planId: string | null;
+  days: number;
+  graceDays: number;
+  expiryMode: ExpiryMode;
+  pagesOff: string[];
+  message: string;
+  updatedAt?: string;
+};
+export const trialSettings = () => call<TrialSettings>('console_trial_settings');
+export const saveTrialSettings = (trial: TrialSettings) =>
+  call<null>('console_save_trial_settings', { p_trial: trial });
+export const businessBackup = (shopId: string) =>
+  call<Record<string, unknown>>('console_business_backup', { p_shop: shopId });
