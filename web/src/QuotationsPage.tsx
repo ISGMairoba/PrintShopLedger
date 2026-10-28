@@ -1,4 +1,5 @@
 import CurrencyInput from './CurrencyInput';
+import { phoneProblem } from './input-guard.mjs';
 import { money } from './domain.mjs';
 import { tierList } from './price-tiers.mjs';
 import {
@@ -581,6 +582,8 @@ function QuotationEditor({
     setError('');
     try {
       for (const l of lines) units(l.quantity);
+      const phoneIssue = savedCustomer ? '' : phoneProblem(phone);
+      if (phoneIssue) throw new Error(phoneIssue);
       const event = prepareQuotation(
         ledger,
         {
@@ -628,7 +631,9 @@ function QuotationEditor({
             <label>
               Phone
               <input
+                type="tel"
                 maxLength={40}
+                autoComplete="tel"
                 value={savedCustomer ? savedCustomer.phone : phone}
                 disabled={!!savedCustomer}
                 onChange={(e) => setPhone(e.target.value)}

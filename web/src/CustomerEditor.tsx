@@ -1,4 +1,5 @@
 import DialogActions from './DialogActions';
+import { phoneProblem } from './input-guard.mjs';
 import { useFeedbackMessage } from './Feedback';
 import CurrencyInput from './CurrencyInput';
 import { useId, useState, type FormEvent } from 'react';
@@ -58,6 +59,8 @@ export default function CustomerEditor({
             },
           }
         : (createCustomerEvent(fields, actor) as CustomerEvent);
+      const phoneIssue = phoneProblem(fields.phone);
+      if (phoneIssue) throw new Error(phoneIssue);
       if (phoneTakenBy)
         throw new Error(
           `This phone number already belongs to ${phoneTakenBy.name}. Use that customer or enter a different number.`,
@@ -108,6 +111,7 @@ export default function CustomerEditor({
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 autoComplete="tel"
+                placeholder="e.g. 0803 123 4567"
                 aria-invalid={!!phoneTakenBy}
                 required
               />

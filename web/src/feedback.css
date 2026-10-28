@@ -181,3 +181,22 @@
 [data-theme="dark"] .field-error {
   color: #ff8a80;
 }
+
+/* A short note under a number or phone field that refused what was typed (input-guard.mjs). */
+.input-hint {
+  position: absolute;
+  z-index: 1000;
+  max-width: min(320px, calc(100vw - 16px));
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #3a1d1d;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+}
+.input-hint[hidden] {
+  display: none;
+}
