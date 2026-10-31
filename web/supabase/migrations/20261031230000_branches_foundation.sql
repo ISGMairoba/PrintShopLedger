@@ -49,15 +49,15 @@ end $mig$;
 -- business that this staff member may use. Anything else (no header, 'main', a removed branch) is
 -- the main branch (null). Checked once per request.
 create or replace function private.request_branch(p_shop uuid) returns text
-language plpgsql stable security definer set search_path to '' as $f$
+language plpgsql security definer set search_path to '' as $f$
 declare
   wanted text := nullif(btrim(coalesce(current_setting('request.headers', true)::json->>'x-psl-branch', '')), '');
   cached text := current_setting('psl.branch', true);
   ok boolean;
 begin
   if wanted is null or wanted = 'main' then return null; end if;
-  if cached = p_shop::text || ':' || wanted then return wanted; end if;
-  if cached = p_shop::text || ':' then return null; end if;
+  if cached = p_shop::text || ':' || coalesce(auth.uid()::text, '') || ':' || wanted then return wanted; end if;
+  if cached = p_shop::text || ':' || coalesce(auth.uid()::text, '') || ':!' || wanted then return null; end if;
   select exists (
       select 1 from public.business_settings b
       cross join lateral jsonb_array_elements(coalesce(b.settings->'branches', '[]'::jsonb)) br
@@ -67,7 +67,7 @@ begin
       or exists (select 1 from public.business_settings b where b.shop_id = p_shop
         and (b.settings->'branchAccess'->(auth.uid()::text) ? wanted or b.settings->'branchAccess'->(auth.uid()::text) ? '*')))
     into ok;
-  perform set_config('psl.branch', p_shop::text || ':' || case when ok then wanted else '' end, true);
+  perform set_config('psl.branch', p_shop::text || ':' || coalesce(auth.uid()::text, '') || ':' || case when ok then '' else '!' end || wanted, true);
   return case when ok then wanted end;
 end $f$;
 
