@@ -85,6 +85,7 @@ type Draft = {
   pagesOff: string[];
   message: string;
   maxDevices: string;
+  maxBranches: string;
   reason: string;
 };
 const toDraft = (s: Subscription | null): Draft => ({
@@ -97,6 +98,7 @@ const toDraft = (s: Subscription | null): Draft => ({
   pagesOff: s?.pagesOff ?? [],
   message: s?.message ?? '',
   maxDevices: s?.maxDevices ? String(s.maxDevices) : '',
+  maxBranches: s?.maxBranches ? String(s.maxBranches) : '',
   reason: '',
 });
 
@@ -167,6 +169,7 @@ export function ConsoleSubscription({
           pagesOff: draft.expiryMode === 'pages_off' ? draft.pagesOff : [],
           message: draft.message.trim(),
           maxDevices: draft.maxDevices ? Number(draft.maxDevices) : null,
+          maxBranches: draft.maxBranches ? Number(draft.maxBranches) : null,
           reason: draft.reason.trim(),
         }),
       'Subscription saved. Devices pick it up within 30 minutes, or at their next sign-in.',
@@ -299,6 +302,18 @@ export function ConsoleSubscription({
                   onChange={(e) => set('maxDevices', e.target.value)}
                 />
                 <small>Leave empty to use the plan's limit.</small>
+              </label>
+              <label>
+                Branch limit
+                <input
+                  type="number"
+                  min={1}
+                  max={1000}
+                  placeholder={plan?.maxBranches ? `Plan: ${plan.maxBranches}` : 'No limit'}
+                  value={draft.maxBranches}
+                  onChange={(e) => set('maxBranches', e.target.value)}
+                />
+                <small>Most open branches. Leave empty to use the plan's limit.</small>
               </label>
             </div>
             <h3 className="console-subhead">When it runs out</h3>
@@ -722,6 +737,7 @@ const blankPlan = (): Plan => ({
   price: 0,
   periodDays: 30,
   maxDevices: null,
+  maxBranches: null,
   monthlyTokens: null,
   description: '',
   archived: false,
@@ -793,9 +809,9 @@ export function ConsolePlans() {
         {list && list.length > 0 && (
           <ResponsiveTable
             columns={[
-              { index: 0, label: 'Plan', details: [2, 3, 4] },
+              { index: 0, label: 'Plan', details: [2, 3, 4, 5, 6] },
               { index: 1, label: 'Price' },
-              { index: 5, label: 'Actions', actions: true },
+              { index: 7, label: 'Actions', actions: true },
             ]}
           >
             <table aria-label="Plans">
@@ -805,6 +821,7 @@ export function ConsolePlans() {
                   <th className="numeric">Price</th>
                   <th className="numeric">Days</th>
                   <th className="numeric">Devices</th>
+                  <th className="numeric">Branches</th>
                   <th className="numeric">Tokens / month</th>
                   <th className="numeric">Businesses</th>
                   <th>Actions</th>
@@ -821,6 +838,7 @@ export function ConsolePlans() {
                     <td className="numeric">{currency(p.price)}</td>
                     <td className="numeric">{p.periodDays}</td>
                     <td className="numeric">{p.maxDevices ?? 'No limit'}</td>
+                    <td className="numeric">{p.maxBranches ?? 'No limit'}</td>
                     <td className="numeric">
                       {p.monthlyTokens ? p.monthlyTokens.toLocaleString('en-NG') : '—'}
                     </td>
@@ -929,6 +947,17 @@ export function ConsolePlans() {
                     placeholder="No limit"
                     value={editing.plan.maxDevices ?? ''}
                     onChange={(e) => change({ maxDevices: e.target.value ? Number(e.target.value) : null })}
+                  />
+                </label>
+                <label>
+                  Most branches
+                  <input
+                    type="number"
+                    min={1}
+                    max={1000}
+                    placeholder="No limit"
+                    value={editing.plan.maxBranches ?? ''}
+                    onChange={(e) => change({ maxBranches: e.target.value ? Number(e.target.value) : null })}
                   />
                 </label>
                 <label>

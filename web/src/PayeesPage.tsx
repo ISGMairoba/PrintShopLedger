@@ -11,7 +11,10 @@ export default function PayeesPage({
   busy,
   actor,
   onSave,
+  branches,
 }: {
+  /** The owner's view: each branch's records, to show what each branch owes a payee. */
+  branches?: { id: string; name: string; ledger: Ledger }[];
   ledger: Ledger;
   busy: boolean;
   actor: { id: string; label: string };
@@ -96,6 +99,18 @@ export default function PayeesPage({
                     <strong>Outstanding {currency(t.owed)}</strong>
                     <small>Incurred {currency(t.incurred)}</small>
                     <small>Paid {currency(t.paid)}</small>
+                    {branches &&
+                      branches.length > 1 &&
+                      branches.map((b) => {
+                        const owed = b.ledger.expenses
+                          .filter((e) => e.payeeId === p.id && !e.voided)
+                          .reduce((n, e) => n + Math.max(0, e.amount - expensePaid(e)), 0);
+                        return (
+                          <small key={b.id}>
+                            {b.name}: owes {currency(owed)}
+                          </small>
+                        );
+                      })}
                   </td>
                   <td>
                     <div className="material-actions">

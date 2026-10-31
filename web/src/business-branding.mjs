@@ -165,6 +165,8 @@ export const defaultBranding = () => ({
     /** @type {{ id: string, name: string, address: string, phone: string, archived: boolean }[]} */ ([]),
   /** Which branches each staff member works in: { memberId: ['main', …] or ['*'] }. */
   branchAccess: /** @type {Record<string, string[]>} */ ({}),
+  /** 'shared': one price list; 'perBranch': each branch may set its own prices. */
+  branchPricing: /** @type {'shared' | 'perBranch'} */ ('shared'),
 });
 export function validLogo(value) {
   return (
@@ -239,6 +241,8 @@ export function validateBranding(input) {
   value.terms = validateTerms(value.terms);
   value.branches = validateBranches(value.branches);
   value.branchAccess = validateBranchAccess(value.branchAccess, value.branches);
+  value.branchPricing ??= 'shared';
+  if (!['shared', 'perBranch'].includes(value.branchPricing)) throw Error('Choose how branches price items.');
   value.periods = { ...defaultPeriods(), ...value.periods };
   for (const [key, preset] of Object.entries(value.periods))
     if (

@@ -88,6 +88,20 @@ export function allowedBranches(settings, memberId, accessLevel = 0) {
 export const seesAllBranches = (settings, memberId, accessLevel = 0) =>
   accessLevel >= 4 || !!settings?.branchAccess?.[memberId]?.includes('*');
 
+/**
+ * An item with the business's own prices: devices in a branch with its own prices receive items
+ * priced for the branch, with the business values under base (used when editing the item).
+ * @template T
+ * @param {T} service
+ * @returns {T}
+ */
+export function baseService(service) {
+  const base = /** @type {any} */ (service)?.base;
+  if (!base) return service;
+  const { base: _b, branchPriced: _p, ...rest } = /** @type {any} */ (service);
+  return { ...rest, ...base };
+}
+
 // ---- Records by branch (stage 1b) ----
 // The branch this device works in, for working out balances and showing records. Records the
 // server sends carry branchId (none = the main branch); records made on this device are tagged

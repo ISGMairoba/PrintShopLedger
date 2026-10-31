@@ -191,6 +191,7 @@ export type Plan = {
   price: number;
   periodDays: number;
   maxDevices: number | null;
+  maxBranches?: number | null;
   monthlyTokens?: number | null;
   description: string;
   archived: boolean;
@@ -206,6 +207,7 @@ export type Subscription = {
   pagesOff: string[];
   message: string;
   maxDevices: number | null;
+  maxBranches?: number | null;
   updatedAt?: string;
 };
 export type Payment = {
@@ -304,6 +306,7 @@ export type Usage = {
   byCategory: { category: string; tokens: number; operations: number }[];
   byKind: { kind: string; category: string; each: number; operations: number; tokens: number }[];
   daily: { day: string; tokens: number; operations: number }[];
+  byBranch?: { branch: string; name: string; tokens: number; operations: number }[];
   monthlyTokens: number | null;
 };
 export type UsageWeight = { pattern: string; category: string; tokens: number };

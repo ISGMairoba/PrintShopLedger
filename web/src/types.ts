@@ -348,6 +348,9 @@ export interface Service {
   modifiedByLabel: string;
   modifiedAt: string;
   lastEventId: string;
+  /** Priced for this device's branch: the business's own prices (see branches.mjs baseService). */
+  base?: { price: number; packPrices?: PackPrice[]; priceTiers?: PriceTier[] };
+  branchPriced?: boolean;
 }
 /** Template use: a formula name, and optionally a cost (amount in kobo for `per` units). */
 export type ServiceCosting = { key: string; amount?: number; per?: number; unit?: string };
