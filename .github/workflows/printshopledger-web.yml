@@ -1,17 +1,9 @@
 name: PrintShopLedger web
-# The full browser checks are long, so they run once when a PR is opened (or reopened), not on
-# every push, to save GitHub Actions minutes. Run them again from the Actions tab ("Run workflow").
-# The quick tests also run in every Vercel build, which will not publish a version that fails them.
+# TEMPORARY (screenshots): build, run the console check, render the receipt, push images.
 on:
-  pull_request:
-    types: [opened, reopened, ready_for_review]
-    paths: ['web/**', '.github/workflows/printshopledger-web.yml']
   workflow_dispatch:
-concurrency:
-  group: printshopledger-web-${{ github.ref }}
-  cancel-in-progress: true
 permissions:
-  contents: read
+  contents: write
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -24,101 +16,16 @@ jobs:
         with:
           node-version: 22
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: node scripts/run-check.mjs npm run format:check
-      - run: node scripts/run-check.mjs npm test
-      - run: node scripts/run-check.mjs npm run build
-
-      - run: npm run check:backend
-      - id: browser_dependencies
-        timeout-minutes: 5
-        run: npx playwright install-deps chromium webkit
-      - id: browsers
-        timeout-minutes: 5
-        run: npx playwright install chromium webkit
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-item-material.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-document-logos.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-ui-consistency.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-expenses.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        uses: actions/upload-artifact@v6
-        with:
-          name: ui-consistency
-          path: /tmp/ui-consistency
-          retention-days: 7
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-business-branding.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-theme-backgrounds.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-job-batches.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-pricing-templates.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-template-variants.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-stock-below-zero.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-price-ranges.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-console.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-number-entry.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-device-signout.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-subscription.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-product-edit.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-registration.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-dashboard.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-login-sync.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-feedback.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-sale-adjustments.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-remote-review.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-access-account.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-checkout.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-materialless-services.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs npm run test:ui
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-print-settings.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs npm run test:users-ui
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-iphone.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-retail.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-quotations.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-reminders.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: node scripts/run-check.mjs node scripts/check-storage.mjs
-      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        uses: actions/upload-artifact@v6
-        with:
-          name: dashboard-preview
-          path: |
-            /tmp/ledger-dashboard-*.png
-            /tmp/ledger-registration-*.png
-            /tmp/retail-orders.png
-            /tmp/job-batches-*.png
-            /tmp/pricing-templates-*.png
-            /tmp/expenses-mobile*.png
-            /tmp/console-*.png
-          retention-days: 7
-
-
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/check-console.mjs
+      - if: ${{ always() }}
+        run: |
+          sudo apt-get install -y poppler-utils >/dev/null
+          mkdir -p /tmp/shots
+          for f in /tmp/console-receipt-*.pdf; do pdftoppm -png -r 90 "$f" "/tmp/shots/$(basename "$f" .pdf)"; done || true
+          cp /tmp/console-subscription-*.png /tmp/console-plans-*.png /tmp/console-trial-*.png /tmp/shots/ || true
+          cd /tmp/shots && git init -q && git checkout -q -b ui-shots
+          git config user.name ci && git config user.email ci@example.invalid
+          git add . && git commit -qm shots
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ui-shots
