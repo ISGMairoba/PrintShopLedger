@@ -91,7 +91,7 @@ export default function JobTable({
             )
           }
         >
-          Change due date
+          <Icon name="calendar" /> Change due date
         </button>
       )}
       <button
@@ -256,7 +256,7 @@ export default function JobTable({
                   <JobActions job={job} busy={busy} onAction={onAction} />
                   {onDue && !['Completed', 'Collected', 'Cancelled'].includes(job.productionStatus ?? '') && (
                     <button className="text-button" disabled={busy} onClick={() => onDue([job])}>
-                      Change due date
+                      <Icon name="calendar" /> Change due date
                     </button>
                   )}
                 </td>
