@@ -1,0 +1,89 @@
+// Branches of one business (see the project plan plans/branches.md). The business keeps one set of
+// records; every record made at a branch is tagged with it on the server. A business without
+// branches has one implicit "Main branch" (id 'main'), so nothing changes until a second is added.
+/** @typedef {{ id: string, name: string, address: string, phone: string, archived: boolean }} Branch */
+export const MAIN = 'main';
+const ID = /^(main|b-[a-z0-9]{6,20})$/;
+
+/** A new branch id. */
+export const newBranchId = () => `b-${crypto.randomUUID().replace(/-/g, '').slice(0, 10)}`;
+
+/** Checked, tidied branch list. The first branch is always the main one. */
+export function validateBranches(input) {
+  const list = input === undefined || input === null ? [] : input;
+  if (!Array.isArray(list) || list.length > 50) throw Error('Invalid branches.');
+  const seen = new Set();
+  const names = new Set();
+  const out = list.map((b, i) => {
+    if (!b || typeof b !== 'object') throw Error('Invalid branches.');
+    const id = String(b.id ?? '');
+    if (!ID.test(id) || seen.has(id)) throw Error('Invalid branches.');
+    if ((i === 0) !== (id === MAIN)) throw Error('The first branch must be the main branch.');
+    seen.add(id);
+    const name = String(b.name ?? '').trim();
+    if (!name || name.length > 80) throw Error('Give every branch a name of up to 80 characters.');
+    if (names.has(name.toLowerCase())) throw Error('Two branches cannot have the same name.');
+    names.add(name.toLowerCase());
+    const archived = !!b.archived;
+    if (archived && id === MAIN) throw Error('The main branch cannot be archived.');
+    return {
+      id,
+      name,
+      address: String(b.address ?? '')
+        .trim()
+        .slice(0, 300),
+      phone: String(b.phone ?? '')
+        .trim()
+        .slice(0, 80),
+      archived,
+    };
+  });
+  return out;
+}
+
+/** Which branches each staff member may work in: { [memberId]: ['main', 'b-…'] or ['*'] }. */
+export function validateBranchAccess(input, branches = []) {
+  const value = input === undefined || input === null ? {} : input;
+  if (typeof value !== 'object' || Array.isArray(value) || Object.keys(value).length > 500)
+    throw Error('Invalid branch access.');
+  const ids = new Set([MAIN, ...branches.map((b) => b.id)]);
+  const out = {};
+  for (const [member, list] of Object.entries(value)) {
+    if (!/^[0-9a-f-]{36}$/i.test(member) || !Array.isArray(list)) throw Error('Invalid branch access.');
+    const clean = list.includes('*') ? ['*'] : [...new Set(list.map(String))].filter((id) => ids.has(id));
+    if (clean.length) out[member] = clean;
+  }
+  return out;
+}
+
+/**
+ * The business's branches, with the implicit main branch when none are set.
+ * @param {{ branches?: Branch[] } | null | undefined} settings
+ * @returns {Branch[]}
+ */
+export function branchesOf(settings) {
+  const list = settings?.branches ?? [];
+  if (list.length) return list;
+  return [{ id: MAIN, name: 'Main branch', address: '', phone: '', archived: false }];
+}
+/** More than one branch in use. */
+export const hasBranches = (settings) => branchesOf(settings).filter((b) => !b.archived).length > 1;
+
+/**
+ * The branches a staff member may work in (active ones only). Developers and staff given every
+ * branch ('*') may use all; anyone not listed works in the main branch.
+ * @param {{ branches?: Branch[], branchAccess?: Record<string, string[]> } | null | undefined} settings
+ * @param {string} memberId
+ * @returns {Branch[]}
+ */
+export function allowedBranches(settings, memberId, accessLevel = 0) {
+  const active = branchesOf(settings).filter((b) => !b.archived);
+  const access = settings?.branchAccess?.[memberId];
+  if (accessLevel >= 4 || access?.includes('*')) return active;
+  const list = access?.length ? access : [MAIN];
+  const allowed = active.filter((b) => list.includes(b.id));
+  return allowed.length ? allowed : active.filter((b) => b.id === MAIN);
+}
+/** Whether this staff member sees every branch (the business owner). */
+export const seesAllBranches = (settings, memberId, accessLevel = 0) =>
+  accessLevel >= 4 || !!settings?.branchAccess?.[memberId]?.includes('*');

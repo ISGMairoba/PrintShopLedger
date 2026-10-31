@@ -1,3 +1,4 @@
+import BranchesSettings, { type BranchStaff } from './BranchesSettings';
 import { logoPositions, resolveWatermark } from './document-logos.mjs';
 import Icon from './Icon';
 import { useFeedbackMessage, FeedbackBanner } from './Feedback';
@@ -38,6 +39,7 @@ export default function BusinessSettingsPage({
   accessLevel,
   onSave,
   onReload,
+  loadStaff,
 }: {
   settings: Branding;
   version: number;
@@ -49,6 +51,8 @@ export default function BusinessSettingsPage({
   accessLevel: number;
   onSave: (settings: Branding, version: number) => Promise<unknown>;
   onReload: () => Promise<void>;
+  /** The business's staff, for Branches → Who works where (not available everywhere). */
+  loadStaff?: () => Promise<BranchStaff[]>;
 }) {
   const { w } = useWords();
   const [draft, setDraft] = useState(settings),
@@ -62,6 +66,18 @@ export default function BusinessSettingsPage({
     (developerSettingsTabs[name as keyof typeof developerSettingsTabs] ??
       settingsTabKeys[name as keyof typeof settingsTabKeys]) as (keyof Branding)[];
   const [tab, setTab] = useState(tabs[0]);
+  const [branchStaff, setBranchStaff] = useState<BranchStaff[] | null>(null);
+  useEffect(() => {
+    if (tab !== 'Branches' || !loadStaff || branchStaff) return;
+    let live = true;
+    loadStaff()
+      .then((list) => live && setBranchStaff(list))
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, branchStaff]);
   const dirty = dirtyKeys.length > 0;
   useEffect(() => {
     if (!dirty) {
@@ -1043,6 +1059,17 @@ export default function BusinessSettingsPage({
                 the front. Checking less often uses less of your cloud data allowance.
               </p>
               {sectionSave('Security settings', ['security'])}
+            </fieldset>
+            <fieldset hidden={tab !== 'Branches'} disabled={busy || !ready}>
+              <legend>Branches</legend>
+              <BranchesSettings
+                branches={draft.branches}
+                access={draft.branchAccess}
+                staff={branchStaff}
+                onBranches={(next) => field('branches', next)}
+                onAccess={(next) => field('branchAccess', next)}
+              />
+              {sectionSave('Branches', ['branches', 'branchAccess'])}
             </fieldset>
             <fieldset hidden={tab !== 'Page access'} disabled={busy || !ready}>
               <legend>Page access by rank</legend>

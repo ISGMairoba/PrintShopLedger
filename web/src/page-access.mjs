@@ -59,6 +59,7 @@ export const settingsTabs = [
   'Pricing templates',
   'Corrections',
   'Security',
+  'Branches',
 ];
 /** The saved settings each tab changes (the server uses the same list). */
 export const settingsTabKeys = {
@@ -80,6 +81,7 @@ export const settingsTabKeys = {
   'Pricing templates': ['pricing'],
   Corrections: ['corrections'],
   Security: ['security'],
+  Branches: ['branches', 'branchAccess'],
 };
 export const defaultSettingsTabs = () => ({ 2: [...settingsTabs], 3: [...settingsTabs] });
 export function validateSettingsTabs(input) {
