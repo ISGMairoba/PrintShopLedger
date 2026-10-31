@@ -404,3 +404,21 @@ select:focus-visible {
     gap: 6px 10px;
   }
 }
+
+/* Business Settings → Branches. */
+.branch-list {
+  display: grid;
+  gap: 12px;
+  margin: 12px 0;
+}
+.branch-row {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, 10px);
+}
+.branch-row.archived {
+  opacity: 0.6;
+}
+.branch-row .form-grid {
+  margin-bottom: 4px;
+}

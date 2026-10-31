@@ -1,3 +1,5 @@
+import { allowedBranches, hasBranches } from './branches.mjs';
+import { setRequestBranch, storeBranch, storedBranch } from './device-branch';
 import PayeesPage from './PayeesPage';
 import AccountsPage from './AccountsPage';
 import { defaultMoneyAccount } from './operations.mjs';
@@ -220,6 +222,22 @@ export default function App() {
     online,
     demo,
   );
+  // The branch this device works in (branches.mjs). One-branch businesses always use the main one.
+  const branchChoices = allowedBranches(
+    branding.settings,
+    shop?.userId ?? '',
+    demo ? 4 : (shop?.accessLevel ?? 0),
+  );
+  const [branchChoice, setBranchChoice] = useState<string | null>(() => (scope ? storedBranch(scope) : null));
+  useEffect(() => setBranchChoice(scope ? storedBranch(scope) : null), [scope]);
+  const activeBranch =
+    branchChoices.length === 1
+      ? branchChoices[0]
+      : (branchChoices.find((b) => b.id === branchChoice) ?? null);
+  const needBranchChoice = !demo && !!shop && branding.ready && !activeBranch;
+  // Until the business's branches are known, keep sending the branch this device last chose.
+  setRequestBranch(branding.ready ? activeBranch?.id : branchChoice);
+  const multiBranch = hasBranches(branding.settings);
   // The subscription set in the developer console: banners, pages turned off, read-only or locked.
   const subscription = useSubscription(scope, shop?.id, online, demo);
   const restriction = demo ? '' : (subscription.restriction ?? '');
@@ -1084,6 +1102,31 @@ export default function App() {
       />
     );
 
+  if (needBranchChoice)
+    return (
+      <main className="auth">
+        <section className="auth-card">
+          <h1>Choose your branch</h1>
+          <p>{businessName} has more than one branch. Which branch is this device in today?</p>
+          <div className="branch-choices">
+            {branchChoices.map((b) => (
+              <button
+                key={b.id}
+                type="button"
+                onClick={() => {
+                  storeBranch(scope, b.id);
+                  setBranchChoice(b.id);
+                }}
+              >
+                <Icon name="customers" /> {b.name}
+                {b.address && <small>{b.address}</small>}
+              </button>
+            ))}
+          </div>
+        </section>
+      </main>
+    );
+
   if (restriction === 'locked')
     return (
       <main className="auth">
@@ -1258,7 +1301,10 @@ export default function App() {
                 <main>
                   <header>
                     <div>
-                      <span className="eyebrow">{demo ? 'LOCAL TRIAL' : businessName}</span>
+                      <span className="eyebrow">
+                        {demo ? 'LOCAL TRIAL' : businessName}
+                        {multiBranch && activeBranch && ` · ${activeBranch.name}`}
+                      </span>
                       <div className="page-title">
                         <h1>{pageName(page, branding.settings.terms)}</h1>
                         <button
@@ -1714,6 +1760,43 @@ export default function App() {
                               setStaffEpoch((value) => value + 1);
                             }}
                           />
+                          {branchChoices.length > 1 && (
+                            <section
+                              className="panel editor branch-switch"
+                              aria-labelledby="branch-switch-title"
+                            >
+                              <h2 id="branch-switch-title">Branch</h2>
+                              <p className="muted">
+                                This device works in <strong>{activeBranch?.name}</strong>. Work recorded here
+                                belongs to that branch.
+                              </p>
+                              <label>
+                                Switch this device to
+                                <select
+                                  value={activeBranch?.id ?? ''}
+                                  disabled={state.pending.length > 0}
+                                  onChange={(e) => {
+                                    storeBranch(scope, e.target.value);
+                                    setBranchChoice(e.target.value);
+                                    setMessage(
+                                      `This device now works in ${branchChoices.find((b) => b.id === e.target.value)?.name}.`,
+                                    );
+                                  }}
+                                >
+                                  {branchChoices.map((b) => (
+                                    <option key={b.id} value={b.id}>
+                                      {b.name}
+                                    </option>
+                                  ))}
+                                </select>
+                                {state.pending.length > 0 && (
+                                  <small>
+                                    Wait until all work on this device has synced before switching.
+                                  </small>
+                                )}
+                              </label>
+                            </section>
+                          )}
                           <DeviceStorageCard
                             pending={state.pending.length}
                             lastSynced={state.lastSynced}
@@ -1783,6 +1866,17 @@ export default function App() {
                           accessLevel={demo ? 4 : (shop?.accessLevel ?? 0)}
                           onSave={branding.save}
                           onReload={branding.reload}
+                          loadStaff={
+                            demo || !shop
+                              ? undefined
+                              : async () => {
+                                  const { data, error } = await supabase!.rpc('list_shop_users', {
+                                    p_shop: shop.id,
+                                  });
+                                  if (error) throw error;
+                                  return data ?? [];
+                                }
+                          }
                         />
                       ) : page === 'Payees' ? (
                         <PayeesPage

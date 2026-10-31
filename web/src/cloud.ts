@@ -5,6 +5,7 @@ import { requireConflictReviewer } from './conflict-review';
 import { resolveExpenseState } from './expense-conflicts.mjs';
 import { checkoutReviewBase, replacePendingCheckout, adoptJobStatus } from './checkout-conflicts.mjs';
 import { createClient } from '@supabase/supabase-js';
+import { branchFetch } from './device-branch';
 import { applyEvent } from './domain.mjs';
 import { mutateState, readState } from './storage';
 import { normalizeLedger } from './materials.mjs';
@@ -85,7 +86,11 @@ const url = import.meta.env.VITE_SUPABASE_URL;
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 // Only the business client may adopt a session from an email link. If both clients read
 // the same link they would share one single-use refresh token and sign each other out.
-export const supabase = url && key ? createClient(url, key, { auth: { detectSessionInUrl: false } }) : null;
+// Staff requests say which branch the device works in (device-branch.ts).
+export const supabase =
+  url && key
+    ? createClient(url, key, { auth: { detectSessionInUrl: false }, global: { fetch: branchFetch } })
+    : null;
 // Business identity remains signed in while the operational staff session changes.
 export const businessAuth =
   url && key ? createClient(url, key, { auth: { storageKey: 'printshopledger-business-auth' } }) : null;

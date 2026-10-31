@@ -18,6 +18,7 @@ import {
 import { defaultOptions, validateOptions } from './business-options.mjs';
 import { discountDefaults, validateDiscountSettings } from './discounts.mjs';
 import { termDefaults, validateTerms } from './terms.mjs';
+import { validateBranchAccess, validateBranches } from './branches.mjs';
 import { pricingDefaults, validatePricingSettings } from './pricing-templates.mjs';
 // What each business shows on its receipts. headline: the bold line for each job ('description' or 'service');
 // showSubline: print the other one beneath it. Older saved settings fill in these defaults.
@@ -159,6 +160,11 @@ export const defaultBranding = () => ({
     showTermsOnRoll: false,
   },
   poweredBy: poweredByDefaults(),
+  /** Branches beyond the main one ([] = only the main branch); see branches.mjs. */
+  branches:
+    /** @type {{ id: string, name: string, address: string, phone: string, archived: boolean }[]} */ ([]),
+  /** Which branches each staff member works in: { memberId: ['main', …] or ['*'] }. */
+  branchAccess: /** @type {Record<string, string[]>} */ ({}),
 });
 export function validLogo(value) {
   return (
@@ -231,6 +237,8 @@ export function validateBranding(input) {
   value.pricing = validatePricingSettings(value.pricing);
   value.discounts = validateDiscountSettings(value.discounts);
   value.terms = validateTerms(value.terms);
+  value.branches = validateBranches(value.branches);
+  value.branchAccess = validateBranchAccess(value.branchAccess, value.branches);
   value.periods = { ...defaultPeriods(), ...value.periods };
   for (const [key, preset] of Object.entries(value.periods))
     if (
