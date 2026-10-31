@@ -19,7 +19,9 @@ export default function ReorderList({
   onSaveExpense,
   onClose,
 }: {
-  ledger: Pick<Ledger, 'materials' | 'materialHistory'> & { expenses: Expense[] };
+  ledger: Pick<Ledger, 'materials' | 'materialHistory' | 'payees' | 'moneyAccounts'> & {
+    expenses: Expense[];
+  };
   businessName: string;
   actor: { id: string; label: string };
   busy: boolean;
@@ -56,6 +58,8 @@ export default function ReorderList({
       <ExpenseEditor
         materials={ledger.materials}
         expenses={ledger.expenses}
+        payees={ledger.payees}
+        accounts={ledger.moneyAccounts}
         actor={actor}
         busy={busy}
         prefill={{

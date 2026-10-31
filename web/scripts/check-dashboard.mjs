@@ -260,6 +260,7 @@ try {
         await methods.locator('.chart-selection').getByText('Cash', { exact: true }).waitFor();
       }
       const bankKey = methods.getByRole('button', { name: 'Select Bank transfer: ₦5,000.00', exact: true });
+      await page.mouse.move(0, 0);
       await bankKey.focus();
       await page.keyboard.press('Enter');
       await bankKey.evaluate((element) => element.blur());
@@ -285,15 +286,19 @@ try {
       const trend = page
         .locator('.dashboard-panel')
         .filter({ has: page.getByRole('heading', { name: 'Daily trend', exact: true }) });
-      await trend.getByRole('button', { name: 'Hide Sales value', exact: true }).click();
-      await trend.getByRole('button', { name: 'Hide Net collected', exact: true }).click();
+      await trend.getByRole('button', { name: 'Hide Net sales', exact: true }).click();
+      await trend.getByRole('button', { name: 'Hide Net collections', exact: true }).click();
+      for (const name of ['Expenses incurred', 'Expenses paid', 'Sales less expenses']) {
+        const b = trend.getByRole('button', { name: 'Hide ' + name, exact: true });
+        if (await b.count()) await b.click();
+      }
       await trend.getByText('All series are hidden. Show a series above.', { exact: true }).waitFor();
-      await trend.getByRole('button', { name: 'Show Sales value', exact: true }).click();
-      await trend.getByRole('button', { name: 'Show Net collected', exact: true }).click();
+      await trend.getByRole('button', { name: 'Show Net sales', exact: true }).click();
+      await trend.getByRole('button', { name: 'Show Net collections', exact: true }).click();
       const chart = trend.locator('.recharts-surface');
       await chart.focus();
       await page.keyboard.press('ArrowRight');
-      await trend.locator('.recharts-tooltip-wrapper').getByText('Sales value', { exact: false }).waitFor();
+      await trend.locator('.recharts-tooltip-wrapper').getByText('Net sales', { exact: false }).waitFor();
       assert.equal(
         await page.locator('.recharts-responsive-container').count(),
         5,

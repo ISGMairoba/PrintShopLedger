@@ -1,3 +1,4 @@
+import { defaultMoneyAccount } from './operations.mjs';
 import { notEnoughStock } from './stock-rule.mjs';
 import DialogActions from './DialogActions';
 import { TemplateInputs, TemplateEstimate, tryTemplate } from './TemplateFields';
@@ -358,6 +359,10 @@ export default function CheckoutEditor({
         ]
       : availableMethods;
   const method = paymentMethods.find((item) => item.label === methodLabel)?.kind ?? '';
+  const [accountChoice, setAccountChoice] = useState<string | null>(
+    initialCheckout ? (initialCheckout.accountId ?? '') : null,
+  );
+  const selectedAccount = accountChoice ?? defaultMoneyAccount(ledger, methodLabel);
   const [paidOn, setPaidOn] = useState(initialCheckout?.paidOn ?? today()),
     [reference, setReference] = useState(initialCheckout?.reference ?? ''),
     [error, setError] = useFeedbackMessage('error');
@@ -475,6 +480,7 @@ export default function CheckoutEditor({
             : null,
           method,
           methodLabel,
+          accountId: selectedAccount,
           paidOn,
           reference,
         },
@@ -648,6 +654,7 @@ export default function CheckoutEditor({
                     : null,
                   method,
                   methodLabel,
+                  accountId: selectedAccount,
                   paidOn,
                   reference,
                 },
@@ -1161,6 +1168,26 @@ export default function CheckoutEditor({
                   </select>
                 )}
               </label>
+              {!!ledger.moneyAccounts?.length && (
+                <label>
+                  Receive into account
+                  <select
+                    aria-label="Receive into account"
+                    value={selectedAccount}
+                    onChange={(e) => setAccountChoice(e.target.value)}
+                  >
+                    <option value="">No account selected</option>
+                    {ledger.moneyAccounts
+                      .filter((a) => !a.archived || a.id === initialCheckout?.accountId)
+                      .map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name}
+                          {a.archived ? ' · Archived' : ''}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              )}
               <label>
                 Payment date
                 <input type="date" required value={paidOn} onChange={(e) => setPaidOn(e.target.value)} />

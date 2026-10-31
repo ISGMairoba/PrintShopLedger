@@ -29,6 +29,7 @@ type Props = {
   onAddCustomer: () => void;
   onJob: (jobId: string) => void;
   onAction: (job: Job, mode: ProgressMode) => void;
+  onDue?: (jobs: Job[]) => void;
   onBulkAction: (jobs: Job[], mode: ProgressMode) => void;
   onReceipt: (record: CheckoutRecord) => void;
   /** Admin or higher (online): correct a payment's amount, method, date or reference. */
@@ -48,6 +49,7 @@ export default function JobsPaymentsPage({
   onAddCustomer,
   onJob,
   onAction,
+  onDue,
   onBulkAction,
   onReceipt,
   onCorrectPayment,
@@ -273,6 +275,7 @@ export default function JobsPaymentsPage({
                   onJob={onJob}
                   onAction={onAction}
                   onBulkAction={onBulkAction}
+                  onDue={onDue}
                   grouped={grouped}
                   selecting={selecting}
                   pageSort

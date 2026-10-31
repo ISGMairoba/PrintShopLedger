@@ -243,6 +243,14 @@ export function prepareCheckout(
   id = String(crypto.randomUUID()),
   now = new Date().toISOString(),
 ) {
+  if (
+    input.accountId &&
+    !(ledger.moneyAccounts ?? []).some(
+      (a) => a.id === input.accountId && !a.archived && input.paidOn >= a.openingDate,
+    )
+  )
+    throw Error('Choose an active payment account with a valid opening date.');
+
   if (!actor?.id || !actor.label || !id || Number.isNaN(Date.parse(now)))
     throw Error('Checkout identity and audit information are required.');
   if (
@@ -337,6 +345,7 @@ export function prepareCheckout(
     data: {
       id,
       customerId: customer.id,
+      ...(input.accountId === undefined ? {} : { accountId: input.accountId }),
       ...(input.termsAndConditions === undefined
         ? {}
         : { termsAndConditions: validDocumentTerms(input.termsAndConditions) }),
@@ -379,6 +388,7 @@ export function applyCheckout(ledger, event) {
       newCustomer: data.newCustomer,
       lines: data.jobs,
       termsAndConditions: data.termsAndConditions,
+      accountId: data.accountId,
       countedMaterialJobs: data.countedMaterialJobs,
       cashReceived: data.cashReceived,
       useWallet: data.useWallet,

@@ -322,17 +322,33 @@ export function InteractiveTrend({
   rows,
   sales,
   payments,
+  expenses = false,
   formatValue,
 }: {
-  rows: { date: string; sales: number; collected: number }[];
+  rows: {
+    date: string;
+    sales: number;
+    collected: number;
+    expenses?: number;
+    expenseIncurred?: number;
+    netIncome?: number;
+  }[];
   sales: boolean;
   payments: boolean;
+  expenses?: boolean;
   formatValue: Format;
 }) {
   const [hidden, setHidden] = useState<string[]>([]);
   const series = [
-    ...(sales ? [{ key: 'sales', name: 'Sales value', color: chartColor(0) }] : []),
-    ...(payments ? [{ key: 'collected', name: 'Net collected', color: chartColor(1) }] : []),
+    ...(sales ? [{ key: 'sales', name: 'Net sales', color: chartColor(0) }] : []),
+    ...(payments ? [{ key: 'collected', name: 'Net collections', color: chartColor(1) }] : []),
+    ...(expenses
+      ? [
+          { key: 'expenseIncurred', name: 'Expenses incurred', color: chartColor(2) },
+          { key: 'expenses', name: 'Expenses paid', color: chartColor(3) },
+        ]
+      : []),
+    ...(expenses && sales ? [{ key: 'netIncome', name: 'Sales less expenses', color: chartColor(4) }] : []),
   ];
   const shown = series.filter((item) => !hidden.includes(item.key));
   return (
@@ -358,7 +374,7 @@ export function InteractiveTrend({
           />
         ))}
       </div>
-      <div className="dashboard-chart" aria-label="Sales value and net money collected by date">
+      <div className="dashboard-chart" aria-label="Sales, collections and expenses by date">
         {shown.length ? (
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={rows} accessibilityLayer margin={{ top: 10, right: 10, bottom: 10, left: 5 }}>
@@ -408,16 +424,18 @@ export function InteractiveTrend({
             <thead>
               <tr>
                 <th>Date</th>
-                {sales && <th>Sales value</th>}
-                {payments && <th>Net collected</th>}
+                {series.map((s) => (
+                  <th key={s.key}>{s.name}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {rows.map((row) => (
                 <tr key={row.date}>
                   <td>{row.date}</td>
-                  {sales && <td>{formatValue(row.sales)}</td>}
-                  {payments && <td>{formatValue(row.collected)}</td>}
+                  {series.map((s) => (
+                    <td key={s.key}>{formatValue(Number(row[s.key as keyof typeof row] ?? 0))}</td>
+                  ))}
                 </tr>
               ))}
             </tbody>

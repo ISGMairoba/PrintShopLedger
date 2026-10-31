@@ -3,6 +3,10 @@ import { materialSnapshot } from './material-display.mjs';
 export function normalizeLedger(ledger) {
   return {
     ...ledger,
+    payees: ledger.payees ?? [],
+    moneyAccounts: ledger.moneyAccounts ?? [],
+    accountEntries: ledger.accountEntries ?? [],
+    operationHistory: ledger.operationHistory ?? [],
     saleAdjustments: ledger.saleAdjustments ?? [],
     materialWaste: ledger.materialWaste ?? [],
     expenses: ledger.expenses ?? [],

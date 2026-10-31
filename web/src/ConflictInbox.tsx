@@ -154,6 +154,34 @@ export default function ConflictInbox({
       return resolveCustomerState(state, cloud, source.data.id, 'local', makeId, now).pending;
     if (family === 'expense')
       return resolveExpenseState(state, cloud, source.data.id, 'local', makeId()).pending;
+    if (
+      source.kind === 'job.due_changed' ||
+      source.kind.startsWith('payee.') ||
+      ['account.created', 'account.updated', 'account.archived', 'account.restored'].includes(source.kind)
+    ) {
+      const rows = source.kind.startsWith('payee.') ? cloud.payees : cloud.moneyAccounts;
+      const current = (rows ?? []).find((item) => item.id === source.data.id);
+      const event = {
+        ...source,
+        id: makeId(),
+        data: {
+          ...source.data,
+          baseVersion: current?.version,
+          modifiedAt: now,
+          ...(source.kind === 'job.due_changed'
+            ? {
+                expectedDueDates: Object.fromEntries(
+                  cloud.jobs
+                    .filter((j) => (source.data.jobIds ?? []).includes(j.id))
+                    .map((j) => [j.id, j.dueAt ?? '']),
+                ),
+              }
+            : {}),
+        },
+      };
+      applyEvent(cloud, event);
+      return [event];
+    }
     if (source.kind === 'job.status_changed') {
       const current = cloud.jobs.find((job) => job.id === source.data.id);
       if (!current) throw Error('Job is no longer available.');
@@ -338,8 +366,23 @@ export default function ConflictInbox({
             </button>
           ) : (
             <div className="material-actions">
+              {['account.reconciled', 'account.assigned', 'account.transferred'].includes(
+                review.conflict.source.kind,
+              ) && (
+                <p>
+                  Keep the business version, then reopen Accounts to review the current balance before
+                  recording this movement again.
+                </p>
+              )}
               <button
-                disabled={!online || busy || !reason.trim()}
+                disabled={
+                  !online ||
+                  busy ||
+                  !reason.trim() ||
+                  ['account.reconciled', 'account.assigned', 'account.transferred'].includes(
+                    review.conflict.source.kind,
+                  )
+                }
                 onClick={async () => {
                   try {
                     await resolve(reapply());

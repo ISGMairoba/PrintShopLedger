@@ -37,7 +37,7 @@ export function rankDashboardRows(rows, metric = 'sales', limit = 5) {
     .sort((a, b) => b[metric] - a[metric] || a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
     .slice(0, limit);
 }
-export function dashboardSummary(ledger, from, to) {
+export function dashboardSummary(ledger, from, to, granularity = 'auto') {
   if (!validRange(from, to)) throw Error('Choose a valid date range of up to ten years.');
   const inRange = (value) => {
     const day = businessDay(value);
@@ -99,17 +99,29 @@ export function dashboardSummary(ledger, from, to) {
   };
   payments.forEach((p) => addMethod(p, p.amount));
   refunds.forEach((r) => addMethod(r, -r.refundAmount));
-  const monthly = Date.parse(to) - Date.parse(from) > 61 * 86400000;
+  const monthly =
+    granularity === 'monthly' ||
+    (granularity === 'auto' && Date.parse(to) - Date.parse(from) > 61 * 86400000);
   const bucketMap = new Map();
   for (let day = from; day <= to; day = shiftDay(day, 1)) {
     const key = monthly ? day.slice(0, 7) : day;
-    if (!bucketMap.has(key)) bucketMap.set(key, { date: key, sales: 0, collected: 0, expenses: 0 });
+    if (!bucketMap.has(key))
+      bucketMap.set(key, {
+        date: key,
+        sales: 0,
+        collected: 0,
+        expenses: 0,
+        expenseIncurred: 0,
+        netIncome: 0,
+      });
   }
   const bucket = (value) => bucketMap.get(businessDay(value).slice(0, monthly ? 7 : 10));
   jobs.forEach((j) => (bucket(j.createdAt).sales += j.amount));
   payments.forEach((p) => (bucket(p.paidOn).collected += p.amount));
   refunds.forEach((r) => (bucket(r.paidOn || r.changedAt).collected -= r.refundAmount));
   expensePayments.forEach((p) => (bucket(p.paidOn).expenses += p.amount));
+  periodExpenses.forEach((e) => (bucket(e.incurredOn).expenseIncurred += e.amount));
+  for (const row of bucketMap.values()) row.netIncome = row.sales - row.expenseIncurred;
   const days = Math.round((Date.parse(to) - Date.parse(from)) / 86400000) + 1,
     previousTo = shiftDay(from, -1),
     previousFrom = shiftDay(from, -days);

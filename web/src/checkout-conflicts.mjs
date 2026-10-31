@@ -27,6 +27,7 @@ export function replacePendingCheckout(state, cloud, eventId, replacement) {
           newCustomer: d.newCustomer,
           lines: d.jobs,
           termsAndConditions: d.termsAndConditions,
+          accountId: d.accountId,
           countedMaterialJobs: d.countedMaterialJobs,
           cashReceived: d.cashReceived,
           useWallet: d.useWallet,

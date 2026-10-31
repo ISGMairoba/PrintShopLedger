@@ -222,7 +222,8 @@ export function validateBranding(input) {
   };
   value.poweredBy = validatePoweredBy(value.poweredBy);
   value.options = validateOptions(value.options);
-  if (value.pageAccessVersion !== PAGE_ACCESS_VERSION) value.pageAccess = upgradePageAccess(value.pageAccess);
+  if (value.pageAccessVersion !== PAGE_ACCESS_VERSION)
+    value.pageAccess = upgradePageAccess(value.pageAccess, value.pageAccessVersion ?? 0);
   value.pageAccess = validatePageAccess(value.pageAccess);
   value.pageAccessVersion = PAGE_ACCESS_VERSION;
   value.settingsTabs = validateSettingsTabs(value.settingsTabs);
