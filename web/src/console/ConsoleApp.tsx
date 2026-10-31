@@ -35,6 +35,7 @@ import {
   type TeamMember,
 } from './console-api';
 import ConsoleProblems from './ConsoleProblems';
+import { ConsoleUsage } from './ConsoleUsage';
 import { Badge, ConsolePlans, ConsoleSubscription, StateBadge } from './ConsoleSubscription';
 
 const when = (value: string | null) =>
@@ -59,6 +60,7 @@ const actionLabels: Record<string, string> = {
   'business.backup': 'Downloaded a backup',
   'trial.saved': 'Changed the free trial',
   'receipt_issuer.saved': 'Changed the receipt details',
+  'usage_weights.saved': 'Changed the token values',
   'problem.resolve': 'Marked a problem fixed',
   'problem.reopen': 'Opened a problem again',
   'team.member_set': 'Changed team member',
@@ -296,7 +298,7 @@ function Businesses({ onOpen }: { onOpen: (id: string) => void }) {
           <ResponsiveTable
             columns={[
               { index: 0, label: 'Business', details: [1, 2, 3, 4] },
-              { index: 5, label: 'Sales (30 days)', details: [6] },
+              { index: 5, label: 'Sales (30 days)', details: [6, 7] },
             ]}
           >
             <table aria-label="Businesses">
@@ -308,6 +310,7 @@ function Businesses({ onOpen }: { onOpen: (id: string) => void }) {
                   <th className="numeric">Customers</th>
                   <th className="numeric">Jobs</th>
                   <th className="numeric">Sales (30 days)</th>
+                  <th className="numeric">Tokens (30 days)</th>
                   <th>Last activity</th>
                 </tr>
               </thead>
@@ -338,6 +341,7 @@ function Businesses({ onOpen }: { onOpen: (id: string) => void }) {
                     <td className="numeric">{b.customers}</td>
                     <td className="numeric">{b.jobs}</td>
                     <td className="numeric">{currency(b.sales30)}</td>
+                    <td className="numeric">{(b.tokens30 ?? 0).toLocaleString('en-NG')}</td>
                     <td>
                       {ago(b.lastActivity)}
                       <small>
@@ -393,9 +397,9 @@ function BusinessView({
   onBack: () => void;
   onChanged: () => void;
 }) {
-  const [tab, setTab] = useState<'overview' | 'settings' | 'staff' | 'devices' | 'subscription' | 'problems'>(
-    'overview',
-  );
+  const [tab, setTab] = useState<
+    'overview' | 'settings' | 'staff' | 'devices' | 'subscription' | 'usage' | 'problems'
+  >('overview');
   const storage = Object.values(data.storageBytes).reduce((n, b) => n + b, 0);
   const peak = Math.max(1, ...data.daily.map((d) => d.events));
   const staff = data.staff.filter((s) => s.role !== 'developer');
@@ -422,6 +426,7 @@ function BusinessView({
             ['staff', 'Staff & access', 'users'],
             ['devices', 'Devices', 'drawer'],
             ['subscription', 'Subscription', 'payments'],
+            ['usage', 'Usage', 'reports'],
             ['problems', 'Problems', 'audit'],
           ] as const
         ).map(([key, label, icon]) => (
@@ -447,6 +452,7 @@ function BusinessView({
           onChanged={onChanged}
         />
       )}
+      {tab === 'usage' && <ConsoleUsage shopId={data.id} />}
       {tab === 'problems' && <ConsoleProblems shopId={data.id} onChanged={onChanged} />}
       {tab === 'overview' && (
         <>
