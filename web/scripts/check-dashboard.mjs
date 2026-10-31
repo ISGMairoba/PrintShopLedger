@@ -195,6 +195,8 @@ try {
       }
       await nav.getByRole('button', { name: 'Accounts', exact: true }).click();
       await page.getByRole('heading', { name: 'Accounts', exact: true }).waitFor();
+      // The account list fills in once the records have loaded.
+      await page.getByRole('button', { name: 'Transactions', exact: true }).first().waitFor();
       assert.equal(
         await page.getByRole('button', { name: 'Add account', exact: true }).count(),
         rank === 4 ? 1 : 0,
