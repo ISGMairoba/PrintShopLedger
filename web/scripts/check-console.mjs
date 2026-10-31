@@ -248,6 +248,8 @@ try {
           payments: [
             {
               id: 'p1',
+              receiptNo: 12,
+              planName: 'Standard',
               amount: 5000000,
               paidOn: '2026-10-01',
               method: 'Transfer',
@@ -259,7 +261,19 @@ try {
             },
           ],
         };
-      else if (path.endsWith('/console_problems'))
+      else if (path.endsWith('/console_receipt_issuer'))
+        result = {
+          name: 'PrintShopLedger',
+          address: '12 Allen Avenue, Ikeja, Lagos',
+          phone: '0803 123 4567',
+          email: 'hello@printshopledger.example',
+          bank: 'Moniepoint · 1234567890 · Mairoba Studio',
+          footer: 'Thank you for using PrintShopLedger.',
+        };
+      else if (path.endsWith('/console_save_receipt_issuer')) {
+        saved.push(['issuer', route.request().postDataJSON().p_issuer.phone]);
+        result = null;
+      } else if (path.endsWith('/console_problems'))
         result = [
           {
             id: 'pr1',
@@ -307,7 +321,7 @@ try {
       ) {
         const body = route.request().postDataJSON();
         saved.push([path.split('/').pop(), body.p_sub ?? body.p_payment ?? body.p_plan ?? body.p_trial]);
-        result = null;
+        result = path.endsWith('/console_record_payment') ? { id: 'p2', receiptNo: 13 } : null;
       } else if (path.endsWith('/console-staff')) {
         const body = route.request().postDataJSON();
         saved.push(['function', body.action, body.username ?? body.memberId]);
@@ -460,6 +474,15 @@ try {
     await page.getByLabel('Method', { exact: true }).fill('Cash');
     await page.getByRole('button', { name: 'Record payment', exact: true }).click();
     await page.getByText('Payment recorded. The subscription now runs until', { exact: false }).waitFor();
+    // The payment's receipt downloads as a PDF.
+    const [receipt] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByRole('button', { name: 'Download receipt PSL-000012', exact: true }).click(),
+    ]);
+    assert.equal(receipt.suggestedFilename(), 'PSL-000012-mairoba-studios.pdf');
+    await receipt.saveAs(`/tmp/console-receipt-${mobile ? 'mobile' : 'desktop'}.pdf`);
+    const pdf = await (await import('node:fs/promises')).readFile(await receipt.path());
+    assert.equal(pdf.subarray(0, 5).toString(), '%PDF-');
     const paid = saved.at(-1);
     assert.equal(paid[0], 'console_record_payment');
     assert.equal(paid[1].amount, 5000000);
@@ -529,6 +552,11 @@ try {
         archived: false,
       },
     ]);
+    // Receipt details (who receipts come from).
+    await page.getByLabel('Phone', { exact: true }).fill('0809 999 0000');
+    await page.getByRole('button', { name: 'Save receipt details', exact: true }).click();
+    await page.getByText('Receipt details saved.').waitFor();
+    assert.deepEqual(saved.at(-1), ['issuer', '0809 999 0000']);
     // The free trial for new businesses.
     await page.getByLabel('Give every new business a free trial', { exact: true }).check();
     await page.getByLabel('Trial plan').selectOption('standard');

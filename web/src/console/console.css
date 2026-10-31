@@ -165,6 +165,7 @@
 }
 .console-main textarea {
   font: inherit;
+  font-weight: 400;
 }
 .console-main .notice {
   margin: 0 0 16px;
