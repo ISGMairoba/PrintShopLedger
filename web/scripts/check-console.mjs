@@ -77,6 +77,7 @@ try {
             lastActivity: now,
             plan: 'Standard',
             subscription: 'active',
+            problems: 1,
             expiresAt: '2099-11-30T22:59:59Z',
           },
           {
@@ -258,7 +259,31 @@ try {
             },
           ],
         };
-      else if (path.endsWith('/console_trial_settings'))
+      else if (path.endsWith('/console_problems'))
+        result = [
+          {
+            id: 'pr1',
+            shopId: shop,
+            business: 'Mairoba Studios',
+            deviceId: 'd1',
+            device: 'Chrome on Android',
+            kind: 'error',
+            message: "Cannot read properties of undefined (reading 'total')",
+            detail: { stack: 'TypeError: at Jobs', path: '/', appVersion: 'abc1234' },
+            userLabel: 'Ada',
+            appVersion: 'abc1234',
+            count: 4,
+            firstAt: now,
+            lastAt: now,
+            resolvedAt: null,
+            resolvedBy: null,
+          },
+        ];
+      else if (path.endsWith('/console_problem_action')) {
+        const body = route.request().postDataJSON();
+        saved.push(['problem', body.p_action, body.p_id]);
+        result = null;
+      } else if (path.endsWith('/console_trial_settings'))
         result = {
           enabled: false,
           planId: null,
@@ -459,6 +484,22 @@ try {
     await page.goBack();
     await list.waitFor();
     assert.match(await list.innerText(), /Active[\s\S]*Standard/);
+    assert.match(await list.innerText(), /1 open problem/);
+    // Problems reported by devices.
+    await page.getByRole('button', { name: 'Problems', exact: true }).click();
+    const problemTable = page.getByRole('table', { name: 'Problems' });
+    assert.match(
+      await problemTable.innerText(),
+      /Error[\s\S]*Cannot read properties[\s\S]*Mairoba Studios[\s\S]*Chrome on Android[\s\S]*4 times/,
+    );
+    await page.screenshot({
+      path: `/tmp/console-problems-${mobile ? 'mobile' : 'desktop'}.png`,
+      fullPage: true,
+    });
+    await problemTable.getByRole('button', { name: 'Mark fixed', exact: true }).click();
+    await page.getByText('Marked as fixed.', { exact: false }).waitFor();
+    assert.deepEqual(saved.at(-1), ['problem', 'resolve', 'pr1']);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     // Plans: add one with a device limit.
     await page.getByRole('button', { name: 'Plans', exact: true }).click();
     await page.getByRole('table', { name: 'Plans' }).waitFor();

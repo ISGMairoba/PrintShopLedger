@@ -2,6 +2,7 @@
 // every few minutes (or sooner when its unsent work changes). The console can ask it to sign out.
 import { supabase } from './cloud';
 import { deviceName } from './device-name.mjs';
+import { returnProblems, takeProblems } from './problem-log.mjs';
 import type { LocalState } from './types';
 
 const KEY = 'printshopledger:device-id';
@@ -80,4 +81,19 @@ export async function confirmSignedOut(shopId: string) {
     () => undefined,
     () => undefined,
   );
+}
+/** Send the problems this device noted since the last sync. Never throws. */
+export async function sendProblems(shopId: string) {
+  const id = deviceId();
+  if (!supabase || !id) return;
+  const items = takeProblems();
+  if (!items.length) return;
+  try {
+    const { error } = await supabase
+      .rpc('report_problems', { p_shop: shopId, p_device: id, p_items: items })
+      .abortSignal(AbortSignal.timeout(15000));
+    if (error) returnProblems(items);
+  } catch {
+    returnProblems(items);
+  }
 }

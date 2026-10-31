@@ -16,6 +16,7 @@ export type BusinessRow = {
   plan?: string | null;
   subscription?: SubscriptionState;
   expiresAt?: string | null;
+  problems?: number;
 };
 export type StaffRow = {
   id: string;
@@ -250,3 +251,25 @@ export const saveTrialSettings = (trial: TrialSettings) =>
   call<null>('console_save_trial_settings', { p_trial: trial });
 export const businessBackup = (shopId: string) =>
   call<Record<string, unknown>>('console_business_backup', { p_shop: shopId });
+
+export type Problem = {
+  id: string;
+  shopId: string;
+  business: string;
+  deviceId: string;
+  device: string;
+  kind: 'error' | 'sync';
+  message: string;
+  detail: { stack?: string; path?: string; appVersion?: string; browser?: string; pending?: number };
+  userLabel: string;
+  appVersion: string;
+  count: number;
+  firstAt: string;
+  lastAt: string;
+  resolvedAt: string | null;
+  resolvedBy: string | null;
+};
+export const problems = (shopId: string | null, open: boolean) =>
+  call<Problem[]>('console_problems', { p_shop: shopId, p_open: open });
+export const problemAction = (id: string, action: 'resolve' | 'reopen') =>
+  call<null>('console_problem_action', { p_id: id, p_action: action });
