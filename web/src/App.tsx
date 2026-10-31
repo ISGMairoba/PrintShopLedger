@@ -1960,6 +1960,7 @@ export default function App() {
                       ) : page === 'Payees' ? (
                         <PayeesPage
                           ledger={ledger}
+                          branches={ownerBranches}
                           busy={busy || hasConflict}
                           actor={salesActor}
                           onSave={saveCatalogue}
@@ -2129,6 +2130,31 @@ export default function App() {
                         </>
                       ) : page === 'Services' ? (
                         <ServicesPage
+                          branchPrice={
+                            !demo &&
+                            branding.settings.branchPricing === 'perBranch' &&
+                            multiBranch &&
+                            activeBranch &&
+                            activeBranch.id !== 'main'
+                              ? {
+                                  branchName: activeBranch.name,
+                                  set: async (serviceId, price) => {
+                                    const { error } = await supabase!.rpc('set_branch_price', {
+                                      p_shop: shop!.id,
+                                      p_service: serviceId,
+                                      p_price: price,
+                                    });
+                                    if (error) throw Error(error.message);
+                                    setMessage(
+                                      price === null
+                                        ? `${activeBranch.name} now uses the business price.`
+                                        : `Price saved for ${activeBranch.name}. It shows after the next sync.`,
+                                    );
+                                    syncNow();
+                                  },
+                                }
+                              : undefined
+                          }
                           key={scope}
                           services={ledger.services}
                           materials={ledger.materials}

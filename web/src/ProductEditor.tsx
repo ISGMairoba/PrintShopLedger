@@ -1,3 +1,4 @@
+import { baseService } from './branches.mjs';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import VariantTools from './VariantTools';
 import Modal from './Modal';
@@ -52,7 +53,9 @@ export default function ProductEditor({
     pricing: 'single' | 'packs' | 'ranges';
   };
   const fieldsFor = (id: string): Fields => {
-    const p = products.find((x) => x.service.id === id);
+    const found = products.find((x) => x.service.id === id);
+    // Edit the business's own prices (a branch's prices are set on the Services page).
+    const p = found ? { ...found, service: baseService(found.service) } : undefined;
     return {
       serviceId: p ? id : '',
       // A variant shows the product's name: renaming it renames every variant.

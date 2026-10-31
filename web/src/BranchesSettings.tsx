@@ -15,7 +15,11 @@ export default function BranchesSettings({
   staff,
   onBranches,
   onAccess,
+  pricing,
+  onPricing,
 }: {
+  pricing: 'shared' | 'perBranch';
+  onPricing: (next: 'shared' | 'perBranch') => void;
   branches: Branch[];
   access: Record<string, string[]>;
   /** null while loading or where the staff list is not available. */
@@ -100,6 +104,29 @@ export default function BranchesSettings({
       </button>
       {active.length > 1 && (
         <>
+          <h3>Prices</h3>
+          <label className="check-label">
+            <input
+              type="radio"
+              name="branchPricing"
+              checked={pricing === 'shared'}
+              onChange={() => onPricing('shared')}
+            />
+            Same prices in every branch
+          </label>
+          <label className="check-label">
+            <input
+              type="radio"
+              name="branchPricing"
+              checked={pricing === 'perBranch'}
+              onChange={() => onPricing('perBranch')}
+            />
+            Each branch can set its own prices
+          </label>
+          <p className="muted">
+            With its own prices, a branch other than the main one uses <strong>Price here</strong> on the
+            Services page for any item; items without a branch price use the business price.
+          </p>
           <h3>Who works where</h3>
           <p className="muted">
             Staff work in the branches ticked here; anyone not set works in the main branch.{' '}

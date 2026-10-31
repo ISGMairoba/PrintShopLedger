@@ -1068,8 +1068,10 @@ export default function BusinessSettingsPage({
                 staff={branchStaff}
                 onBranches={(next) => field('branches', next)}
                 onAccess={(next) => field('branchAccess', next)}
+                pricing={draft.branchPricing}
+                onPricing={(next) => field('branchPricing', next)}
               />
-              {sectionSave('Branches', ['branches', 'branchAccess'])}
+              {sectionSave('Branches', ['branches', 'branchAccess', 'branchPricing'])}
             </fieldset>
             <fieldset hidden={tab !== 'Page access'} disabled={busy || !ready}>
               <legend>Page access by rank</legend>

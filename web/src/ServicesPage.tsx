@@ -1,3 +1,4 @@
+import { baseService } from './branches.mjs';
 import { itemMaterialEvents } from './item-material.mjs';
 import DialogActions from './DialogActions';
 import { useFeedbackMessage } from './Feedback';
@@ -34,6 +35,8 @@ type Props = {
   onSaveMany: (events: (MaterialEvent | ServiceEvent)[]) => Promise<void>;
   /** Open the product editor ('' to choose a product). */
   onEditProduct?: (serviceId: string) => void;
+  /** Branch prices on, and this device works in a branch other than the main one. */
+  branchPrice?: { branchName: string; set: (serviceId: string, price: number | null) => Promise<void> };
 };
 const timestamp = (value: string) => new Date(value).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' });
 /** The material select's value for a choice of materials. */
@@ -59,7 +62,10 @@ export default function ServicesPage({
   onSave,
   onSaveMany,
   onEditProduct,
+  branchPrice,
 }: Props) {
+  const [priceHere, setPriceHere] = useState<Service | null>(null);
+  const [branchPriceText, setBranchPriceText] = useState('');
   const formId = useId();
   const { w } = useWords();
   const units = useBusinessOptions().materialUnits;
@@ -108,7 +114,8 @@ export default function ServicesPage({
     }
   };
   const openEditor = (target: Service | 'new') => {
-    const s = target === 'new' ? null : target;
+    // Edit the business's own prices (a branch's prices are set with Price here).
+    const s = target === 'new' ? null : baseService(target);
     setItemName(s?.description ?? '');
     setPacks(packDraft(s?.packPrices));
     setTiers(tierDraft(s?.priceTiers));
@@ -525,7 +532,15 @@ export default function ServicesPage({
                             {material?.archived ? w(' · Archived material') : ''}
                           </small>
                         </td>
-                        <td className="cell-fit">{servicePrice(service.price)}</td>
+                        <td className="cell-fit">
+                          {servicePrice(service.price)}
+                          {service.base && (
+                            <small>
+                              {branchPrice?.branchName ?? 'Branch'} price · business{' '}
+                              {servicePrice(service.base.price)}
+                            </small>
+                          )}
+                        </td>
                         <td className="cell-fit">
                           <span className={`badge ${service.archived ? 'unpaid' : 'paid'}`}>
                             {service.archived ? 'Archived' : 'Active'}
@@ -545,6 +560,19 @@ export default function ServicesPage({
                                 }}
                               >
                                 <Icon name="edit" /> Edit
+                              </button>
+                            )}
+                            {!service.archived && branchPrice && !service.private && !service.customPrice && (
+                              <button
+                                className="text-button"
+                                disabled={busy}
+                                onClick={() => {
+                                  setPriceHere(service);
+                                  setBranchPriceText((service.price / 100).toFixed(2));
+                                  setError('');
+                                }}
+                              >
+                                <Icon name="payments" /> Price here
                               </button>
                             )}
                             {!service.archived && service.materialId && onEditProduct && (
@@ -618,6 +646,67 @@ export default function ServicesPage({
           </div>
         </Modal>
       )}
+      {priceHere && branchPrice && (
+        <Modal title={`Price at ${branchPrice.branchName}`} busy={busy} onClose={() => setPriceHere(null)}>
+          <p>
+            {priceHere.description}: business price {servicePrice(priceHere.base?.price ?? priceHere.price)}.
+            A price here is used only in {branchPrice.branchName}
+            {priceHere.base?.packPrices?.length ||
+            priceHere.base?.priceTiers?.length ||
+            priceHere.packPrices?.length ||
+            priceHere.priceTiers?.length
+              ? '; there the item is sold singly at this price (no packs or quantity ranges)'
+              : ''}
+            .
+          </p>
+          {error && (
+            <p role="alert" className="notice">
+              {error}
+            </p>
+          )}
+          <label>
+            Price at {branchPrice.branchName} (₦)
+            <CurrencyInput
+              aria-label="Branch price"
+              value={branchPriceText}
+              onValueChange={setBranchPriceText}
+            />
+          </label>
+          <div className="material-actions">
+            {priceHere.base && (
+              <button
+                type="button"
+                className="secondary"
+                disabled={busy}
+                onClick={async () => {
+                  try {
+                    await branchPrice.set(priceHere.id, null);
+                    setPriceHere(null);
+                  } catch (cause) {
+                    setError(cause instanceof Error ? cause.message : String(cause));
+                  }
+                }}
+              >
+                Use business price
+              </button>
+            )}
+            <button
+              type="button"
+              disabled={busy}
+              onClick={async () => {
+                try {
+                  await branchPrice.set(priceHere.id, money(branchPriceText || '0'));
+                  setPriceHere(null);
+                } catch (cause) {
+                  setError(cause instanceof Error ? cause.message : String(cause));
+                }
+              }}
+            >
+              <Icon name="save" /> Save price
+            </button>
+          </div>
+        </Modal>
+      )}
       {editor && (
         <Modal
           title={w(editing ? 'Edit service' : 'Add service')}
@@ -683,7 +772,7 @@ export default function ServicesPage({
                         : 'Price (₦)'}
                     <CurrencyInput
                       name="price"
-                      defaultValue={editing ? (editing.price / 100).toFixed(2) : ''}
+                      defaultValue={editing ? (baseService(editing).price / 100).toFixed(2) : ''}
                       onValueChange={setPriceText}
                       required
                     />

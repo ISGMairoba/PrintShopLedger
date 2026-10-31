@@ -81,7 +81,7 @@ export const settingsTabKeys = {
   'Pricing templates': ['pricing'],
   Corrections: ['corrections'],
   Security: ['security'],
-  Branches: ['branches', 'branchAccess'],
+  Branches: ['branches', 'branchAccess', 'branchPricing'],
 };
 export const defaultSettingsTabs = () => ({ 2: [...settingsTabs], 3: [...settingsTabs] });
 export function validateSettingsTabs(input) {

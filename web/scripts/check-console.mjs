@@ -597,6 +597,7 @@ try {
         price: 2000000,
         periodDays: 30,
         maxDevices: 5,
+        maxBranches: null,
         monthlyTokens: null,
         description: '',
         archived: false,

@@ -144,6 +144,31 @@ export function ConsoleUsage({ shopId }: { shopId: string }) {
           </>
         )}
       </section>
+      {data && (data.byBranch?.length ?? 0) > 1 && (
+        <section className="panel">
+          <h2>By branch</h2>
+          <div className="table-wrap">
+            <table aria-label="Usage by branch">
+              <thead>
+                <tr>
+                  <th>Branch</th>
+                  <th className="numeric">Operations</th>
+                  <th className="numeric">Tokens</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.byBranch!.map((b) => (
+                  <tr key={b.branch}>
+                    <td>{b.name}</td>
+                    <td className="numeric">{n(b.operations)}</td>
+                    <td className="numeric">{n(b.tokens)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
       {data && data.byCategory.length > 0 && (
         <section className="panel">
           <h2>Where the tokens went</h2>
