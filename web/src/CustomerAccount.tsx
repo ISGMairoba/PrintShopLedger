@@ -1,3 +1,4 @@
+import { allBranchesLedger } from './branches.mjs';
 import { paymentName } from './business-options.mjs';
 import Modal from './Modal';
 import ResponsiveTable from './ResponsiveTable';
@@ -11,10 +12,13 @@ export default function CustomerAccount({
   customer,
   ledger,
   onClose,
+  branches,
 }: {
   customer: Customer;
   ledger: Ledger;
   onClose: () => void;
+  /** The owner's view: each branch's records, to show the customer's account in every branch. */
+  branches?: { id: string; name: string; ledger: Ledger }[];
 }) {
   const { w } = useWords();
   const js = useTableSort<Job>('date', 'desc'),
@@ -47,6 +51,38 @@ export default function CustomerAccount({
         Phone: {customer.phone} · Outstanding: {currency(customerBalance(ledger, customer.id))} · Wallet:{' '}
         {currency(walletBalance(ledger, customer.id))}
       </p>
+      {branches && branches.length > 1 && (
+        <>
+          <h3>Across branches</h3>
+          <div className="table-wrap">
+            <table aria-label="Account across branches">
+              <thead>
+                <tr>
+                  <th>Branch</th>
+                  <th className="numeric">{w('Jobs')}</th>
+                  <th className="numeric">Outstanding</th>
+                  <th className="numeric">Wallet</th>
+                </tr>
+              </thead>
+              <tbody>
+                {branches.map((b) => {
+                  const own = allBranchesLedger(b.ledger);
+                  return (
+                    <tr key={b.id}>
+                      <td>{b.name}</td>
+                      <td className="numeric">
+                        {own.jobs.filter((j) => j.customerId === customer.id).length}
+                      </td>
+                      <td className="numeric">{currency(customerBalance(own, customer.id))}</td>
+                      <td className="numeric">{currency(walletBalance(own, customer.id))}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
       <h3>{w('Jobs')}</h3>
       <div className="table-wrap">
         <ResponsiveTable

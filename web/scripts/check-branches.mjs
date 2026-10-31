@@ -60,7 +60,7 @@ try {
     serviceWorkers: 'block',
   });
   const sent = [];
-  await context.route('https://*.supabase.co/**', async (route) => {
+  const handler = async (route) => {
     const path = new URL(route.request().url()).pathname;
     if (path.startsWith('/rest/'))
       sent.push([path.split('/').pop(), route.request().headers()['x-psl-branch'] ?? null]);
@@ -133,7 +133,8 @@ try {
     else if (path.endsWith('/report_problems')) result = null;
     else throw Error('Unexpected request: ' + path);
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(result) });
-  });
+  };
+  await context.route('https://*.supabase.co/**', handler);
   const page = await context.newPage();
   page.setDefaultTimeout(20000);
   const errors = [];
@@ -172,6 +173,30 @@ try {
   await page.getByText('Kano job', { exact: true }).first().waitFor();
   assert.equal(await page.getByText('Zoo job', { exact: true }).count(), 0);
   assert.deepEqual(errors, []);
+  // The business owner (Every branch): the Dashboard shows all branches together and side by side.
+  settings.branchAccess = { [id]: ['*'] };
+  const owner = await browser.newContext({ viewport: { width: 1280, height: 900 }, serviceWorkers: 'block' });
+  await owner.route('https://*.supabase.co/**', handler);
+  const op = await owner.newPage();
+  op.setDefaultTimeout(20000);
+  op.on('pageerror', (e) => errors.push(e.message));
+  await op.goto(`http://127.0.0.1:${port}`);
+  await op.getByLabel('Business email', { exact: true }).fill('shop@example.invalid');
+  await op.getByLabel('Business password', { exact: true }).fill('test-password');
+  await op.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await op.getByRole('button', { name: /Kano Road/ }).click();
+  const ownerNav = op.getByRole('navigation', { name: 'Main' });
+  await ownerNav.getByRole('button', { name: 'Dashboard', exact: true }).click();
+  assert.equal(await op.getByLabel('Show branch').inputValue(), 'all');
+  const compare = op.getByRole('table', { name: 'Branches side by side' });
+  await compare.waitFor();
+  assert.match(await compare.innerText(), /Kano Road[\s\S]*Zoo Road[\s\S]*All branches/);
+  // One branch at a time hides the comparison.
+  await op.getByLabel('Show branch').selectOption('b-zoo0000001');
+  await compare.waitFor({ state: 'detached' });
+  await op.screenshot({ path: '/tmp/branches-owner.png', fullPage: true });
+  assert.deepEqual(errors, []);
+  await owner.close();
   console.log('Branches passed');
 } catch (error) {
   if (browser)

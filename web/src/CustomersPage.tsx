@@ -22,6 +22,8 @@ type Props = {
   onSave: (event: CustomerEvent) => Promise<void>;
   onRecordPayment: (id: string) => void;
   onStatement?: (id: string) => void;
+  /** The owner's view: each branch's records (customer accounts in every branch). */
+  branches?: { id: string; name: string; ledger: Ledger }[];
 };
 const date = (value: string) => new Date(value).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' });
 export default function CustomersPage({
@@ -32,6 +34,7 @@ export default function CustomersPage({
   onSave,
   onRecordPayment,
   onStatement,
+  branches,
 }: Props) {
   const { w } = useWords();
   const [query, setQuery] = useState('');
@@ -237,7 +240,14 @@ export default function CustomersPage({
           </div>
         )}
       </section>
-      {account && <CustomerAccount customer={account} ledger={ledger} onClose={() => setAccount(null)} />}
+      {account && (
+        <CustomerAccount
+          customer={account}
+          ledger={ledger}
+          branches={branches}
+          onClose={() => setAccount(null)}
+        />
+      )}
       {editor && (
         <CustomerEditor
           key={editor === 'new' ? 'new' : editor.id + ':' + editor.version}

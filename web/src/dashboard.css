@@ -276,3 +276,15 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* The owner's branch choice on Dashboard and Reports. */
+.branch-view {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+.branch-view select {
+  width: auto;
+  min-width: 180px;
+}

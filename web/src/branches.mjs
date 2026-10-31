@@ -99,6 +99,16 @@ export function setLocalBranch(id) {
 export const localBranchId = () => localBranch;
 /** Whether a record belongs to the branch (this device's by default). */
 export const inBranch = (record, id = localBranch) => (record?.branchId ?? MAIN) === id;
+/**
+ * The owner's view of every branch together: a ledger marked branchScope 'all' counts each
+ * customer's accounts in all branches (see checkout.mjs walletBalance and accountToken).
+ * @template T
+ * @param {T} ledger
+ * @returns {T}
+ */
+export const allBranchesLedger = (ledger) => ({ ...ledger, branchScope: 'all' });
+/** Whether a record counts in this view of the records. */
+export const counts = (ledger, record) => ledger?.branchScope === 'all' || inBranch(record);
 /** The parts of the records that belong to one branch. */
 export const BRANCH_KEYS = [
   'jobs',
@@ -122,6 +132,11 @@ export function branchLedger(ledger, id = localBranch) {
   const out = { ...ledger };
   for (const key of BRANCH_KEYS)
     if (Array.isArray(ledger?.[key])) out[key] = ledger[key].filter((r) => inBranch(r, id));
+  // An expense's change history goes with the expense.
+  if (Array.isArray(ledger?.expenseHistory) && Array.isArray(out.expenses)) {
+    const kept = new Set(out.expenses.map((e) => e.id));
+    out.expenseHistory = ledger.expenseHistory.filter((h) => kept.has(h.expenseId));
+  }
   return out;
 }
 /** Tag records an operation just added with this device's branch (the main branch needs no tag). */
