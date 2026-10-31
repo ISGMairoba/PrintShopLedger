@@ -1,6 +1,6 @@
 import PeriodFilter, { usePeriod } from './PeriodFilter';
 import { stockLevel } from './material-display.mjs';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import DashboardBreakdowns from './DashboardBreakdowns';
 import { InteractiveTrend } from './InteractiveCharts';
 import { dashboardSummary, validRange } from './dashboard.mjs';
@@ -29,6 +29,8 @@ export default function DashboardPage({
   pending,
   lastSynced,
   access,
+  branchControl,
+  branches,
 }: {
   ledger: Ledger;
   ready: boolean;
@@ -36,6 +38,10 @@ export default function DashboardPage({
   pending: number;
   lastSynced?: string;
   access: Access;
+  /** The owner's choice of branch (All branches or one), shown with the period. */
+  branchControl?: ReactNode;
+  /** In the owner's All branches view: each branch's records, compared side by side. */
+  branches?: { id: string; name: string; ledger: Ledger }[];
 }) {
   const { w, stage } = useWords();
   const [period, setPeriod] = usePeriod('dashboard');
@@ -45,6 +51,13 @@ export default function DashboardPage({
   const summary = useMemo(
     () => (valid ? dashboardSummary(ledger, range.from, range.to, trendInterval) : null),
     [ledger, range.from, range.to, valid, trendInterval],
+  );
+  const branchSummaries = useMemo(
+    () =>
+      valid && branches?.length
+        ? branches.map((b) => ({ ...b, summary: dashboardSummary(b.ledger, range.from, range.to, 'auto') }))
+        : [],
+    [branches, range.from, range.to, valid],
   );
   if (!ready)
     return (
@@ -63,6 +76,7 @@ export default function DashboardPage({
   return (
     <div className="dashboard">
       <section className="panel dashboard-filters">
+        {branchControl}
         <PeriodFilter value={period} onChange={setPeriod} />
         <small>Dates use Africa/Lagos.</small>
       </section>
@@ -136,6 +150,47 @@ export default function DashboardPage({
                 'Payments received minus expenses paid. Not your bank balance.',
               )}
           </section>
+          {branchSummaries.length > 1 && (
+            <section className="panel dashboard-panel" aria-labelledby="branch-comparison-title">
+              <h2 id="branch-comparison-title">Branches side by side</h2>
+              <div className="table-wrap">
+                <table aria-label="Branches side by side">
+                  <thead>
+                    <tr>
+                      <th>Branch</th>
+                      {access.sales && <th className="numeric">Sales value</th>}
+                      {access.sales && <th className="numeric">Jobs</th>}
+                      {access.payments && <th className="numeric">Net collected</th>}
+                      {access.expenses && <th className="numeric">Expenses</th>}
+                      {access.sales && <th className="numeric">Customers owe</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {branchSummaries.map((b) => (
+                      <tr key={b.id}>
+                        <td>{b.name}</td>
+                        {access.sales && <td className="numeric">{money(b.summary.sales)}</td>}
+                        {access.sales && <td className="numeric">{b.summary.jobs}</td>}
+                        {access.payments && <td className="numeric">{money(b.summary.netCollected)}</td>}
+                        {access.expenses && <td className="numeric">{money(b.summary.expenseIncurred)}</td>}
+                        {access.sales && <td className="numeric">{money(b.summary.outstanding)}</td>}
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <th>All branches</th>
+                      {access.sales && <th className="numeric">{money(summary.sales)}</th>}
+                      {access.sales && <th className="numeric">{summary.jobs}</th>}
+                      {access.payments && <th className="numeric">{money(summary.netCollected)}</th>}
+                      {access.expenses && <th className="numeric">{money(summary.expenseIncurred)}</th>}
+                      {access.sales && <th className="numeric">{money(summary.outstanding)}</th>}
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </section>
+          )}
           {(access.sales || access.payments || access.expenses) && (
             <section className="panel dashboard-panel">
               <div className="toolbar">

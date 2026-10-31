@@ -48,6 +48,8 @@ type Props = {
   customerId: string;
   onCustomerChange: (id: string) => void;
   access: ReportAccess;
+  /** The owner's choice of branch (All branches or one). */
+  branchControl?: ReactNode;
 };
 type Tab = 'Customer statement' | 'Transactions' | 'Summary';
 type StatementJob = {
@@ -263,6 +265,7 @@ export default function ReportsPage({
   customerId,
   onCustomerChange,
   access,
+  branchControl,
 }: Props) {
   // Load the PDF and share code now: phones only open the share sheet straight after the tap.
   useEffect(() => {
@@ -359,6 +362,7 @@ export default function ReportsPage({
   const shared = { ledger, freshness, busy, error, pdf, csv, share, company };
   return (
     <div className="dashboard reports">
+      {branchControl && <section className="panel dashboard-filters">{branchControl}</section>}
       <div className="settings-tabs" role="tablist" aria-label="Reports">
         {tabs.map((item) => (
           <button

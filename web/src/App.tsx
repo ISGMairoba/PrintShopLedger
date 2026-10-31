@@ -1,4 +1,11 @@
-import { allowedBranches, branchLedger, hasBranches } from './branches.mjs';
+import {
+  allBranchesLedger,
+  allowedBranches,
+  branchesOf,
+  branchLedger,
+  hasBranches,
+  seesAllBranches,
+} from './branches.mjs';
 import { setRequestBranch, storeBranch, storedBranch } from './device-branch';
 import PayeesPage from './PayeesPage';
 import AccountsPage from './AccountsPage';
@@ -336,6 +343,55 @@ export default function App() {
       syncNow();
     } catch {}
   }
+  // The owner's master view (Dashboard and Reports): every branch together, or one of them.
+  const ownerView =
+    multiBranch &&
+    seesAllBranches(branding.settings, shop?.userId ?? '', demo ? 4 : (shop?.accessLevel ?? 0));
+  const [masterBranch, setMasterBranch] = useState('all');
+  const openBranches = useMemo(
+    () => branchesOf(branding.settings).filter((b) => !b.archived),
+    [branding.settings],
+  );
+  const masterLedger = useMemo(() => {
+    if (!ownerView) return ledger;
+    const base = { ...state.ledger, pricing: branding.settings.pricing };
+    return masterBranch === 'all' ? allBranchesLedger(base) : branchLedger(base, masterBranch);
+  }, [ownerView, ledger, state.ledger, branding.settings.pricing, masterBranch]);
+  const masterBranches = useMemo(
+    () =>
+      ownerView && masterBranch === 'all'
+        ? openBranches.map((b) => ({
+            id: b.id,
+            name: b.name,
+            ledger: branchLedger({ ...state.ledger, pricing: branding.settings.pricing }, b.id),
+          }))
+        : undefined,
+    [ownerView, masterBranch, openBranches, state.ledger, branding.settings.pricing],
+  );
+  const ownerBranches = useMemo(
+    () =>
+      ownerView
+        ? openBranches.map((b) => ({
+            id: b.id,
+            name: b.name,
+            ledger: branchLedger({ ...state.ledger, pricing: branding.settings.pricing }, b.id),
+          }))
+        : undefined,
+    [ownerView, openBranches, state.ledger, branding.settings.pricing],
+  );
+  const branchControl = ownerView ? (
+    <label className="branch-view">
+      Branch
+      <select aria-label="Show branch" value={masterBranch} onChange={(e) => setMasterBranch(e.target.value)}>
+        <option value="all">All branches</option>
+        {openBranches.map((b) => (
+          <option key={b.id} value={b.id}>
+            {b.name}
+          </option>
+        ))}
+      </select>
+    </label>
+  ) : undefined;
   // Receipts and documents show the branch's own phone and address when it has them.
   const docBusiness = useMemo(
     () =>
@@ -1605,7 +1661,8 @@ export default function App() {
                           }
                         >
                           <ReportsPage
-                            ledger={ledger}
+                            ledger={masterLedger}
+                            branchControl={branchControl}
                             ready={ready}
                             online={online}
                             pending={state.pending.length}
@@ -1663,7 +1720,9 @@ export default function App() {
                           }
                         >
                           <DashboardPage
-                            ledger={ledger}
+                            ledger={masterLedger}
+                            branchControl={branchControl}
+                            branches={masterBranches}
                             ready={ready}
                             online={online}
                             pending={state.pending.length}
@@ -2023,6 +2082,7 @@ export default function App() {
                       ) : page === 'Customers' ? (
                         <CustomersPage
                           key={scope}
+                          branches={ownerBranches}
                           onStatement={
                             demo ||
                             (['Reports', 'Jobs', 'Payments'] as const).every((name) =>
