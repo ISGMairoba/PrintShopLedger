@@ -146,7 +146,7 @@ export function createPaymentReceipt(
   doc.line(L, f, R, f);
   f += 7;
   if (issuer.bank) {
-    text('Pay by transfer: ', L, f, 9, 'bold', INK);
+    text('Bank details:', L, f, 9, 'bold', INK);
     for (const line of wrap(issuer.bank, R - L - 30, 9)) {
       text(line, L + 28, f, 9, 'normal', INK);
       f += 4.6;
