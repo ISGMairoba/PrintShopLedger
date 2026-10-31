@@ -190,7 +190,7 @@ try {
   assert.equal(await op.getByLabel('Show branch').inputValue(), 'all');
   const compare = op.getByRole('table', { name: 'Branches side by side' });
   await compare.waitFor();
-  assert.match(await compare.innerText(), /Kano Road[\s\S]*Zoo Road[\s\S]*All branches/);
+  assert.match(await compare.innerText(), /Kano Road[\s\S]*₦10\.00[\s\S]*Zoo Road[\s\S]*₦20\.00[\s\S]*All branches[\s\S]*₦30\.00/i);
   // One branch at a time hides the comparison.
   await op.getByLabel('Show branch').selectOption('b-zoo0000001');
   await compare.waitFor({ state: 'detached' });
