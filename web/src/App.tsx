@@ -1967,7 +1967,14 @@ export default function App() {
                       ) : page === 'Accounts' ? (
                         <AccountsPage
                           canConfigure={demo || shop?.accessLevel === 4}
-                          ledger={ledger}
+                          ledger={
+                            ownerView
+                              ? allBranchesLedger({ ...state.ledger, pricing: branding.settings.pricing })
+                              : ledger
+                          }
+                          branches={multiBranch ? openBranches : undefined}
+                          seesAll={ownerView}
+                          currentBranch={activeBranch?.id ?? 'main'}
                           busy={busy || hasConflict}
                           actor={salesActor}
                           onSave={saveCatalogue}

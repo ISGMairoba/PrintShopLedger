@@ -132,6 +132,17 @@ export function branchLedger(ledger, id = localBranch) {
   const out = { ...ledger };
   for (const key of BRANCH_KEYS)
     if (Array.isArray(ledger?.[key])) out[key] = ledger[key].filter((r) => inBranch(r, id));
+  // Money accounts: the branch's own and the shared ones. Account entries (transfers,
+  // reconciliations, assignments) show when they touch one of the branch's own accounts.
+  if (Array.isArray(ledger?.moneyAccounts)) {
+    const branchOf = (a) => a?.branch || MAIN;
+    out.moneyAccounts = ledger.moneyAccounts.filter((a) => branchOf(a) === '*' || branchOf(a) === id);
+    const own = new Set(out.moneyAccounts.filter((a) => branchOf(a) === id).map((a) => a.id));
+    if (Array.isArray(ledger.accountEntries))
+      out.accountEntries = ledger.accountEntries.filter(
+        (e) => own.has(e.accountId) || own.has(e.toAccountId),
+      );
+  }
   // An expense's change history goes with the expense.
   if (Array.isArray(ledger?.expenseHistory) && Array.isArray(out.expenses)) {
     const kept = new Set(out.expenses.map((e) => e.id));

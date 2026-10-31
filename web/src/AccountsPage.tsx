@@ -4,7 +4,7 @@ import CurrencyInput from './CurrencyInput';
 import { money } from './domain.mjs';
 import { currency } from './receipts.mjs';
 import { businessDay } from './dashboard.mjs';
-import { accountBalance, moneyTransactions, operationEvent } from './operations.mjs';
+import { accountBalance, accountBranch, moneyTransactions, operationEvent } from './operations.mjs';
 import { useBusinessOptions } from './BusinessOptionsContext';
 import type { Ledger, MoneyAccount, OperationsEvent } from './types';
 const today = () => businessDay(new Date().toISOString());
@@ -14,7 +14,16 @@ export default function AccountsPage({
   actor,
   onSave,
   canConfigure = false,
+  branches,
+  seesAll = false,
+  currentBranch = 'main',
 }: {
+  /** With branches: every open branch, for whose account it is. */
+  branches?: { id: string; name: string }[];
+  /** The owner's view: every account with its full balance. */
+  seesAll?: boolean;
+  /** The branch this device works in (new accounts belong to it). */
+  currentBranch?: string;
   ledger: Ledger;
   busy: boolean;
   canConfigure?: boolean;
@@ -135,6 +144,8 @@ export default function AccountsPage({
               .sort((a, b) => a.name.localeCompare(b.name))
               .map((a) => {
                 const t = accountBalance(ledger, a.id);
+                // A shared account's full balance includes other branches' money: only the owner sees it.
+                const partial = !!branches && accountBranch(a) === '*' && !seesAll;
                 return (
                   <tr key={a.id}>
                     <td>
@@ -144,15 +155,34 @@ export default function AccountsPage({
                         {a.archived ? ' · Archived' : ''}
                       </small>
                       <small>Default for: {a.methods?.join(', ') || 'None'}</small>
+                      {branches && (
+                        <small>
+                          {accountBranch(a) === '*'
+                            ? 'Shared by all branches'
+                            : (branches.find((b) => b.id === accountBranch(a))?.name ?? 'Main branch')}
+                        </small>
+                      )}
                     </td>
                     <td>
-                      <strong>{currency(t.balance)}</strong>
-                      <small>
-                        Received {currency(t.received)} · Paid {currency(t.paid)}
-                      </small>
-                      <small>
-                        Opening {currency(a.openingBalance)} · {a.openingDate}
-                      </small>
+                      {partial ? (
+                        <>
+                          <strong>Shared account</strong>
+                          <small>
+                            This branch: received {currency(t.received)} · paid {currency(t.paid)}
+                          </small>
+                          <small>The business owner sees the full balance.</small>
+                        </>
+                      ) : (
+                        <>
+                          <strong>{currency(t.balance)}</strong>
+                          <small>
+                            Received {currency(t.received)} · Paid {currency(t.paid)}
+                          </small>
+                          <small>
+                            Opening {currency(a.openingBalance)} · {a.openingDate}
+                          </small>
+                        </>
+                      )}
                     </td>
                     <td>
                       <div className="material-actions">
@@ -161,7 +191,7 @@ export default function AccountsPage({
                         </button>
                         <button
                           className="text-button"
-                          disabled={busy || a.archived}
+                          disabled={busy || a.archived || partial}
                           onClick={() => open('reconcile', a.id)}
                         >
                           Reconcile
@@ -225,6 +255,7 @@ export default function AccountsPage({
                   openingDate: editor === 'new' ? String(f.get('openingDate')) : editor.openingDate,
                   openingBalance: editor === 'new' ? opening : editor.openingBalance,
                   methods: f.getAll('methods').map(String),
+                  ...(branches ? { branch: String(f.get('branch') || currentBranch) } : {}),
                 })
               )
                 setEditor(null);
@@ -254,6 +285,27 @@ export default function AccountsPage({
                   <option value="other">Other</option>
                 </select>
               </label>
+              {branches && (
+                <label>
+                  Belongs to
+                  <select
+                    aria-label="Belongs to"
+                    name="branch"
+                    defaultValue={editor === 'new' ? currentBranch : accountBranch(editor)}
+                  >
+                    {branches.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                    <option value="*">Shared by all branches</option>
+                  </select>
+                  <small>
+                    A branch's accounts (its POS terminal, till, own bank accounts) are used only there. A
+                    shared account, such as the general business account, can be used by every branch.
+                  </small>
+                </label>
+              )}
               {editor === 'new' ? (
                 <>
                   <label>

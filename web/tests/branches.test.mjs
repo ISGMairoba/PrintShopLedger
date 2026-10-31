@@ -128,3 +128,59 @@ test('each branch sees its own records; a customer has one account per branch', 
     setLocalBranch('main');
   }
 });
+
+import { defaultMoneyAccount, operationEvent, applyOperation } from '../src/operations.mjs';
+
+test('money accounts belong to a branch or are shared', () => {
+  const actor = { id: 'u1', label: 'Owner' };
+  const create = (ledger, data) =>
+    applyOperation(
+      ledger,
+      operationEvent('account.created', { openingDate: '2026-10-01', openingBalance: 0, ...data }, actor),
+    );
+  let ledger = { moneyAccounts: [], accountEntries: [], operationHistory: [] };
+  try {
+    setLocalBranch('main');
+    ledger = create(ledger, { id: 'a1', name: 'Kano POS', accountType: 'pos', methods: ['POS'] });
+    assert.equal(ledger.moneyAccounts[0].branch, 'main');
+    // Another branch can have its own POS account for the same method.
+    ledger = create(ledger, {
+      id: 'a2',
+      name: 'Zoo POS',
+      accountType: 'pos',
+      methods: ['POS'],
+      branch: 'b-zoo0000001',
+    });
+    // A shared account cannot take a method a branch already uses.
+    assert.throws(
+      () =>
+        create(ledger, {
+          id: 'a3',
+          name: 'Business bank',
+          accountType: 'bank',
+          methods: ['POS'],
+          branch: '*',
+        }),
+      /one default account in a branch/,
+    );
+    ledger = create(ledger, {
+      id: 'a3',
+      name: 'Business bank',
+      accountType: 'bank',
+      methods: ['Transfer'],
+      branch: '*',
+    });
+    assert.equal(defaultMoneyAccount(ledger, 'POS'), 'a1');
+    assert.equal(defaultMoneyAccount(ledger, 'Transfer'), 'a3');
+    setLocalBranch('b-zoo0000001');
+    assert.equal(defaultMoneyAccount(ledger, 'POS'), 'a2');
+    assert.equal(defaultMoneyAccount(ledger, 'Transfer'), 'a3');
+    // Each branch sees its own accounts and the shared one.
+    assert.deepEqual(
+      branchLedger(ledger).moneyAccounts.map((a) => a.id),
+      ['a2', 'a3'],
+    );
+  } finally {
+    setLocalBranch('main');
+  }
+});
