@@ -1,3 +1,4 @@
+import DeadlineProgress from './DeadlineProgress';
 import Icon from './Icon';
 import { useState, useEffect } from 'react';
 import { groupJobsByCheckout } from './job-batches.mjs';
@@ -35,6 +36,7 @@ export default function JobTable({
   onJob,
   onAction,
   onBulkAction,
+  onDue,
   grouped = false,
   selecting = false,
   pageSort = false,
@@ -48,6 +50,7 @@ export default function JobTable({
   audit?: boolean;
   onJob: (id: string) => void;
   onAction: (job: Job, mode: ProgressMode) => void;
+  onDue?: (jobs: Job[]) => void;
   onBulkAction?: (jobs: Job[], mode: ProgressMode) => void;
   grouped?: boolean;
   selecting?: boolean;
@@ -73,6 +76,24 @@ export default function JobTable({
     );
   const actions = (items: Job[]) => (
     <div className="job-bulk-actions">
+      {onDue && (
+        <button
+          className="secondary"
+          disabled={
+            busy ||
+            !items.some((j) => !['Completed', 'Collected', 'Cancelled'].includes(j.productionStatus ?? ''))
+          }
+          onClick={() =>
+            onDue(
+              items.filter(
+                (j) => !['Completed', 'Collected', 'Cancelled'].includes(j.productionStatus ?? ''),
+              ),
+            )
+          }
+        >
+          Change due date
+        </button>
+      )}
       <button
         className="secondary"
         disabled={busy || !items.length}
@@ -210,13 +231,7 @@ export default function JobTable({
                     {date(job.createdAt)}, {time(job.createdAt)}
                   </span>
                   {!pointOfService && <small>Last payment: {lastPaid ? date(lastPaid) : 'None'}</small>}
-                  {job.dueAt && !Number.isNaN(Date.parse(job.dueAt)) && (
-                    <small className={`deadline deadline-${deadlineState(job)}`}>
-                      Due {date(job.dueAt)}, {time(job.dueAt)}
-                      {deadlineState(job) === 'overdue' && <span className="badge unpaid">Overdue</span>}
-                      {deadlineState(job) === 'soon' && <span className="badge partial">Due soon</span>}
-                    </small>
-                  )}
+                  <DeadlineProgress job={job} />
                 </td>
                 {audit && (
                   <>
@@ -237,6 +252,11 @@ export default function JobTable({
                   </>
                 )}
                 <td>
+                  {onDue && !['Completed', 'Collected', 'Cancelled'].includes(job.productionStatus ?? '') && (
+                    <button className="text-button" disabled={busy} onClick={() => onDue([job])}>
+                      Change due date
+                    </button>
+                  )}
                   <JobActions job={job} busy={busy} onAction={onAction} />
                 </td>
               </tr>

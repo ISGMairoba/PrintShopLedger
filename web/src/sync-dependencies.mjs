@@ -7,7 +7,15 @@ export function eventResources(event, ledger) {
       if (id) result.add(kind + ':' + id);
     };
   const family = event.kind.split('.')[0];
-  if (event.kind === 'checkout.completed') {
+  if (family === 'payee') add('payee', d.id);
+  else if (family === 'account') {
+    add('account', d.accountId ?? d.id);
+    add('account', d.toAccountId);
+    add('transaction', d.transactionId);
+  } else if (event.kind === 'job.due_changed') {
+    for (const id of d.jobIds ?? [d.id]) add('job', id);
+  } else if (event.kind === 'checkout.completed') {
+    add('account', d.accountId);
     add('customer', d.customerId);
     add('checkout', event.id);
     for (const job of d.jobs) {
@@ -40,6 +48,8 @@ export function eventResources(event, ledger) {
   else if (family === 'quotation') add('quotation', d.id);
   else if (family === 'expense') {
     add('expense', d.id);
+    add('payee', d.payeeId);
+    add('account', d.payment?.accountId);
     for (const item of [
       ...(d.materials ?? []),
       ...(ledger.expenses.find((e) => e.id === d.id)?.materials ?? []),
@@ -105,6 +115,8 @@ export function projectPending(cloud, state) {
     ['materials', 'material'],
     ['services', 'service'],
     ['expenses', 'expense'],
+    ['payees', 'payee'],
+    ['moneyAccounts', 'account'],
   ])
     overlay(name, kind);
   for (const [name, kind] of [
@@ -123,6 +135,13 @@ export function projectPending(cloud, state) {
     const local = state.ledger[name].filter((item) => has(kind, item[key]));
     const ids = new Set(local.map((item) => item.id));
     ledger[name] = [...ledger[name].filter((item) => !ids.has(item.id)), ...local];
+  }
+  for (const name of ['accountEntries', 'operationHistory']) {
+    const local = (state.ledger[name] ?? []).filter(
+      (item) => blocked.eventIds.has(item.id) || blocked.eventIds.has(item.lastEventId),
+    );
+    const ids = new Set(local.map((item) => item.id));
+    ledger[name] = [...(ledger[name] ?? []).filter((item) => !ids.has(item.id)), ...local];
   }
   return ledger;
 }
@@ -162,25 +181,41 @@ export function acknowledgeReviews(state, cloud, reviews) {
     ['services', 'service'],
     ['customers', 'customer'],
     ['expenses', 'expense'],
+    ['payees', 'payee'],
+    ['moneyAccounts', 'account'],
   ]) {
-    const rows = cloud[name].filter((item) => affected.has(kind + ':' + item.id));
+    const rows = (cloud[name] ?? []).filter((item) => affected.has(kind + ':' + item.id));
     const ids = new Set(rows.map((item) => item.id));
-    ledger[name] = [...ledger[name].filter((item) => !ids.has(item.id)), ...rows];
+    ledger[name] = [
+      ...(ledger[name] ?? []).filter(
+        (item) =>
+          !ids.has(item.id) &&
+          !(['payees', 'moneyAccounts'].includes(name) && affected.has(kind + ':' + item.id)),
+      ),
+      ...rows,
+    ];
   }
   for (const name of ['checkouts', 'payments'])
     ledger[name] = [
       ...ledger[name].filter((item) => !receiptIds.has(item.id)),
       ...cloud[name].filter((item) => receiptIds.has(item.id)),
     ];
+  for (const key of affected) if (key.startsWith('job:')) jobIds.add(key.slice(4));
   ledger.jobs = [
     ...ledger.jobs.filter((item) => !jobIds.has(item.id)),
     ...cloud.jobs.filter((item) => jobIds.has(item.id)),
   ];
-  for (const name of ['materialHistory', 'expenseHistory']) {
-    const rows = cloud[name];
+  for (const name of ['materialHistory', 'expenseHistory', 'accountEntries', 'operationHistory']) {
+    const rows = cloud[name] ?? [];
     const ids = new Set(rows.map((item) => item.id));
     ledger[name] = [
-      ...ledger[name].filter((item) => !ids.has(item.id) && !resolved.has(item.id) && !jobIds.has(item.id)),
+      ...(ledger[name] ?? []).filter(
+        (item) =>
+          !ids.has(item.id) &&
+          !resolved.has(item.id) &&
+          !resolved.has(item.lastEventId) &&
+          !jobIds.has(item.id),
+      ),
       ...rows,
     ];
   }

@@ -1,3 +1,4 @@
+import { applyOperation } from './operations.mjs';
 import { applySaleAdjustment, applyWaste } from './sale-adjustments.mjs';
 import { normalizeAmount } from './currency-input.mjs';
 import { applyExpenseEvent } from './expenses.mjs';
@@ -10,6 +11,10 @@ import { applyReminderEvent } from './reminders.mjs';
 
 // Money is stored as integer kobo. Customer balances are derived from jobs.
 export const emptyLedger = () => ({
+  payees: [],
+  moneyAccounts: [],
+  accountEntries: [],
+  operationHistory: [],
   saleAdjustments: [],
   materialWaste: [],
   expenses: [],
@@ -67,6 +72,12 @@ function positiveAmount(value) {
 }
 export function applyEvent(ledger, event) {
   ledger = normalizeLedger(ledger);
+  if (
+    event.kind === 'job.due_changed' ||
+    event.kind.startsWith('payee.') ||
+    event.kind.startsWith('account.')
+  )
+    return applyOperation(ledger, event);
   if (event.kind.startsWith('sale.') || event.kind === 'payment.corrected')
     return applySaleAdjustment(ledger, event);
   if (event.kind === 'material.wasted') return applyWaste(ledger, event);

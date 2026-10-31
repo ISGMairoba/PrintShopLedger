@@ -23,6 +23,7 @@ type Props = {
   onQuickSale?: () => void;
   onJob: (id: string) => void;
   onNext: (job: Job, mode: ProgressMode) => void;
+  onDue?: (jobs: Job[]) => void;
   onBulkAction: (jobs: Job[], mode: ProgressMode) => void;
   onReceipt: (record: CheckoutRecord) => void;
 };
@@ -35,6 +36,7 @@ export default function PointOfServicePage({
   onQuickSale,
   onJob,
   onNext,
+  onDue,
   onBulkAction,
   onReceipt,
 }: Props) {
@@ -223,6 +225,7 @@ export default function PointOfServicePage({
             onJob={onJob}
             onAction={onNext}
             onBulkAction={onBulkAction}
+            onDue={onDue}
             grouped={grouped}
             selecting={selecting}
           />

@@ -1,3 +1,4 @@
+import DeadlineProgress from './DeadlineProgress';
 import Icon from './Icon';
 import { TemplateSummary } from './TemplateFields';
 import Modal from './Modal';
@@ -34,6 +35,7 @@ type Props = {
   canAdjust: boolean;
   /** Adjustments can be saved now (online, or the local trial). */
   canSave: boolean;
+  onDue?: (jobs: Job[]) => void;
   onClose: () => void;
   onAdjust: (job: Job) => void;
   onAction: (job: Job, mode: ProgressMode) => void;
@@ -50,6 +52,7 @@ export default function JobDetails({
   customerHeld,
   canAdjust,
   canSave,
+  onDue,
   onClose,
   onAdjust,
   onAction,
@@ -105,12 +108,23 @@ export default function JobDetails({
           {job.createdByLabel || 'Not recorded'}
         </p>
       )}
-      {job.dueAt && !Number.isNaN(Date.parse(job.dueAt)) && (
-        <p className={`deadline deadline-${deadlineState(job)}`}>
-          Deadline: {lagosTime(job.dueAt)}
-          {deadlineState(job) === 'overdue' && <span className="badge unpaid">Overdue</span>}
-          {deadlineState(job) === 'soon' && <span className="badge partial">Due soon</span>}
-        </p>
+      <DeadlineProgress job={job} />
+      {onDue && !['Completed', 'Collected', 'Cancelled'].includes(job.productionStatus ?? '') && (
+        <button className="secondary" disabled={busy} onClick={() => onDue([job])}>
+          Change due date
+        </button>
+      )}
+      {!!job.dueHistory?.length && (
+        <details>
+          <summary>Due-date history</summary>
+          {job.dueHistory.map((h) => (
+            <p key={h.id}>
+              {h.from ? lagosTime(h.from) : 'No deadline'} → {h.to ? lagosTime(h.to) : 'No deadline'}
+              <br />
+              {h.reason} · {h.changedBy} · {lagosTime(h.changedAt)}
+            </p>
+          ))}
+        </details>
       )}
       {job.templateSnapshot && (
         <TemplateSummary snapshot={job.templateSnapshot} quantity={job.quantity ?? 1} amount={job.amount} />

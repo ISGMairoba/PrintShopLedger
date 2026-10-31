@@ -1,3 +1,8 @@
+import PayeesPage from './PayeesPage';
+import AccountsPage from './AccountsPage';
+import { defaultMoneyAccount } from './operations.mjs';
+import type { OperationsEvent } from './types';
+import DueDateDialog from './DueDateDialog';
 import useSubscription, { subscriptionNotice } from './useSubscription';
 import { setWritesBlocked } from './subscription-rule.mjs';
 import { confirmSignedOut, reportDevice, sendProblems } from './device-report';
@@ -157,6 +162,7 @@ export default function App() {
   });
   const [state, setState] = useState<LocalState>({ ledger: emptyLedger(), pending: [] });
   const [ready, setReady] = useState(false);
+  const [deadlineJobs, setDeadlineJobs] = useState<Job[] | null>(null);
   const [page, setPage] = useState<Page>('Point of Service');
   const [reportCustomer, setReportCustomer] = useState('');
   const [supervisor, setSupervisor] = useState('');
@@ -386,7 +392,14 @@ export default function App() {
     );
   }
   async function saveCatalogue(
-    operation: MaterialEvent | ServiceEvent | CustomerEvent | ExpenseEvent | QuotationEvent | ReminderEvent,
+    operation:
+      | MaterialEvent
+      | ServiceEvent
+      | CustomerEvent
+      | ExpenseEvent
+      | QuotationEvent
+      | ReminderEvent
+      | OperationsEvent,
   ) {
     if (
       busy ||
@@ -481,6 +494,9 @@ export default function App() {
       ...operation,
       data: {
         ...operation.data,
+        accountId:
+          operation.data.accountId ??
+          defaultMoneyAccount(ledger, operation.data.methodLabel || operation.data.method),
         termsAndConditions:
           operation.data.termsAndConditions ?? branding.settings.documents.invoiceTerms ?? '',
       },
@@ -1759,6 +1775,20 @@ export default function App() {
                           onSave={branding.save}
                           onReload={branding.reload}
                         />
+                      ) : page === 'Payees' ? (
+                        <PayeesPage
+                          ledger={ledger}
+                          busy={busy || hasConflict}
+                          actor={salesActor}
+                          onSave={saveCatalogue}
+                        />
+                      ) : page === 'Accounts' ? (
+                        <AccountsPage
+                          ledger={ledger}
+                          busy={busy || hasConflict}
+                          actor={salesActor}
+                          onSave={saveCatalogue}
+                        />
                       ) : page === 'Expenses' ? (
                         <ExpensesPage
                           key={scope}
@@ -1844,6 +1874,7 @@ export default function App() {
                           onJob={setSelectedJob}
                           onNext={(job, mode) => setJobToAdvance({ job, mode })}
                           onBulkAction={(jobs, mode) => setBatchToAdvance({ jobs, mode })}
+                          onDue={setDeadlineJobs}
                           onReceipt={setReceipt}
                         />
                       ) : page === 'Users' ? (
@@ -1898,6 +1929,8 @@ export default function App() {
                             actor={catalogueActor}
                             onSave={saveCatalogue}
                             expenses={ledger.expenses}
+                            payees={ledger.payees}
+                            accounts={ledger.moneyAccounts}
                             businessName={businessName}
                             canRecordPurchase={demo || allowed('Expenses')}
                             onSaveExpense={saveCatalogue}
@@ -1943,6 +1976,7 @@ export default function App() {
                           onJob={setSelectedJob}
                           onAction={(job, mode) => setJobToAdvance({ job, mode })}
                           onBulkAction={(jobs, mode) => setBatchToAdvance({ jobs, mode })}
+                          onDue={setDeadlineJobs}
                           onReceipt={setReceipt}
                           onCorrectPayment={canCorrectPayments ? setCorrectingPayment : undefined}
                         />
@@ -1955,8 +1989,18 @@ export default function App() {
                       </p>
                     </>
                   )}
+                  {deadlineJobs && (
+                    <DueDateDialog
+                      jobs={deadlineJobs}
+                      busy={busy}
+                      actor={salesActor}
+                      onSave={saveCatalogue}
+                      onClose={() => setDeadlineJobs(null)}
+                    />
+                  )}
                   {currentJob && (
                     <JobDetails
+                      onDue={setDeadlineJobs}
                       job={currentJob}
                       ledger={ledger}
                       busy={busy}

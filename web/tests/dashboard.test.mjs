@@ -79,7 +79,16 @@ test('Collections count new money only, refunds once, and expense payments by pa
   assert.equal(s.jobs, 1);
   assert.equal(s.cancelled, 1);
   assert.deepEqual(s.methods, [{ name: 'Cash', amount: 1200 }]);
-  assert.deepEqual(s.trend, [{ date: '2026-10-09', sales: 2000, collected: 1200, expenses: 400 }]);
+  assert.deepEqual(s.trend, [
+    {
+      date: '2026-10-09',
+      sales: 2000,
+      collected: 1200,
+      expenses: 400,
+      expenseIncurred: 900,
+      netIncome: 1100,
+    },
+  ]);
 });
 test('Current stock alerts exclude archived materials; trends include zero days and negative refunds', () => {
   const l = emptyLedger();

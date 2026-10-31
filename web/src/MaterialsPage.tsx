@@ -24,6 +24,8 @@ type Props = {
   onSave: (event: MaterialEvent) => Promise<void>;
   /** For the reorder list: recording a purchase saves an expense that adds stock. */
   expenses?: Expense[];
+  payees?: import('./types').Payee[];
+  accounts?: import('./types').MoneyAccount[];
   businessName?: string;
   canRecordPurchase?: boolean;
   onSaveExpense?: (event: ExpenseEvent) => Promise<void>;
@@ -37,6 +39,8 @@ export default function MaterialsPage({
   actor,
   onSave,
   expenses = [],
+  payees = [],
+  accounts = [],
   businessName = '',
   canRecordPurchase = false,
   onSaveExpense,
@@ -553,7 +557,7 @@ export default function MaterialsPage({
       )}
       {reorder && (
         <ReorderList
-          ledger={{ materials, materialHistory: history, expenses }}
+          ledger={{ materials, materialHistory: history, expenses, payees, moneyAccounts: accounts }}
           businessName={businessName}
           actor={actor}
           busy={busy}

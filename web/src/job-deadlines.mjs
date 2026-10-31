@@ -51,3 +51,36 @@ export function fromLocalInput(value) {
   const at = new Date(value);
   return Number.isNaN(at.getTime()) ? '' : at.toISOString();
 }
+
+export function deadlineProgress(job, now = Date.now()) {
+  const state = deadlineState(job, now);
+  if (state === 'none') return { state, progress: 0, label: 'No due date' };
+  if (state === 'done') return { state, progress: 1, label: job.productionStatus || 'Completed' };
+  const due = Date.parse(job.dueAt),
+    start = Date.parse(job.createdAt),
+    left = due - now;
+  const duration = Math.abs(left),
+    days = Math.ceil(duration / (24 * HOUR)),
+    hours = Math.ceil(duration / HOUR);
+  const period =
+    duration >= 24 * HOUR
+      ? `${days} day${days === 1 ? '' : 's'}`
+      : duration >= HOUR
+        ? `${hours} hour${hours === 1 ? '' : 's'}`
+        : `${Math.max(1, Math.ceil(duration / 60000))} min`;
+  const today =
+    new Date(now).toLocaleDateString('en-CA', { timeZone: 'Africa/Lagos' }) ===
+    new Date(due).toLocaleDateString('en-CA', { timeZone: 'Africa/Lagos' });
+  return {
+    state,
+    progress: Math.max(0, Math.min(1, (now - start) / Math.max(1, due - start))),
+    label:
+      left < 0
+        ? `Overdue by ${period}`
+        : left === 0
+          ? 'Due now'
+          : today
+            ? `Due today · ${period} left`
+            : `${period} left`,
+  };
+}

@@ -11,7 +11,7 @@ import { amountError, normalizeAmount } from './currency-input.mjs';
 import { money } from './domain.mjs';
 import { expenseSources, expenseCode, expensePaid, expenseDay, makeExpenseEvent } from './expenses.mjs';
 import { materialCode } from './material-display.mjs';
-import type { Expense, ExpenseEvent, ExpenseMaterial, Material } from './types';
+import type { Expense, ExpenseEvent, ExpenseMaterial, Material, Payee, MoneyAccount } from './types';
 import { useWords } from './Words';
 import { renameActive as wt } from './Words';
 import SearchSelect from './SearchSelect';
@@ -21,6 +21,8 @@ type Props = {
   expense?: Expense;
   materials: Material[];
   expenses: Expense[];
+  payees?: Payee[];
+  accounts?: MoneyAccount[];
   actor: { id: string; label: string };
   busy: boolean;
   mode?: 'edit' | 'payment';
@@ -33,6 +35,8 @@ export default function ExpenseEditor({
   expense,
   materials,
   expenses,
+  payees = [],
+  accounts = [],
   actor,
   busy,
   mode = 'edit',
@@ -41,6 +45,11 @@ export default function ExpenseEditor({
   onClose,
 }: Props) {
   const formId = useId();
+  const [payeeId, setPayeeId] = useState(expense?.payeeId ?? '');
+  const [payeeText, setPayeeText] = useState(expense?.payee ?? '');
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [paymentSource, setPaymentSource] = useState('Business cash');
+  const [accountChoice, setAccountChoice] = useState<string | null>(null);
   const { w } = useWords();
   const options = useBusinessOptions(),
     expenseCategories = options.expenseCategories,
@@ -54,6 +63,12 @@ export default function ExpenseEditor({
           ? 'Other'
           : expenseCategories[0]),
   );
+  const selectedMethod = paymentMethod || paymentMethods[0]?.label || '';
+  const selectedAccount =
+    accountChoice ??
+    (paymentSource === 'Personal funds'
+      ? ''
+      : (accounts.find((a) => !a.archived && a.methods?.includes(selectedMethod))?.id ?? ''));
   const paymentOnly = mode === 'payment';
   const [error, setError] = useFeedbackMessage('error');
   const [stock, setStock] = useState(!!(expense?.materials.length || prefill?.materials.length));
@@ -82,6 +97,7 @@ export default function ExpenseEditor({
         paymentOnly || (!expense && recordPayment && money(paid || '0') > 0)
           ? {
               id: crypto.randomUUID(),
+              accountId: selectedAccount,
               amount: money(paid),
               paidOn: String(f.get('paidOn')),
               method: paymentMethods.find((item) => item.label === String(f.get('method')))?.kind ?? '',
@@ -98,7 +114,8 @@ export default function ExpenseEditor({
             category: String(f.get('category')),
             incurredOn: String(f.get('incurredOn')),
             amount: money(total),
-            payee: String(f.get('payee')),
+            payeeId,
+            payee: payeeText,
             note: String(f.get('note')),
             receiptReference: String(f.get('receiptReference')),
             materials: stock ? lines : [],
@@ -178,18 +195,36 @@ export default function ExpenseEditor({
                   <CurrencyInput name="amount" value={total} onValueChange={setTotal} required />
                 </label>
                 <label>
+                  Payee
+                  <SearchSelect
+                    label="Expense payee"
+                    value={payeeId}
+                    onChange={(id) => {
+                      setPayeeId(id);
+                      if (id) setPayeeText(payees.find((p) => p.id === id)?.name ?? '');
+                    }}
+                    pinned={[{ value: '', label: 'One-off / no saved payee' }]}
+                    options={payees
+                      .filter((p) => !p.archived || p.id === expense?.payeeId)
+                      .map((p) => ({
+                        value: p.id,
+                        label: p.name + (p.archived ? ' · Archived' : ''),
+                        keywords: p.phone + ' ' + p.address,
+                      }))}
+                  />
+                </label>
+                <label>
                   Supplier / paid to
                   <input
+                    aria-label="Supplier / paid to"
                     name="payee"
                     maxLength={160}
-                    defaultValue={expense?.payee ?? ''}
-                    list="expense-payee-options"
+                    value={payeeText}
+                    onChange={(e) => {
+                      setPayeeText(e.target.value);
+                      setPayeeId('');
+                    }}
                   />
-                  <datalist id="expense-payee-options">
-                    {[...new Set(expenses.map((item) => item.payee).filter(Boolean))].map((value) => (
-                      <option key={value} value={value} />
-                    ))}
-                  </datalist>
                 </label>
                 <label>
                   Receipt / invoice reference
@@ -332,7 +367,12 @@ export default function ExpenseEditor({
                 </label>
                 <label>
                   Payment method
-                  <select aria-label="Payment method" name="method" defaultValue={paymentMethods[0].label}>
+                  <select
+                    aria-label="Payment method"
+                    name="method"
+                    value={selectedMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                  >
                     {alphabetical(paymentMethods, (item) => item.label).map((item) => (
                       <option key={item.label}>{item.label}</option>
                     ))}
@@ -340,12 +380,35 @@ export default function ExpenseEditor({
                 </label>
                 <label>
                   Paid from
-                  <select name="source" defaultValue="Business cash">
+                  <select
+                    name="source"
+                    value={paymentSource}
+                    onChange={(e) => setPaymentSource(e.target.value)}
+                  >
                     {expenseSources.map((value) => (
                       <option key={value}>{value}</option>
                     ))}
                   </select>
                 </label>
+                {!!accounts.length && (
+                  <label>
+                    Pay from account
+                    <select
+                      aria-label="Pay from account"
+                      value={selectedAccount}
+                      onChange={(e) => setAccountChoice(e.target.value)}
+                    >
+                      <option value="">No business account / personal funds</option>
+                      {accounts
+                        .filter((a) => !a.archived)
+                        .map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.name}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                )}
                 <label>
                   Payment reference
                   <input name="reference" maxLength={160} />

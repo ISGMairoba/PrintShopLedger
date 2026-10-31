@@ -157,6 +157,14 @@ export type JobMaterialEvent = {
   };
 };
 export interface Job {
+  dueHistory?: {
+    id: string;
+    from: string;
+    to: string;
+    reason: string;
+    changedBy: string;
+    changedAt: string;
+  }[];
   templateInputs?: Record<string, number | string>;
   templateSnapshot?: TemplateSnapshot;
   workflow?: string[];
@@ -387,6 +395,7 @@ export interface CheckoutJob extends Job {
   serviceVersion: number;
 }
 export interface CheckoutRecord {
+  accountId?: string;
   termsAndConditions?: string;
   /** Whole-order discount as entered, and all discounts on this checkout in kobo. */
   orderDiscount?: { kind: 'percent' | 'amount'; value: number; reason?: string } | null;
@@ -558,6 +567,10 @@ export type ReminderEvent = {
   };
 };
 export interface Ledger {
+  payees?: Payee[];
+  moneyAccounts?: MoneyAccount[];
+  accountEntries?: Record<string, any>[];
+  operationHistory?: Record<string, any>[];
   pricing?: PricingSettings;
   /** A device keeping recent history only: counts and daily totals of the records it dropped. */
   historySummary?: {
@@ -582,6 +595,7 @@ export interface Ledger {
   payments: Payment[];
 }
 export type LedgerEvent =
+  | OperationsEvent
   | SupervisedEvent
   | ExpenseEvent
   | CheckoutEvent
@@ -613,6 +627,7 @@ export interface ExpenseMaterial {
   quantity: number;
 }
 export interface ExpensePayment {
+  accountId?: string;
   methodLabel?: string;
   id: string;
   amount: number;
@@ -625,6 +640,7 @@ export interface ExpensePayment {
   createdAt?: string;
 }
 export interface Expense {
+  payeeId?: string;
   id: string;
   description: string;
   category: string;
@@ -647,6 +663,7 @@ export interface Expense {
   lastEventId: string;
 }
 export interface ExpenseCommand {
+  payeeId?: string;
   id: string;
   baseVersion?: number;
   description?: string;
@@ -806,3 +823,37 @@ export interface MaterialWaste {
   afterAvailable: number;
   event: SupervisedEvent;
 }
+
+export interface Payee extends Omit<Customer, 'creditLimit'> {
+  note: string;
+}
+export interface MoneyAccount {
+  id: string;
+  name: string;
+  accountType: string;
+  openingDate: string;
+  openingBalance: number;
+  methods: string[];
+  archived: boolean;
+  version: number;
+  createdAt: string;
+  modifiedAt: string;
+  modifiedByLabel: string;
+}
+export type OperationsEvent = {
+  id: string;
+  kind:
+    | 'job.due_changed'
+    | 'payee.created'
+    | 'payee.updated'
+    | 'payee.archived'
+    | 'payee.restored'
+    | 'account.created'
+    | 'account.updated'
+    | 'account.archived'
+    | 'account.restored'
+    | 'account.transferred'
+    | 'account.reconciled'
+    | 'account.assigned';
+  data: Record<string, any> & { id: string; modifiedBy: string; modifiedByLabel: string; modifiedAt: string };
+};

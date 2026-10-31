@@ -1895,3 +1895,29 @@ label small > .field-error {
   white-space: pre-wrap;
   font-size: 12px;
 }
+
+.due-progress {
+  display: grid;
+  gap: 3px;
+  min-width: 100px;
+  margin: 4px 0;
+  font-size: 0.8rem;
+}
+.due-progress progress {
+  width: 100%;
+  height: 7px;
+  accent-color: var(--brand-primary);
+}
+.due-overdue {
+  color: var(--danger, #b42318);
+}
+.due-overdue progress {
+  accent-color: #b42318;
+}
+.due-soon progress {
+  accent-color: #c58a16;
+}
+.due-done,
+.due-none {
+  opacity: 0.7;
+}

@@ -57,7 +57,7 @@ test('older saved settings give each new page its old page access, once', () => 
     pageAccess: old,
     pageAccessVersion: undefined,
   });
-  assert.equal(b.pageAccessVersion, 2);
+  assert.equal(b.pageAccessVersion, 3);
   assert.ok(b.pageAccess['2'].includes('Reports'));
   // Once upgraded, a page that was switched off stays off.
   const off = validateBranding({

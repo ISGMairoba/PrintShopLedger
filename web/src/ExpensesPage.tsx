@@ -355,6 +355,8 @@ export default function ExpensesPage({
           key={editor === 'new' ? 'new' : editor.id + ':' + editor.version}
           expense={editor === 'new' ? undefined : editor}
           expenses={ledger.expenses}
+          payees={ledger.payees}
+          accounts={ledger.moneyAccounts}
           materials={ledger.materials}
           actor={actor}
           busy={busy}
@@ -368,6 +370,8 @@ export default function ExpensesPage({
           expense={payment}
           mode="payment"
           expenses={ledger.expenses}
+          payees={ledger.payees}
+          accounts={ledger.moneyAccounts}
           materials={ledger.materials}
           actor={actor}
           busy={busy}

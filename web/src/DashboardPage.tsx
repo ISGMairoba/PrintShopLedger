@@ -39,11 +39,12 @@ export default function DashboardPage({
 }) {
   const { w, stage } = useWords();
   const [period, setPeriod] = usePeriod('dashboard');
+  const [trendInterval, setTrendInterval] = useState('daily');
   const range = { from: period.from, to: period.to };
   const valid = validRange(range.from, range.to);
   const summary = useMemo(
-    () => (valid ? dashboardSummary(ledger, range.from, range.to) : null),
-    [ledger, range.from, range.to, valid],
+    () => (valid ? dashboardSummary(ledger, range.from, range.to, trendInterval) : null),
+    [ledger, range.from, range.to, valid, trendInterval],
   );
   if (!ready)
     return (
@@ -135,15 +136,34 @@ export default function DashboardPage({
                 'Payments received minus expenses paid. Not your bank balance.',
               )}
           </section>
-          {(access.sales || access.payments) && (
+          {(access.sales || access.payments || access.expenses) && (
             <section className="panel dashboard-panel">
-              <h2>{summary.monthly ? 'Monthly' : 'Daily'} trend</h2>
+              <div className="toolbar">
+                <h2>{summary.monthly ? 'Monthly' : 'Daily'} trend</h2>
+                <label>
+                  Group trend by
+                  <select
+                    aria-label="Trend interval"
+                    value={trendInterval}
+                    onChange={(e) => setTrendInterval(e.target.value)}
+                  >
+                    <option value="daily">Day</option>
+                    <option value="monthly">Month</option>
+                  </select>
+                </label>
+              </div>
               <InteractiveTrend
                 rows={summary.trend}
                 sales={access.sales}
                 payments={access.payments}
+                expenses={access.expenses}
                 formatValue={money}
               />
+              <p className="muted">
+                Collections include customer wallet deposits and subtract customer refunds. Incurred expenses
+                use their expense date; paid expenses use their payment date. Account transfers and
+                reconciliations are excluded.
+              </p>
               <small>
                 Comparison period: {summary.previous.from} to {summary.previous.to}. Corrections revise the
                 original sale/payment figures.

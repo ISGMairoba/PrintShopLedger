@@ -26,6 +26,8 @@ export type Page =
   | 'Services'
   | 'Print Settings'
   | 'Users'
+  | 'Payees'
+  | 'Accounts'
   | 'Expenses'
   | 'My Account'
   | 'Business Settings'

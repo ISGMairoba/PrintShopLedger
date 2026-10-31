@@ -60,6 +60,7 @@ function payment(data, audit) {
     paidOn: data.paidOn,
     method: data.method,
     ...(data.methodLabel ? { methodLabel: text(data.methodLabel, 'Payment method', 80, true) } : {}),
+    ...(data.accountId ? { accountId: data.accountId } : {}),
     source: data.source,
     reference: text(data.reference, 'Reference', 160),
     createdBy: audit.modifiedBy,
@@ -130,6 +131,18 @@ export function applyExpenseEvent(input, event) {
     return ledger;
   }
   const existing = ledger.expenses.find((item) => item.id === data.id);
+  if (
+    data.payeeId &&
+    !(ledger.payees ?? []).some((p) => p.id === data.payeeId && (!p.archived || existing?.payeeId === p.id))
+  )
+    throw Error('Choose an active payee from this business.');
+  if (
+    data.payment?.accountId &&
+    !(ledger.moneyAccounts ?? []).some(
+      (a) => a.id === data.payment.accountId && !a.archived && data.payment.paidOn >= a.openingDate,
+    )
+  )
+    throw Error('Choose an active payment account with a valid opening date.');
   const audit = {
     modifiedBy: data.modifiedBy,
     modifiedByLabel: data.modifiedByLabel ?? data.modifiedBy,
@@ -181,6 +194,7 @@ export function applyExpenseEvent(input, event) {
       category: text(data.category, 'Category', 80, true),
       incurredOn: data.incurredOn,
       amount: data.amount,
+      payeeId: data.payeeId === undefined ? (existing?.payeeId ?? '') : data.payeeId,
       payee: text(data.payee, 'Paid to', 160),
       note: text(data.note, 'Note', 1000),
       receiptReference: text(data.receiptReference, 'Receipt reference', 160),

@@ -11,6 +11,8 @@ export const pages = [
   'Payment Reminders',
   'Payments',
   'Expenses',
+  'Payees',
+  'Accounts',
   'Materials',
   'Services',
   'Edit Products',
@@ -27,7 +29,7 @@ export const navigationPages = pages;
 /** Menu sections: each page's group heading. */
 export const pageGroups = [
   ['Selling', ['Dashboard', 'Reports', 'Point of Service', 'Quotations', 'Pricing Templates', 'My Sales']],
-  ['Jobs & money', ['Jobs', 'Customers', 'Payment Reminders', 'Payments', 'Expenses']],
+  ['Jobs & money', ['Jobs', 'Customers', 'Payment Reminders', 'Payments', 'Expenses', 'Payees', 'Accounts']],
   ['Stock & catalogue', ['Materials', 'Material Waste', 'Services', 'Edit Products', 'Stock History']],
   [
     'Settings & control',
@@ -43,8 +45,10 @@ export const formerParents = {
   'Pricing Templates': 'Point of Service',
   'Payment Reminders': 'Customers',
   'Edit Products': 'Services',
+  Payees: 'Expenses',
+  Accounts: 'Expenses',
 };
-export const PAGE_ACCESS_VERSION = 2;
+export const PAGE_ACCESS_VERSION = 3;
 /** The Business Settings tabs. Page access is always Developer only. */
 export const settingsTabs = [
   'Profile & logo',
@@ -122,6 +126,8 @@ export const minimumPageAccess = (page) =>
     'Conflict Inbox',
     'Sale Adjustments',
     'Material Waste',
+    'Payees',
+    'Accounts',
   ].includes(page)
     ? 2
     : 1;
@@ -144,12 +150,14 @@ export const defaultPageAccess = () =>
     ]),
   );
 /** Settings saved before every page was set separately: give each new page its old page's access. */
-export function upgradePageAccess(input) {
+export function upgradePageAccess(input, fromVersion = 0) {
   if (!input || typeof input !== 'object') return input;
   const value = structuredClone(input);
   for (const rank of ['1', '2', '3'])
     if (Array.isArray(value[rank]))
-      for (const [page, parent] of Object.entries(formerParents))
+      for (const [page, parent] of Object.entries(
+        fromVersion >= 2 ? { Payees: 'Expenses', Accounts: 'Expenses' } : formerParents,
+      ))
         if (
           value[rank].includes(parent) &&
           !value[rank].includes(page) &&
