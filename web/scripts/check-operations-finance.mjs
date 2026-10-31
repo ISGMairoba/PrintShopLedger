@@ -130,6 +130,10 @@ try {
       productionStatus: 'Added',
       version: 1,
     });
+    await page.route('**/__test_seed__', (route) =>
+      route.fulfill({ contentType: 'text/html', body: '<html><body>Fixture setup</body></html>' }),
+    );
+    await page.goto(base + '/__test_seed__');
     await page.evaluate(
       (state) =>
         new Promise((resolve, reject) => {
@@ -152,9 +156,12 @@ try {
         }),
       state,
     );
-    await page.reload();
-    await page.getByRole('button', { name: 'Try locally on this device' }).click();
+    await page.goto(base);
+    const trial = page.getByRole('button', { name: 'Try locally on this device' });
+    await trial.or(page.getByRole('heading', { name: 'Point of Service', exact: true })).waitFor();
+    if (await trial.isVisible()) await trial.click();
     await nav('Jobs');
+    if (mobile) await page.getByRole('button', { name: 'More', exact: true }).first().click();
     await page.getByRole('button', { name: 'Change due date', exact: true }).first().click();
     await dialog().getByRole('button', { name: 'Postpone 2 days', exact: true }).click();
     await dialog().getByLabel('Reason for due date change').fill('Customer requested later collection');

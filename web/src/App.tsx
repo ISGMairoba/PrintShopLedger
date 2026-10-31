@@ -409,6 +409,8 @@ export default function App() {
       (!demo && (!session || !shop || shop.userId !== session.user.id || shop.accessLevel === 0))
     )
       throw new Error('Please wait until the staff workspace is ready.');
+    if (['account.created', 'account.updated'].includes(operation.kind) && !demo && shop?.accessLevel !== 4)
+      throw Error('Only a Developer can create accounts or change payment-method links.');
     setBusy(true);
     setMessage('');
     try {
@@ -1679,6 +1681,7 @@ export default function App() {
                           </section>
                         ) : (
                           <ConflictInbox
+                            canConfigureAccounts={shop?.accessLevel === 4}
                             key={scope}
                             scope={scope}
                             shopId={shop!.id}
@@ -1790,6 +1793,7 @@ export default function App() {
                         />
                       ) : page === 'Accounts' ? (
                         <AccountsPage
+                          canConfigure={demo || shop?.accessLevel === 4}
                           ledger={ledger}
                           busy={busy || hasConflict}
                           actor={salesActor}

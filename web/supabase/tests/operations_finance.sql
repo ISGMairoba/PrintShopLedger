@@ -7,9 +7,11 @@ insert into auth.users(id,email,email_confirmed_at,raw_user_meta_data,created_at
 shop=(public.complete_business_registration(u,dev,'Operations test','Tester',repeat('a',64),'https://print-shop-ledger.vercel.app/#developer_activation='||repeat('a',64))->>'shopId')::uuid;
 perform set_config('request.jwt.claim.sub',u::text,true);
 cursor:=public.get_ledger_changes(shop,null)->>'cursor';
+update public.shop_members set access_level=4,rank=4,role='developer' where shop_id=shop and user_id=u;
 ev:=jsonb_build_object('id',eid,'kind','account.created','data',jsonb_build_object('id',a,'name','Bank A','accountType','bank','openingDate','2026-10-01','openingBalance',10000,'methods',jsonb_build_array('Transfer'),'modifiedBy',u));
 perform public.apply_operations_event(shop,ev);perform public.apply_operations_event(shop,ev);
 perform public.apply_operations_event(shop,jsonb_build_object('id',gen_random_uuid(),'kind','account.created','data',jsonb_build_object('id',b,'name','Cash','accountType','cash','openingDate','2026-10-01','openingBalance',5000,'methods',jsonb_build_array('Cash'),'modifiedBy',u)));
+update public.shop_members set access_level=3,rank=3,role='manager' where shop_id=shop and user_id=u;
 perform public.apply_operations_event(shop,jsonb_build_object('id',gen_random_uuid(),'kind','payee.created','data',jsonb_build_object('id',payee,'name','Paper supplier','phone','0801','address','Market','note','','modifiedBy',u)));
 perform public.apply_expense_event(shop,jsonb_build_object('id',gen_random_uuid(),'kind','expense.created','data',jsonb_build_object('id',expense,'description','Paper','category','Materials','payeeId',payee,'payee','Paper supplier','note','','receiptReference','','amount',2000,'incurredOn','2026-10-31','materials','[]'::jsonb,'stockIds','{}'::jsonb,'modifiedBy',u,'payment',jsonb_build_object('id',payment,'amount',1200,'paidOn','2026-10-31','method','Transfer','methodLabel','Transfer','source','Business bank account','reference','','accountId',a))));
 led:=public.get_ledger(shop);

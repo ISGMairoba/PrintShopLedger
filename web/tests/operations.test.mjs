@@ -239,3 +239,34 @@ test('keeping the business version clears rejected finance records and restores 
   assert.equal(clean.ledger.payees.length, 0);
   assert.equal(clean.ledger.operationHistory.length, 0);
 });
+
+test('historical movements before opening remain visible without being counted twice', () => {
+  let l = applyOperation(emptyLedger(), account('bank'));
+  l.payments = [
+    { id: 'old', amount: 5000, paidOn: '2026-09-01' },
+    { id: 'new', amount: 2000, paidOn: '2026-10-31', accountId: 'bank' },
+  ];
+  l.accountEntries = [
+    {
+      id: 'import',
+      action: 'assignment',
+      transactionId: 'payment:old',
+      accountId: 'bank',
+      paidOn: '2026-09-01',
+    },
+  ];
+  const result = accountBalance(l, 'bank', '2026-10-31');
+  assert.equal(result.balance, 12000);
+  assert.equal(result.received, 2000);
+  assert.equal(result.transactions.length, 2);
+});
+test('personal expense payments are identified separately from unassigned business movements', () => {
+  const l = emptyLedger();
+  l.expenses = [
+    {
+      description: 'Personal purchase',
+      payments: [{ id: 'p', amount: 100, paidOn: '2026-10-31', source: 'Personal funds' }],
+    },
+  ];
+  assert.equal(moneyTransactions(l)[0].personal, true);
+});

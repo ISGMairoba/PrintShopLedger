@@ -234,6 +234,7 @@ export function moneyTransactions(ledger) {
   const expense = ledger.expenses.flatMap((e) =>
     e.payments.map((p) => ({
       id: 'expense:' + p.id,
+      personal: p.source === 'Personal funds' && !p.accountId,
       paidOn: businessDay(p.paidOn),
       amount: p.amount,
       direction: -1,
@@ -262,9 +263,8 @@ export function moneyTransactions(ledger) {
 export function accountBalance(ledger, id, to = businessDay(new Date().toISOString())) {
   const a = (ledger.moneyAccounts ?? []).find((a) => a.id === id);
   if (!a) throw Error('Account not found.');
-  const rows = moneyTransactions(ledger).filter(
-    (t) => t.accountId === id && t.paidOn >= a.openingDate && t.paidOn <= to,
-  );
+  const transactions = moneyTransactions(ledger).filter((t) => t.accountId === id && t.paidOn <= to);
+  const rows = transactions.filter((t) => t.paidOn >= a.openingDate);
   let balance = a.openingBalance,
     received = 0,
     paid = 0;
@@ -284,7 +284,7 @@ export function accountBalance(ledger, id, to = businessDay(new Date().toISOStri
     balance,
     received,
     paid,
-    transactions: rows,
+    transactions,
     entries: entries.filter((e) => e.accountId === id || e.toAccountId === id),
   };
 }
