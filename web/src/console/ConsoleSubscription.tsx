@@ -4,6 +4,7 @@ import ResponsiveTable from '../ResponsiveTable';
 import { money } from '../domain.mjs';
 import { pages } from '../page-access.mjs';
 import { receiptRef } from './receipt-ref.mjs';
+import { UsageWeightsPanel } from './ConsoleUsage';
 import { currency } from '../receipts.mjs';
 import {
   plans as loadPlans,
@@ -721,6 +722,7 @@ const blankPlan = (): Plan => ({
   price: 0,
   periodDays: 30,
   maxDevices: null,
+  monthlyTokens: null,
   description: '',
   archived: false,
 });
@@ -803,6 +805,7 @@ export function ConsolePlans() {
                   <th className="numeric">Price</th>
                   <th className="numeric">Days</th>
                   <th className="numeric">Devices</th>
+                  <th className="numeric">Tokens / month</th>
                   <th className="numeric">Businesses</th>
                   <th>Actions</th>
                 </tr>
@@ -818,6 +821,9 @@ export function ConsolePlans() {
                     <td className="numeric">{currency(p.price)}</td>
                     <td className="numeric">{p.periodDays}</td>
                     <td className="numeric">{p.maxDevices ?? 'No limit'}</td>
+                    <td className="numeric">
+                      {p.monthlyTokens ? p.monthlyTokens.toLocaleString('en-NG') : '—'}
+                    </td>
                     <td className="numeric">{p.businesses ?? 0}</td>
                     <td>
                       <div className="material-actions">
@@ -926,6 +932,20 @@ export function ConsolePlans() {
                   />
                 </label>
                 <label>
+                  Tokens per month
+                  <input
+                    type="number"
+                    min={1}
+                    max={100000000}
+                    placeholder="Not set"
+                    value={editing.plan.monthlyTokens ?? ''}
+                    onChange={(e) =>
+                      change({ monthlyTokens: e.target.value ? Number(e.target.value) : null })
+                    }
+                  />
+                  <small>Shown against the business's usage; not enforced.</small>
+                </label>
+                <label>
                   Description
                   <input
                     maxLength={300}
@@ -947,6 +967,7 @@ export function ConsolePlans() {
         </section>
       )}
       {list && <TrialPanel plans={list} />}
+      <UsageWeightsPanel />
       <IssuerPanel />
     </>
   );

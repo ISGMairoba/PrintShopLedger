@@ -78,6 +78,7 @@ try {
             plan: 'Standard',
             subscription: 'active',
             problems: 1,
+            tokens30: 1830,
             expiresAt: '2099-11-30T22:59:59Z',
           },
           {
@@ -225,6 +226,7 @@ try {
             price: 5000000,
             periodDays: 30,
             maxDevices: 3,
+            monthlyTokens: 5000,
             description: 'Small shops',
             archived: false,
             businesses: 1,
@@ -261,7 +263,37 @@ try {
             },
           ],
         };
-      else if (path.endsWith('/console_receipt_issuer'))
+      else if (path.endsWith('/console_usage'))
+        result = {
+          from: '2026-10-01',
+          to: '2026-10-31',
+          tokens: 1830,
+          operations: 940,
+          byCategory: [
+            { category: 'Sales', tokens: 1000, operations: 200 },
+            { category: 'Jobs', tokens: 700, operations: 700 },
+            { category: 'Customers', tokens: 130, operations: 40 },
+          ],
+          byKind: [
+            { kind: 'checkout.completed', category: 'Sales', each: 5, operations: 200, tokens: 1000 },
+            { kind: 'job.status_changed', category: 'Jobs', each: 1, operations: 700, tokens: 700 },
+            { kind: 'customer.created', category: 'Customers', each: 1, operations: 40, tokens: 130 },
+          ],
+          daily: [
+            { day: '2026-10-02', tokens: 120, operations: 60 },
+            { day: '2026-10-03', tokens: 90, operations: 40 },
+          ],
+          monthlyTokens: 5000,
+        };
+      else if (path.endsWith('/console_usage_weights'))
+        result = [
+          { pattern: 'checkout.completed', category: 'Sales', tokens: 5 },
+          { pattern: 'job.*', category: 'Jobs', tokens: 1 },
+        ];
+      else if (path.endsWith('/console_save_usage_weights')) {
+        saved.push(['weights', route.request().postDataJSON().p_weights]);
+        result = null;
+      } else if (path.endsWith('/console_receipt_issuer'))
         result = {
           name: 'PrintShopLedger',
           address: '12 Allen Avenue, Ikeja, Lagos',
@@ -493,6 +525,22 @@ try {
       path: `/tmp/console-subscription-${mobile ? 'mobile' : 'desktop'}.png`,
       fullPage: true,
     });
+    // Usage in tokens.
+    await page.getByRole('tab', { name: 'Usage', exact: true }).click();
+    await page.getByRole('table', { name: 'Usage by operation' }).waitFor();
+    assert.match(
+      await page.locator('.stats').innerText(),
+      /1,830[\s\S]*940[\s\S]*5,000 \/ month[\s\S]*37% used/,
+    );
+    assert.match(
+      await page.getByRole('table', { name: 'Usage by operation' }).innerText(),
+      /Sale \(checkout\)[\s\S]*1,000/,
+    );
+    await page.screenshot({
+      path: `/tmp/console-usage-${mobile ? 'mobile' : 'desktop'}.png`,
+      fullPage: true,
+    });
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.getByRole('tab', { name: 'Overview', exact: true }).click();
     assert.match(await page.locator('.stats').innerText(), /120[\s\S]*480 jobs[\s\S]*4\.3 MB/);
     assert.match(await page.getByRole('table', { name: 'Staff accounts' }).innerText(), /Ada[\s\S]*Manager/);
@@ -508,6 +556,7 @@ try {
     await list.waitFor();
     assert.match(await list.innerText(), /Active[\s\S]*Standard/);
     assert.match(await list.innerText(), /1 open problem/);
+    assert.match(await list.innerText(), /1,830/);
     // Problems reported by devices.
     await page.getByRole('button', { name: 'Problems', exact: true }).click();
     const problemTable = page.getByRole('table', { name: 'Problems' });
@@ -548,9 +597,21 @@ try {
         price: 2000000,
         periodDays: 30,
         maxDevices: 5,
+        monthlyTokens: null,
         description: '',
         archived: false,
       },
+    ]);
+    // Token values.
+    await page.getByLabel('Tokens 1', { exact: true }).fill('6');
+    await page.getByRole('button', { name: 'Save token values', exact: true }).click();
+    await page.getByText('Token values saved.').waitFor();
+    assert.deepEqual(saved.at(-1), [
+      'weights',
+      [
+        { pattern: 'checkout.completed', category: 'Sales', tokens: 6 },
+        { pattern: 'job.*', category: 'Jobs', tokens: 1 },
+      ],
     ]);
     // Receipt details (who receipts come from).
     await page.getByLabel('Phone', { exact: true }).fill('0809 999 0000');

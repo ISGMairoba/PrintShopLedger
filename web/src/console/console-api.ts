@@ -17,6 +17,7 @@ export type BusinessRow = {
   subscription?: SubscriptionState;
   expiresAt?: string | null;
   problems?: number;
+  tokens30?: number;
 };
 export type StaffRow = {
   id: string;
@@ -190,6 +191,7 @@ export type Plan = {
   price: number;
   periodDays: number;
   maxDevices: number | null;
+  monthlyTokens?: number | null;
   description: string;
   archived: boolean;
   businesses?: number;
@@ -293,3 +295,20 @@ export type ReceiptIssuer = {
 export const receiptIssuer = () => call<ReceiptIssuer>('console_receipt_issuer');
 export const saveReceiptIssuer = (issuer: ReceiptIssuer) =>
   call<null>('console_save_receipt_issuer', { p_issuer: issuer });
+
+export type Usage = {
+  from: string;
+  to: string;
+  tokens: number;
+  operations: number;
+  byCategory: { category: string; tokens: number; operations: number }[];
+  byKind: { kind: string; category: string; each: number; operations: number; tokens: number }[];
+  daily: { day: string; tokens: number; operations: number }[];
+  monthlyTokens: number | null;
+};
+export type UsageWeight = { pattern: string; category: string; tokens: number };
+export const usage = (shopId: string, from: string, to: string) =>
+  call<Usage>('console_usage', { p_shop: shopId, p_from: from, p_to: to });
+export const usageWeights = () => call<UsageWeight[]>('console_usage_weights');
+export const saveUsageWeights = (weights: UsageWeight[]) =>
+  call<null>('console_save_usage_weights', { p_weights: weights });
