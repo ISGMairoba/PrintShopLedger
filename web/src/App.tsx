@@ -1,4 +1,4 @@
-import { allowedBranches, hasBranches } from './branches.mjs';
+import { allowedBranches, branchLedger, hasBranches } from './branches.mjs';
 import { setRequestBranch, storeBranch, storedBranch } from './device-branch';
 import PayeesPage from './PayeesPage';
 import AccountsPage from './AccountsPage';
@@ -316,9 +316,37 @@ export default function App() {
     resolveCustomerConflict,
   } = useSyncConflicts({ scope, shop, busy, setBusy, activeScope, channel, setState, setMessage });
   const { needRefresh, updateServiceWorker } = useAppUpdates(busy);
+  // With branches, pages show this device's branch only (the owner's master view comes later).
   const ledger = useMemo(
-    () => ({ ...state.ledger, pricing: branding.settings.pricing }),
-    [state.ledger, branding.settings.pricing],
+    () => ({
+      ...(multiBranch && activeBranch ? branchLedger(state.ledger, activeBranch.id) : state.ledger),
+      pricing: branding.settings.pricing,
+    }),
+    [state.ledger, branding.settings.pricing, multiBranch, activeBranch],
+  );
+  // A device that changes branch downloads that branch's records afresh.
+  async function changeBranch(id: string) {
+    const target = scope;
+    storeBranch(target, id);
+    setRequestBranch(id);
+    setBranchChoice(id);
+    try {
+      const next = await requestFullSync(target);
+      if (activeScope.current === target) setState(next);
+      syncNow();
+    } catch {}
+  }
+  // Receipts and documents show the branch's own phone and address when it has them.
+  const docBusiness = useMemo(
+    () =>
+      multiBranch && activeBranch
+        ? {
+            ...branding.settings,
+            address: activeBranch.address || branding.settings.address,
+            phones: activeBranch.phone || branding.settings.phones,
+          }
+        : branding.settings,
+    [branding.settings, multiBranch, activeBranch],
   );
   useEffect(() => {
     if (
@@ -561,7 +589,7 @@ export default function App() {
       const printed = receiptWarning
         ? { status: 'failed', message: receiptWarning }
         : await printAfterTransaction(target, true, (settings) =>
-            printReceipt(settings, record, branding.settings, pending),
+            printReceipt(settings, record, docBusiness, pending),
           );
       if (activeScope.current === target && printed.status === 'failed')
         setMessage(
@@ -1110,14 +1138,7 @@ export default function App() {
           <p>{businessName} has more than one branch. Which branch is this device in today?</p>
           <div className="branch-choices">
             {branchChoices.map((b) => (
-              <button
-                key={b.id}
-                type="button"
-                onClick={() => {
-                  storeBranch(scope, b.id);
-                  setBranchChoice(b.id);
-                }}
-              >
+              <button key={b.id} type="button" onClick={() => void changeBranch(b.id)}>
                 <Icon name="customers" /> {b.name}
                 {b.address && <small>{b.address}</small>}
               </button>
@@ -1164,7 +1185,7 @@ export default function App() {
         >
           <TemplateDocumentContext.Provider
             value={{
-              business: branding.settings,
+              business: docBusiness,
               preparedBy: demo ? 'Local trial user' : shop?.staffName || session?.user.email || '',
             }}
           >
@@ -1589,7 +1610,7 @@ export default function App() {
                             online={online}
                             pending={state.pending.length}
                             lastSynced={state.lastSynced}
-                            branding={branding.settings}
+                            branding={docBusiness}
                             businessName={businessName}
                             customerId={reportCustomer}
                             onCustomerChange={setReportCustomer}
@@ -1776,8 +1797,7 @@ export default function App() {
                                   value={activeBranch?.id ?? ''}
                                   disabled={state.pending.length > 0}
                                   onChange={(e) => {
-                                    storeBranch(scope, e.target.value);
-                                    setBranchChoice(e.target.value);
+                                    void changeBranch(e.target.value);
                                     setMessage(
                                       `This device now works in ${branchChoices.find((b) => b.id === e.target.value)?.name}.`,
                                     );
@@ -1938,7 +1958,7 @@ export default function App() {
                           ledger={ledger}
                           ready={ready}
                           busy={busy || legacyConflict}
-                          branding={branding.settings}
+                          branding={docBusiness}
                           actor={salesActor}
                           onSave={saveCatalogue}
                         />
@@ -1948,7 +1968,7 @@ export default function App() {
                           ledger={ledger}
                           ready={ready}
                           busy={busy || legacyConflict}
-                          branding={branding.settings}
+                          branding={docBusiness}
                           actor={salesActor}
                           discountPolicy={discountPolicy(
                             branding.settings.discounts,
@@ -1998,7 +2018,7 @@ export default function App() {
                           scope={scope}
                           ready={ready}
                           trusted={!!signingShop}
-                          business={branding.settings}
+                          business={docBusiness}
                         />
                       ) : page === 'Customers' ? (
                         <CustomersPage
@@ -2285,7 +2305,7 @@ export default function App() {
                       ledger={ledger}
                       record={ledger.checkouts.find((r) => r.id === receipt.id) ?? receipt}
                       scope={scope}
-                      business={branding.settings}
+                      business={docBusiness}
                       adjustments={ledger.saleAdjustments.filter(
                         (a) =>
                           a.before.checkoutId === receipt.id ||

@@ -1,3 +1,4 @@
+import { inBranch } from './branches.mjs';
 import { validDocumentTerms } from './document-terms.mjs';
 import { tierLabel, tierPrice, usesTiers } from './price-tiers.mjs';
 import { validDueAt } from './job-deadlines.mjs';
@@ -167,9 +168,10 @@ export function quoteLine(ledger, line) {
     sourceNote: String(line.sourceNote ?? '').trim(),
   };
 }
+// A customer has one wallet and one account per branch: only this device's branch counts.
 export function walletBalance(ledger, customerId) {
   return ledger.payments
-    .filter((p) => p.customerId === customerId)
+    .filter((p) => p.customerId === customerId && inBranch(p))
     .reduce((sum, p) => sum + (p.walletAdded ?? 0) - (p.walletUsed ?? 0), 0);
 }
 export function accountToken(ledger, customerId) {
@@ -178,7 +180,7 @@ export function accountToken(ledger, customerId) {
     walletBalance(ledger, customerId) +
     ';' +
     ledger.jobs
-      .filter((j) => j.customerId === customerId)
+      .filter((j) => j.customerId === customerId && inBranch(j))
       .map((j) => [j.id, jobBalance(ledger, j).outstanding])
       .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
       .map(([id, n]) => id + ':' + n)
