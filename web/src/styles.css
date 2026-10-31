@@ -2488,3 +2488,7 @@ span.danger-text {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+.account-settings [hidden] {
+  display: none !important;
+}

@@ -12,6 +12,8 @@ import {
   defaultPageAccess,
   upgradePageAccess,
   validateSettingsTabs,
+  upgradeSettingsTabs,
+  SETTINGS_TABS_VERSION,
   defaultSettingsTabs,
   PAGE_ACCESS_VERSION,
 } from './page-access.mjs';
@@ -132,6 +134,7 @@ export const defaultBranding = () => ({
   pageAccess: defaultPageAccess(),
   pageAccessVersion: PAGE_ACCESS_VERSION,
   settingsTabs: defaultSettingsTabs(),
+  settingsTabsVersion: SETTINGS_TABS_VERSION,
   receipt: {
     showLogo: true,
     showBusinessName: true,
@@ -234,7 +237,10 @@ export function validateBranding(input) {
     value.pageAccess = upgradePageAccess(value.pageAccess, value.pageAccessVersion ?? 0);
   value.pageAccess = validatePageAccess(value.pageAccess);
   value.pageAccessVersion = PAGE_ACCESS_VERSION;
-  value.settingsTabs = validateSettingsTabs(value.settingsTabs);
+  value.settingsTabs = validateSettingsTabs(
+    upgradeSettingsTabs(value.settingsTabs, value.settingsTabsVersion ?? 0),
+  );
+  value.settingsTabsVersion = SETTINGS_TABS_VERSION;
   value.jobs = validateJobSettings(value.jobs);
   value.pricing = validatePricingSettings(value.pricing);
   value.discounts = validateDiscountSettings(value.discounts);

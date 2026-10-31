@@ -26,7 +26,7 @@ language sql immutable set search_path to '' as $f$
  ('Profile & logo','logoVariants'),('Profile & logo','logoUsage'),
  ('Appearance','primary'),('Appearance','accent'),('Appearance','theme'),('Appearance','backgrounds'),
  ('Receipts','receipt'),('Receipts','receiptPage'),('Receipts','documents'),
- ('Dropdowns & workflow','options'),
+ ('Payment methods','options'),('Dropdowns & workflow','options'),
  ('Jobs & payments','jobs'),('Jobs & payments','terms'),('Jobs & payments','discounts'),('Jobs & payments','periods'),
  ('Pricing templates','pricing'),('Corrections','corrections'),('Security','security'),
  ('Branches','branches'),('Branches','branchAccess'),('Branches','branchPricing')

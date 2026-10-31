@@ -142,8 +142,8 @@ export function applyOperation(ledger, event) {
         if (!/^(main|b-[a-z0-9]{6,20}|\*)$/.test(branch)) throw Error('Choose a valid branch.');
         Object.assign(after, {
           accountType: d.accountType,
-          openingDate: old?.openingDate ?? day(d.openingDate),
-          openingBalance: old?.openingBalance ?? amount(d.openingBalance, true),
+          openingDate: day(d.openingDate ?? old?.openingDate),
+          openingBalance: amount(d.openingBalance ?? old?.openingBalance, true),
           methods: d.methods ?? [],
           branch,
         });

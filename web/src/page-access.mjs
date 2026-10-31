@@ -54,6 +54,7 @@ export const settingsTabs = [
   'Profile & logo',
   'Appearance',
   'Receipts',
+  'Payment methods',
   'Dropdowns & workflow',
   'Jobs & payments',
   'Pricing templates',
@@ -76,6 +77,7 @@ export const settingsTabKeys = {
   ],
   Appearance: ['primary', 'accent', 'theme', 'backgrounds'],
   Receipts: ['receipt', 'receiptPage', 'documents'],
+  'Payment methods': ['options'],
   'Dropdowns & workflow': ['options'],
   'Jobs & payments': ['jobs', 'terms', 'discounts', 'periods'],
   'Pricing templates': ['pricing'],
@@ -108,7 +110,8 @@ export function validateSettingsTabs(input) {
 }
 /** Tabs only Developer sees, with the settings each changes. Admin and Manager can never be given them. */
 export const developerSettingsTabs = {
-  'Page access': ['pageAccess', 'settingsTabs'],
+  Accounts: [],
+  'Page access': ['pageAccess', 'settingsTabs', 'settingsTabsVersion'],
   'Installer credit': ['poweredBy'],
 };
 /** Business Settings tabs this rank may open (Page access and Installer credit only for Developer). */
@@ -203,4 +206,18 @@ export function canAccessPage(page, access, configured) {
     return false;
   if (access === 4 || page === 'My Account') return true;
   return (configured?.[String(access)] ?? defaultPageAccess()[String(access)]).includes(page) ?? false;
+}
+
+export const SETTINGS_TABS_VERSION = 1;
+export function upgradeSettingsTabs(input, version = 0) {
+  if (version >= SETTINGS_TABS_VERSION || !input) return input;
+  const next = structuredClone(input);
+  for (const rank of ['2', '3'])
+    if (
+      Array.isArray(next[rank]) &&
+      next[rank].includes('Dropdowns & workflow') &&
+      !next[rank].includes('Payment methods')
+    )
+      next[rank].push('Payment methods');
+  return next;
 }

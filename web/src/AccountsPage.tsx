@@ -14,6 +14,7 @@ export default function AccountsPage({
   actor,
   onSave,
   canConfigure = false,
+  configurationOnly = false,
   branches,
   seesAll = false,
   currentBranch = 'main',
@@ -27,6 +28,7 @@ export default function AccountsPage({
   ledger: Ledger;
   busy: boolean;
   canConfigure?: boolean;
+  configurationOnly?: boolean;
   actor: { id: string; label: string };
   onSave: (event: OperationsEvent) => Promise<void>;
 }) {
@@ -38,6 +40,7 @@ export default function AccountsPage({
     [selected, setSelected] = useState(''),
     [on, setOn] = useState(today()),
     [error, setError] = useState('');
+  const configure = configurationOnly && canConfigure;
   const accounts = ledger.moneyAccounts ?? [],
     active = accounts.filter((a) => !a.archived),
     methods = useBusinessOptions().paymentMethods.filter((m) => m.enabled),
@@ -64,13 +67,16 @@ export default function AccountsPage({
     </option>
   ));
   return (
-    <section className="panel">
-      <p>
+    <section
+      className={configurationOnly ? 'panel account-settings' : 'panel'}
+      aria-label={configurationOnly ? 'Account settings' : 'Accounts'}
+    >
+      <p hidden={configurationOnly}>
         Expected balances are opening balances plus recorded money movements. Cash drawer handovers stay
         within the same account. Transfers between these accounts do not count as sales or expenses.
       </p>
-      {!canConfigure && (
-        <p className="muted">A Developer creates accounts and manages their payment-method links.</p>
+      {!configurationOnly && (
+        <p className="muted">Account setup is under Business Settings → Accounts (Developer).</p>
       )}
       <div className="toolbar">
         <input
@@ -83,7 +89,7 @@ export default function AccountsPage({
           <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
           Show archived
         </label>
-        {canConfigure && (
+        {configure && (
           <button
             disabled={busy}
             onClick={() => {
@@ -94,11 +100,17 @@ export default function AccountsPage({
             Add account
           </button>
         )}
-        <button className="secondary" disabled={busy || active.length < 2} onClick={() => open('transfer')}>
+        <button
+          className="secondary"
+          hidden={configurationOnly}
+          disabled={busy || active.length < 2}
+          onClick={() => open('transfer')}
+        >
           Transfer
         </button>
         <button
           className="secondary"
+          hidden={configurationOnly}
           disabled={busy || !active.length || !unassigned.length}
           onClick={() => open('assign')}
         >
@@ -132,7 +144,7 @@ export default function AccountsPage({
           <thead>
             <tr>
               <th>Account</th>
-              <th>Expected balance</th>
+              {!configurationOnly && <th>Expected balance</th>}
               <th>Actions</th>
             </tr>
           </thead>
@@ -163,7 +175,7 @@ export default function AccountsPage({
                         </small>
                       )}
                     </td>
-                    <td>
+                    <td hidden={configurationOnly}>
                       {partial ? (
                         <>
                           <strong>Shared account</strong>
@@ -186,17 +198,22 @@ export default function AccountsPage({
                     </td>
                     <td>
                       <div className="material-actions">
-                        <button className="text-button" onClick={() => setDetail(a)}>
+                        <button
+                          className="text-button"
+                          hidden={configurationOnly}
+                          onClick={() => setDetail(a)}
+                        >
                           Transactions
                         </button>
                         <button
                           className="text-button"
+                          hidden={configurationOnly}
                           disabled={busy || a.archived || partial}
                           onClick={() => open('reconcile', a.id)}
                         >
                           Reconcile
                         </button>
-                        {canConfigure && (
+                        {configure && (
                           <button
                             className="text-button"
                             disabled={busy}
@@ -209,6 +226,7 @@ export default function AccountsPage({
                           </button>
                         )}
                         <button
+                          hidden={configurationOnly}
                           className={`text-button ${a.archived ? '' : 'danger-text'}`}
                           disabled={busy}
                           onClick={() =>
@@ -228,7 +246,7 @@ export default function AccountsPage({
           </tbody>
         </table>
       </div>
-      {canConfigure && editor && (
+      {configure && editor && (
         <Modal
           title={editor === 'new' ? 'Add account' : 'Edit account'}
           busy={busy}
@@ -252,8 +270,8 @@ export default function AccountsPage({
                   baseVersion: editor === 'new' ? undefined : editor.version,
                   name: String(f.get('name')),
                   accountType: String(f.get('type')),
-                  openingDate: editor === 'new' ? String(f.get('openingDate')) : editor.openingDate,
-                  openingBalance: editor === 'new' ? opening : editor.openingBalance,
+                  openingDate: String(f.get('openingDate')),
+                  openingBalance: opening,
                   methods: f.getAll('methods').map(String),
                   ...(branches ? { branch: String(f.get('branch') || currentBranch) } : {}),
                 })
@@ -306,19 +324,32 @@ export default function AccountsPage({
                   </small>
                 </label>
               )}
-              {editor === 'new' ? (
+              {
                 <>
                   <label>
                     Opening date
-                    <input type="date" name="openingDate" required defaultValue={today()} />
+                    <input
+                      type="date"
+                      name="openingDate"
+                      required
+                      defaultValue={editor === 'new' ? today() : editor.openingDate}
+                    />
                   </label>
                   <label>
                     Opening balance (₦)
-                    <CurrencyInput name="openingBalance" required />
+                    <CurrencyInput
+                      name="openingBalance"
+                      required
+                      defaultValue={editor === 'new' ? '0' : String(Math.abs(editor.openingBalance) / 100)}
+                    />
                   </label>
                   <label>
                     Balance type
-                    <select aria-label="Balance type" name="openingSign">
+                    <select
+                      aria-label="Balance type"
+                      name="openingSign"
+                      defaultValue={editor !== 'new' && editor.openingBalance < 0 ? 'negative' : 'positive'}
+                    >
                       <option value="positive">Positive / zero</option>
                       <option value="negative">Overdrawn / negative</option>
                     </select>
@@ -328,10 +359,12 @@ export default function AccountsPage({
                     payments stay outside this balance.
                   </small>
                 </>
-              ) : (
-                <small>
-                  Opening balance and date are retained. Use Reconcile to record a counted difference.
-                </small>
+              }
+              {editor !== 'new' && (
+                <p className="notice notice-warning">
+                  Changing opening balance or date recalculates expected balances. Use Reconcile on Accounts
+                  for a counted difference today.
+                </p>
               )}
               <fieldset>
                 <legend>Default account for new payments</legend>

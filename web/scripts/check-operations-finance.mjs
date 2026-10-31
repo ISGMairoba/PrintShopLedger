@@ -55,6 +55,10 @@ try {
     await dialog().getByLabel('Phone', { exact: true }).fill('08012345678');
     await save('Save payee');
     await nav('Accounts');
+    assert.equal(await page.getByRole('button', { name: 'Add account', exact: true }).count(), 0);
+    await nav('Business Settings');
+    if (mobile) await page.getByLabel('Business settings section', { exact: true }).selectOption('Accounts');
+    else await page.getByRole('tab', { name: 'Accounts', exact: true }).click();
     for (const [name, balance, type, method] of [
       ['Main Bank', '1000', 'Bank', 'Transfer'],
       ['Till', '100', 'Cash', 'Cash'],
@@ -68,6 +72,48 @@ try {
       await d.getByLabel(method, { exact: true }).check();
       await save('Save account');
     }
+    const section = async (name) => {
+      if (mobile) await page.getByLabel('Business settings section', { exact: true }).selectOption(name);
+      else
+        await page
+          .getByRole('tab', {
+            name: new RegExp('^' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?: •)?$'),
+          })
+          .click();
+    };
+    await section('Payment methods');
+    await page.getByLabel('New payment method', { exact: true }).fill('QA Wallet');
+    await page.getByRole('button', { name: 'Add payment method', exact: true }).click();
+    await section('Dropdowns & workflow');
+    await page.getByLabel('Expense categories', { exact: true }).fill('General\nSupplies');
+    await page.getByRole('button', { name: 'Save dropdown settings', exact: true }).click();
+    let branding = await page.evaluate(
+      () => JSON.parse(localStorage.getItem('printshopledger:branding:v1:local-trial')).settings,
+    );
+    assert.ok(
+      !branding.options.paymentMethods.some((m) => m.label === 'QA Wallet'),
+      'Saving dropdowns saved an unrelated payment-method draft',
+    );
+    await section('Payment methods');
+    await page.getByRole('button', { name: 'Save payment methods', exact: true }).click();
+    branding = await page.evaluate(
+      () => JSON.parse(localStorage.getItem('printshopledger:branding:v1:local-trial')).settings,
+    );
+    assert.ok(branding.options.paymentMethods.some((m) => m.label === 'QA Wallet'));
+    assert.deepEqual(branding.options.expenseCategories, ['General', 'Supplies']);
+    await section('Accounts');
+    await page
+      .getByRole('row')
+      .filter({ hasText: 'Main Bank' })
+      .getByRole('button', { name: 'Edit', exact: true })
+      .click();
+    await dialog().getByLabel('Account name', { exact: true }).fill('Main Bank');
+    await dialog()
+      .getByLabel(/^Opening balance/)
+      .fill('1000');
+    await save('Save account');
+    await nav('Accounts');
+    assert.equal(await page.getByRole('button', { name: 'Edit', exact: true }).count(), 0);
     await page.getByRole('button', { name: 'Transfer', exact: true }).click();
     await dialog().getByLabel('Source account').selectOption({ label: 'Main Bank' });
     await dialog().getByLabel('Destination account').selectOption({ label: 'Till' });

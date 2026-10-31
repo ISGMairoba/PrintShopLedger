@@ -1945,6 +1945,22 @@ export default function App() {
                           accessLevel={demo ? 4 : (shop?.accessLevel ?? 0)}
                           onSave={branding.save}
                           onReload={branding.reload}
+                          accountSettings={
+                            <AccountsPage
+                              configurationOnly
+                              canConfigure={demo || shop?.accessLevel === 4}
+                              ledger={allBranchesLedger({
+                                ...state.ledger,
+                                pricing: branding.settings.pricing,
+                              })}
+                              branches={multiBranch ? openBranches : undefined}
+                              seesAll={ownerView}
+                              currentBranch={activeBranch?.id ?? 'main'}
+                              busy={busy || hasConflict}
+                              actor={salesActor}
+                              onSave={saveCatalogue}
+                            />
+                          }
                           loadStaff={
                             demo || !shop
                               ? undefined
@@ -1967,7 +1983,6 @@ export default function App() {
                         />
                       ) : page === 'Accounts' ? (
                         <AccountsPage
-                          canConfigure={demo || shop?.accessLevel === 4}
                           ledger={
                             ownerView
                               ? allBranchesLedger({ ...state.ledger, pricing: branding.settings.pricing })
