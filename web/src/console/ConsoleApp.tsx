@@ -58,6 +58,7 @@ const actionLabels: Record<string, string> = {
   'business.viewed': 'Opened business',
   'business.backup': 'Downloaded a backup',
   'trial.saved': 'Changed the free trial',
+  'receipt_issuer.saved': 'Changed the receipt details',
   'problem.resolve': 'Marked a problem fixed',
   'problem.reopen': 'Opened a problem again',
   'team.member_set': 'Changed team member',
@@ -439,7 +440,13 @@ function BusinessView({
       {tab === 'settings' && <ConsoleSettings shopId={data.id} onSaved={onChanged} />}
       {tab === 'staff' && <ConsoleStaff data={data} onChanged={onChanged} />}
       {tab === 'devices' && <ConsoleDevices shopId={data.id} onChanged={onChanged} />}
-      {tab === 'subscription' && <ConsoleSubscription shopId={data.id} onChanged={onChanged} />}
+      {tab === 'subscription' && (
+        <ConsoleSubscription
+          shopId={data.id}
+          business={{ name: data.name, ownerEmail: data.ownerEmail }}
+          onChanged={onChanged}
+        />
+      )}
       {tab === 'problems' && <ConsoleProblems shopId={data.id} onChanged={onChanged} />}
       {tab === 'overview' && (
         <>

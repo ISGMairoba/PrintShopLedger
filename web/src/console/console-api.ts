@@ -203,6 +203,8 @@ export type Subscription = {
 };
 export type Payment = {
   id: string;
+  receiptNo?: number | null;
+  planName?: string;
   amount: number;
   paidOn: string;
   method: string;
@@ -234,7 +236,8 @@ export const recordPayment = (
     extendedTo: string | null;
     note: string;
   },
-) => call<null>('console_record_payment', { p_shop: shopId, p_payment: payment });
+) =>
+  call<{ id: string; receiptNo: number }>('console_record_payment', { p_shop: shopId, p_payment: payment });
 
 export type TrialSettings = {
   enabled: boolean;
@@ -273,3 +276,15 @@ export const problems = (shopId: string | null, open: boolean) =>
   call<Problem[]>('console_problems', { p_shop: shopId, p_open: open });
 export const problemAction = (id: string, action: 'resolve' | 'reopen') =>
   call<null>('console_problem_action', { p_id: id, p_action: action });
+
+export type ReceiptIssuer = {
+  name: string;
+  address: string;
+  phone: string;
+  email: string;
+  bank: string;
+  footer: string;
+};
+export const receiptIssuer = () => call<ReceiptIssuer>('console_receipt_issuer');
+export const saveReceiptIssuer = (issuer: ReceiptIssuer) =>
+  call<null>('console_save_receipt_issuer', { p_issuer: issuer });

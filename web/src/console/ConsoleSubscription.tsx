@@ -3,6 +3,7 @@ import Icon from '../Icon';
 import ResponsiveTable from '../ResponsiveTable';
 import { money } from '../domain.mjs';
 import { pages } from '../page-access.mjs';
+import { receiptRef } from './receipt-ref.mjs';
 import { currency } from '../receipts.mjs';
 import {
   plans as loadPlans,
@@ -11,6 +12,9 @@ import {
   saveSubscription,
   subscription as loadSubscription,
   trialSettings as loadTrial,
+  receiptIssuer as loadIssuer,
+  saveReceiptIssuer,
+  type ReceiptIssuer,
   saveTrialSettings as saveTrial,
   type TrialSettings,
   type ExpiryMode,
@@ -96,14 +100,23 @@ const toDraft = (s: Subscription | null): Draft => ({
 });
 
 /** One business's subscription: plan, dates, what happens when it runs out, devices, payments. */
-export function ConsoleSubscription({ shopId, onChanged }: { shopId: string; onChanged: () => void }) {
+export function ConsoleSubscription({
+  shopId,
+  business,
+  onChanged,
+}: {
+  shopId: string;
+  business: { name: string; ownerEmail: string | null };
+  onChanged: () => void;
+}) {
   const [detail, setDetail] = useState<SubscriptionDetail | null>(null),
     [planList, setPlanList] = useState<Plan[]>([]),
     [draft, setDraft] = useState<Draft>(toDraft(null)),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(''),
     [problem, setProblem] = useState(''),
-    [tick, setTick] = useState(0);
+    [tick, setTick] = useState(0),
+    [lastReceipt, setLastReceipt] = useState('');
   useEffect(() => {
     let live = true;
     Promise.all([loadSubscription(shopId), loadPlans()])
@@ -377,10 +390,13 @@ export function ConsoleSubscription({ shopId, onChanged }: { shopId: string; onC
                   reference: String(f.get('reference') ?? '').trim(),
                   extendedTo: extendTo ? endOf(extendTo) : null,
                   note: String(f.get('note') ?? '').trim(),
-                }).then(() => form.reset()),
+                }).then((saved) => {
+                  form.reset();
+                  setLastReceipt(saved?.receiptNo ? receiptRef(saved.receiptNo) : '');
+                }),
               extendTo
-                ? `Payment recorded. The subscription now runs until ${shown(endOf(extendTo))}.`
-                : 'Payment recorded.',
+                ? `Payment recorded. The subscription now runs until ${shown(endOf(extendTo))}. Its receipt is in Payment history below.`
+                : 'Payment recorded. Its receipt is in Payment history below.',
             );
           }}
         >
@@ -443,6 +459,7 @@ export function ConsoleSubscription({ shopId, onChanged }: { shopId: string; onC
             columns={[
               { index: 1, label: 'Amount', details: [0, 2] },
               { index: 3, label: 'Extended to', details: [4] },
+              { index: 5, label: 'Receipt', actions: true },
             ]}
           >
             <table aria-label="Payments">
@@ -453,6 +470,7 @@ export function ConsoleSubscription({ shopId, onChanged }: { shopId: string; onC
                   <th>Method</th>
                   <th>Extended to</th>
                   <th>Recorded by</th>
+                  <th>Receipt</th>
                 </tr>
               </thead>
               <tbody>
@@ -469,6 +487,29 @@ export function ConsoleSubscription({ shopId, onChanged }: { shopId: string; onC
                     </td>
                     <td>{p.extendedTo ? shown(p.extendedTo) : '—'}</td>
                     <td>{p.recordedBy ?? '—'}</td>
+                    <td>
+                      <div className="material-actions">
+                        <button
+                          type="button"
+                          className={
+                            lastReceipt && lastReceipt === receiptRef(p.receiptNo) ? '' : 'secondary'
+                          }
+                          disabled={busy || !p.receiptNo}
+                          aria-label={`Download receipt ${receiptRef(p.receiptNo)}`}
+                          onClick={async () => {
+                            setProblem('');
+                            try {
+                              const { downloadPaymentReceipt } = await import('./payment-receipt');
+                              downloadPaymentReceipt(await loadIssuer(), business, p);
+                            } catch (cause) {
+                              setProblem(errorText(cause));
+                            }
+                          }}
+                        >
+                          <Icon name="export" /> {receiptRef(p.receiptNo)}
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -906,6 +947,137 @@ export function ConsolePlans() {
         </section>
       )}
       {list && <TrialPanel plans={list} />}
+      <IssuerPanel />
     </>
+  );
+}
+
+/** Who receipts for subscription payments come from. */
+function IssuerPanel() {
+  const [issuer, setIssuer] = useState<ReceiptIssuer | null>(null),
+    [saved, setSaved] = useState<ReceiptIssuer | null>(null),
+    [busy, setBusy] = useState(false),
+    [message, setMessage] = useState(''),
+    [problem, setProblem] = useState('');
+  useEffect(() => {
+    let live = true;
+    loadIssuer()
+      .then((value) => {
+        if (!live) return;
+        setIssuer(value);
+        setSaved(value);
+      })
+      .catch((cause) => live && setProblem(errorText(cause)));
+    return () => {
+      live = false;
+    };
+  }, []);
+  const set = (key: keyof ReceiptIssuer, value: string) => setIssuer((i) => (i ? { ...i, [key]: value } : i));
+  return (
+    <section className="panel">
+      <h2>Receipt details</h2>
+      <p className="muted">
+        Shown on the receipt for every subscription payment. Only console owners can change them.
+      </p>
+      {message && (
+        <p role="status" className="notice notice-success">
+          {message}
+        </p>
+      )}
+      {problem && <p role="alert">{problem}</p>}
+      {!issuer && !problem && <p className="muted">Loading…</p>}
+      {issuer && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            setBusy(true);
+            setMessage('');
+            setProblem('');
+            saveReceiptIssuer(issuer)
+              .then(() => {
+                setSaved(issuer);
+                setMessage('Receipt details saved.');
+              })
+              .catch((cause) => setProblem(errorText(cause)))
+              .finally(() => setBusy(false));
+          }}
+        >
+          <fieldset disabled={busy}>
+            <div className="form-grid console-grid-3">
+              <label>
+                Name on receipts
+                <input
+                  required
+                  maxLength={120}
+                  value={issuer.name}
+                  onChange={(e) => set('name', e.target.value)}
+                />
+              </label>
+              <label>
+                Phone
+                <input
+                  type="tel"
+                  maxLength={80}
+                  value={issuer.phone}
+                  onChange={(e) => set('phone', e.target.value)}
+                />
+              </label>
+              <label>
+                Email
+                <input
+                  type="email"
+                  maxLength={120}
+                  value={issuer.email}
+                  onChange={(e) => set('email', e.target.value)}
+                />
+              </label>
+              <label>
+                Address
+                <input
+                  maxLength={300}
+                  value={issuer.address}
+                  onChange={(e) => set('address', e.target.value)}
+                />
+              </label>
+              <label>
+                Bank details for transfers
+                <input
+                  maxLength={300}
+                  placeholder="e.g. Moniepoint · 1234567890 · Mairoba Studio"
+                  value={issuer.bank}
+                  onChange={(e) => set('bank', e.target.value)}
+                />
+              </label>
+              <label>
+                Closing line
+                <input
+                  maxLength={300}
+                  value={issuer.footer}
+                  onChange={(e) => set('footer', e.target.value)}
+                />
+              </label>
+            </div>
+            <div className="console-form-footer">
+              <span />
+              <div className="material-actions">
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => {
+                    setIssuer(saved);
+                    setProblem('');
+                  }}
+                >
+                  <Icon name="close" /> Cancel
+                </button>
+                <button type="submit">
+                  <Icon name="save" /> Save receipt details
+                </button>
+              </div>
+            </div>
+          </fieldset>
+        </form>
+      )}
+    </section>
   );
 }
