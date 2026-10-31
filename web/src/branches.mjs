@@ -87,3 +87,54 @@ export function allowedBranches(settings, memberId, accessLevel = 0) {
 /** Whether this staff member sees every branch (the business owner). */
 export const seesAllBranches = (settings, memberId, accessLevel = 0) =>
   accessLevel >= 4 || !!settings?.branchAccess?.[memberId]?.includes('*');
+
+// ---- Records by branch (stage 1b) ----
+// The branch this device works in, for working out balances and showing records. Records the
+// server sends carry branchId (none = the main branch); records made on this device are tagged
+// with this branch as they are recorded.
+let localBranch = MAIN;
+export function setLocalBranch(id) {
+  localBranch = id || MAIN;
+}
+export const localBranchId = () => localBranch;
+/** Whether a record belongs to the branch (this device's by default). */
+export const inBranch = (record, id = localBranch) => (record?.branchId ?? MAIN) === id;
+/** The parts of the records that belong to one branch. */
+export const BRANCH_KEYS = [
+  'jobs',
+  'payments',
+  'checkouts',
+  'expenses',
+  'drawerClosings',
+  'saleAdjustments',
+  'quotations',
+  'reminders',
+  'materialWaste',
+];
+/**
+ * The records of one branch: everything shared (customers, services, stock…) and only that
+ * branch's sales, jobs, payments and the rest.
+ * @template T
+ * @param {T} ledger
+ * @returns {T}
+ */
+export function branchLedger(ledger, id = localBranch) {
+  const out = { ...ledger };
+  for (const key of BRANCH_KEYS)
+    if (Array.isArray(ledger?.[key])) out[key] = ledger[key].filter((r) => inBranch(r, id));
+  return out;
+}
+/** Tag records an operation just added with this device's branch (the main branch needs no tag). */
+export function tagNewRecords(before, after, id = localBranch) {
+  if (id === MAIN || before === after) return after;
+  let out = after;
+  for (const key of BRANCH_KEYS) {
+    const old = before?.[key] ?? [];
+    const now = after?.[key];
+    if (!Array.isArray(now) || now.length <= old.length) continue;
+    const known = new Set(old.map((r) => r.id));
+    if (out === after) out = { ...after };
+    out[key] = now.map((r) => (known.has(r.id) || r.branchId ? r : { ...r, branchId: id }));
+  }
+  return out;
+}

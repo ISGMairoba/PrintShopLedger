@@ -1,6 +1,6 @@
 // The branch this device works in. It is remembered per business sign-in, and every request to
 // the server says it (header x-psl-branch), so the server tags new records with the branch.
-import { MAIN } from './branches.mjs';
+import { MAIN, setLocalBranch } from './branches.mjs';
 
 const key = (scope: string) => `printshopledger:branch:v1:${scope}`;
 let current = MAIN;
@@ -9,6 +9,7 @@ let current = MAIN;
 export const requestBranch = () => current;
 export function setRequestBranch(id: string | null | undefined) {
   current = id || MAIN;
+  setLocalBranch(current);
 }
 export function storedBranch(scope: string): string | null {
   try {

@@ -85,7 +85,49 @@ try {
       ];
     else if (path.endsWith('/business_settings')) result = [{ settings, version: 1 }];
     else if (path.endsWith('/get_ledger_changes'))
-      result = { cursor: '1', full: true, ledger: emptyLedger() };
+      result = {
+        cursor: '1',
+        full: true,
+        ledger: {
+          ...emptyLedger(),
+          customers: [
+            {
+              id: 'c1',
+              name: 'Ada',
+              phone: '08031234567',
+              address: '',
+              creditLimit: 0,
+              archived: false,
+              version: 1,
+              createdAt: now,
+            },
+          ],
+          // The owner's device receives both branches; this staff device shows its own.
+          jobs: [
+            {
+              id: 'j-main',
+              customerId: 'c1',
+              service: 'Print',
+              description: 'Kano job',
+              amount: 1000,
+              createdAt: now,
+              productionStatus: 'Added',
+              version: 1,
+            },
+            {
+              id: 'j-zoo',
+              customerId: 'c1',
+              service: 'Print',
+              description: 'Zoo job',
+              amount: 2000,
+              createdAt: now,
+              productionStatus: 'Added',
+              version: 1,
+              branchId: 'b-zoo0000001',
+            },
+          ],
+        },
+      };
     else if (path.endsWith('/my_subscription')) result = { state: 'none' };
     else if (path.endsWith('/report_device')) result = { signOut: false, deviceLimit: 0 };
     else if (path.endsWith('/report_problems')) result = null;
@@ -117,11 +159,18 @@ try {
     later.every(([, branch]) => branch === 'b-zoo0000001'),
     JSON.stringify(later),
   );
-  // My Account switches the device back to the main branch.
+  // Each branch shows its own jobs.
   const nav = page.getByRole('navigation', { name: 'Main' });
+  await nav.getByRole('button', { name: 'Jobs', exact: true }).click();
+  await page.getByText('Zoo job', { exact: true }).first().waitFor();
+  assert.equal(await page.getByText('Kano job', { exact: true }).count(), 0);
+  // My Account switches the device back to the main branch.
   await nav.getByRole('button', { name: 'My Account', exact: true }).click();
   await page.getByLabel('Switch this device to').selectOption('main');
   await page.locator('.eyebrow').filter({ hasText: 'Mairoba Studios · Kano Road' }).waitFor();
+  await nav.getByRole('button', { name: 'Jobs', exact: true }).click();
+  await page.getByText('Kano job', { exact: true }).first().waitFor();
+  assert.equal(await page.getByText('Zoo job', { exact: true }).count(), 0);
   assert.deepEqual(errors, []);
   console.log('Branches passed');
 } catch (error) {

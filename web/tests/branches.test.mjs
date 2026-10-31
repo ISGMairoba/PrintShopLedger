@@ -76,3 +76,55 @@ test('staff work in the branches they are given; the owner sees all', () => {
   assert.equal(seesAllBranches(settings, bola), true);
   assert.equal(seesAllBranches(settings, ada), false);
 });
+
+import { branchLedger, setLocalBranch, tagNewRecords } from '../src/branches.mjs';
+import { accountToken, walletBalance } from '../src/checkout.mjs';
+
+test('each branch sees its own records; a customer has one account per branch', () => {
+  const ledger = {
+    customers: [{ id: 'c1', name: 'Ada' }],
+    jobs: [
+      { id: 'j1', customerId: 'c1', amount: 1000 },
+      { id: 'j2', customerId: 'c1', amount: 500, branchId: 'b-zoo0000001' },
+    ],
+    payments: [
+      { id: 'p1', customerId: 'c1', amount: 0, walletAdded: 300, walletUsed: 0, allocations: [] },
+      {
+        id: 'p2',
+        customerId: 'c1',
+        amount: 0,
+        walletAdded: 200,
+        walletUsed: 0,
+        allocations: [],
+        branchId: 'b-zoo0000001',
+      },
+    ],
+    services: [{ id: 's1' }],
+  };
+  try {
+    setLocalBranch('main');
+    assert.deepEqual(
+      branchLedger(ledger).jobs.map((j) => j.id),
+      ['j1'],
+    );
+    assert.equal(branchLedger(ledger).services.length, 1);
+    assert.equal(walletBalance(ledger, 'c1'), 300);
+    assert.equal(accountToken(ledger, 'c1'), 'wallet=300;j1:1000');
+    setLocalBranch('b-zoo0000001');
+    assert.deepEqual(
+      branchLedger(ledger).jobs.map((j) => j.id),
+      ['j2'],
+    );
+    assert.equal(walletBalance(ledger, 'c1'), 200);
+    assert.equal(accountToken(ledger, 'c1'), 'wallet=200;j2:500');
+    // Records made on this device are tagged with its branch.
+    const after = { ...ledger, jobs: [...ledger.jobs, { id: 'j3', customerId: 'c1', amount: 50 }] };
+    const tagged = tagNewRecords(ledger, after);
+    assert.equal(tagged.jobs.find((j) => j.id === 'j3').branchId, 'b-zoo0000001');
+    assert.equal(tagged.jobs.find((j) => j.id === 'j1').branchId, undefined);
+    setLocalBranch('main');
+    assert.equal(tagNewRecords(ledger, after), after);
+  } finally {
+    setLocalBranch('main');
+  }
+});

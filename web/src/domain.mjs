@@ -8,6 +8,7 @@ import { applyServiceEvent } from './services.mjs';
 import { applyMaterialEvent, normalizeLedger } from './materials.mjs';
 import { applyQuotationEvent } from './quotations.mjs';
 import { applyReminderEvent } from './reminders.mjs';
+import { tagNewRecords } from './branches.mjs';
 
 // Money is stored as integer kobo. Customer balances are derived from jobs.
 export const emptyLedger = () => ({
@@ -70,7 +71,11 @@ function positiveAmount(value) {
   if (!Number.isSafeInteger(value) || value <= 0 || value > 100_000_000_000)
     throw new Error('Amount must be greater than zero and within the supported limit.');
 }
+/** Apply one operation; records it adds are tagged with this device's branch (branches.mjs). */
 export function applyEvent(ledger, event) {
+  return tagNewRecords(ledger, applyEventCore(ledger, event));
+}
+function applyEventCore(ledger, event) {
   ledger = normalizeLedger(ledger);
   if (
     event.kind === 'job.due_changed' ||
