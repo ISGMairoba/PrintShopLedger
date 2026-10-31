@@ -6,6 +6,7 @@ import DueDateDialog from './DueDateDialog';
 import useSubscription, { subscriptionNotice } from './useSubscription';
 import { setWritesBlocked } from './subscription-rule.mjs';
 import { confirmSignedOut, reportDevice, sendProblems } from './device-report';
+import { historyCheckIfDue } from './history-check-store';
 import { recordProblem } from './problem-log.mjs';
 import { setStockBelowZeroBlocked } from './stock-rule.mjs';
 import useSyncConflicts from './app/useSyncConflicts';
@@ -684,6 +685,11 @@ export default function App() {
       }
       // Tell the developer console how this device is doing; it may ask the device to sign out.
       const report = await reportDevice(target, shopId, next);
+      // Once a day the History check runs in the background when the device is idle; its new
+      // results are reported straight away.
+      void historyCheckIfDue(target, next.ledger).then((ran) => {
+        if (ran) void reportDevice(target, shopId, next, true);
+      });
       void sendProblems(shopId);
       if (report.deviceLimit) {
         await Promise.all([

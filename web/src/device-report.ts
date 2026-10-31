@@ -3,6 +3,7 @@
 import { supabase } from './cloud';
 import { deviceName } from './device-name.mjs';
 import { returnProblems, takeProblems } from './problem-log.mjs';
+import { readHistoryResults } from './history-check-store';
 import type { LocalState } from './types';
 
 const KEY = 'printshopledger:device-id';
@@ -22,21 +23,24 @@ export function deviceId() {
     return null;
   }
 }
-/** The latest History check on this device, in brief. */
+/** The latest History check on this device, in brief, with each window's result. */
 function historySummary(scope: string) {
-  try {
-    const results = JSON.parse(localStorage.getItem(`printshopledger:history-check:v2:${scope}`) ?? 'null');
-    if (!Array.isArray(results) || !results.length) return {};
-    return {
-      checkedAt: results[0].checkedAt,
-      checked: results.reduce((n: number, r: { checked: number }) => n + r.checked, 0),
-      differing: results.reduce((n: number, r: { differences: unknown[] }) => n + r.differences.length, 0),
-    };
-  } catch {
-    return {};
-  }
+  const results = readHistoryResults(scope);
+  if (!results) return {};
+  return {
+    checkedAt: results[0].checkedAt,
+    checked: results.reduce((n, r) => n + r.checked, 0),
+    differing: results.reduce((n, r) => n + r.differences.length, 0),
+    windows: results.map((r) => ({
+      label: r.label,
+      cutoff: r.cutoff,
+      checked: r.checked,
+      differing: r.differences.length,
+      leftOut: Object.values(r.dropped as Record<string, number>).reduce((n, v) => n + v, 0),
+      differences: r.differences.slice(0, 5).map((d: { what: string }) => d.what),
+    })),
+  };
 }
-
 /**
  * Report this device after a sync. Resolves to { signOut } when the console asked it to sign out,
  * and { deviceLimit } when it is a new device and the business already uses all its devices.
