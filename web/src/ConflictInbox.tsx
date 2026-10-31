@@ -45,7 +45,9 @@ export default function ConflictInbox({
   shopId,
   online,
   onChanged,
+  canConfigureAccounts = false,
 }: {
+  canConfigureAccounts?: boolean;
   scope: string;
   shopId: string;
   online: boolean;
@@ -379,6 +381,8 @@ export default function ConflictInbox({
                   !online ||
                   busy ||
                   !reason.trim() ||
+                  (!canConfigureAccounts &&
+                    ['account.created', 'account.updated'].includes(review.conflict.source.kind)) ||
                   ['account.reconciled', 'account.assigned', 'account.transferred'].includes(
                     review.conflict.source.kind,
                   )

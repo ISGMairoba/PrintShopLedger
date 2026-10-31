@@ -828,6 +828,7 @@ export interface Payee extends Omit<Customer, 'creditLimit'> {
   note: string;
 }
 export interface MoneyAccount {
+  importedFromPaymentMethod?: boolean;
   id: string;
   name: string;
   accountType: string;

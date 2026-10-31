@@ -13,9 +13,11 @@ export default function AccountsPage({
   busy,
   actor,
   onSave,
+  canConfigure = false,
 }: {
   ledger: Ledger;
   busy: boolean;
+  canConfigure?: boolean;
   actor: { id: string; label: string };
   onSave: (event: OperationsEvent) => Promise<void>;
 }) {
@@ -30,7 +32,7 @@ export default function AccountsPage({
   const accounts = ledger.moneyAccounts ?? [],
     active = accounts.filter((a) => !a.archived),
     methods = useBusinessOptions().paymentMethods.filter((m) => m.enabled),
-    unassigned = moneyTransactions(ledger).filter((t) => !t.accountId);
+    unassigned = moneyTransactions(ledger).filter((t) => !t.accountId && !t.personal);
   const save = async (kind: OperationsEvent['kind'], data: Record<string, any>) => {
     setError('');
     try {
@@ -58,6 +60,9 @@ export default function AccountsPage({
         Expected balances are opening balances plus recorded money movements. Cash drawer handovers stay
         within the same account. Transfers between these accounts do not count as sales or expenses.
       </p>
+      {!canConfigure && (
+        <p className="muted">A Developer creates accounts and manages their payment-method links.</p>
+      )}
       <div className="toolbar">
         <input
           aria-label="Search accounts"
@@ -69,15 +74,17 @@ export default function AccountsPage({
           <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
           Show archived
         </label>
-        <button
-          disabled={busy}
-          onClick={() => {
-            setError('');
-            setEditor('new');
-          }}
-        >
-          Add account
-        </button>
+        {canConfigure && (
+          <button
+            disabled={busy}
+            onClick={() => {
+              setError('');
+              setEditor('new');
+            }}
+          >
+            Add account
+          </button>
+        )}
         <button className="secondary" disabled={busy || active.length < 2} onClick={() => open('transfer')}>
           Transfer
         </button>
@@ -92,6 +99,16 @@ export default function AccountsPage({
       {error && (
         <p className="notice" role="alert">
           {error}
+        </p>
+      )}
+      {accounts.some(
+        (a) =>
+          a.importedFromPaymentMethod &&
+          !(ledger.accountEntries ?? []).some((e) => e.action === 'reconciliation' && e.accountId === a.id),
+      ) && (
+        <p className="notice">
+          Accounts imported from payment methods start at zero before their first recorded movement. Reconcile
+          them against actual balances to include money held before records began.
         </p>
       )}
       {!!unassigned.length && (
@@ -149,16 +166,18 @@ export default function AccountsPage({
                         >
                           Reconcile
                         </button>
-                        <button
-                          className="text-button"
-                          disabled={busy}
-                          onClick={() => {
-                            setError('');
-                            setEditor(a);
-                          }}
-                        >
-                          Edit
-                        </button>
+                        {canConfigure && (
+                          <button
+                            className="text-button"
+                            disabled={busy}
+                            onClick={() => {
+                              setError('');
+                              setEditor(a);
+                            }}
+                          >
+                            Edit
+                          </button>
+                        )}
                         <button
                           className={`text-button ${a.archived ? '' : 'danger-text'}`}
                           disabled={busy}
@@ -179,7 +198,7 @@ export default function AccountsPage({
           </tbody>
         </table>
       </div>
-      {editor && (
+      {canConfigure && editor && (
         <Modal
           title={editor === 'new' ? 'Add account' : 'Edit account'}
           busy={busy}
@@ -460,7 +479,12 @@ export default function AccountsPage({
                   <tr key={t.id}>
                     <td>
                       {t.paidOn}
-                      <small>{t.label}</small>
+                      <small>
+                        {t.label} · {t.method}
+                      </small>
+                      {t.paidOn < detail.openingDate && (
+                        <small>Before opening date · already covered by opening balance</small>
+                      )}
                     </td>
                     <td>{t.direction > 0 ? currency(t.amount) : '—'}</td>
                     <td>{t.direction < 0 ? currency(t.amount) : '—'}</td>
@@ -470,16 +494,18 @@ export default function AccountsPage({
             </table>
           </div>
           <h3>Transfers and reconciliations</h3>
-          {accountBalance(ledger, detail.id).entries.map((e: Record<string, any>) => (
-            <p key={e.id}>
-              {e.paidOn} · {e.action} · {currency(e.amount)}
-              {e.action === 'transfer'
-                ? ` · ${accounts.find((a) => a.id === e.accountId)?.name} → ${accounts.find((a) => a.id === e.toAccountId)?.name}`
-                : ''}
-              <br />
-              {e.reason} · {e.modifiedByLabel}
-            </p>
-          ))}
+          {accountBalance(ledger, detail.id)
+            .entries.filter((e: Record<string, any>) => e.action !== 'assignment')
+            .map((e: Record<string, any>) => (
+              <p key={e.id}>
+                {e.paidOn} · {e.action} · {currency(e.amount)}
+                {e.action === 'transfer'
+                  ? ` · ${accounts.find((a) => a.id === e.accountId)?.name} → ${accounts.find((a) => a.id === e.toAccountId)?.name}`
+                  : ''}
+                <br />
+                {e.reason} · {e.modifiedByLabel}
+              </p>
+            ))}
           <details>
             <summary>Audit history</summary>
             {(ledger.operationHistory ?? [])

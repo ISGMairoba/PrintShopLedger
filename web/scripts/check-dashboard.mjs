@@ -53,6 +53,21 @@ try {
       // Saving settings raises their version, which tells devices to download them again.
       let settingsVersion = 1;
       const ledger = emptyLedger();
+      ledger.moneyAccounts = [
+        {
+          id: 'account',
+          name: 'Shared wallet',
+          accountType: 'bank',
+          openingBalance: 1000,
+          openingDate: '2026-01-01',
+          methods: ['Cash', 'Bank transfer'],
+          archived: false,
+          version: 1,
+          createdAt: now,
+          modifiedAt: now,
+          modifiedByLabel: 'Developer',
+        },
+      ];
       ledger.jobs = [
         {
           id: 'test-job',
@@ -178,6 +193,26 @@ try {
         await context.close();
         continue;
       }
+      await nav.getByRole('button', { name: 'Accounts', exact: true }).click();
+      await page.getByRole('heading', { name: 'Accounts', exact: true }).waitFor();
+      assert.equal(
+        await page.getByRole('button', { name: 'Add account', exact: true }).count(),
+        rank === 4 ? 1 : 0,
+        'Only Developers create accounts',
+      );
+      assert.equal(
+        await page.getByRole('button', { name: 'Edit', exact: true }).count(),
+        rank === 4 ? 1 : 0,
+        'Only Developers configure method links',
+      );
+      for (const name of ['Transactions', 'Reconcile', 'Archive'])
+        assert.equal(
+          await page.getByRole('button', { name, exact: true }).count(),
+          1,
+          'Management keeps account operations',
+        );
+      assert.equal(await page.getByRole('button', { name: 'Transfer', exact: true }).count(), 1);
+      await open();
       await nav.getByRole('button', { name: 'Dashboard', exact: true }).click();
       await page.getByRole('heading', { name: 'Dashboard', exact: true }).waitFor();
       await page.getByLabel('From', { exact: true }).fill('2026-10-09');
