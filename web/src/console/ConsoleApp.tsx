@@ -1188,6 +1188,16 @@ function ConsoleDevices({ shopId, onChanged }: { shopId: string; onChanged: () =
                         : `All ${d.history.checked} match`
                       : 'Not run yet'}
                     {d.history?.checkedAt && <small>{ago(d.history.checkedAt)}</small>}
+                    {d.history?.windows?.length ? (
+                      <small>
+                        {d.history.windows
+                          .map(
+                            (w) =>
+                              `${w.label} ${w.differing ? `✗ ${w.differing}` : '✓'} (${w.leftOut} older)`,
+                          )
+                          .join(' · ')}
+                      </small>
+                    ) : null}
                   </td>
                   <td>
                     <div className="material-actions">

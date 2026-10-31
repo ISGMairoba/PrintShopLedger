@@ -164,7 +164,12 @@ export type DeviceRow = {
   pending: number;
   held: number;
   lastSynced: string | null;
-  history: { checkedAt?: string; checked?: number; differing?: number };
+  history: {
+    checkedAt?: string;
+    checked?: number;
+    differing?: number;
+    windows?: { label: string; checked: number; differing: number; leftOut: number; differences: string[] }[];
+  };
   firstSeen: string;
   lastSeen: string;
   signOutRequestedAt: string | null;

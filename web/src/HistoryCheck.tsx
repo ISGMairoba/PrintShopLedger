@@ -1,27 +1,18 @@
 import { useEffect, useState } from 'react';
 import Icon from './Icon';
-import { historyChecks } from './history-window.mjs';
+import { readHistoryResults, runHistoryCheck, type HistoryResults } from './history-check-store';
 import type { Ledger } from './types';
 
-type Result = ReturnType<typeof historyChecks>;
-const key = (scope: string) => `printshopledger:history-check:v2:${scope}`;
-const read = (scope: string): Result | null => {
-  try {
-    const value = JSON.parse(localStorage.getItem(key(scope)) ?? 'null');
-    return Array.isArray(value) ? value : null;
-  } catch {
-    return null;
-  }
-};
-const DAY = 24 * 60 * 60 * 1000;
+type Result = HistoryResults;
+const read = readHistoryResults;
 const left = (r: Result[number]) =>
   r.dropped.jobs + r.dropped.payments + r.dropped.checkouts + r.dropped.expenses + r.dropped.materialHistory;
 
 /**
  * My Account → This device: the history check (stage 1 of keeping recent history only). For each
  * window (7 days to 3 months) it works out the important figures from all records and from a
- * copy that keeps only that window, and shows whether they all match. Nothing is removed; it
- * runs once a day by itself.
+ * copy that keeps only that window, and shows whether they all match. Nothing is removed; the app
+ * runs it once a day by itself after a sync (history-check-store.ts).
  */
 export default function HistoryCheck({ ledger, scope }: { ledger: Ledger; scope: string }) {
   const [results, setResults] = useState<Result | null>(() => read(scope));
@@ -31,23 +22,17 @@ export default function HistoryCheck({ ledger, scope }: { ledger: Ledger; scope:
     // Let the button show "Checking…" before the work starts.
     setTimeout(() => {
       try {
-        const next = historyChecks(ledger);
-        setResults(next);
-        try {
-          localStorage.setItem(key(scope), JSON.stringify(next));
-        } catch {}
+        setResults(runHistoryCheck(scope, ledger));
       } finally {
         setRunning(false);
       }
     }, 50);
   };
+  // The app also runs it once a day by itself after a sync; show the latest results.
   useEffect(() => {
-    const last = read(scope);
-    if (!last?.length || Date.now() - Date.parse(last[0].checkedAt) > DAY) {
-      const timer = setTimeout(run, 3000);
-      return () => clearTimeout(timer);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setResults(read(scope));
+    const timer = setInterval(() => setResults(read(scope)), 60000);
+    return () => clearInterval(timer);
   }, [scope]);
   const differing = results?.filter((r) => r.differences.length) ?? [];
   const checked = results?.reduce((n, r) => n + r.checked, 0) ?? 0;

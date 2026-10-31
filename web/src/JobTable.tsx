@@ -252,12 +252,13 @@ export default function JobTable({
                   </>
                 )}
                 <td>
+                  {/* The next stage stays the first (main) action; on phones the rest go under More. */}
+                  <JobActions job={job} busy={busy} onAction={onAction} />
                   {onDue && !['Completed', 'Collected', 'Cancelled'].includes(job.productionStatus ?? '') && (
                     <button className="text-button" disabled={busy} onClick={() => onDue([job])}>
                       Change due date
                     </button>
                   )}
-                  <JobActions job={job} busy={busy} onAction={onAction} />
                 </td>
               </tr>
             );
