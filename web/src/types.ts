@@ -835,6 +835,8 @@ export interface MoneyAccount {
   openingDate: string;
   openingBalance: number;
   methods: string[];
+  /** The branch the account belongs to ('main', 'b-…'), or '*' when shared by all branches. */
+  branch?: string;
   archived: boolean;
   version: number;
   createdAt: string;

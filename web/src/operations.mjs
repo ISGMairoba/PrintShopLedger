@@ -1,5 +1,15 @@
 import { validDueAt } from './job-deadlines.mjs';
 import { businessDay } from './dashboard.mjs';
+import { localBranchId } from './branches.mjs';
+
+// Money accounts belong to a branch ('main' when not set) or are shared by all branches ('*').
+export const accountBranch = (a) => a?.branch || 'main';
+/** Whether a branch can use an account: its own accounts and the shared ones. */
+export const usableInBranch = (a, id = localBranchId()) =>
+  accountBranch(a) === '*' || accountBranch(a) === id;
+/** Two accounts can be used in the same branch (so their default payment methods must differ). */
+const sameScope = (a, b) =>
+  accountBranch(a) === '*' || accountBranch(b) === '*' || accountBranch(a) === accountBranch(b);
 
 const canonical = (value) =>
   JSON.stringify(value, (_, v) =>
@@ -128,11 +138,14 @@ export function applyOperation(ledger, event) {
         });
       else {
         if (!['cash', 'bank', 'pos', 'other'].includes(d.accountType)) throw Error('Choose an account type.');
+        const branch = d.branch || old?.branch || (old ? 'main' : localBranchId());
+        if (!/^(main|b-[a-z0-9]{6,20}|\*)$/.test(branch)) throw Error('Choose a valid branch.');
         Object.assign(after, {
           accountType: d.accountType,
           openingDate: old?.openingDate ?? day(d.openingDate),
           openingBalance: old?.openingBalance ?? amount(d.openingBalance, true),
           methods: d.methods ?? [],
+          branch,
         });
         if (
           !Array.isArray(after.methods) ||
@@ -142,10 +155,14 @@ export function applyOperation(ledger, event) {
           throw Error('Choose valid payment methods.');
         if (
           rows.some(
-            (r) => r.id !== d.id && !r.archived && (r.methods ?? []).some((m) => after.methods.includes(m)),
+            (r) =>
+              r.id !== d.id &&
+              !r.archived &&
+              sameScope(r, after) &&
+              (r.methods ?? []).some((m) => after.methods.includes(m)),
           )
         )
-          throw Error('Each payment method can have only one default account.');
+          throw Error('Each payment method can have only one default account in a branch.');
       }
     }
     if (
@@ -157,10 +174,14 @@ export function applyOperation(ledger, event) {
       !payee &&
       !after.archived &&
       rows.some(
-        (r) => r.id !== after.id && !r.archived && (r.methods ?? []).some((m) => after.methods.includes(m)),
+        (r) =>
+          r.id !== after.id &&
+          !r.archived &&
+          sameScope(r, after) &&
+          (r.methods ?? []).some((m) => after.methods.includes(m)),
       )
     )
-      throw Error('Each payment method can have only one default account.');
+      throw Error('Each payment method can have only one default account in a branch.');
     next[collection] = old ? rows.map((r) => (r.id === old.id ? after : r)) : [...rows, after];
   } else {
     const accounts = ledger.moneyAccounts ?? [],
@@ -288,5 +309,10 @@ export function accountBalance(ledger, id, to = businessDay(new Date().toISOStri
     entries: entries.filter((e) => e.accountId === id || e.toAccountId === id),
   };
 }
-export const defaultMoneyAccount = (ledger, method) =>
-  (ledger.moneyAccounts ?? []).find((a) => !a.archived && a.methods?.includes(method))?.id ?? '';
+/** The account a payment method goes to in this device's branch: the branch's own first, then a shared one. */
+export const defaultMoneyAccount = (ledger, method) => {
+  const fits = (ledger.moneyAccounts ?? []).filter(
+    (a) => !a.archived && a.methods?.includes(method) && usableInBranch(a),
+  );
+  return (fits.find((a) => accountBranch(a) !== '*') ?? fits[0])?.id ?? '';
+};
