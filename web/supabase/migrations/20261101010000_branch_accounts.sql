@@ -27,12 +27,16 @@ declare src text; n integer;
   b1 text := $x$'methods',d->'methods','branch',private.account_branch(p_shop,d,old))$x$;
   a2 text := $x$and id<>rid and not coalesce((data->>'archived')::boolean,false) and exists(select 1 from jsonb_array_elements_text(data->'methods')$x$;
   b2 text := $x$and id<>rid and not coalesce((data->>'archived')::boolean,false) and private.same_account_scope(data->>'branch',private.account_branch(p_shop,d,old)) and exists(select 1 from jsonb_array_elements_text(data->'methods')$x$;
+  -- The second check (on every save, restores included).
+  a3 text := $x$and id<>rid and not (data->>'archived')::boolean and exists(select 1 from jsonb_array_elements_text(data->'methods') as methods(value) where nxt->'methods' ? methods.value)$x$;
+  b3 text := $x$and id<>rid and not (data->>'archived')::boolean and private.same_account_scope(data->>'branch',nxt->>'branch') and exists(select 1 from jsonb_array_elements_text(data->'methods') as methods(value) where nxt->'methods' ? methods.value)$x$;
 begin
   src := pg_get_functiondef('private.apply_operations_event(uuid,jsonb)'::regprocedure);
-  if (length(src) - length(replace(src, a1, ''))) / length(a1) <> 1 or (length(src) - length(replace(src, a2, ''))) / length(a2) <> 1 then
+  if (length(src) - length(replace(src, a1, ''))) / length(a1) <> 1 or (length(src) - length(replace(src, a2, ''))) / length(a2) <> 1
+     or (length(src) - length(replace(src, a3, ''))) / length(a3) <> 1 then
     raise exception 'apply_operations_event changed; review the branch accounts migration';
   end if;
-  execute replace(replace(src, a1, b1), a2, b2);
+  execute replace(replace(replace(src, a1, b1), a2, b2), a3, b3);
 end $mig$;
 
 -- Money accounts and their entries a branch may see (p_keep = the branch).
