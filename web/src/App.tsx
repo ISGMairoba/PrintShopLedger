@@ -1242,7 +1242,7 @@ export default function App() {
     <BusinessOptionsContext.Provider
       value={{
         ...branding.settings.options,
-        paymentMethods: accountPaymentOptions(ledger, branding.settings.options.paymentMethods, demo),
+        paymentMethods: accountPaymentOptions(ledger, branding.settings.options.paymentMethods),
       }}
     >
       <TermsProvider value={branding.settings.terms}>

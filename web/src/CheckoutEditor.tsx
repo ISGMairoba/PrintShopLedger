@@ -1162,7 +1162,7 @@ export default function CheckoutEditor({
                   >
                     {alphabetical(paymentMethods, (item) => item.label).map((item) => (
                       <option key={item.label} value={item.label}>
-                        {('displayLabel' in item && item.displayLabel)||item.label}
+                        {('displayLabel' in item && item.displayLabel) || item.label}
                       </option>
                     ))}
                   </select>

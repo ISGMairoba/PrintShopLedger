@@ -110,10 +110,6 @@ try {
     await page.getByLabel('Logo for this document size', { exact: true }).selectOption('complete');
     await page.getByRole('button', { name: 'Full page (A4 / A5)', exact: true }).click();
     await page.getByLabel('Logo for this document size', { exact: true }).selectOption('horizontal');
-    await settingsSection(page, /Payment methods/);
-    await page.getByLabel('New payment method', { exact: true }).fill('Opay');
-    await page.getByLabel('New payment accounting type', { exact: true }).selectOption('Transfer');
-    await page.getByRole('button', { name: 'Add payment method', exact: true }).click();
     await settingsSection(page, /Dropdowns & workflow/);
     await page.getByLabel('Expense categories', { exact: true }).fill('Materials\nFinishing supplies\nOther');
     await page.getByLabel('Job sources', { exact: true }).fill('Instagram DM\nWhatsApp');
@@ -243,14 +239,14 @@ try {
     await pick(dialog, 'Service', { index: 0 });
     await dialog.getByLabel('Job description').fill('Client cap');
     assert.equal(await dialog.getByLabel('Job received through').inputValue(), 'Instagram DM');
-    await dialog.getByLabel('Payment method', { exact: true }).selectOption('Opay');
+    await dialog.getByLabel('Payment method', { exact: true }).selectOption('Transfer');
     await dialog.getByLabel('Money received (₦)').fill('5000');
     await dialog.getByRole('button', { name: 'Complete checkout', exact: true }).click();
     await dialog.waitFor({ state: 'detached' });
     const receipt = page.getByRole('dialog');
     await receipt.getByText('Thank you from Mairoba.', { exact: true }).waitFor();
     assert.ok((await receipt.innerText()).includes('Kano, Nigeria'));
-    assert.ok((await receipt.innerText()).includes('Paid now (Opay)'));
+    assert.ok((await receipt.innerText()).includes('Paid now (Transfer)'));
     assert.ok((await receipt.innerText()).includes('Instagram DM'));
     assert.equal(await receipt.getByAltText('Business logo', { exact: true }).count(), 1);
     assert.equal(await receipt.getByAltText('Business logo', { exact: true }).getAttribute('src'), png);
@@ -273,15 +269,13 @@ try {
     await nav('Business Settings');
     await settingsSection(page, /Dropdowns & workflow/);
     await page.getByLabel('Job stages', { exact: true }).fill('Added\nPrinting\nCompleted\nCollected');
-    await settingsSection(page, /Payment methods/);
-    await page.getByRole('button', { name: 'Remove payment method 4', exact: true }).click();
     await page.getByRole('button', { name: 'Save business settings', exact: true }).click();
     await page.getByText('Business settings saved.', { exact: true }).waitFor();
     await nav('Point of Service');
     await page.getByRole('button', { name: 'Next: Approval', exact: true }).waitFor();
     await (await openMore(page)).getByRole('button', { name: 'Receipts', exact: true }).click();
     await page.getByRole('button', { name: 'Receipt', exact: true }).click();
-    await page.getByRole('dialog').getByText('Paid now (Opay)', { exact: false }).waitFor();
+    await page.getByRole('dialog').getByText('Paid now (Transfer)', { exact: false }).waitFor();
     await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
     await nav('Expenses');
     await page.getByRole('button', { name: 'Add expense', exact: true }).click();
@@ -312,7 +306,7 @@ try {
     await page.close();
   }
   console.log(
-    'Business branding passed desktop/mobile: profile persistence, proportional logo upload, palette suggestions, contrast, business/personal themes and branded receipt/PDF, custom payment methods, dropdowns and saved job workflows.',
+    'Business branding passed desktop/mobile: profile persistence, proportional logo upload, palette suggestions, contrast, business/personal themes and branded receipt/PDF, payment methods without accounts, dropdowns and saved job workflows.',
   );
 } finally {
   await browser?.close();

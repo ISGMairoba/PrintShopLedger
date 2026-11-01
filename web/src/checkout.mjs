@@ -308,7 +308,10 @@ export function prepareCheckout(
     date.toISOString().slice(0, 10) !== input.paidOn
   )
     throw Error('Choose a valid payment date.');
-  if (!['Cash', 'POS', 'Transfer', 'Other'].includes(input.method) || String(input.reference ?? '').length > 200)
+  if (
+    !['Cash', 'POS', 'Transfer', 'Other'].includes(input.method) ||
+    String(input.reference ?? '').length > 200
+  )
     throw Error('Choose a payment method and a note up to 200 characters.');
   if (
     input.methodLabel !== undefined &&
