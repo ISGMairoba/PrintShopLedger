@@ -71,7 +71,7 @@ export function validateOptions(input) {
     'Payment methods',
   );
   value.paymentMethods = value.paymentMethods.map((item) => {
-    if (!['Cash', 'POS', 'Transfer'].includes(item.kind) || typeof item.enabled !== 'boolean')
+    if (!['Cash', 'POS', 'Transfer', 'Other'].includes(item.kind) || typeof item.enabled !== 'boolean')
       throw Error('Choose an accounting type for each payment method.');
     return { label: item.label.trim(), kind: item.kind, enabled: item.enabled };
   });

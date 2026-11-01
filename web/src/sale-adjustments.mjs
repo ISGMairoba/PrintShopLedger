@@ -125,7 +125,7 @@ export function applySaleAdjustment(input, event) {
         'Refund exceeds available customer credit. Reduce the sale or cancel it first if money is still allocated.',
       );
     if (
-      !['Cash', 'POS', 'Transfer'].includes(d.method) ||
+      !['Cash', 'POS', 'Transfer', 'Other'].includes(d.method) ||
       typeof d.methodLabel !== 'string' ||
       !d.methodLabel.trim() ||
       d.methodLabel.length > 80

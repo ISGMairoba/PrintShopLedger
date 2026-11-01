@@ -1,3 +1,4 @@
+import {routeMoneyEvent,routeMoneyResult} from './account-methods.mjs';
 import { applyOperation } from './operations.mjs';
 import { applySaleAdjustment, applyWaste } from './sale-adjustments.mjs';
 import { normalizeAmount } from './currency-input.mjs';
@@ -72,7 +73,7 @@ function positiveAmount(value) {
     throw new Error('Amount must be greater than zero and within the supported limit.');
 }
 /** Apply one operation; records it adds are tagged with this device's branch (branches.mjs). */
-export function applyEvent(ledger, event) {
+function applyRawEvent(ledger, event) {
   return tagNewRecords(ledger, applyEventCore(ledger, event));
 }
 function applyEventCore(ledger, event) {
@@ -116,7 +117,7 @@ function applyEventCore(ledger, event) {
       return ledger;
     }
     positiveAmount(data.amount);
-    if (!['Cash', 'POS', 'Transfer'].includes(data.method)) throw new Error('Choose a payment method.');
+    if (!['Cash', 'POS', 'Transfer', 'Other'].includes(data.method)) throw new Error('Choose a payment method.');
     if (!ledger.customers.some((customer) => customer.id === data.customerId))
       throw new Error('Customer does not exist.');
     if (!Array.isArray(data.allocations) || !data.allocations.length)
@@ -147,3 +148,5 @@ function applyEventCore(ledger, event) {
   }
   throw new Error('Unknown operation.');
 }
+
+export function applyEvent(ledger,event){const routed=routeMoneyEvent(ledger,event);return routeMoneyResult(ledger,applyRawEvent(ledger,routed),routed);}

@@ -52,7 +52,7 @@ function payment(data, audit) {
   if (!data?.id) throw Error('Payment identifier is required.');
   amount(data.amount);
   date(data.paidOn);
-  if (!['Cash', 'POS', 'Transfer'].includes(data.method) || !expenseSources.includes(data.source))
+  if (!['Cash', 'POS', 'Transfer', 'Other'].includes(data.method) || !expenseSources.includes(data.source))
     throw Error('Choose a payment method and source.');
   return {
     id: data.id,

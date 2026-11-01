@@ -70,7 +70,7 @@ test('Business Settings tabs: Developer has all and Page access; others only all
   const settings = validateBranding({ ...defaultBranding(), businessName: 'B' });
   assert.deepEqual(allowedSettingsTabs(4, settings), [
     ...settingsTabs,
-    'Accounts',
+    'Accounts & payment methods',
     'Page access',
     'Installer credit',
   ]);

@@ -290,7 +290,7 @@ export default function BusinessSettingsPage({
           id={`business-panel-${tabs.indexOf(tab)}`}
           aria-labelledby={`business-tab-${tabs.indexOf(tab)}`}
         >
-          {tab === 'Accounts' ? (
+          {tab === 'Accounts & payment methods' ? (
             accountSettings
           ) : (
             <form
@@ -728,18 +728,7 @@ export default function BusinessSettingsPage({
                   </div>
                 </div>
               </fieldset>
-              <div hidden={tab !== 'Payment methods'}>
-                <BusinessOptionsEditor
-                  section="payments"
-                  value={draft.options}
-                  disabled={busy || !ready}
-                  onChange={(value) => {
-                    field('options', value);
-                    setDirtyOptions((parts) => (parts.includes('payments') ? parts : [...parts, 'payments']));
-                  }}
-                  saveControl={sectionSave('Payment methods', ['options'])}
-                />
-              </div>
+
               <div hidden={tab !== 'Dropdowns & workflow'}>
                 <BusinessOptionsEditor
                   value={draft.options}

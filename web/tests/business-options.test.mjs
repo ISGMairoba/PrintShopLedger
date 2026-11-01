@@ -73,7 +73,7 @@ test('dropdown names are bounded, unique and payment accounting stays explicit',
     { expenseCategories: ['Fuel', ' fuel '] },
     { materialUnits: [] },
     { jobSources: ['a\nunsafe'] },
-    { paymentMethods: [{ label: 'Opay', kind: 'Other', enabled: true }] },
+    { paymentMethods: [{ label: 'Opay', kind: 'Invalid', enabled: true }] },
     { paymentMethods: [{ label: 'Cash', kind: 'Cash', enabled: false }] },
   ])
     assert.throws(() => validateOptions({ ...defaultOptions(), ...patch }));

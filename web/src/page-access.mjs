@@ -54,7 +54,6 @@ export const settingsTabs = [
   'Profile & logo',
   'Appearance',
   'Receipts',
-  'Payment methods',
   'Dropdowns & workflow',
   'Jobs & payments',
   'Default time frames',
@@ -114,7 +113,7 @@ export function validateSettingsTabs(input) {
 }
 /** Tabs only Developer sees, with the settings each changes. Admin and Manager can never be given them. */
 export const developerSettingsTabs = {
-  Accounts: [],
+  'Accounts & payment methods': [],
   'Page access': ['pageAccess', 'settingsTabs', 'settingsTabsVersion'],
   'Installer credit': ['poweredBy'],
 };
@@ -212,7 +211,7 @@ export function canAccessPage(page, access, configured) {
   return (configured?.[String(access)] ?? defaultPageAccess()[String(access)]).includes(page) ?? false;
 }
 
-export const SETTINGS_TABS_VERSION = 2;
+export const SETTINGS_TABS_VERSION = 3;
 export function upgradeSettingsTabs(input, version = 0) {
   if (version >= SETTINGS_TABS_VERSION || !input) return input;
   const next = structuredClone(input);
@@ -224,5 +223,6 @@ export function upgradeSettingsTabs(input, version = 0) {
     if (version < 2 && tabs.includes('Jobs & payments'))
       for (const tab of ['Default time frames', 'Words']) if (!tabs.includes(tab)) tabs.push(tab);
   }
+  for(const rank of ['2','3'])if(Array.isArray(next[rank]))next[rank]=next[rank].filter(t=>t!=='Payment methods');
   return next;
 }

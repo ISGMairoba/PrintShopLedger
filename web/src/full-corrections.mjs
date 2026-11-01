@@ -388,7 +388,7 @@ export function applyFullCorrection(input, event) {
       !Number.isSafeInteger(d.paymentAmount) ||
       d.paymentAmount < 0 ||
       d.paymentAmount > 100000000000 ||
-      !['Cash', 'POS', 'Transfer'].includes(d.method) ||
+      !['Cash', 'POS', 'Transfer', 'Other'].includes(d.method) ||
       !d.methodLabel?.trim() ||
       d.methodLabel.length > 80 ||
       typeof d.reference !== 'string' ||
@@ -454,7 +454,7 @@ export function applyFullCorrection(input, event) {
       ledger.drawerClosings.find((c) => c.checkoutIds.includes(checkout?.id))?.id ??
       null;
     drawerActor = checkout && !historicalClosingId ? checkout.createdBy : null;
-    for (const method of ['Cash', 'POS', 'Transfer'])
+    for (const method of ['Cash', 'POS', 'Transfer', 'Other'])
       methodDeltas[method] =
         (p.method === method ? p.amount : 0) - (before.method === method ? before.amount : 0);
     cashDelta = methodDeltas.Cash;

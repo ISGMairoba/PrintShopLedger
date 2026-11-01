@@ -345,7 +345,7 @@ export default function CheckoutEditor({
   const allocations = manualAllocations.amounts;
   const availableMethods = options.paymentMethods.filter((item) => item.enabled);
   const [methodLabel, setMethodLabel] = useState(
-    initialCheckout?.methodLabel ?? initialCheckout?.method ?? availableMethods[0].label,
+    initialCheckout?.methodLabel ?? initialCheckout?.method ?? availableMethods[0]?.label ?? '',
   );
   const originalMethodLabel = initialCheckout?.methodLabel ?? initialCheckout?.method;
   const paymentMethods =
@@ -362,7 +362,7 @@ export default function CheckoutEditor({
   const [accountChoice, setAccountChoice] = useState<string | null>(
     initialCheckout ? (initialCheckout.accountId ?? '') : null,
   );
-  const selectedAccount = accountChoice ?? defaultMoneyAccount(ledger, methodLabel);
+  const selectedAccount = defaultMoneyAccount(ledger, methodLabel);
   const [paidOn, setPaidOn] = useState(initialCheckout?.paidOn ?? today()),
     [reference, setReference] = useState(initialCheckout?.reference ?? ''),
     [error, setError] = useFeedbackMessage('error');
@@ -1162,32 +1162,12 @@ export default function CheckoutEditor({
                   >
                     {alphabetical(paymentMethods, (item) => item.label).map((item) => (
                       <option key={item.label} value={item.label}>
-                        {item.label}
+                        {('displayLabel' in item && item.displayLabel)||item.label}
                       </option>
                     ))}
                   </select>
                 )}
               </label>
-              {!!ledger.moneyAccounts?.length && (
-                <label>
-                  Receive into account
-                  <select
-                    aria-label="Receive into account"
-                    value={selectedAccount}
-                    onChange={(e) => setAccountChoice(e.target.value)}
-                  >
-                    <option value="">No account selected</option>
-                    {ledger.moneyAccounts
-                      .filter((a) => !a.archived || a.id === initialCheckout?.accountId)
-                      .map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.name}
-                          {a.archived ? ' · Archived' : ''}
-                        </option>
-                      ))}
-                  </select>
-                </label>
-              )}
               <label>
                 Payment date
                 <input type="date" required value={paidOn} onChange={(e) => setPaidOn(e.target.value)} />

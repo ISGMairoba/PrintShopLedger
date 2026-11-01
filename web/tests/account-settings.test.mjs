@@ -26,9 +26,9 @@ test('existing dropdown access upgrades once; account setup remains Developer on
   };
   b.pageAccess['2'].push('Business Settings');
   const up = validateBranding(b);
-  assert.ok(allowedSettingsTabs(2, up).includes('Payment methods'));
-  assert.ok(!allowedSettingsTabs(2, up).includes('Accounts'));
-  assert.ok(allowedSettingsTabs(4, up).includes('Accounts'));
+  assert.ok(!allowedSettingsTabs(2, up).includes('Payment methods'));
+  assert.ok(!allowedSettingsTabs(2, up).includes('Accounts & payment methods'));
+  assert.ok(allowedSettingsTabs(4, up).includes('Accounts & payment methods'));
   up.settingsTabs['2'] = ['Dropdowns & workflow'];
   assert.ok(!allowedSettingsTabs(2, validateBranding(up)).includes('Payment methods'));
 });

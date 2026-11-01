@@ -1,3 +1,4 @@
+import {prepareAccountMethods,routingLabels} from './account-methods.mjs';
 import { validDueAt } from './job-deadlines.mjs';
 import { businessDay } from './dashboard.mjs';
 import { localBranchId } from './branches.mjs';
@@ -147,9 +148,10 @@ export function applyOperation(ledger, event) {
           methods: d.methods ?? [],
           branch,
         });
+        if(d.paymentMethods){after.paymentMethods=prepareAccountMethods(name,d.paymentMethods,old);after.methods=routingLabels(after.paymentMethods);after.paymentMethodsVersion=1;}
         if (
           !Array.isArray(after.methods) ||
-          after.methods.length > 30 ||
+          after.methods.length > 3000 ||
           after.methods.some((m) => typeof m !== 'string' || !m.trim() || m.length > 80)
         )
           throw Error('Choose valid payment methods.');
