@@ -106,9 +106,21 @@ export function routeMoneyEvent(ledger, event) {
   if (!(ledger.moneyAccounts ?? []).some((a) => a.paymentMethods)) return event;
   const d = event.data;
 }
-export function routeMoneyResult(before,next,event){
- if(!(before.moneyAccounts??[]).some(a=>a.paymentMethods))return next;
- if(event.kind==='payment.corrected')next={...next,payments:next.payments.map(p=>p.id===event.data.paymentId?{...p,accountId:event.data.accountId??p.accountId}:p)};
- if(event.kind==='sale.refunded')next={...next,saleAdjustments:next.saleAdjustments.map(a=>a.id===event.id?{...a,accountId:event.data.accountId}:a)};
- return next;
+export function routeMoneyResult(before, next, event) {
+  if (!(before.moneyAccounts ?? []).some((a) => a.paymentMethods)) return next;
+  if (event.kind === 'payment.corrected')
+    next = {
+      ...next,
+      payments: next.payments.map((p) =>
+        p.id === event.data.paymentId ? { ...p, accountId: event.data.accountId ?? p.accountId } : p,
+      ),
+    };
+  if (event.kind === 'sale.refunded')
+    next = {
+      ...next,
+      saleAdjustments: next.saleAdjustments.map((a) =>
+        a.id === event.id ? { ...a, accountId: event.data.accountId } : a,
+      ),
+    };
+  return next;
 }
