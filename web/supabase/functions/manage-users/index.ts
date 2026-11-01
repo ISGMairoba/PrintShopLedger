@@ -58,6 +58,8 @@ Deno.serve(async (request: Request) => {
       });
     }
     const profile = validateUser(body);
+    if (profile.role === 'general_manager')
+      return reply(403, { error: 'The General Manager is the business account and cannot be added here.' });
     if (profile.rank > membership.rank) return reply(403, { error: 'Cannot assign a rank above your own.' });
     const email = `staff-${crypto.randomUUID()}@staff.printshopledger.invalid`;
     if (typeof body.password !== 'string' || body.password.length < 12 || body.password.length > 128)

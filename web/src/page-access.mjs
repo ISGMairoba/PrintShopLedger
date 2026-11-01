@@ -88,18 +88,23 @@ export const settingsTabKeys = {
   Security: ['security'],
   Branches: ['branches', 'branchAccess', 'branchPricing'],
 };
-export const defaultSettingsTabs = () => ({ 2: [...settingsTabs], 3: [...settingsTabs] });
+export const defaultSettingsTabs = () => ({
+  2: [...settingsTabs],
+  3: [...settingsTabs],
+  4: [...settingsTabs],
+});
 export function validateSettingsTabs(input) {
   const value = input === undefined ? defaultSettingsTabs() : structuredClone(input);
   if (
     !value ||
     typeof value !== 'object' ||
     Array.isArray(value) ||
-    Object.keys(value).some((key) => !['2', '3'].includes(key))
+    Object.keys(value).some((key) => !['2', '3', '4'].includes(key))
   )
     throw Error('Invalid Business Settings tab access.');
-  for (const rank of ['2', '3']) {
-    value[rank] ??= [...settingsTabs];
+  for (const rank of ['2', '3', '4']) {
+    // The General Manager has the Manager's tabs until Developer sets their own.
+    value[rank] ??= rank === '4' ? [...value['3']] : [...settingsTabs];
     const tabs = value[rank];
     if (
       !Array.isArray(tabs) ||
@@ -117,13 +122,18 @@ export const developerSettingsTabs = {
   'Page access': ['pageAccess', 'settingsTabs', 'settingsTabsVersion'],
   'Installer credit': ['poweredBy'],
 };
-/** Business Settings tabs this rank may open (Page access and Installer credit only for Developer). */
+/** Business Settings tabs this rank may open (Page access, Account setup and Installer credit only for Developer). */
 export function allowedSettingsTabs(access, settings) {
-  if (access === 4) return [...settingsTabs, ...Object.keys(developerSettingsTabs)];
+  if (access === 5) return [...settingsTabs, ...Object.keys(developerSettingsTabs)];
   if (!canAccessPage('Business Settings', access, settings?.pageAccess)) return [];
-  return settings?.settingsTabs?.[String(access)] ?? defaultSettingsTabs()[String(access)] ?? [];
+  return (
+    settings?.settingsTabs?.[String(access)] ??
+    (access === 4 ? settings?.settingsTabs?.['3'] : undefined) ??
+    defaultSettingsTabs()[String(access)] ??
+    []
+  );
 }
-export const roleNames = { 1: 'Cashier', 2: 'Admin', 3: 'Manager', 4: 'Developer' };
+export const roleNames = { 1: 'Cashier', 2: 'Admin', 3: 'Manager', 4: 'General Manager', 5: 'Developer' };
 export const minimumPageAccess = (page) =>
   [
     'Dashboard',
@@ -141,7 +151,7 @@ export const minimumPageAccess = (page) =>
     : 1;
 export const defaultPageAccess = () =>
   Object.fromEntries(
-    [1, 2, 3].map((rank) => [
+    [1, 2, 3, 4].map((rank) => [
       String(rank),
       pages.filter((page) =>
         rank >= 2
@@ -161,7 +171,7 @@ export const defaultPageAccess = () =>
 export function upgradePageAccess(input, fromVersion = 0) {
   if (!input || typeof input !== 'object') return input;
   const value = structuredClone(input);
-  for (const rank of ['1', '2', '3'])
+  for (const rank of ['1', '2', '3', '4'])
     if (Array.isArray(value[rank]))
       for (const [page, parent] of Object.entries(
         fromVersion >= 2 ? { Payees: 'Expenses', Accounts: 'Expenses' } : formerParents,
@@ -180,11 +190,13 @@ export function validatePageAccess(input) {
     !value ||
     typeof value !== 'object' ||
     Array.isArray(value) ||
-    Object.keys(value).some((key) => !['1', '2', '3'].includes(key))
+    Object.keys(value).some((key) => !['1', '2', '3', '4'].includes(key))
   )
     throw Error('Invalid page access settings.');
   value['3'] ??= defaultPageAccess()['3'];
-  for (const rank of [1, 2, 3]) {
+  // The General Manager opens the Manager's pages until Developer sets their own.
+  value['4'] ??= structuredClone(value['3']);
+  for (const rank of [1, 2, 3, 4]) {
     const allowed = value[String(rank)];
     if (
       !Array.isArray(allowed) ||
@@ -203,19 +215,21 @@ export function canAccessPage(page, access, configured) {
     !pages.includes(page) ||
     !Number.isInteger(access) ||
     access < 1 ||
-    access > 4 ||
+    access > 5 ||
     access < minimumPageAccess(page)
   )
     return false;
-  if (access === 4 || page === 'My Account') return true;
-  return (configured?.[String(access)] ?? defaultPageAccess()[String(access)]).includes(page) ?? false;
+  if (access === 5 || page === 'My Account') return true;
+  // The General Manager has the Manager's pages until Developer sets their own.
+  const own = configured?.[String(access)] ?? (access === 4 ? configured?.['3'] : undefined);
+  return (own ?? defaultPageAccess()[String(access)]).includes(page) ?? false;
 }
 
 export const SETTINGS_TABS_VERSION = 3;
 export function upgradeSettingsTabs(input, version = 0) {
   if (version >= SETTINGS_TABS_VERSION || !input) return input;
   const next = structuredClone(input);
-  for (const rank of ['2', '3']) {
+  for (const rank of ['2', '3', '4']) {
     const tabs = next[rank];
     if (!Array.isArray(tabs)) continue;
     if (version < 1 && tabs.includes('Dropdowns & workflow') && !tabs.includes('Payment methods'))
@@ -223,6 +237,7 @@ export function upgradeSettingsTabs(input, version = 0) {
     if (version < 2 && tabs.includes('Jobs & payments'))
       for (const tab of ['Default time frames', 'Words']) if (!tabs.includes(tab)) tabs.push(tab);
   }
-  for(const rank of ['2','3'])if(Array.isArray(next[rank]))next[rank]=next[rank].filter(t=>t!=='Payment methods');
+  for (const rank of ['2', '3', '4'])
+    if (Array.isArray(next[rank])) next[rank] = next[rank].filter((t) => t !== 'Payment methods');
   return next;
 }

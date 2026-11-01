@@ -9,7 +9,8 @@ const headers = {
   'Content-Type': 'application/json',
 };
 const reply = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers });
-const ranks: Record<string, number> = { cashier: 1, admin: 2, manager: 3, developer: 4 };
+// New staff only: the General Manager is the business account and is never added.
+const ranks: Record<string, number> = { cashier: 1, admin: 2, manager: 3, developer: 5 };
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 Deno.serve(async (request: Request) => {

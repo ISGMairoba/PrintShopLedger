@@ -68,7 +68,7 @@ test('older saved settings give each new page its old page access, once', () => 
 });
 test('Business Settings tabs: Developer has all and Page access; others only allowed tabs', () => {
   const settings = validateBranding({ ...defaultBranding(), businessName: 'B' });
-  assert.deepEqual(allowedSettingsTabs(4, settings), [
+  assert.deepEqual(allowedSettingsTabs(5, settings), [
     ...settingsTabs,
     'Accounts & payment methods',
     'Page access',
@@ -86,10 +86,13 @@ test('Business Settings tabs: Developer has all and Page access; others only all
 test('developer has every page; manager excludes business settings; revoked and unknown denied', () => {
   for (const page of pages) {
     assert.equal(canAccessPage(page, 3), page !== 'Business Settings');
-    assert.ok(canAccessPage(page, 4));
+    // The General Manager starts with the Manager's pages.
+    assert.equal(canAccessPage(page, 4), page !== 'Business Settings');
+    assert.ok(canAccessPage(page, 5));
     assert.equal(canAccessPage(page, 0), false);
   }
-  assert.equal(canAccessPage('Unknown', 4), false);
+  assert.equal(canAccessPage('Unknown', 5), false);
+  assert.equal(canAccessPage('Dashboard', 6), false);
 });
 
 test('Configured pages restrict Admin and grant Cashier read pages without elevating rank', () => {
@@ -99,7 +102,7 @@ test('Configured pages restrict Admin and grant Cashier read pages without eleva
   assert.equal(canAccessPage('Jobs', 2, access), false);
   assert.equal(canAccessPage('Sale Adjustments', 2, access), true);
   assert.equal(canAccessPage('Sale Adjustments', 1, { 1: ['My Account', 'Sale Adjustments'] }), false);
-  for (const page of pages) assert.equal(canAccessPage(page, 4, access), true);
+  for (const page of pages) assert.equal(canAccessPage(page, 5, access), true);
 });
 
 test('Manager page list can be restricted while Developer always retains maintenance access', () => {
@@ -107,5 +110,9 @@ test('Manager page list can be restricted while Developer always retains mainten
   assert.equal(canAccessPage('Jobs', 3, access), false);
   assert.equal(canAccessPage('My Sales', 3, access), true);
   assert.equal(canAccessPage('Business Settings', 3, access), false);
-  assert.equal(canAccessPage('Business Settings', 4, access), true);
+  assert.equal(canAccessPage('Business Settings', 5, access), true);
+  // The General Manager follows the Manager's list until set separately.
+  assert.equal(canAccessPage('My Sales', 4, access), true);
+  assert.equal(canAccessPage('Jobs', 4, access), false);
+  assert.equal(canAccessPage('Jobs', 4, { ...access, 4: ['My Account', 'Jobs'] }), true);
 });

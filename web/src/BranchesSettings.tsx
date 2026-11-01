@@ -24,7 +24,10 @@ export default function BranchesSettings({
   onAccess,
   pricing,
   onPricing,
+  canSetAccess,
 }: {
+  /** Who works where: General Manager and Developer only. */
+  canSetAccess: boolean;
   pricing: 'shared' | 'perBranch';
   onPricing: (next: 'shared' | 'perBranch') => void;
   branches: Branch[];
@@ -151,8 +154,9 @@ export default function BranchesSettings({
           <h3>Who works where</h3>
           <p className="muted">
             Staff work in the branches ticked here; anyone not set works in the main branch.{' '}
-            <strong>Every branch</strong> is for the business owner: they see and can work in all branches.
-            Developer always can.
+            <strong>Every branch</strong> lets someone see and work in all branches. The General Manager and
+            Developer always can.{' '}
+            {!canSetAccess && 'Only the General Manager or Developer can change who works where.'}
           </p>
           {staff === null ? (
             <p className="muted">The staff list loads when you are online.</p>
@@ -185,6 +189,7 @@ export default function BranchesSettings({
                               type="checkbox"
                               aria-label={`${s.name} works in every branch`}
                               checked={all}
+                              disabled={!canSetAccess}
                               onChange={(e) => setMember(s.userId, e.target.checked ? ['*'] : [MAIN])}
                             />
                           </td>
@@ -193,7 +198,7 @@ export default function BranchesSettings({
                               <input
                                 type="checkbox"
                                 aria-label={`${s.name} works in ${b.name || 'the new branch'}`}
-                                disabled={all}
+                                disabled={all || !canSetAccess}
                                 checked={all || mine.includes(b.id)}
                                 onChange={(e) =>
                                   setMember(

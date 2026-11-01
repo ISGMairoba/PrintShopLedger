@@ -26,14 +26,22 @@ test('invalid usernames and roles cannot become staff permissions', () => {
 test('rank hierarchy permits self and lower ranks, but no manager peers or developer edits', () => {
   for (const [role, rank] of Object.entries(rankValues)) {
     const actor = { rank, accessLevel: rank, userId: 'actor' };
-    for (const targetRank of [1, 2, 3, 4]) {
+    for (const targetRank of [1, 2, 3, 4, 5]) {
       assert.equal(
         canManage(actor, { rank: targetRank, userId: 'other' }),
-        rank >= 2 && (rank === 4 || rank > targetRank),
+        rank >= 2 && (rank === 5 || rank > targetRank),
         role + ':' + targetRank,
       );
     }
     assert.equal(canManage(actor, { rank, userId: 'actor' }), rank >= 2);
     assert.equal(canManage({ ...actor, accessLevel: 0 }, { rank: 1, userId: 'other' }), false);
   }
+});
+
+test('the General Manager manages Managers; only Developer is above the General Manager', () => {
+  const gm = { rank: 4, accessLevel: 4, userId: 'gm' };
+  assert.equal(canManage(gm, { rank: 3, userId: 'manager' }), true);
+  assert.equal(canManage(gm, { rank: 5, userId: 'dev' }), false);
+  assert.equal(canManage({ rank: 3, accessLevel: 3, userId: 'm' }, { rank: 4, userId: 'gm' }), false);
+  assert.equal(canManage({ rank: 5, accessLevel: 5, userId: 'd' }, { rank: 4, userId: 'gm' }), true);
 });

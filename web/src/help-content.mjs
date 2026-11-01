@@ -2,7 +2,7 @@
 // the app's default page names; the panel passes every line through the business's own words
 // (Jobs may read Orders, Materials may read Stock items).
 // Each topic: one task, a one-line answer, numbered steps, optional notes, the pages whose ?
-// button opens it, the lowest rank that needs it (1 Cashier … 4 Developer) and its video link
+// button opens it, the lowest rank that needs it (1 Cashier … 5 Developer) and its video link
 // (a YouTube video id, filled in once the video is uploaded).
 
 export const helpChapters = [
@@ -536,13 +536,16 @@ export const helpTopics = [
     summary: 'Each rank sees only the pages it is allowed; the Developer chooses them.',
     steps: [
       'Open Business Settings and choose the Page access tab (Developer only).',
-      'Tick the pages Cashier, Admin and Manager may open.',
-      'Choose which Business Settings tabs Admin and Manager may change.',
+      'Tick the pages Cashier, Admin, Manager and General Manager may open.',
+      'Choose which Business Settings tabs Admin, Manager and General Manager may change.',
       'Save page access.',
     ],
-    notes: ['Seeing a page does not by itself allow approving corrections or managing users.'],
+    notes: [
+      'Seeing a page does not by itself allow approving corrections or managing users.',
+      "The General Manager is the business account. Until you set it separately, it has the Manager's pages and tabs.",
+    ],
     pages: [],
-    rank: 4,
+    rank: 5,
   },
   {
     id: 'sale-adjustments',
@@ -688,7 +691,9 @@ export const helpTopics = [
       'Corrections: how many recent days of jobs show in Sale Adjustments.',
       'Security: lock the app after a number of minutes without use, or never.',
     ],
-    notes: ['Admin and Manager can change only the tabs the Developer allows them in Page access.'],
+    notes: [
+      'Admin, Manager and General Manager can change only the tabs the Developer allows them in Page access.',
+    ],
     pages: [],
     rank: 3,
   },

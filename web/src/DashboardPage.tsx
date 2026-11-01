@@ -45,7 +45,8 @@ export default function DashboardPage({
 }) {
   const { w, stage } = useWords();
   const [period, setPeriod] = usePeriod('dashboard');
-  const [trendInterval, setTrendInterval] = useState('daily');
+  // Auto: daily for short ranges, monthly for ranges over two months.
+  const [trendInterval, setTrendInterval] = useState('auto');
   const range = { from: period.from, to: period.to };
   const valid = validRange(range.from, range.to);
   const summary = useMemo(
@@ -202,6 +203,7 @@ export default function DashboardPage({
                     value={trendInterval}
                     onChange={(e) => setTrendInterval(e.target.value)}
                   >
+                    <option value="auto">Auto</option>
                     <option value="daily">Day</option>
                     <option value="monthly">Month</option>
                   </select>
