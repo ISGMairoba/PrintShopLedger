@@ -128,7 +128,13 @@ async function run(mode, port) {
     await page.getByRole('heading', { name: 'Point of Service', exact: true }).waitFor();
     const limit = (what, ms, promise) =>
       Promise.race([promise, delay(ms).then(() => Promise.reject(Error(`${what} took over ${ms} ms`)))]);
-    console.log(`[${mode}] trial open; waiting for its saved copy`);
+    // Read and replace the saved copy while the app is not running (a blank page on the same site).
+    await page.waitForTimeout(3000);
+    await page.route('**/__seed__', (route) =>
+      route.fulfill({ contentType: 'text/html', body: '<html><body>Seeding</body></html>' }),
+    );
+    await page.goto(base + '/__seed__');
+    console.log(`[${mode}] trial open; reading its saved copy`);
     let state;
     for (let i = 0; i < 60 && !state?.ledger; i++) {
       state = await limit('reading the saved copy', 20000, readCopy(page, 'local-trial'));
