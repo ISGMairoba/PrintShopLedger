@@ -1152,8 +1152,9 @@ export default function BusinessSettingsPage({
                 <legend>Page access by rank</legend>
                 <p>
                   Developer can open every page. Choose the pages Cashier, Admin, Manager and General Manager
-                  can open; My Account is always available. Seeing a page does not by itself allow approving corrections,
-                  resolving conflicts or managing users. Only Developer can open this Page access tab.
+                  can open; My Account is always available. Seeing a page does not by itself allow approving
+                  corrections, resolving conflicts or managing users. Only Developer can open this Page access
+                  tab.
                 </p>
                 <div className="table-wrap">
                   <table className="access-matrix" aria-label="Page access by rank">
@@ -1208,9 +1209,8 @@ export default function BusinessSettingsPage({
                 </div>
                 <h3>Business Settings tabs</h3>
                 <p>
-                  When Admin, Manager or General Manager can open Business Settings, choose which tabs they can
-                  see and change.
-                  They cannot change anything on tabs they do not have.
+                  When Admin, Manager or General Manager can open Business Settings, choose which tabs they
+                  can see and change. They cannot change anything on tabs they do not have.
                 </p>
                 <div className="table-wrap">
                   <table className="access-matrix" aria-label="Business Settings tabs by rank">

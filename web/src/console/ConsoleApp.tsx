@@ -523,9 +523,7 @@ function BusinessView({
                     <tr key={s.id}>
                       <td>{s.name}</td>
                       <td>{s.username}</td>
-                      <td>
-                        {roleLabel(s.role)}
-                      </td>
+                      <td>{roleLabel(s.role)}</td>
                       <td>{ago(s.lastActivity)}</td>
                       <td>
                         {s.archived ? (
@@ -667,7 +665,9 @@ function ConsoleStaff({ data, onChanged }: { data: BusinessDetail; onChanged: ()
                   </td>
                   <td>
                     {s.role === 'general_manager' ? (
-                      <span title="The business account. Only its name and username can change.">General Manager</span>
+                      <span title="The business account. Only its name and username can change.">
+                        General Manager
+                      </span>
                     ) : (
                       <select
                         aria-label={`Role of ${s.name}`}

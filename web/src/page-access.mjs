@@ -88,7 +88,11 @@ export const settingsTabKeys = {
   Security: ['security'],
   Branches: ['branches', 'branchAccess', 'branchPricing'],
 };
-export const defaultSettingsTabs = () => ({ 2: [...settingsTabs], 3: [...settingsTabs], 4: [...settingsTabs] });
+export const defaultSettingsTabs = () => ({
+  2: [...settingsTabs],
+  3: [...settingsTabs],
+  4: [...settingsTabs],
+});
 export function validateSettingsTabs(input) {
   const value = input === undefined ? defaultSettingsTabs() : structuredClone(input);
   if (

@@ -542,7 +542,7 @@ export const helpTopics = [
     ],
     notes: [
       'Seeing a page does not by itself allow approving corrections or managing users.',
-      'The General Manager is the business account. Until you set it separately, it has the Manager\'s pages and tabs.',
+      "The General Manager is the business account. Until you set it separately, it has the Manager's pages and tabs.",
     ],
     pages: [],
     rank: 5,
@@ -691,7 +691,9 @@ export const helpTopics = [
       'Corrections: how many recent days of jobs show in Sale Adjustments.',
       'Security: lock the app after a number of minutes without use, or never.',
     ],
-    notes: ['Admin, Manager and General Manager can change only the tabs the Developer allows them in Page access.'],
+    notes: [
+      'Admin, Manager and General Manager can change only the tabs the Developer allows them in Page access.',
+    ],
     pages: [],
     rank: 3,
   },
