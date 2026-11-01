@@ -16,7 +16,9 @@ jobs:
         with:
           node-version: 22
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: npx vite build --minify false
+      - run: npm run build
       - run: npx playwright install --with-deps chromium
-      - run: node scripts/profile-large.mjs
+      - env:
+          PROFILE_DEV: "1"
+        run: node scripts/profile-large.mjs
         timeout-minutes: 40
