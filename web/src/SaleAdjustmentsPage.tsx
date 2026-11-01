@@ -769,9 +769,7 @@ export function SaleAdjustmentEditor({
                           <option>{edit.methodLabel}</option>
                         )}
                         {alphabetical(methods, (m) => m.label).map((m) => (
-                          <option key={m.label} value={m.label}>
-                            {m.displayLabel || m.label}
-                          </option>
+                          <option key={m.label} value={m.label}>{m.displayLabel||m.label}</option>
                         ))}
                       </select>
                     </label>
@@ -834,9 +832,7 @@ export function SaleAdjustmentEditor({
                       <option>{paymentMethod}</option>
                     )}
                     {alphabetical(methods, (m) => m.label).map((m) => (
-                      <option key={m.label} value={m.label}>
-                        {m.displayLabel || m.label}
-                      </option>
+                      <option key={m.label} value={m.label}>{m.displayLabel||m.label}</option>
                     ))}
                   </select>
                 </label>
@@ -906,9 +902,7 @@ export function SaleAdjustmentEditor({
                   Refund method
                   <select value={method} onChange={(e) => setMethod(e.target.value)} required>
                     {alphabetical(methods, (m) => m.label).map((m) => (
-                      <option key={m.label} value={m.label}>
-                        {m.displayLabel || m.label}
-                      </option>
+                      <option key={m.label} value={m.label}>{m.displayLabel||m.label}</option>
                     ))}
                   </select>
                 </label>

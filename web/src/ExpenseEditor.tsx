@@ -53,16 +53,7 @@ export default function ExpenseEditor({
   const { w } = useWords();
   const options = useBusinessOptions(),
     expenseCategories = options.expenseCategories,
-    paymentMethods = (
-      paymentSource === 'Personal funds'
-        ? [
-            { label: 'Cash', kind: 'Cash', enabled: true },
-            { label: 'Card', kind: 'POS', enabled: true },
-            { label: 'Transfer', kind: 'Transfer', enabled: true },
-            { label: 'Other', kind: 'Other', enabled: true },
-          ]
-        : options.paymentMethods
-    ).filter((item) => item.enabled);
+    paymentMethods = (paymentSource==='Personal funds'?[{label:'Cash',kind:'Cash',enabled:true},{label:'Card',kind:'POS',enabled:true},{label:'Transfer',kind:'Transfer',enabled:true},{label:'Other',kind:'Other',enabled:true}]:options.paymentMethods).filter((item) => item.enabled);
   const categoryOptions = [...new Set([...expenseCategories, ...(expense ? [expense.category] : [])])];
   const [category, setCategory] = useState(
     expense?.category ??
@@ -74,9 +65,9 @@ export default function ExpenseEditor({
   );
   const selectedMethod = paymentMethod || paymentMethods[0]?.label || '';
   const selectedAccount =
-    paymentSource === 'Personal funds'
+    (paymentSource === 'Personal funds'
       ? ''
-      : (accounts.find((a) => !a.archived && a.methods?.includes(selectedMethod))?.id ?? '');
+      : (accounts.find((a) => !a.archived && a.methods?.includes(selectedMethod))?.id ?? ''));
   const paymentOnly = mode === 'payment';
   const [error, setError] = useFeedbackMessage('error');
   const [stock, setStock] = useState(!!(expense?.materials.length || prefill?.materials.length));
@@ -382,9 +373,7 @@ export default function ExpenseEditor({
                     onChange={(e) => setPaymentMethod(e.target.value)}
                   >
                     {alphabetical(paymentMethods, (item) => item.label).map((item) => (
-                      <option key={item.label} value={item.label}>
-                        {('displayLabel' in item && item.displayLabel) || item.label}
-                      </option>
+                      <option key={item.label} value={item.label}>{('displayLabel' in item && item.displayLabel)||item.label}</option>
                     ))}
                   </select>
                 </label>
@@ -393,10 +382,7 @@ export default function ExpenseEditor({
                   <select
                     name="source"
                     value={paymentSource}
-                    onChange={(e) => {
-                      setPaymentSource(e.target.value);
-                      setPaymentMethod('');
-                    }}
+                    onChange={e=>{setPaymentSource(e.target.value);setPaymentMethod('');}}
                   >
                     {expenseSources.map((value) => (
                       <option key={value}>{value}</option>

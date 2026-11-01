@@ -152,9 +152,7 @@ export default function PaymentCorrectionDialog({
               <select value={method} onChange={(e) => setMethod(e.target.value)} required>
                 {!methods.some((m) => m.label === method) && method && <option>{method}</option>}
                 {alphabetical(methods, (m) => m.label).map((m) => (
-                  <option key={m.label} value={m.label}>
-                    {m.displayLabel || m.label}
-                  </option>
+                  <option key={m.label} value={m.label}>{m.displayLabel||m.label}</option>
                 ))}
               </select>
             </label>
