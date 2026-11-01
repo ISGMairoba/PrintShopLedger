@@ -580,7 +580,7 @@ function ConsoleSettings({ shopId, onSaved }: { shopId: string; onSaved: () => v
           online
           demo={false}
           modifiedAt={data.modifiedAt}
-          accessLevel={4}
+          accessLevel={5}
           onSave={async (next, version) => {
             const saved = await saveBusinessSettings(shopId, version, validateBranding(next));
             reload();

@@ -117,7 +117,7 @@ try {
 
   // Retail words.
   await nav('Business Settings');
-  await settingsSection(page, 'Jobs & payments');
+  await settingsSection(page, 'Words');
   await page.getByLabel('Words for').selectOption('retail');
   await page.getByRole('button', { name: 'Save words', exact: true }).click();
   await menu.getByRole('button', { name: 'Orders', exact: true }).waitFor();
