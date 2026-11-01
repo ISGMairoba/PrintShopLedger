@@ -199,13 +199,13 @@ try {
       await page.getByRole('button', { name: 'Transactions', exact: true }).first().waitFor();
       assert.equal(
         await page.getByRole('button', { name: 'Add account', exact: true }).count(),
-        rank === 4 ? 1 : 0,
-        'Only Developers create accounts',
+        0,
+        'Accounts are set up in Business Settings, not on the Accounts page',
       );
       assert.equal(
         await page.getByRole('button', { name: 'Edit', exact: true }).count(),
-        rank === 4 ? 1 : 0,
-        'Only Developers configure method links',
+        0,
+        'Method links are set up in Business Settings',
       );
       for (const name of ['Transactions', 'Reconcile', 'Archive'])
         assert.equal(
