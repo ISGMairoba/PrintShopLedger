@@ -1,3 +1,4 @@
+import { customerBalanceFast, jobBalanceFast } from './balances.mjs';
 // Device history window (stage 1: checking only). A device may later keep only recent records:
 // old *closed* records (collected, fully paid jobs and their payments, closed drawer days, paid
 // expenses, old stock history…) are dropped and replaced by one carried-forward record per
@@ -8,7 +9,6 @@
 // compares the important figures both ways, so we can see on real data that they always agree.
 import { businessDay } from './dashboard.mjs';
 import { dashboardSummary } from './dashboard.mjs';
-import { jobBalance, customerBalance } from './domain.mjs';
 import { accountToken, walletBalance } from './checkout.mjs';
 import { customerStatement, summaryReport, transactionRegister } from './reports.mjs';
 import { drawerSnapshot } from './my-sales.mjs';
@@ -48,7 +48,7 @@ export function trimHistory(ledger, cutoff) {
           before(j.createdAt, cutoff) &&
           !(j.modifiedAt && !before(j.modifiedAt, cutoff)) &&
           CLOSED.has(j.productionStatus ?? 'Added') &&
-          jobBalance(ledger, j).outstanding === 0,
+          jobBalanceFast(ledger, j).outstanding === 0,
       )
       .map((j) => j.id),
   );
@@ -325,7 +325,7 @@ export function historyCheck(ledger, { now = new Date().toISOString(), cutoff } 
   };
   for (const c of ledger.customers) {
     same(`Wallet of ${c.name}`, (l) => walletBalance(l, c.id));
-    same(`Amount owed by ${c.name}`, (l) => customerBalance(l, c.id));
+    same(`Amount owed by ${c.name}`, (l) => customerBalanceFast(l, c.id));
     // The checkout account check covers every job today; a trimmed device needs it to cover the
     // jobs still owing only (with the server, in stage 2). Compare that version.
     same(`Checkout account check for ${c.name}`, (l) =>

@@ -1,4 +1,4 @@
-import { jobBalance, customerBalance } from './domain.mjs';
+import { customerBalanceFast, jobBalanceFast } from './balances.mjs';
 import { walletBalance } from './checkout.mjs';
 import { businessDay, validRange, dashboardSummary } from './dashboard.mjs';
 import { paymentName } from './business-options.mjs';
@@ -38,7 +38,7 @@ export function customerStatement(
   const customer = ledger.customers.find((c) => c.id === customerId);
   if (!customer) throw Error('Choose a customer.');
   const jobRow = (job) => {
-    const b = jobBalance(ledger, job);
+    const b = jobBalanceFast(ledger, job);
     return {
       id: job.id,
       ref: shortId(job.id),
@@ -123,7 +123,7 @@ export function customerStatement(
       payments.filter((p) => !p.refund),
       'creditUsed',
     ),
-    owedNow: customerBalance(ledger, customerId),
+    owedNow: customerBalanceFast(ledger, customerId),
     creditNow: walletBalance(ledger, customerId),
   };
   return {
@@ -756,7 +756,7 @@ export function summaryReport(
     const buckets = AGE_BUCKETS.map(([label]) => ({ label, jobs: 0, amount: 0 }));
     const debtors = new Map();
     for (const job of ledger.jobs) {
-      const owed = jobBalance(ledger, job).outstanding;
+      const owed = jobBalanceFast(ledger, job).outstanding;
       if (owed <= 0) continue;
       const age = Math.max(0, daysBetween(businessDay(job.createdAt), today));
       const i = AGE_BUCKETS.findIndex(([, lo, hi]) => age >= lo && age <= hi);

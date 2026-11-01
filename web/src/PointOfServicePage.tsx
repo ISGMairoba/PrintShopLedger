@@ -1,3 +1,4 @@
+import { jobBalanceFast, lastPaymentFast } from './balances.mjs';
 import jobViewItems from './JobViewControls';
 import ToolbarActions, { MenuToggle } from './ToolbarActions';
 import { useState } from 'react';
@@ -5,9 +6,7 @@ import ResponsiveTable from './ResponsiveTable';
 import { SortHeader, useTableSort } from './TableSort';
 import Icon from './Icon';
 import JobTable from './JobTable';
-import { lastJobPayment } from './job-progress.mjs';
 import type { ProgressMode } from './JobActions';
-import { jobBalance } from './domain.mjs';
 import { currency } from './receipts.mjs';
 import { useDateFilter } from './PeriodFilter';
 import { inPeriod } from './dashboard.mjs';
@@ -76,12 +75,12 @@ export default function PointOfServicePage({
     {
       id: (j) => j.id,
       service: (j) => j.service,
-      paid: (j) => jobBalance(ledger, j).paid,
-      lastPayment: (j) => Date.parse(lastJobPayment(ledger, j) ?? '') || 0,
+      paid: (j) => jobBalanceFast(ledger, j).paid,
+      lastPayment: (j) => Date.parse(lastPaymentFast(ledger, j) ?? '') || 0,
       description: (j) => j.description,
       customer: (j) => name(j.customerId),
       amount: (j) => j.amount,
-      outstanding: (j) => jobBalance(ledger, j).outstanding,
+      outstanding: (j) => jobBalanceFast(ledger, j).outstanding,
       status: (j) => j.productionStatus ?? 'Added',
       createdAt: (j) => Date.parse(j.createdAt),
       source: (j) => j.source ?? '',

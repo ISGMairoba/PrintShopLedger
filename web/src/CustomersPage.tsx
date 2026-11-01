@@ -1,3 +1,4 @@
+import { customerBalanceFast } from './balances.mjs';
 import { useFeedbackMessage } from './Feedback';
 import { walletBalance } from './checkout.mjs';
 import CustomerAccount from './CustomerAccount';
@@ -8,7 +9,6 @@ import ToolbarActions, { MenuToggle } from './ToolbarActions';
 import { useState } from 'react';
 import Modal from './Modal';
 import CustomerEditor from './CustomerEditor';
-import { customerBalance } from './domain.mjs';
 import { customerCode, customerMatches } from './customers.mjs';
 import { servicePrice } from './services.mjs';
 import { SortHeader, useTableSort } from './TableSort';
@@ -52,8 +52,8 @@ export default function CustomersPage({
         (filter === 'all' || customer.archived === (filter === 'archived')) &&
         customerMatches(customer, query, ledger.customers, [
           jobs(customer.id),
-          (customerBalance(ledger, customer.id) / 100).toFixed(2),
-          servicePrice(customerBalance(ledger, customer.id)),
+          (customerBalanceFast(ledger, customer.id) / 100).toFixed(2),
+          servicePrice(customerBalanceFast(ledger, customer.id)),
           servicePrice(walletBalance(ledger, customer.id)),
           (walletBalance(ledger, customer.id) / 100).toFixed(2),
         ]),
@@ -66,7 +66,7 @@ export default function CustomersPage({
       creditLimit: (item) => item.creditLimit,
       wallet: (item) => walletBalance(ledger, item.id),
       jobs: (item) => jobs(item.id),
-      outstanding: (item) => customerBalance(ledger, item.id),
+      outstanding: (item) => customerBalanceFast(ledger, item.id),
       status: (item) => (item.archived ? 'Archived' : 'Active'),
       createdBy: (item) => item.createdByLabel,
       createdAt: (item) => Date.parse(item.createdAt),
@@ -184,7 +184,7 @@ export default function CustomersPage({
                       <td className="cell-fit">{servicePrice(customer.creditLimit)}</td>
                       <td className="cell-fit">{jobs(customer.id)}</td>
                       <td className="cell-fit">
-                        {servicePrice(customerBalance(ledger, customer.id))}
+                        {servicePrice(customerBalanceFast(ledger, customer.id))}
                         <small>Wallet: {servicePrice(walletBalance(ledger, customer.id))}</small>
                       </td>
                       <td className="cell-fit">

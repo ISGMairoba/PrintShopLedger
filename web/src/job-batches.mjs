@@ -1,6 +1,6 @@
+import { jobBalanceFast } from './balances.mjs';
 import { jobWorkflow } from './business-options.mjs';
 import { stageMoveEvents } from './material-choice.mjs';
-import { jobBalance } from './domain.mjs';
 
 // Group only by the recorded checkout, never by date, customer or similar descriptions.
 /** @param {import('./types').Job[]} jobs */
@@ -100,7 +100,7 @@ export function lineWithDescription(line, services, mode = 'required') {
 export function collectionCheck(plan, ledger) {
   const collecting = plan.filter((row) => !row.reason && row.path.includes('Collected'));
   const unpaid = collecting
-    .map((row) => ({ job: row.job, owed: jobBalance(ledger, row.job).outstanding }))
+    .map((row) => ({ job: row.job, owed: jobBalanceFast(ledger, row.job).outstanding }))
     .filter((row) => row.owed > 0);
   return {
     collecting: collecting.length,
