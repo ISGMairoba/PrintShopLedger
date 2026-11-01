@@ -12,7 +12,7 @@ import { SourceMapConsumer } from 'source-map-js';
 const maps = new Map();
 function original(url, line, column) {
   const file = url.replace(/^.*\/assets\//, '');
-  if (!file.endsWith('.js')) return null;
+  if (!file.endsWith('.js') || line < 0 || column < 0) return null;
   if (!maps.has(file)) {
     const path = `dist/assets/${file}.map`;
     maps.set(file, existsSync(path) ? new SourceMapConsumer(JSON.parse(readFileSync(path, 'utf8'))) : null);
