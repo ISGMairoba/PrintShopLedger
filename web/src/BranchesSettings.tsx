@@ -48,9 +48,10 @@ export default function BranchesSettings({
   return (
     <>
       <p>
-        A store keeps stock that branches draw from; record what comes in there and transfer it to branches from
-        the Materials page. Every branch shares your customers, services and settings. Sales, jobs, payments, expenses, the drawer
-        and what a customer owes belong to the branch where they happen. Each device works in one branch.
+        A store keeps stock that branches draw from; record what comes in there and transfer it to branches
+        from the Materials page. Every branch shares your customers, services and settings. Sales, jobs,
+        payments, expenses, the drawer and what a customer owes belong to the branch where they happen. Each
+        device works in one branch.
       </p>
       <div className="branch-list">
         {list.map((b, i) => (

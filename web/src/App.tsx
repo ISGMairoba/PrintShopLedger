@@ -2167,7 +2167,9 @@ export default function App() {
                                         p_note: note,
                                       });
                                       if (error) throw Error(error.message);
-                                      setMessage('Request sent. It shows under Stock requests after the next sync.');
+                                      setMessage(
+                                        'Request sent. It shows under Stock requests after the next sync.',
+                                      );
                                       syncNow();
                                     },
                                     answer: async (id, send, quantity, reply) => {

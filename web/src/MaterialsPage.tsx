@@ -40,7 +40,13 @@ type Props = {
     /** The locations this person may send stock from. */
     sendFrom: string[];
     /** Send stock from one location to another. */
-    transfer: (materialId: string, from: string, to: string, quantity: number, reason: string) => Promise<void>;
+    transfer: (
+      materialId: string,
+      from: string,
+      to: string,
+      quantity: number,
+      reason: string,
+    ) => Promise<void>;
     userId: string;
     seesAll: boolean;
     requests: import('./types').StockRequest[];
@@ -290,13 +296,15 @@ export default function MaterialsPage({
                             {locations.list
                               .filter(
                                 (l) =>
-                                  l.id !== locations.here && locations.stock!.some((s) => s.location === l.id),
+                                  l.id !== locations.here &&
+                                  locations.stock!.some((s) => s.location === l.id),
                               )
                               .map(
                                 (l) =>
                                   `${l.name} ${(
-                                    locations.stock!.find((s) => s.materialId === material.id && s.location === l.id)
-                                      ?.available ?? 0
+                                    locations.stock!.find(
+                                      (s) => s.materialId === material.id && s.location === l.id,
+                                    )?.available ?? 0
                                   ).toLocaleString(undefined, { maximumFractionDigits: 3 })}`,
                               )
                               .join(' · ')}
@@ -611,7 +619,9 @@ export default function MaterialsPage({
                       </option>
                     ))}
                 </select>
-                {locations.sendFrom.length < 2 && <small>Stock is sent from the location this device works in.</small>}
+                {locations.sendFrom.length < 2 && (
+                  <small>Stock is sent from the location this device works in.</small>
+                )}
               </label>
               <label>
                 To
@@ -637,8 +647,8 @@ export default function MaterialsPage({
                 />
                 {moveFrom === locations.here && (
                   <small>
-                    {moving.available.toLocaleString(undefined, { maximumFractionDigits: 3 })} {moving.measurementUnit}{' '}
-                    here now
+                    {moving.available.toLocaleString(undefined, { maximumFractionDigits: 3 })}{' '}
+                    {moving.measurementUnit} here now
                   </small>
                 )}
               </label>
@@ -647,8 +657,8 @@ export default function MaterialsPage({
                 <input maxLength={500} value={moveReason} onChange={(e) => setMoveReason(e.target.value)} />
               </label>
               <p className="muted">
-                Moves the stock now: {locationName(moveFrom)} goes down and {locationName(moveTo)} goes up. Both are
-                recorded in Stock History.
+                Moves the stock now: {locationName(moveFrom)} goes down and {locationName(moveTo)} goes up.
+                Both are recorded in Stock History.
               </p>
               <div className="material-actions">
                 <button type="button" className="secondary" onClick={() => setMoving(null)}>

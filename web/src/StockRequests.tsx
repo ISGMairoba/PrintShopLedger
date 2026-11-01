@@ -229,7 +229,8 @@ export function RequestStockModal({
   onClose: () => void;
 }) {
   const others = locations.filter((l) => l.id !== here);
-  const atOf = (id: string) => stock?.find((s) => s.materialId === material.id && s.location === id)?.available;
+  const atOf = (id: string) =>
+    stock?.find((s) => s.materialId === material.id && s.location === id)?.available;
   const [from, setFrom] = useState(others.find((l) => l.kind === 'store')?.id ?? others[0]?.id ?? '');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
@@ -288,7 +289,8 @@ export function RequestStockModal({
             <input maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
           </label>
           <p className="muted">
-            Staff who can send stock from there will see the request. The stock arrives here when they send it.
+            Staff who can send stock from there will see the request. The stock arrives here when they send
+            it.
           </p>
           <div className="material-actions">
             <button type="button" className="secondary" onClick={onClose}>
