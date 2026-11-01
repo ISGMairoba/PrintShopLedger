@@ -19,3 +19,4 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: node scripts/profile-large.mjs
+        timeout-minutes: 40

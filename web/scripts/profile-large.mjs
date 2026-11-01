@@ -120,12 +120,13 @@ async function run(mode, port) {
     }
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, serviceWorkers: 'block' });
     const page = await context.newPage();
-    page.setDefaultTimeout(120000);
+    page.setDefaultTimeout(90000);
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
     await page.goto(base);
     await page.getByRole('button', { name: 'Try locally on this device' }).click();
     await page.getByRole('heading', { name: 'Point of Service', exact: true }).waitFor();
+    console.log(`[${mode}] trial open, loading records`);
     const state = await readCopy(page, 'local-trial');
     state.ledger = { ...state.ledger, ...bigLedger() };
     state.pending = [];
@@ -164,11 +165,19 @@ async function run(mode, port) {
     const step = async (name, action, ready) => {
       await page.evaluate(() => (window.__long = 0)).catch(() => {});
       const t = Date.now();
-      await action();
-      await ready();
-      await settle();
+      console.log(`[${mode}] ${name}: started`);
+      try {
+        await action();
+        await ready();
+        await settle();
+      } catch (e) {
+        console.log(`[${mode}] ${name}: GAVE UP after ${Date.now() - t} ms (${e.message.split('\n')[0]})`);
+        results.push({ step: name, ms: 'over limit' });
+        return;
+      }
       const blocked = await page.evaluate(() => Math.round(window.__long));
       results.push({ step: name, ms: Date.now() - t - 300, blockedMs: blocked });
+      console.log(`[${mode}] ${name}: ${Date.now() - t - 300} ms (blocked ${blocked} ms)`);
     };
     await cdp.send('Profiler.start');
     await step(
@@ -252,4 +261,4 @@ async function run(mode, port) {
 }
 
 await run('preview', 4301);
-await run('dev', 4302);
+if (process.env.PROFILE_DEV) await run('dev', 4302);
