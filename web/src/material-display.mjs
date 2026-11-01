@@ -1,4 +1,13 @@
+// A record's code depends on the others in its list: worked out once per record per list.
+const codeCache = new WeakMap();
 export function materialCode(id, materials = []) {
+  let codes = codeCache.get(materials);
+  if (!codes) codeCache.set(materials, (codes = new Map()));
+  let code = codes.get(id);
+  if (code === undefined) codes.set(id, (code = computeCode(id, materials)));
+  return code;
+}
+function computeCode(id, materials) {
   const compact = id.replaceAll('-', '').toUpperCase();
   for (let length = Math.min(8, compact.length); length <= compact.length; length += 2) {
     const code = compact.slice(0, length);

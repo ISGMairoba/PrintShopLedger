@@ -4,7 +4,8 @@ import { jobBalanceFast } from './balances.mjs';
 import { normalizeLedger } from './materials.mjs';
 import { currency } from './receipts.mjs';
 
-const lagosDay = (iso) => new Date(iso).toLocaleDateString('en-CA', { timeZone: 'Africa/Lagos' });
+const lagosDayFormat = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Lagos' });
+const lagosDay = (iso) => lagosDayFormat.format(new Date(iso));
 const daysBetween = (from, to) =>
   Math.round((Date.parse(to + 'T12:00:00Z') - Date.parse(from + 'T12:00:00Z')) / 86400000);
 
