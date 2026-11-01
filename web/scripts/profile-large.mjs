@@ -5,6 +5,23 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from 'playwright';
 import { emptyLedger, applyEvent } from '../src/domain.mjs';
 import { prepareCheckout } from '../src/checkout.mjs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { SourceMapConsumer } from 'source-map-js';
+
+// Production bundles have short names: map them back to the source file and line with the build's maps.
+const maps = new Map();
+function original(url, line, column) {
+  const file = url.replace(/^.*\/assets\//, '');
+  if (!file.endsWith('.js')) return null;
+  if (!maps.has(file)) {
+    const path = `dist/assets/${file}.map`;
+    maps.set(file, existsSync(path) ? new SourceMapConsumer(JSON.parse(readFileSync(path, 'utf8'))) : null);
+  }
+  const map = maps.get(file);
+  if (!map) return null;
+  const p = map.originalPositionFor({ line: line + 1, column });
+  return p.source ? `${p.name ?? '?'}  ${p.source.replace(/^.*\/src\//, 'src/')}:${p.line}` : null;
+}
 
 const SIZE = { customers: 250, services: 23, materials: 12, sales: 1060, days: 120 };
 const CPU_SLOWDOWN = Number(process.env.CPU_SLOWDOWN ?? 4);
@@ -259,7 +276,8 @@ async function run(mode, port) {
       const n = nodes.get(id);
       const f = n.callFrame;
       const file = (f.url || '').replace(/^.*\/src\//, 'src/').replace(/\?.*$/, '');
-      const key = `${f.functionName || '(anonymous)'}  ${file}:${f.lineNumber + 1}`;
+      const key =
+        original(f.url || '', f.lineNumber, f.columnNumber) ?? `${f.functionName || '(anonymous)'}  ${file}:${f.lineNumber + 1}`;
       self.set(key, (self.get(key) ?? 0) + (dt[i] ?? 0) / 1000);
     });
     const total = [...self.values()].reduce((a, b) => a + b, 0);
@@ -274,8 +292,10 @@ async function run(mode, port) {
       const seen = new Set();
       for (let cur = id; cur; cur = parent.get(cur)) {
         const f = nodes.get(cur).callFrame;
-        if (!/\/src\//.test(f.url)) continue;
-        const key = `${f.functionName || '(anonymous)'}  ${f.url.replace(/^.*\/src\//, 'src/').replace(/\?.*$/, '')}:${f.lineNumber + 1}`;
+        const mapped = original(f.url || '', f.lineNumber, f.columnNumber);
+        if (!mapped && !/\/src\//.test(f.url)) continue;
+        if (mapped && !mapped.includes('src/')) continue;
+        const key = mapped ?? `${f.functionName || '(anonymous)'}  ${f.url.replace(/^.*\/src\//, 'src/').replace(/\?.*$/, '')}:${f.lineNumber + 1}`;
         if (seen.has(key)) continue;
         seen.add(key);
         incl.set(key, (incl.get(key) ?? 0) + (dt[i] ?? 0) / 1000);
@@ -292,4 +312,4 @@ async function run(mode, port) {
 }
 
 await run('preview', 4301);
-if (process.env.PROFILE_DEV) await run('dev', 4302);
+
