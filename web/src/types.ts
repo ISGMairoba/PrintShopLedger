@@ -835,10 +835,17 @@ export interface MaterialWaste {
 export interface Payee extends Omit<Customer, 'creditLimit'> {
   note: string;
 }
-export interface AccountPaymentMethod {id:string;name:string;label:string;kind:string;enabled:boolean;aliases?:string[]}
+export interface AccountPaymentMethod {
+  id: string;
+  name: string;
+  label: string;
+  kind: string;
+  enabled: boolean;
+  aliases?: string[];
+}
 export interface MoneyAccount {
-  paymentMethods?:AccountPaymentMethod[];
-  paymentMethodsVersion?:number;
+  paymentMethods?: AccountPaymentMethod[];
+  paymentMethodsVersion?: number;
   importedFromPaymentMethod?: boolean;
   id: string;
   name: string;
