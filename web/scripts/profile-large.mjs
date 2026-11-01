@@ -3,7 +3,6 @@
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from 'playwright';
-import { readCopy } from './local-copy.mjs';
 import { emptyLedger, applyEvent } from '../src/domain.mjs';
 import { prepareCheckout } from '../src/checkout.mjs';
 
@@ -134,16 +133,10 @@ async function run(mode, port) {
       route.fulfill({ contentType: 'text/html', body: '<html><body>Seeding</body></html>' }),
     );
     await page.goto(base + '/__seed__');
-    console.log(`[${mode}] trial open; reading its saved copy`);
-    let state;
-    for (let i = 0; i < 60 && !state?.ledger; i++) {
-      state = await limit('reading the saved copy', 20000, readCopy(page, 'local-trial'));
-      if (!state?.ledger) await delay(500);
-    }
-    if (!state?.ledger) throw Error('The trial copy was never saved');
+    // No need to read the trial's copy: the app accepts a whole saved copy and fills in the rest.
+    const state = { pending: [] };
     console.log(`[${mode}] building the large business`);
-    state.ledger = { ...state.ledger, ...bigLedger() };
-    state.pending = [];
+    state.ledger = bigLedger();
     console.log(`[${mode}] saving it in the browser`);
     await limit(
       'saving the large copy',
