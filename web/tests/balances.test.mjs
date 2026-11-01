@@ -27,8 +27,12 @@ test('fast balances match the exact ones', () => {
     assert.deepEqual(jobBalanceFast(ledger, job), jobBalance(ledger, job));
     assert.equal(lastPaymentFast(ledger, job), lastJobPayment(ledger, job));
   }
-  for (let c = 0; c < 8; c++) assert.equal(customerBalanceFast(ledger, 'c' + c), customerBalance(ledger, 'c' + c));
+  for (let c = 0; c < 8; c++)
+    assert.equal(customerBalanceFast(ledger, 'c' + c), customerBalance(ledger, 'c' + c));
   // A new payments list (as after any change) is tallied afresh.
-  const next = { jobs, payments: [...payments, { ...payments[0], id: 'new', allocations: [{ jobId: 'j1', amount: 50 }] }] };
+  const next = {
+    jobs,
+    payments: [...payments, { ...payments[0], id: 'new', allocations: [{ jobId: 'j1', amount: 50 }] }],
+  };
   assert.deepEqual(jobBalanceFast(next, jobs[1]), jobBalance(next, jobs[1]));
 });

@@ -74,7 +74,8 @@ export default function JobTable({
   const groups = grouped && onBulkAction ? groupJobsByCheckout(jobs) : [];
   const pagedJobs = useShowMore(jobs);
   const pagedGroups = useShowMore(groups);
-  const shownJobs = grouped && onBulkAction ? pagedGroups.shown.flatMap((g: { jobs: Job[] }) => g.jobs) : pagedJobs.shown;
+  const shownJobs =
+    grouped && onBulkAction ? pagedGroups.shown.flatMap((g: { jobs: Job[] }) => g.jobs) : pagedJobs.shown;
   const toggle = (items: Job[], checked: boolean) =>
     setSelectedIds((ids) =>
       checked

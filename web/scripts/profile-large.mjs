@@ -112,7 +112,9 @@ function bigLedger() {
     ledger = applyEvent(ledger, event);
   }
   // Most older jobs are finished.
-  ledger.jobs = ledger.jobs.map((j, i) => (i < ledger.jobs.length - 60 ? { ...j, productionStatus: 'Collected' } : j));
+  ledger.jobs = ledger.jobs.map((j, i) =>
+    i < ledger.jobs.length - 60 ? { ...j, productionStatus: 'Collected' } : j,
+  );
   console.log(
     `Built ledger in ${Date.now() - t0} ms: ${ledger.jobs.length} jobs, ${ledger.checkouts.length} sales, ${ledger.payments.length} payments, ${ledger.materialHistory.length} stock changes, ${(JSON.stringify(ledger).length / 1e6).toFixed(1)} MB`,
   );
@@ -124,7 +126,15 @@ async function run(mode, port) {
   const args =
     mode === 'dev'
       ? ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', String(port), '--strictPort']
-      : ['node_modules/vite/bin/vite.js', 'preview', '--host', '127.0.0.1', '--port', String(port), '--strictPort'];
+      : [
+          'node_modules/vite/bin/vite.js',
+          'preview',
+          '--host',
+          '127.0.0.1',
+          '--port',
+          String(port),
+          '--strictPort',
+        ];
   const server = spawn(process.execPath, args, { stdio: 'ignore' });
   const browser = await chromium.launch({ headless: true });
   try {
@@ -134,7 +144,10 @@ async function run(mode, port) {
       } catch {}
       await delay(100);
     }
-    const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, serviceWorkers: 'block' });
+    const context = await browser.newContext({
+      viewport: { width: 1440, height: 1000 },
+      serviceWorkers: 'block',
+    });
     const page = await context.newPage();
     page.setDefaultTimeout(90000);
     const errors = [];
@@ -196,7 +209,8 @@ async function run(mode, port) {
     // The screen is settled when the browser can draw again after a short pause.
     const settle = () =>
       page.evaluate(
-        () => new Promise((r) => requestAnimationFrame(() => setTimeout(() => requestAnimationFrame(r), 300))),
+        () =>
+          new Promise((r) => requestAnimationFrame(() => setTimeout(() => requestAnimationFrame(r), 300))),
       );
     const results = [];
     const step = async (name, action, ready) => {
@@ -261,7 +275,11 @@ async function run(mode, port) {
     // A sale with the large record set: open the checkout and close it.
     await step(
       'Open "Add" checkout dialog',
-      () => page.getByRole('button', { name: /^Add (job|order)$/ }).first().click(),
+      () =>
+        page
+          .getByRole('button', { name: /^Add (job|order)$/ })
+          .first()
+          .click(),
       () => page.getByRole('dialog').first().waitFor(),
     );
     const { profile } = await cdp.send('Profiler.stop');
@@ -277,7 +295,8 @@ async function run(mode, port) {
       const f = n.callFrame;
       const file = (f.url || '').replace(/^.*\/src\//, 'src/').replace(/\?.*$/, '');
       const key =
-        original(f.url || '', f.lineNumber, f.columnNumber) ?? `${f.functionName || '(anonymous)'}  ${file}:${f.lineNumber + 1}`;
+        original(f.url || '', f.lineNumber, f.columnNumber) ??
+        `${f.functionName || '(anonymous)'}  ${file}:${f.lineNumber + 1}`;
       self.set(key, (self.get(key) ?? 0) + (dt[i] ?? 0) / 1000);
     });
     const total = [...self.values()].reduce((a, b) => a + b, 0);
@@ -295,7 +314,9 @@ async function run(mode, port) {
         const mapped = original(f.url || '', f.lineNumber, f.columnNumber);
         if (!mapped && !/\/src\//.test(f.url)) continue;
         if (mapped && !mapped.includes('src/')) continue;
-        const key = mapped ?? `${f.functionName || '(anonymous)'}  ${f.url.replace(/^.*\/src\//, 'src/').replace(/\?.*$/, '')}:${f.lineNumber + 1}`;
+        const key =
+          mapped ??
+          `${f.functionName || '(anonymous)'}  ${f.url.replace(/^.*\/src\//, 'src/').replace(/\?.*$/, '')}:${f.lineNumber + 1}`;
         if (seen.has(key)) continue;
         seen.add(key);
         incl.set(key, (incl.get(key) ?? 0) + (dt[i] ?? 0) / 1000);
@@ -312,4 +333,3 @@ async function run(mode, port) {
 }
 
 await run('preview', 4301);
-

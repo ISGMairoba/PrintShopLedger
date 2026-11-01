@@ -56,7 +56,10 @@ export default function CustomersPage({
   const wallets = new Map<string, number>();
   for (const p of ledger.payments)
     if (counts(ledger, p))
-      wallets.set(p.customerId, (wallets.get(p.customerId) ?? 0) + (p.walletAdded ?? 0) - (p.walletUsed ?? 0));
+      wallets.set(
+        p.customerId,
+        (wallets.get(p.customerId) ?? 0) + (p.walletAdded ?? 0) - (p.walletUsed ?? 0),
+      );
   const wallet = (id: string) => wallets.get(id) ?? 0;
   const visible = sorting.sortRows(
     ledger.customers.filter(

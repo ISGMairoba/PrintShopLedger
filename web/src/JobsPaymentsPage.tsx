@@ -112,9 +112,7 @@ export default function JobsPaymentsPage({
       amount: (payment) => payment.amount,
       method: paymentName,
       allocations: (payment) =>
-        payment.allocations
-          .map((allocation) => jobsById.get(allocation.jobId)?.description ?? '')
-          .join(', '),
+        payment.allocations.map((allocation) => jobsById.get(allocation.jobId)?.description ?? '').join(', '),
     },
   );
   const pagedPayments = useShowMore(matchingPayments);
@@ -352,21 +350,20 @@ export default function JobsPaymentsPage({
                             )}
                             {payment.allocations.map((allocation) => (
                               <small key={allocation.jobId}>
-                                {jobsById.get(allocation.jobId)?.description} -{' '}
-                                {currency(allocation.amount)}
+                                {jobsById.get(allocation.jobId)?.description} - {currency(allocation.amount)}
                               </small>
                             ))}
                           </td>
                           <td>
                             <div className="material-actions stacked-actions">
                               {payment.checkoutId && checkoutsById.get(payment.checkoutId) && (
-                                  <button
-                                    className="text-button"
-                                    onClick={() => onReceipt(checkoutsById.get(payment.checkoutId!)!)}
-                                  >
-                                    <Icon name="details" /> Receipt
-                                  </button>
-                                )}
+                                <button
+                                  className="text-button"
+                                  onClick={() => onReceipt(checkoutsById.get(payment.checkoutId!)!)}
+                                >
+                                  <Icon name="details" /> Receipt
+                                </button>
+                              )}
                               {onCorrectPayment && !payment.refundId && (
                                 <button
                                   className="text-button"
