@@ -5,8 +5,8 @@ import { validPackPrices } from './pack-prices.mjs';
 import { validPriceTiers } from './price-tiers.mjs';
 import { validConfirmStage, validMaterialOptions } from './material-choice.mjs';
 export const serviceCode = (id, services = []) => materialCode(id, services).replace('MAT-', 'SVC-');
-export const servicePrice = (price) =>
-  new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(price / 100);
+const naira = new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' });
+export const servicePrice = (price) => naira.format(price / 100);
 export function serviceMatches(service, materials, services, query) {
   const material = materials.find((item) => item.id === service.materialId);
   return [

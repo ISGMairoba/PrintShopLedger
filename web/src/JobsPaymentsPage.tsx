@@ -9,6 +9,7 @@ import type { ProgressMode } from './JobActions';
 import { paymentName } from './business-options.mjs';
 import { currency, dateLabel, shortId } from './app/shared';
 import { useMemo, useState } from 'react';
+import { useShowMore } from './ShowMore';
 import { useDateFilter } from './PeriodFilter';
 import { inPeriod } from './dashboard.mjs';
 import type { CheckoutRecord, Job, Ledger, Payment } from './types';
@@ -59,6 +60,11 @@ export default function JobsPaymentsPage({
   // Looked up once per list of customers, not once per job.
   const customersById = useMemo(() => new Map(ledger.customers.map((c) => [c.id, c])), [ledger.customers]);
   const customerName = (id: string) => customersById.get(id)?.name ?? 'Unknown customer';
+  const jobsById = useMemo(() => new Map(ledger.jobs.map((job) => [job.id, job])), [ledger.jobs]);
+  const checkoutsById = useMemo(
+    () => new Map((ledger.checkouts ?? []).map((record) => [record.id, record])),
+    [ledger.checkouts],
+  );
   const search = query.toLowerCase();
   const dates = useDateFilter(page === 'Jobs' ? 'jobs' : 'payments');
   const period = dates.period;
@@ -107,10 +113,11 @@ export default function JobsPaymentsPage({
       method: paymentName,
       allocations: (payment) =>
         payment.allocations
-          .map((allocation) => ledger.jobs.find((job) => job.id === allocation.jobId)?.description ?? '')
+          .map((allocation) => jobsById.get(allocation.jobId)?.description ?? '')
           .join(', '),
     },
   );
+  const pagedPayments = useShowMore(matchingPayments);
   // Totals describe the list as filtered (period and search).
   const balances = matchingJobs.map((job) => jobBalanceFast(ledger, job));
   const total = matchingJobs.reduce((sum, job) => sum + job.amount, 0);
@@ -317,7 +324,7 @@ export default function JobsPaymentsPage({
                       </tr>
                     </thead>
                     <tbody>
-                      {matchingPayments.map((payment) => (
+                      {pagedPayments.shown.map((payment) => (
                         <tr key={payment.id}>
                           <td>
                             #{shortId(payment.id)}
@@ -345,20 +352,17 @@ export default function JobsPaymentsPage({
                             )}
                             {payment.allocations.map((allocation) => (
                               <small key={allocation.jobId}>
-                                {ledger.jobs.find((job) => job.id === allocation.jobId)?.description} -{' '}
+                                {jobsById.get(allocation.jobId)?.description} -{' '}
                                 {currency(allocation.amount)}
                               </small>
                             ))}
                           </td>
                           <td>
                             <div className="material-actions stacked-actions">
-                              {payment.checkoutId &&
-                                ledger.checkouts.find((r) => r.id === payment.checkoutId) && (
+                              {payment.checkoutId && checkoutsById.get(payment.checkoutId) && (
                                   <button
                                     className="text-button"
-                                    onClick={() =>
-                                      onReceipt(ledger.checkouts.find((r) => r.id === payment.checkoutId)!)
-                                    }
+                                    onClick={() => onReceipt(checkoutsById.get(payment.checkoutId!)!)}
                                   >
                                     <Icon name="details" /> Receipt
                                   </button>
@@ -380,6 +384,7 @@ export default function JobsPaymentsPage({
                     </tbody>
                   </table>
                 </ResponsiveTable>
+                {pagedPayments.more}
               </div>
             )}
           </>

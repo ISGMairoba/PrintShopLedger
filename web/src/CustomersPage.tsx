@@ -1,12 +1,13 @@
 import { customerBalanceFast } from './balances.mjs';
 import { useFeedbackMessage } from './Feedback';
-import { walletBalance } from './checkout.mjs';
+import { counts } from './branches.mjs';
+import { useShowMore } from './ShowMore';
 import CustomerAccount from './CustomerAccount';
 import ResponsiveTable from './ResponsiveTable';
 import { auditCells, auditHeaders } from './AuditColumns';
 import Icon from './Icon';
 import ToolbarActions, { MenuToggle } from './ToolbarActions';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Modal from './Modal';
 import CustomerEditor from './CustomerEditor';
 import { customerCode, customerMatches } from './customers.mjs';
@@ -45,7 +46,18 @@ export default function CustomersPage({
   const [confirmation, setConfirmation] = useState<Customer | null>(null);
   const [error, setError] = useFeedbackMessage('error');
   const sorting = useTableSort<Customer>('name');
-  const jobs = (id: string) => ledger.jobs.filter((item) => item.customerId === id).length;
+  // Per-customer job counts and wallets, worked out once per screen (not once per customer per sort).
+  const jobCounts = useMemo(() => {
+    const n = new Map<string, number>();
+    for (const item of ledger.jobs) n.set(item.customerId, (n.get(item.customerId) ?? 0) + 1);
+    return n;
+  }, [ledger.jobs]);
+  const jobs = (id: string) => jobCounts.get(id) ?? 0;
+  const wallets = new Map<string, number>();
+  for (const p of ledger.payments)
+    if (counts(ledger, p))
+      wallets.set(p.customerId, (wallets.get(p.customerId) ?? 0) + (p.walletAdded ?? 0) - (p.walletUsed ?? 0));
+  const wallet = (id: string) => wallets.get(id) ?? 0;
   const visible = sorting.sortRows(
     ledger.customers.filter(
       (customer) =>
@@ -54,8 +66,8 @@ export default function CustomersPage({
           jobs(customer.id),
           (customerBalanceFast(ledger, customer.id) / 100).toFixed(2),
           servicePrice(customerBalanceFast(ledger, customer.id)),
-          servicePrice(walletBalance(ledger, customer.id)),
-          (walletBalance(ledger, customer.id) / 100).toFixed(2),
+          servicePrice(wallet(customer.id)),
+          (wallet(customer.id) / 100).toFixed(2),
         ]),
     ),
     {
@@ -64,7 +76,7 @@ export default function CustomersPage({
       phone: (item) => item.phone,
       address: (item) => item.address,
       creditLimit: (item) => item.creditLimit,
-      wallet: (item) => walletBalance(ledger, item.id),
+      wallet: (item) => wallet(item.id),
       jobs: (item) => jobs(item.id),
       outstanding: (item) => customerBalanceFast(ledger, item.id),
       status: (item) => (item.archived ? 'Archived' : 'Active'),
@@ -74,6 +86,7 @@ export default function CustomersPage({
       modifiedAt: (item) => Date.parse(item.modifiedAt),
     },
   );
+  const pagedCustomers = useShowMore(visible);
   const heading = (column: string, label: string) => (
     <SortHeader column={column} label={w(label)} sort={sorting} />
   );
@@ -171,7 +184,7 @@ export default function CustomersPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {visible.map((customer) => (
+                  {pagedCustomers.shown.map((customer) => (
                     <tr key={customer.id}>
                       <td>
                         <strong>{customer.name}</strong>
@@ -185,7 +198,7 @@ export default function CustomersPage({
                       <td className="cell-fit">{jobs(customer.id)}</td>
                       <td className="cell-fit">
                         {servicePrice(customerBalanceFast(ledger, customer.id))}
-                        <small>Wallet: {servicePrice(walletBalance(ledger, customer.id))}</small>
+                        <small>Wallet: {servicePrice(wallet(customer.id))}</small>
                       </td>
                       <td className="cell-fit">
                         <span className={`badge ${customer.archived ? 'unpaid' : 'paid'}`}>
@@ -237,6 +250,7 @@ export default function CustomersPage({
                 </tbody>
               </table>
             </ResponsiveTable>
+            {pagedCustomers.more}
           </div>
         )}
       </section>
