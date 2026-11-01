@@ -122,8 +122,8 @@ async function run(mode, port) {
     page.setDefaultTimeout(90000);
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
-    await page.goto(base);
-    await page.getByRole('button', { name: 'Try locally on this device' }).click();
+    await page.goto(base, { timeout: 300000 });
+    await page.getByRole('button', { name: 'Try locally on this device' }).click({ timeout: 300000 });
     await page.getByRole('heading', { name: 'Point of Service', exact: true }).waitFor();
     const limit = (what, ms, promise) =>
       Promise.race([promise, delay(ms).then(() => Promise.reject(Error(`${what} took over ${ms} ms`)))]);
@@ -202,8 +202,19 @@ async function run(mode, port) {
     await cdp.send('Profiler.start');
     await step(
       'Open app (load records)',
-      () => page.goto(base),
-      () => page.getByRole('heading', { name: 'Point of Service', exact: true }).waitFor(),
+      async () => {
+        await page.goto(base);
+        // Reopening shows the start screen first: go back into the trial (now with the large records).
+        const trial = page.getByRole('button', { name: 'Try locally on this device' });
+        const pos = page.getByRole('heading', { name: 'Point of Service', exact: true });
+        await trial.or(pos).first().waitFor();
+        if (await trial.isVisible()) await trial.click();
+      },
+      async () => {
+        await page.getByRole('heading', { name: 'Point of Service', exact: true }).waitFor();
+        const jobs = await page.evaluate(() => document.body.innerText.length);
+        console.log(`[${mode}] page text length after opening: ${jobs}`);
+      },
     );
     const nav = page.getByRole('navigation', { name: 'Main' });
     for (const name of [
