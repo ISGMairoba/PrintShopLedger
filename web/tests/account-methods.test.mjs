@@ -30,3 +30,8 @@ test('account routing rejects wrong account, type and disabled methods', () => {
   a.paymentMethods[0].enabled = false;
   assert.throws(() => resolveAccountPayment(ledger, 'Bank', 'Transfer', 'a'));
 });
+test('a business without accounts keeps its own payment methods', async () => {
+  const { accountPaymentOptions } = await import('../src/account-methods.mjs');
+  const legacy = [{ label: 'Cash', kind: 'Cash', enabled: true }];
+  assert.deepEqual(accountPaymentOptions({ moneyAccounts: [] }, legacy), legacy);
+});

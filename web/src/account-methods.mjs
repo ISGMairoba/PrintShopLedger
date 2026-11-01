@@ -64,9 +64,10 @@ export function prepareAccountMethods(accountName, drafts, old) {
 export const routingLabels = (methods) => [
   ...new Set(methods.filter((m) => m.enabled).flatMap((m) => [m.label, ...(m.aliases ?? [])])),
 ];
-export function accountPaymentOptions(ledger, legacy = [], allowLegacy = false) {
+export function accountPaymentOptions(ledger, legacy = []) {
   const accounts = ledger.moneyAccounts ?? [];
-  if (!accounts.length) return allowLegacy ? legacy : [];
+  // No accounts set up yet (every new business): the business's own methods, as before.
+  if (!accounts.length) return legacy;
   return accounts
     .filter((a) => !a.archived && usableInBranch(a))
     .flatMap((a) => {
