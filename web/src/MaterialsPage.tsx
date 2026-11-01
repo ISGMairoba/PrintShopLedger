@@ -12,6 +12,7 @@ import { materialCode, stockLevel } from './material-display.mjs';
 import type { Expense, ExpenseEvent, Material, MaterialEvent, MaterialHistoryEntry } from './types';
 import { useWords } from './Words';
 import ReorderList from './ReorderList';
+import { RequestStockModal, StockRequestsPanel } from './StockRequests';
 import { reorderList } from './reorder.mjs';
 import { renameActive as wt } from './Words';
 
@@ -34,10 +35,18 @@ type Props = {
     /** The location this device works in. */
     here: string;
     list: { id: string; name: string; kind?: string }[];
-    /** The owner's view: every location's quantity. */
+    /** Quantities at the other locations this person may see (the owner: every location). */
     stock?: { materialId: string; location: string; available: number }[];
+    /** The locations this person may send stock from. */
+    sendFrom: string[];
     /** Send stock from one location to another. */
     transfer: (materialId: string, from: string, to: string, quantity: number, reason: string) => Promise<void>;
+    userId: string;
+    seesAll: boolean;
+    requests: import('./types').StockRequest[];
+    request: (materialId: string, from: string, quantity: number, note: string) => Promise<void>;
+    answer: (id: string, send: boolean, quantity: number | null, reply: string) => Promise<void>;
+    cancel: (id: string) => Promise<void>;
   };
 };
 const timestamp = (value: string) => new Date(value).toLocaleString();
@@ -57,6 +66,7 @@ export default function MaterialsPage({
   locations,
 }: Props) {
   const [moving, setMoving] = useState<Material | null>(null);
+  const [asking, setAsking] = useState<Material | null>(null);
   const [moveFrom, setMoveFrom] = useState('');
   const [moveTo, setMoveTo] = useState('');
   const [moveQty, setMoveQty] = useState('');
@@ -168,6 +178,19 @@ export default function MaterialsPage({
           {error}
         </div>
       )}
+      {locations && (
+        <StockRequestsPanel
+          requests={locations.requests}
+          materials={materials}
+          locations={locations.list}
+          userId={locations.userId}
+          seesAll={locations.seesAll}
+          canSendFrom={(id) => locations.sendFrom.includes(id)}
+          busy={busy}
+          onAnswer={locations.answer}
+          onCancel={locations.cancel}
+        />
+      )}
       <section className="panel">
         <div className="toolbar material-toolbar">
           <input
@@ -265,6 +288,10 @@ export default function MaterialsPage({
                         {locations?.stock && (
                           <small>
                             {locations.list
+                              .filter(
+                                (l) =>
+                                  l.id !== locations.here && locations.stock!.some((s) => s.location === l.id),
+                              )
                               .map(
                                 (l) =>
                                   `${l.name} ${(
@@ -350,8 +377,24 @@ export default function MaterialsPage({
                                   className="text-button"
                                   disabled={busy}
                                   onClick={() => {
+                                    setAsking(material);
+                                    setError('');
+                                  }}
+                                >
+                                  <Icon name="add" /> Request
+                                </button>
+                              )}
+                              {locations && locations.list.length > 1 && locations.sendFrom.length > 0 && (
+                                <button
+                                  className="text-button"
+                                  disabled={busy}
+                                  onClick={() => {
                                     setMoving(material);
-                                    setMoveFrom(locations.here);
+                                    setMoveFrom(
+                                      locations.sendFrom.includes(locations.here)
+                                        ? locations.here
+                                        : locations.sendFrom[0],
+                                    );
                                     setMoveTo(locations.list.find((l) => l.id !== locations.here)?.id ?? '');
                                     setMoveQty('');
                                     setMoveReason('');
@@ -513,6 +556,17 @@ export default function MaterialsPage({
           </div>
         </Modal>
       )}
+      {asking && locations && (
+        <RequestStockModal
+          material={asking}
+          locations={locations.list}
+          here={locations.here}
+          stock={locations.stock}
+          busy={busy}
+          onRequest={(from, quantity, note) => locations.request(asking.id, from, quantity, note)}
+          onClose={() => setAsking(null)}
+        />
+      )}
       {moving && locations && (
         <Modal title={`Transfer ${moving.name}`} busy={busy} onClose={() => setMoving(null)}>
           {error && (
@@ -542,16 +596,22 @@ export default function MaterialsPage({
                 <select
                   aria-label="From"
                   value={moveFrom}
-                  disabled={!locations.stock}
-                  onChange={(e) => setMoveFrom(e.target.value)}
+                  disabled={locations.sendFrom.length < 2}
+                  onChange={(e) => {
+                    setMoveFrom(e.target.value);
+                    if (moveTo === e.target.value)
+                      setMoveTo(locations.list.find((l) => l.id !== e.target.value)?.id ?? '');
+                  }}
                 >
-                  {locations.list.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.name}
-                    </option>
-                  ))}
+                  {locations.list
+                    .filter((l) => locations.sendFrom.includes(l.id))
+                    .map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name}
+                      </option>
+                    ))}
                 </select>
-                {!locations.stock && <small>Stock is sent from the location this device works in.</small>}
+                {locations.sendFrom.length < 2 && <small>Stock is sent from the location this device works in.</small>}
               </label>
               <label>
                 To
@@ -575,7 +635,7 @@ export default function MaterialsPage({
                   value={moveQty}
                   onChange={(e) => setMoveQty(e.target.value)}
                 />
-                {moveFrom === locations.here && !locations.stock && (
+                {moveFrom === locations.here && (
                   <small>
                     {moving.available.toLocaleString(undefined, { maximumFractionDigits: 3 })} {moving.measurementUnit}{' '}
                     here now

@@ -2148,7 +2148,49 @@ export default function App() {
                                 ? {
                                     here: activeBranch.id,
                                     list: openBranches,
-                                    stock: ownerView ? state.ledger.locationStock : undefined,
+                                    stock: state.ledger.locationStock,
+                                    // Admin and higher may send from any location they work in.
+                                    sendFrom:
+                                      ownerView || (shop?.accessLevel ?? 0) >= 2
+                                        ? branchChoices.map((b) => b.id)
+                                        : [activeBranch.id],
+                                    userId: shop?.userId ?? '',
+                                    seesAll: ownerView,
+                                    requests: state.ledger.stockRequests ?? [],
+                                    request: async (materialId, from, quantity, note) => {
+                                      const { error } = await supabase!.rpc('request_stock', {
+                                        p_shop: shop!.id,
+                                        p_id: crypto.randomUUID(),
+                                        p_material: materialId,
+                                        p_from: from,
+                                        p_quantity: quantity,
+                                        p_note: note,
+                                      });
+                                      if (error) throw Error(error.message);
+                                      setMessage('Request sent. It shows under Stock requests after the next sync.');
+                                      syncNow();
+                                    },
+                                    answer: async (id, send, quantity, reply) => {
+                                      const { error } = await supabase!.rpc('answer_stock_request', {
+                                        p_shop: shop!.id,
+                                        p_id: id,
+                                        p_send: send,
+                                        p_quantity: quantity,
+                                        p_reply: reply,
+                                      });
+                                      if (error) throw Error(error.message);
+                                      setMessage(send ? 'Stock sent.' : 'Request declined.');
+                                      syncNow();
+                                    },
+                                    cancel: async (id) => {
+                                      const { error } = await supabase!.rpc('cancel_stock_request', {
+                                        p_shop: shop!.id,
+                                        p_id: id,
+                                      });
+                                      if (error) throw Error(error.message);
+                                      setMessage('Request withdrawn.');
+                                      syncNow();
+                                    },
                                     transfer: async (materialId, from, to, quantity, reason) => {
                                       const { error } = await supabase!.rpc('transfer_stock', {
                                         p_shop: shop!.id,
