@@ -6,6 +6,7 @@ import { groupJobsByCheckout } from './job-batches.mjs';
 import { materialPending } from './material-choice.mjs';
 import { jobWorkflow } from './business-options.mjs';
 import ResponsiveTable from './ResponsiveTable';
+import { useShowMore } from './ShowMore';
 import { SortHeader, useTableSort } from './TableSort';
 import JobActions, { type ProgressMode } from './JobActions';
 import { currency } from './receipts.mjs';
@@ -68,6 +69,12 @@ export default function JobTable({
     if (!selecting) setSelectedIds([]);
   }, [selecting]);
   const selected = jobs.filter((job) => selectedIds.includes(job.id));
+  const customersById = new Map(ledger.customers.map((c) => [c.id, c]));
+  // Long lists draw the first rows; Show more draws the rest (selection still covers what is shown).
+  const groups = grouped && onBulkAction ? groupJobsByCheckout(jobs) : [];
+  const pagedJobs = useShowMore(jobs);
+  const pagedGroups = useShowMore(groups);
+  const shownJobs = grouped && onBulkAction ? pagedGroups.shown.flatMap((g: { jobs: Job[] }) => g.jobs) : pagedJobs.shown;
   const toggle = (items: Job[], checked: boolean) =>
     setSelectedIds((ids) =>
       checked
@@ -157,7 +164,7 @@ export default function JobTable({
         <tbody>
           {rows.map((job) => {
             const jobStatuses = jobWorkflow(job);
-            const customer = ledger.customers.find((c) => c.id === job.customerId),
+            const customer = customersById.get(job.customerId),
               balance = jobBalanceFast(ledger, job),
               stage = job.productionStatus ?? 'Added',
               lastPaid = lastPaymentFast(ledger, job);
@@ -275,9 +282,9 @@ export default function JobTable({
             <input
               type="checkbox"
               aria-label={w('Select all visible jobs')}
-              disabled={busy || !jobs.length}
-              checked={jobs.length > 0 && selected.length === jobs.length}
-              onChange={(event) => toggle(jobs, event.target.checked)}
+              disabled={busy || !shownJobs.length}
+              checked={shownJobs.length > 0 && shownJobs.every((job) => selectedIds.includes(job.id))}
+              onChange={(event) => toggle(shownJobs, event.target.checked)}
             />{' '}
             Select all shown
           </label>
@@ -294,14 +301,14 @@ export default function JobTable({
       )}
       {grouped && onBulkAction ? (
         <div className="checkout-groups">
-          {groupJobsByCheckout(jobs).map((group) => {
+          {pagedGroups.shown.map((group) => {
             const items: Job[] = group.jobs;
             const total = items.reduce((sum, job) => sum + job.amount, 0);
             const paid = items.reduce((sum, job) => sum + jobBalanceFast(ledger, job).paid, 0);
             const fullCount = group.checkoutId
               ? ledger.jobs.filter((job) => job.checkoutId === group.checkoutId).length
               : 1;
-            const customer = ledger.customers.find((value) => value.id === items[0].customerId);
+            const customer = customersById.get(items[0].customerId);
             return (
               <section className="checkout-group" key={group.key}>
                 <div className="checkout-group-header">
@@ -342,12 +349,16 @@ export default function JobTable({
               </section>
             );
           })}
+          {pagedGroups.more}
           <p className="muted">
             Actions apply to the items shown. Change the filters to include hidden items.
           </p>
         </div>
       ) : (
-        renderTable(jobs)
+        <>
+          {renderTable(pagedJobs.shown)}
+          {pagedJobs.more}
+        </>
       )}
     </>
   );
