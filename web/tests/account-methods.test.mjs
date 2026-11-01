@@ -28,4 +28,5 @@ test('account routing rejects wrong account, type and disabled methods', () => {
   assert.throws(() => resolveAccountPayment(ledger, 'Bank', 'POS', 'a'));
   assert.throws(() => resolveAccountPayment(ledger, 'Bank', 'Transfer', 'b'));
   a.paymentMethods[0].enabled = false;
-  assert.throws(() => resolveAccountPayment(l
+  assert.throws(() => resolveAccountPayment(ledger, 'Bank', 'Transfer', 'a'));
+});
