@@ -1,9 +1,9 @@
+import { customerBalanceFast, jobBalanceFast } from './balances.mjs';
 import { allBranchesLedger } from './branches.mjs';
 import { paymentName } from './business-options.mjs';
 import Modal from './Modal';
 import ResponsiveTable from './ResponsiveTable';
 import { SortHeader, useTableSort } from './TableSort';
-import { customerBalance, jobBalance } from './domain.mjs';
 import { walletBalance } from './checkout.mjs';
 import { currency } from './receipts.mjs';
 import type { Customer, Ledger, Job, Payment } from './types';
@@ -28,8 +28,8 @@ export default function CustomerAccount({
     {
       description: (j) => j.description,
       amount: (j) => j.amount,
-      paid: (j) => jobBalance(ledger, j).paid,
-      outstanding: (j) => jobBalance(ledger, j).outstanding,
+      paid: (j) => jobBalanceFast(ledger, j).paid,
+      outstanding: (j) => jobBalanceFast(ledger, j).outstanding,
       date: (j) => Date.parse(j.createdAt),
       id: (j) => j.id,
     },
@@ -48,7 +48,7 @@ export default function CustomerAccount({
   return (
     <Modal title={`Account: ${customer.name}`} wide onClose={onClose}>
       <p>
-        Phone: {customer.phone} · Outstanding: {currency(customerBalance(ledger, customer.id))} · Wallet:{' '}
+        Phone: {customer.phone} · Outstanding: {currency(customerBalanceFast(ledger, customer.id))} · Wallet:{' '}
         {currency(walletBalance(ledger, customer.id))}
       </p>
       {branches && branches.length > 1 && (
@@ -73,7 +73,7 @@ export default function CustomerAccount({
                       <td className="numeric">
                         {own.jobs.filter((j) => j.customerId === customer.id).length}
                       </td>
-                      <td className="numeric">{currency(customerBalance(own, customer.id))}</td>
+                      <td className="numeric">{currency(customerBalanceFast(own, customer.id))}</td>
                       <td className="numeric">{currency(walletBalance(own, customer.id))}</td>
                     </tr>
                   );
@@ -112,8 +112,8 @@ export default function CustomerAccount({
                     <small>{j.id.slice(0, 8).toUpperCase()}</small>
                   </td>
                   <td>{currency(j.amount)}</td>
-                  <td>{currency(jobBalance(ledger, j).paid)}</td>
-                  <td>{currency(jobBalance(ledger, j).outstanding)}</td>
+                  <td>{currency(jobBalanceFast(ledger, j).paid)}</td>
+                  <td>{currency(jobBalanceFast(ledger, j).outstanding)}</td>
                 </tr>
               ))}
             </tbody>

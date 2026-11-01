@@ -1,3 +1,4 @@
+import { jobBalanceFast, lastPaymentFast } from './balances.mjs';
 import DeadlineProgress from './DeadlineProgress';
 import Icon from './Icon';
 import { useState, useEffect } from 'react';
@@ -7,9 +8,7 @@ import { jobWorkflow } from './business-options.mjs';
 import ResponsiveTable from './ResponsiveTable';
 import { SortHeader, useTableSort } from './TableSort';
 import JobActions, { type ProgressMode } from './JobActions';
-import { jobBalance } from './domain.mjs';
 import { currency } from './receipts.mjs';
-import { lastJobPayment } from './job-progress.mjs';
 import { deadlineState } from './job-deadlines.mjs';
 import type { Ledger, Job } from './types';
 import { useWords } from './Words';
@@ -158,9 +157,9 @@ export default function JobTable({
           {rows.map((job) => {
             const jobStatuses = jobWorkflow(job);
             const customer = ledger.customers.find((c) => c.id === job.customerId),
-              balance = jobBalance(ledger, job),
+              balance = jobBalanceFast(ledger, job),
               stage = job.productionStatus ?? 'Added',
-              lastPaid = lastJobPayment(ledger, job);
+              lastPaid = lastPaymentFast(ledger, job);
             return (
               <tr key={job.id}>
                 <td>
@@ -297,7 +296,7 @@ export default function JobTable({
           {groupJobsByCheckout(jobs).map((group) => {
             const items: Job[] = group.jobs;
             const total = items.reduce((sum, job) => sum + job.amount, 0);
-            const paid = items.reduce((sum, job) => sum + jobBalance(ledger, job).paid, 0);
+            const paid = items.reduce((sum, job) => sum + jobBalanceFast(ledger, job).paid, 0);
             const fullCount = group.checkoutId
               ? ledger.jobs.filter((job) => job.checkoutId === group.checkoutId).length
               : 1;

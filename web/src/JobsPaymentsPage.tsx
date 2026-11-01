@@ -1,3 +1,4 @@
+import { jobBalanceFast, lastPaymentFast } from './balances.mjs';
 import jobViewItems from './JobViewControls';
 import ToolbarActions from './ToolbarActions';
 import Icon from './Icon';
@@ -6,10 +7,8 @@ import ResponsiveTable from './ResponsiveTable';
 import { SortHeader, useTableSort } from './TableSort';
 import type { ProgressMode } from './JobActions';
 import { paymentName } from './business-options.mjs';
-import { jobBalance } from './domain.mjs';
-import { lastJobPayment } from './job-progress.mjs';
 import { currency, dateLabel, shortId } from './app/shared';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useDateFilter } from './PeriodFilter';
 import { inPeriod } from './dashboard.mjs';
 import type { CheckoutRecord, Job, Ledger, Payment } from './types';
@@ -57,8 +56,9 @@ export default function JobsPaymentsPage({
   const { w } = useWords();
   const [grouped, setGrouped] = useState(false);
   const [selecting, setSelecting] = useState(false);
-  const customerName = (id: string) =>
-    ledger.customers.find((customer) => customer.id === id)?.name ?? 'Unknown customer';
+  // Looked up once per list of customers, not once per job.
+  const customersById = useMemo(() => new Map(ledger.customers.map((c) => [c.id, c])), [ledger.customers]);
+  const customerName = (id: string) => customersById.get(id)?.name ?? 'Unknown customer';
   const search = query.toLowerCase();
   const dates = useDateFilter(page === 'Jobs' ? 'jobs' : 'payments');
   const period = dates.period;
@@ -69,7 +69,7 @@ export default function JobsPaymentsPage({
     ledger.jobs.filter(
       (job) =>
         inPeriod(job.createdAt, period) &&
-        `${job.createdByLabel ?? ''} ${job.modifiedByLabel ?? ''} ${job.description} ${job.service} ${customerName(job.customerId)} ${ledger.customers.find((c) => c.id === job.customerId)?.phone ?? ''} ${job.productionStatus ?? 'Added'} ${job.id}`
+        `${job.createdByLabel ?? ''} ${job.modifiedByLabel ?? ''} ${job.description} ${job.service} ${customerName(job.customerId)} ${customersById.get(job.customerId)?.phone ?? ''} ${job.productionStatus ?? 'Added'} ${job.id}`
           .toLowerCase()
           .includes(search),
     ),
@@ -80,10 +80,10 @@ export default function JobsPaymentsPage({
       id: (job) => job.id,
       customer: (job) => customerName(job.customerId),
       amount: (job) => job.amount,
-      paid: (job) => jobBalance(ledger, job).paid,
-      outstanding: (job) => jobBalance(ledger, job).outstanding,
+      paid: (job) => jobBalanceFast(ledger, job).paid,
+      outstanding: (job) => jobBalanceFast(ledger, job).outstanding,
       status: (job) => job.productionStatus ?? 'Added',
-      lastPayment: (job) => Date.parse(lastJobPayment(ledger, job) ?? '') || 0,
+      lastPayment: (job) => Date.parse(lastPaymentFast(ledger, job) ?? '') || 0,
       source: (job) => job.source ?? '',
       dueAt: (job) => Date.parse(job.dueAt ?? '') || Number.MAX_SAFE_INTEGER,
       createdBy: (job) => job.createdByLabel ?? '',
@@ -112,7 +112,7 @@ export default function JobsPaymentsPage({
     },
   );
   // Totals describe the list as filtered (period and search).
-  const balances = matchingJobs.map((job) => jobBalance(ledger, job));
+  const balances = matchingJobs.map((job) => jobBalanceFast(ledger, job));
   const total = matchingJobs.reduce((sum, job) => sum + job.amount, 0);
   const paid = balances.reduce((sum, balance) => sum + balance.paid, 0);
   const outstanding = balances.reduce((sum, balance) => sum + balance.outstanding, 0);

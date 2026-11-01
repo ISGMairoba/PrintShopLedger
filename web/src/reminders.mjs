@@ -1,6 +1,6 @@
+import { jobBalanceFast } from './balances.mjs';
 // Payment reminders: who owes money, how long it has been owed, and when they were last reminded.
 // A reminder is a record only; it never changes balances.
-import { jobBalance } from './domain.mjs';
 import { normalizeLedger } from './materials.mjs';
 import { currency } from './receipts.mjs';
 
@@ -18,7 +18,7 @@ export function owingCustomers(ledger, now = new Date().toISOString()) {
   const rows = new Map();
   for (const job of ledger.jobs) {
     if (job.productionStatus === 'Cancelled') continue;
-    const owed = jobBalance(ledger, job).outstanding;
+    const owed = jobBalanceFast(ledger, job).outstanding;
     if (owed <= 0) continue;
     const day = lagosDay(job.createdAt);
     const row = rows.get(job.customerId) ?? { customerId: job.customerId, owed: 0, jobs: 0, oldest: day };
