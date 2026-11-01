@@ -1,10 +1,20 @@
 import { stockLevel } from './material-display.mjs';
 // All amounts remain integer kobo. Dates use the business day in Lagos.
+// Formatting a date is slow when a formatter is made each time: one formatter, and the days of
+// times already seen are remembered (lists ask for the same times over and over).
+const lagosDay = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Lagos' });
+const dayOf = new Map();
 export function businessDay(value) {
   if (typeof value !== 'string' || !value) return '';
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString('en-CA', { timeZone: 'Africa/Lagos' });
+  let day = dayOf.get(value);
+  if (day === undefined) {
+    const date = new Date(value);
+    day = Number.isNaN(date.getTime()) ? '' : lagosDay.format(date);
+    if (dayOf.size > 50000) dayOf.clear();
+    dayOf.set(value, day);
+  }
+  return day;
 }
 export function shiftDay(day, offset) {
   const date = new Date(day + 'T12:00:00Z');

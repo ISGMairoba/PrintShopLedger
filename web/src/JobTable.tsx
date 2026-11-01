@@ -12,19 +12,20 @@ import { currency } from './receipts.mjs';
 import { deadlineState } from './job-deadlines.mjs';
 import type { Ledger, Job } from './types';
 import { useWords } from './Words';
-const date = (value: string) =>
-  new Date(value).toLocaleDateString('en-NG', {
-    timeZone: 'Africa/Lagos',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-const time = (value: string) =>
-  new Date(value).toLocaleTimeString('en-NG', {
-    timeZone: 'Africa/Lagos',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+// One formatter each (made once, not per row).
+const dateFormat = new Intl.DateTimeFormat('en-NG', {
+  timeZone: 'Africa/Lagos',
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+});
+const timeFormat = new Intl.DateTimeFormat('en-NG', {
+  timeZone: 'Africa/Lagos',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+const date = (value: string) => dateFormat.format(new Date(value));
+const time = (value: string) => timeFormat.format(new Date(value));
 export default function JobTable({
   ledger,
   jobs,

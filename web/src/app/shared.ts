@@ -34,16 +34,17 @@ export type Page =
   | 'Pricing Templates'
   | 'Edit Products'
   | 'Conflict Inbox';
-export const currency = (amount: number) =>
-  new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount / 100);
+// Formatters are made once: making one for every amount or date shown is slow on long lists.
+const naira = new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' });
+export const currency = (amount: number) => naira.format(amount / 100);
 export const shortId = (id: string) => id.slice(0, 8).toUpperCase();
-export const dateLabel = (value: string) =>
-  new Date(value).toLocaleDateString('en-NG', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'Africa/Lagos',
-  });
+const shortDate = new Intl.DateTimeFormat('en-NG', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  timeZone: 'Africa/Lagos',
+});
+export const dateLabel = (value: string) => shortDate.format(new Date(value));
 export const errorMessage = (error: unknown) =>
   error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
     ? error.message
