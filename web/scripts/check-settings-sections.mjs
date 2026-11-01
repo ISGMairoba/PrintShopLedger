@@ -43,11 +43,18 @@ try {
     await section('Jobs & payments');
     assert.equal(await page.getByLabel('Words for', { exact: true }).isVisible(), false);
     await section('Words');
-    await page.getByRole('group',{name:'Words',exact:true}).getByRole('combobox').selectOption('retail');
+    await page
+      .getByRole('group', { name: 'Words', exact: true })
+      .getByRole('combobox')
+      .selectOption('retail');
     await page.getByRole('button', { name: 'Save words', exact: true }).click();
     await page.getByText('Words saved.', { exact: true }).waitFor();
     await section('Default time frames');
-    await page.getByRole('group',{name:'Default time frames',exact:true}).getByRole('combobox').first().selectOption('today');
+    await page
+      .getByRole('group', { name: 'Default time frames', exact: true })
+      .getByRole('combobox')
+      .first()
+      .selectOption('today');
     await page.getByRole('button', { name: 'Save default time frames', exact: true }).click();
     await page.getByText('Default time frames saved.', { exact: true }).waitFor();
     const b = await page.evaluate(
