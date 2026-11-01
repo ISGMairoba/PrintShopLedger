@@ -57,6 +57,8 @@ export const settingsTabs = [
   'Payment methods',
   'Dropdowns & workflow',
   'Jobs & payments',
+  'Default time frames',
+  'Words',
   'Pricing templates',
   'Corrections',
   'Security',
@@ -79,7 +81,9 @@ export const settingsTabKeys = {
   Receipts: ['receipt', 'receiptPage', 'documents'],
   'Payment methods': ['options'],
   'Dropdowns & workflow': ['options'],
-  'Jobs & payments': ['jobs', 'terms', 'discounts', 'periods'],
+  'Jobs & payments': ['jobs', 'discounts'],
+  'Default time frames': ['periods'],
+  Words: ['terms'],
   'Pricing templates': ['pricing'],
   Corrections: ['corrections'],
   Security: ['security'],
@@ -208,16 +212,17 @@ export function canAccessPage(page, access, configured) {
   return (configured?.[String(access)] ?? defaultPageAccess()[String(access)]).includes(page) ?? false;
 }
 
-export const SETTINGS_TABS_VERSION = 1;
+export const SETTINGS_TABS_VERSION = 2;
 export function upgradeSettingsTabs(input, version = 0) {
   if (version >= SETTINGS_TABS_VERSION || !input) return input;
   const next = structuredClone(input);
-  for (const rank of ['2', '3'])
-    if (
-      Array.isArray(next[rank]) &&
-      next[rank].includes('Dropdowns & workflow') &&
-      !next[rank].includes('Payment methods')
-    )
-      next[rank].push('Payment methods');
+  for (const rank of ['2', '3']) {
+    const tabs = next[rank];
+    if (!Array.isArray(tabs)) continue;
+    if (version < 1 && tabs.includes('Dropdowns & workflow') && !tabs.includes('Payment methods'))
+      tabs.push('Payment methods');
+    if (version < 2 && tabs.includes('Jobs & payments'))
+      for (const tab of ['Default time frames', 'Words']) if (!tabs.includes(tab)) tabs.push(tab);
+  }
   return next;
 }

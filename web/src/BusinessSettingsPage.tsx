@@ -909,7 +909,9 @@ export default function BusinessSettingsPage({
                   out by then, it waits in the conflict inbox until the stock is updated.
                 </p>
                 {sectionSave('Job and payment settings', ['jobs'])}
-                <h3>Words</h3>
+              </fieldset>
+              <fieldset hidden={tab !== 'Words'} disabled={busy || !ready}>
+                <legend>Words</legend>
                 <p>
                   What the app calls jobs, services and materials, and the fixed job stages. A shop that sells
                   goods can say orders and products. Only the screens, receipts and reports change; your
@@ -979,7 +981,9 @@ export default function BusinessSettingsPage({
                   )}
                 </p>
                 {sectionSave('Words', ['terms'])}
-                <h3>Discounts</h3>
+              </fieldset>
+              <fieldset hidden={tab !== 'Jobs & payments'} disabled={busy || !ready}>
+                <legend>Discounts</legend>
                 <p>
                   {w(
                     'The most each rank may take off a job, as a percentage of its price. Flat naira discounts and discounts on a whole order need Admin or higher. Developers have no limit. Use 0% to stop a rank giving discounts.',
@@ -1011,7 +1015,9 @@ export default function BusinessSettingsPage({
                   ))}
                 </div>
                 {sectionSave('Discount limits', ['discounts'])}
-                <h3>Default time frame</h3>
+              </fieldset>
+              <fieldset hidden={tab !== 'Default time frames'} disabled={busy || !ready}>
+                <legend>Default time frames</legend>
                 <p>
                   The period each page opens with. Staff can still choose another period while working; it
                   returns to this default next time.
