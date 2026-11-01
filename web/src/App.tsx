@@ -1,4 +1,4 @@
-import {accountPaymentOptions} from './account-methods.mjs';
+import { accountPaymentOptions } from './account-methods.mjs';
 import {
   allBranchesLedger,
   allowedBranches,
@@ -1237,7 +1237,12 @@ export default function App() {
     );
 
   return (
-    <BusinessOptionsContext.Provider value={{...branding.settings.options,paymentMethods:accountPaymentOptions(ledger,branding.settings.options.paymentMethods,demo)}}>
+    <BusinessOptionsContext.Provider
+      value={{
+        ...branding.settings.options,
+        paymentMethods: accountPaymentOptions(ledger, branding.settings.options.paymentMethods, demo),
+      }}
+    >
       <TermsProvider value={branding.settings.terms}>
         <TemplateAuditContext.Provider
           value={demo || canSeeTemplateCosts(branding.settings.pricing, shop?.accessLevel ?? 0)}
