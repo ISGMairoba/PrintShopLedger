@@ -29,6 +29,16 @@ type Props = {
   businessName?: string;
   canRecordPurchase?: boolean;
   onSaveExpense?: (event: ExpenseEvent) => Promise<void>;
+  /** With branches or stores: stock per location and transfers between them. */
+  locations?: {
+    /** The location this device works in. */
+    here: string;
+    list: { id: string; name: string; kind?: string }[];
+    /** The owner's view: every location's quantity. */
+    stock?: { materialId: string; location: string; available: number }[];
+    /** Send stock from one location to another. */
+    transfer: (materialId: string, from: string, to: string, quantity: number, reason: string) => Promise<void>;
+  };
 };
 const timestamp = (value: string) => new Date(value).toLocaleString();
 export default function MaterialsPage({
@@ -44,7 +54,14 @@ export default function MaterialsPage({
   businessName = '',
   canRecordPurchase = false,
   onSaveExpense,
+  locations,
 }: Props) {
+  const [moving, setMoving] = useState<Material | null>(null);
+  const [moveFrom, setMoveFrom] = useState('');
+  const [moveTo, setMoveTo] = useState('');
+  const [moveQty, setMoveQty] = useState('');
+  const [moveReason, setMoveReason] = useState('');
+  const locationName = (id: string) => locations?.list.find((l) => l.id === id)?.name ?? 'Main branch';
   const formId = useId();
   const [reorder, setReorder] = useState(false);
   const toReorder = reorderList({ materials, materialHistory: history } as never).length;
@@ -245,6 +262,19 @@ export default function MaterialsPage({
                         <small>
                           Minimum: {material.minimumStock ?? 0} {material.measurementUnit}
                         </small>
+                        {locations?.stock && (
+                          <small>
+                            {locations.list
+                              .map(
+                                (l) =>
+                                  `${l.name} ${(
+                                    locations.stock!.find((s) => s.materialId === material.id && s.location === l.id)
+                                      ?.available ?? 0
+                                  ).toLocaleString(undefined, { maximumFractionDigits: 3 })}`,
+                              )
+                              .join(' · ')}
+                          </small>
+                        )}
                         {stockLevel(material) && (
                           <small
                             className={
@@ -315,6 +345,22 @@ export default function MaterialsPage({
                               >
                                 <Icon name="quantity" /> Set quantity
                               </button>
+                              {locations && locations.list.length > 1 && (
+                                <button
+                                  className="text-button"
+                                  disabled={busy}
+                                  onClick={() => {
+                                    setMoving(material);
+                                    setMoveFrom(locations.here);
+                                    setMoveTo(locations.list.find((l) => l.id !== locations.here)?.id ?? '');
+                                    setMoveQty('');
+                                    setMoveReason('');
+                                    setError('');
+                                  }}
+                                >
+                                  <Icon name="share" /> Transfer
+                                </button>
+                              )}
                             </>
                           )}
                           <button
@@ -465,6 +511,93 @@ export default function MaterialsPage({
               <Icon name="close" /> Cancel
             </button>
           </div>
+        </Modal>
+      )}
+      {moving && locations && (
+        <Modal title={`Transfer ${moving.name}`} busy={busy} onClose={() => setMoving(null)}>
+          {error && (
+            <p role="alert" className="notice">
+              {error}
+            </p>
+          )}
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const qty = Number(moveQty);
+              if (!(qty > 0)) {
+                setError('Enter a quantity greater than zero.');
+                return;
+              }
+              try {
+                await locations.transfer(moving.id, moveFrom, moveTo, qty, moveReason.trim());
+                setMoving(null);
+              } catch (cause) {
+                setError(cause instanceof Error ? cause.message : String(cause));
+              }
+            }}
+          >
+            <fieldset disabled={busy}>
+              <label>
+                From
+                <select
+                  aria-label="From"
+                  value={moveFrom}
+                  disabled={!locations.stock}
+                  onChange={(e) => setMoveFrom(e.target.value)}
+                >
+                  {locations.list.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
+                    </option>
+                  ))}
+                </select>
+                {!locations.stock && <small>Stock is sent from the location this device works in.</small>}
+              </label>
+              <label>
+                To
+                <select aria-label="To" value={moveTo} onChange={(e) => setMoveTo(e.target.value)}>
+                  {locations.list
+                    .filter((l) => l.id !== moveFrom)
+                    .map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name}
+                        {l.kind === 'store' ? ' (store)' : ''}
+                      </option>
+                    ))}
+                </select>
+              </label>
+              <label>
+                Quantity ({moving.measurementUnit})
+                <input
+                  aria-label="Quantity to transfer"
+                  inputMode="decimal"
+                  required
+                  value={moveQty}
+                  onChange={(e) => setMoveQty(e.target.value)}
+                />
+                {moveFrom === locations.here && !locations.stock && (
+                  <small>
+                    {moving.available.toLocaleString(undefined, { maximumFractionDigits: 3 })} {moving.measurementUnit}{' '}
+                    here now
+                  </small>
+                )}
+              </label>
+              <label>
+                Note
+                <input maxLength={500} value={moveReason} onChange={(e) => setMoveReason(e.target.value)} />
+              </label>
+              <p className="muted">
+                Moves the stock now: {locationName(moveFrom)} goes down and {locationName(moveTo)} goes up. Both are
+                recorded in Stock History.
+              </p>
+              <div className="material-actions">
+                <button type="button" className="secondary" onClick={() => setMoving(null)}>
+                  Cancel
+                </button>
+                <button type="submit">Transfer</button>
+              </div>
+            </fieldset>
+          </form>
         </Modal>
       )}
       {editor && (

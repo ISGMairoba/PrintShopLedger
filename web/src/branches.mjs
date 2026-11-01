@@ -1,7 +1,7 @@
 // Branches of one business (see the project plan plans/branches.md). The business keeps one set of
 // records; every record made at a branch is tagged with it on the server. A business without
 // branches has one implicit "Main branch" (id 'main'), so nothing changes until a second is added.
-/** @typedef {{ id: string, name: string, address: string, phone: string, archived: boolean }} Branch */
+/** @typedef {{ id: string, name: string, address: string, phone: string, archived: boolean, kind?: 'branch' | 'store' }} Branch */
 export const MAIN = 'main';
 const ID = /^(main|b-[a-z0-9]{6,20})$/;
 
@@ -26,7 +26,10 @@ export function validateBranches(input) {
     names.add(name.toLowerCase());
     const archived = !!b.archived;
     if (archived && id === MAIN) throw Error('The main branch cannot be archived.');
+    const kind = b.kind === 'store' ? 'store' : 'branch';
+    if (kind === 'store' && id === MAIN) throw Error('The main branch cannot be a store.');
     return {
+      ...(kind === 'store' ? { kind } : {}),
       id,
       name,
       address: String(b.address ?? '')
@@ -134,6 +137,7 @@ export const BRANCH_KEYS = [
   'quotations',
   'reminders',
   'materialWaste',
+  'materialHistory',
 ];
 /**
  * The records of one branch: everything shared (customers, services, stock…) and only that

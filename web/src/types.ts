@@ -570,6 +570,8 @@ export type ReminderEvent = {
   };
 };
 export interface Ledger {
+  /** The owner's view with branches: every location's stock quantity. */
+  locationStock?: { id: string; materialId: string; location: string; available: number }[];
   payees?: Payee[];
   moneyAccounts?: MoneyAccount[];
   accountEntries?: Record<string, any>[];

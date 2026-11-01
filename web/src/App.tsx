@@ -352,6 +352,8 @@ export default function App() {
     () => branchesOf(branding.settings).filter((b) => !b.archived),
     [branding.settings],
   );
+  // Stores keep stock only, so the sales comparisons leave them out.
+  const salesBranches = useMemo(() => openBranches.filter((b) => b.kind !== 'store'), [openBranches]);
   const masterLedger = useMemo(() => {
     if (!ownerView) return ledger;
     const base = { ...state.ledger, pricing: branding.settings.pricing };
@@ -360,31 +362,31 @@ export default function App() {
   const masterBranches = useMemo(
     () =>
       ownerView && masterBranch === 'all'
-        ? openBranches.map((b) => ({
+        ? salesBranches.map((b) => ({
             id: b.id,
             name: b.name,
             ledger: branchLedger({ ...state.ledger, pricing: branding.settings.pricing }, b.id),
           }))
         : undefined,
-    [ownerView, masterBranch, openBranches, state.ledger, branding.settings.pricing],
+    [ownerView, masterBranch, salesBranches, state.ledger, branding.settings.pricing],
   );
   const ownerBranches = useMemo(
     () =>
       ownerView
-        ? openBranches.map((b) => ({
+        ? salesBranches.map((b) => ({
             id: b.id,
             name: b.name,
             ledger: branchLedger({ ...state.ledger, pricing: branding.settings.pricing }, b.id),
           }))
         : undefined,
-    [ownerView, openBranches, state.ledger, branding.settings.pricing],
+    [ownerView, salesBranches, state.ledger, branding.settings.pricing],
   );
   const branchControl = ownerView ? (
     <label className="branch-view">
       Branch
       <select aria-label="Show branch" value={masterBranch} onChange={(e) => setMasterBranch(e.target.value)}>
         <option value="all">All branches</option>
-        {openBranches.map((b) => (
+        {salesBranches.map((b) => (
           <option key={b.id} value={b.id}>
             {b.name}
           </option>
@@ -2141,6 +2143,28 @@ export default function App() {
                             businessName={businessName}
                             canRecordPurchase={demo || allowed('Expenses')}
                             onSaveExpense={saveCatalogue}
+                            locations={
+                              !demo && multiBranch && activeBranch
+                                ? {
+                                    here: activeBranch.id,
+                                    list: openBranches,
+                                    stock: ownerView ? state.ledger.locationStock : undefined,
+                                    transfer: async (materialId, from, to, quantity, reason) => {
+                                      const { error } = await supabase!.rpc('transfer_stock', {
+                                        p_shop: shop!.id,
+                                        p_material: materialId,
+                                        p_from: from,
+                                        p_to: to,
+                                        p_quantity: quantity,
+                                        p_reason: reason,
+                                      });
+                                      if (error) throw Error(error.message);
+                                      setMessage('Stock transferred. Quantities update with the next sync.');
+                                      syncNow();
+                                    },
+                                  }
+                                : undefined
+                            }
                           />
                         </>
                       ) : page === 'Services' ? (
