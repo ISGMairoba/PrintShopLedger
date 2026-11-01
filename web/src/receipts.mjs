@@ -5,8 +5,8 @@ import { escapeHtml } from './print-settings.mjs';
 import { receiptBusiness, validLogo, poweredByLine } from './business-branding.mjs';
 import { renameTerms } from './terms.mjs';
 import { packSummary } from './pack-prices.mjs';
-export const currency = (n) =>
-  new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(n / 100);
+const naira = new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' });
+export const currency = (n) => naira.format(n / 100);
 const validMoney = (n) => Number.isSafeInteger(n) && n >= 0;
 export function balancedReceiptJob(job) {
   return (

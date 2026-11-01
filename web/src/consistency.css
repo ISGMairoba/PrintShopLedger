@@ -1939,3 +1939,12 @@ label small > .field-error {
   font-weight: 400;
   opacity: 0.8;
 }
+
+/* Long lists: Show more under the first rows. */
+.show-more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0;
+}

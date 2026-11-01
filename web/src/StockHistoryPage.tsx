@@ -16,16 +16,26 @@ type Props = {
   ready: boolean;
   demo: boolean;
 };
-const quantity = (value: number | null | undefined) =>
-  value == null ? '-' : value.toLocaleString(undefined, { maximumFractionDigits: 3 });
-const dateKey = (value: string) =>
-  new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Africa/Lagos',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date(value));
-const dateLabel = (value: string) => new Date(value).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' });
+// Formatters made once (not per row).
+const quantityFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 3 });
+const quantity = (value: number | null | undefined) => (value == null ? '-' : quantityFormat.format(value));
+const dayFormat = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Africa/Lagos',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+const dateKey = (value: string) => dayFormat.format(new Date(value));
+const dateTimeFormat = new Intl.DateTimeFormat('en-NG', {
+  timeZone: 'Africa/Lagos',
+  year: 'numeric',
+  month: 'numeric',
+  day: 'numeric',
+  hour: 'numeric',
+  minute: 'numeric',
+  second: 'numeric',
+});
+const dateLabel = (value: string) => dateTimeFormat.format(new Date(value));
 const fields: { key: keyof MaterialSnapshot; label: string }[] = [
   { key: 'name', label: 'Name' },
   { key: 'available', label: 'Available' },

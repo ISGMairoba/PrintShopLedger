@@ -50,6 +50,10 @@ export function jobBalance(ledger, job) {
       ),
     0,
   );
+  return balanceOf(job, paid);
+}
+/** A job's balance once its paid amount is known. */
+export function balanceOf(job, paid) {
   return {
     paid,
     outstanding: job.amount - paid,

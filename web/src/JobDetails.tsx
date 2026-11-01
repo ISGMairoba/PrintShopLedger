@@ -1,3 +1,4 @@
+import { jobBalanceFast } from './balances.mjs';
 import DeadlineProgress from './DeadlineProgress';
 import Icon from './Icon';
 import { TemplateSummary } from './TemplateFields';
@@ -6,7 +7,6 @@ import { deadlineState } from './job-deadlines.mjs';
 import JobActions, { type ProgressMode } from './JobActions';
 import { AdjustmentHistory } from './SaleAdjustmentsPage';
 import { paymentName } from './business-options.mjs';
-import { jobBalance } from './domain.mjs';
 import { currency, dateLabel, shortId } from './app/shared';
 import type { Job, Ledger } from './types';
 import { useWords } from './Words';
@@ -81,7 +81,7 @@ export default function JobDetails({
           )}
           <button
             type="button"
-            disabled={busy || legacyConflict || customerHeld || jobBalance(ledger, job).outstanding <= 0}
+            disabled={busy || legacyConflict || customerHeld || jobBalanceFast(ledger, job).outstanding <= 0}
             onClick={() => onPayment(job.customerId)}
           >
             <Icon name="payments" /> Receive customer payment
@@ -134,10 +134,10 @@ export default function JobDetails({
           {w('Job amount')} <strong>{currency(job.amount)}</strong>
         </span>
         <span>
-          Paid <strong>{currency(jobBalance(ledger, job).paid)}</strong>
+          Paid <strong>{currency(jobBalanceFast(ledger, job).paid)}</strong>
         </span>
         <span>
-          Outstanding <strong>{currency(jobBalance(ledger, job).outstanding)}</strong>
+          Outstanding <strong>{currency(jobBalanceFast(ledger, job).outstanding)}</strong>
         </span>
       </div>
       {job.productionStatus === 'Cancelled' && (
