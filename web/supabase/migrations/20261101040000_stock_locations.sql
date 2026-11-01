@@ -100,11 +100,9 @@ do $mig$
 declare
   src text; fn text; stmt text; n integer; v text;
   -- History for a location's change is recorded by the overlay above.
-  hist_a text := $x$begin
- select payload into v_event from public.ledger_events where shop_id=new.shop_id and id=new.last_event_id;$x$;
-  hist_b text := $x$begin
- if current_setting('psl.loc_hist', true) is not distinct from new.last_event_id::text then return new; end if;
- select payload into v_event from public.ledger_events where shop_id=new.shop_id and id=new.last_event_id;$x$;
+  -- (single-line match: the stored function may have Windows line endings)
+  hist_a text := $x$select payload into v_event from public.ledger_events where shop_id=new.shop_id and id=new.last_event_id;$x$;
+  hist_b text := $x$if current_setting('psl.loc_hist', true) is not distinct from new.last_event_id::text then return new; end if; select payload into v_event from public.ledger_events where shop_id=new.shop_id and id=new.last_event_id;$x$;
   -- Relative stock updates use the location's quantity of the row read.
   rel text[][] := array[
     array['public.apply_checkout_event(uuid,jsonb)', 'set available=available-case when counted', 'set available=mat.available-case when counted'],
