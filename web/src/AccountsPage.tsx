@@ -1,5 +1,5 @@
 import AccountMethodsEditor from './AccountMethodsEditor';
-import {accountMethodDetails,prepareAccountMethods,routingLabels,typeName} from './account-methods.mjs';
+import { accountMethodDetails, prepareAccountMethods, routingLabels, typeName } from './account-methods.mjs';
 import { useState } from 'react';
 import Modal from './Modal';
 import CurrencyInput from './CurrencyInput';
@@ -8,7 +8,7 @@ import { currency } from './receipts.mjs';
 import { businessDay } from './dashboard.mjs';
 import { accountBalance, accountBranch, moneyTransactions, operationEvent } from './operations.mjs';
 import { useBusinessOptions } from './BusinessOptionsContext';
-import type { Ledger, MoneyAccount, OperationsEvent,AccountPaymentMethod } from './types';
+import type { Ledger, MoneyAccount, OperationsEvent, AccountPaymentMethod } from './types';
 const today = () => businessDay(new Date().toISOString());
 export default function AccountsPage({
   ledger,
@@ -42,8 +42,25 @@ export default function AccountsPage({
     [selected, setSelected] = useState(''),
     [on, setOn] = useState(today()),
     [error, setError] = useState('');
-  const [methodDrafts,setMethodDrafts]=useState<AccountPaymentMethod[]>([]);
-  function editAccount(account:MoneyAccount|'new'){setError('');setMethodDrafts(account==='new'?[{id:crypto.randomUUID(),name:'Transfer',label:'',kind:'Transfer',enabled:true,aliases:[]}]:accountMethodDetails(account,methods));setEditor(account);}
+  const [methodDrafts, setMethodDrafts] = useState<AccountPaymentMethod[]>([]);
+  function editAccount(account: MoneyAccount | 'new') {
+    setError('');
+    setMethodDrafts(
+      account === 'new'
+        ? [
+            {
+              id: crypto.randomUUID(),
+              name: 'Transfer',
+              label: '',
+              kind: 'Transfer',
+              enabled: true,
+              aliases: [],
+            },
+          ]
+        : accountMethodDetails(account, methods),
+    );
+    setEditor(account);
+  }
   const configure = configurationOnly && canConfigure;
   const accounts = ledger.moneyAccounts ?? [],
     active = accounts.filter((a) => !a.archived),
@@ -170,7 +187,16 @@ export default function AccountsPage({
                         {a.accountType}
                         {a.archived ? ' · Archived' : ''}
                       </small>
-                      <small>Payment methods: {a.paymentMethods?.map(m=>m.name+' ('+typeName(m.kind)+')'+(m.enabled?'':' · disabled')).join(', ')||a.methods?.join(', ')||'None'}</small>
+                      <small>
+                        Payment methods:{' '}
+                        {a.paymentMethods
+                          ?.map(
+                            (m) => m.name + ' (' + typeName(m.kind) + ')' + (m.enabled ? '' : ' · disabled'),
+                          )
+                          .join(', ') ||
+                          a.methods?.join(', ') ||
+                          'None'}
+                      </small>
                       {branches && (
                         <small>
                           {accountBranch(a) === '*'
@@ -264,25 +290,38 @@ export default function AccountsPage({
           <form
             onSubmit={async (e) => {
               e.preventDefault();
-              try{const f = new FormData(e.currentTarget);
-              const opening =
-                money(String(f.get('openingBalance') || '0')) *
-                (f.get('openingSign') === 'negative' ? -1 : 1);
-              if (
-                await save(editor === 'new' ? 'account.created' : 'account.updated', {
-                  id: editor === 'new' ? crypto.randomUUID() : editor.id,
-                  baseVersion: editor === 'new' ? undefined : editor.version,
-                  name: String(f.get('name')),
-                  accountType: String(f.get('type')),
-                  openingDate: String(f.get('openingDate')),
-                  openingBalance: opening,
-                  paymentMethods:prepareAccountMethods(String(f.get('name')).trim(),methodDrafts,editor==='new'?null:editor),
-                  methods:routingLabels(prepareAccountMethods(String(f.get('name')).trim(),methodDrafts,editor==='new'?null:editor)),
-                  ...(branches ? { branch: String(f.get('branch') || currentBranch) } : {}),
-                })
-              )
-                setEditor(null);
-              }catch(e){setError(e instanceof Error?e.message:String(e));}
+              try {
+                const f = new FormData(e.currentTarget);
+                const opening =
+                  money(String(f.get('openingBalance') || '0')) *
+                  (f.get('openingSign') === 'negative' ? -1 : 1);
+                if (
+                  await save(editor === 'new' ? 'account.created' : 'account.updated', {
+                    id: editor === 'new' ? crypto.randomUUID() : editor.id,
+                    baseVersion: editor === 'new' ? undefined : editor.version,
+                    name: String(f.get('name')),
+                    accountType: String(f.get('type')),
+                    openingDate: String(f.get('openingDate')),
+                    openingBalance: opening,
+                    paymentMethods: prepareAccountMethods(
+                      String(f.get('name')).trim(),
+                      methodDrafts,
+                      editor === 'new' ? null : editor,
+                    ),
+                    methods: routingLabels(
+                      prepareAccountMethods(
+                        String(f.get('name')).trim(),
+                        methodDrafts,
+                        editor === 'new' ? null : editor,
+                      ),
+                    ),
+                    ...(branches ? { branch: String(f.get('branch') || currentBranch) } : {}),
+                  })
+                )
+                  setEditor(null);
+              } catch (e) {
+                setError(e instanceof Error ? e.message : String(e));
+              }
             }}
           >
             <fieldset disabled={busy}>
@@ -372,7 +411,11 @@ export default function AccountsPage({
                   for a counted difference today.
                 </p>
               )}
-              <AccountMethodsEditor value={methodDrafts} onChange={setMethodDrafts} savedIds={editor==='new'?[]:(editor.paymentMethods??[]).map(m=>m.id)}/>
+              <AccountMethodsEditor
+                value={methodDrafts}
+                onChange={setMethodDrafts}
+                savedIds={editor === 'new' ? [] : (editor.paymentMethods ?? []).map((m) => m.id)}
+              />
               <button type="submit">Save account</button>
             </fieldset>
           </form>
