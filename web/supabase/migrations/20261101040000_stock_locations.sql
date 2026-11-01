@@ -22,6 +22,13 @@ create table if not exists public.location_stock (
 alter table public.location_stock enable row level security;
 revoke all on public.location_stock from public, anon, authenticated;
 
+-- Stock history records transfers between locations.
+alter table public.material_stock_changes drop constraint if exists material_stock_changes_action_check;
+alter table public.material_stock_changes add constraint material_stock_changes_action_check check (action = any (array[
+  'material.created', 'material.updated', 'material.stock_added', 'material.stock_set', 'material.archived', 'material.restored',
+  'material.job_used', 'material.expense_stock_changed', 'material.wasted', 'material.sale_returned', 'material.job_corrected',
+  'material.transferred']));
+
 -- The stock location of this request (null = the main branch, or stock handled directly).
 create or replace function private.stock_location(p_shop uuid) returns text
 language plpgsql security definer set search_path to '' as $f$

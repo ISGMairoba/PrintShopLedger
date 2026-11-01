@@ -21,6 +21,7 @@ export const materialActionLabels = {
   'material.stock_set': 'Quantity set',
   'material.archived': 'Material archived',
   'material.restored': 'Material restored',
+  'material.transferred': 'Stock transferred',
 };
 export const stockReasonDefaults = [
   'Restocking',

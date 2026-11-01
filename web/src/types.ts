@@ -300,7 +300,8 @@ export interface MaterialHistoryEntry {
     | 'material.expense_stock_changed'
     | 'material.wasted'
     | 'material.sale_returned'
-    | 'material.job_corrected';
+    | 'material.job_corrected'
+    | 'material.transferred';
   expenseId?: string;
   jobId?: string;
   checkoutId?: string;
