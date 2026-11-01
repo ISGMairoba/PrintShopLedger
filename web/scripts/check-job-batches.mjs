@@ -101,8 +101,8 @@ try {
     const selection = page.getByRole('region', { name: 'Selection actions' });
     assert.equal(
       await selection.locator('.app-icon').count(),
-      4,
-      'Bulk actions reuse the three action icons, plus Clear',
+      5,
+      'Bulk actions reuse the four action icons (including Change due date), plus Clear',
     );
     assert.equal(
       await selection.locator('.job-bulk-actions').evaluate((node) => getComputedStyle(node).flexDirection),

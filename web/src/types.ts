@@ -300,7 +300,8 @@ export interface MaterialHistoryEntry {
     | 'material.expense_stock_changed'
     | 'material.wasted'
     | 'material.sale_returned'
-    | 'material.job_corrected';
+    | 'material.job_corrected'
+    | 'material.transferred';
   expenseId?: string;
   jobId?: string;
   checkoutId?: string;
@@ -570,6 +571,10 @@ export type ReminderEvent = {
   };
 };
 export interface Ledger {
+  /** The owner's view with branches: every location's stock quantity. */
+  locationStock?: { id: string; materialId: string; location: string; available: number }[];
+  /** With branches: stock requests between locations this person works with. */
+  stockRequests?: StockRequest[];
   payees?: Payee[];
   moneyAccounts?: MoneyAccount[];
   accountEntries?: Record<string, any>[];
@@ -863,3 +868,21 @@ export type OperationsEvent = {
     | 'account.assigned';
   data: Record<string, any> & { id: string; modifiedBy: string; modifiedByLabel: string; modifiedAt: string };
 };
+
+/** One location asking another for stock (Materials page → Stock requests). */
+export interface StockRequest {
+  id: string;
+  materialId: string;
+  from: string;
+  to: string;
+  quantity: number;
+  note: string;
+  status: 'pending' | 'sent' | 'declined' | 'cancelled';
+  sentQuantity: number | null;
+  reply: string;
+  requestedBy: string | null;
+  requestedByLabel: string;
+  requestedAt: string;
+  handledByLabel: string | null;
+  handledAt: string | null;
+}

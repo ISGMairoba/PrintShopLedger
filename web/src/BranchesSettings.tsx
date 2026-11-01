@@ -1,7 +1,14 @@
 import Icon from './Icon';
 import { branchesOf, MAIN, newBranchId } from './branches.mjs';
 
-type Branch = { id: string; name: string; address: string; phone: string; archived: boolean };
+type Branch = {
+  id: string;
+  name: string;
+  address: string;
+  phone: string;
+  archived: boolean;
+  kind?: 'branch' | 'store';
+};
 export type BranchStaff = { userId: string; name: string; role: string; rank: number; archived?: boolean };
 
 /**
@@ -41,15 +48,17 @@ export default function BranchesSettings({
   return (
     <>
       <p>
-        Every branch shares your customers, services and settings. Sales, jobs, payments, expenses, the drawer
-        and what a customer owes belong to the branch where they happen. Each device works in one branch.
+        A store keeps stock that branches draw from; record what comes in there and transfer it to branches
+        from the Materials page. Every branch shares your customers, services and settings. Sales, jobs,
+        payments, expenses, the drawer and what a customer owes belong to the branch where they happen. Each
+        device works in one branch.
       </p>
       <div className="branch-list">
         {list.map((b, i) => (
           <div key={b.id} className={`branch-row${b.archived ? ' archived' : ''}`}>
             <div className="form-grid">
               <label>
-                {i === 0 ? 'Main branch name' : 'Branch name'}
+                {i === 0 ? 'Main branch name' : b.kind === 'store' ? 'Store name' : 'Branch name'}
                 <input
                   aria-label={`Branch ${i + 1} name`}
                   maxLength={80}
@@ -101,6 +110,18 @@ export default function BranchesSettings({
         }
       >
         <Icon name="add" /> Add branch
+      </button>{' '}
+      <button
+        type="button"
+        className="secondary"
+        onClick={() =>
+          onBranches([
+            ...list,
+            { id: newBranchId(), name: '', address: '', phone: '', archived: false, kind: 'store' },
+          ])
+        }
+      >
+        <Icon name="add" /> Add store
       </button>
       {active.length > 1 && (
         <>

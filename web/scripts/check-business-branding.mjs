@@ -110,10 +110,11 @@ try {
     await page.getByLabel('Logo for this document size', { exact: true }).selectOption('complete');
     await page.getByRole('button', { name: 'Full page (A4 / A5)', exact: true }).click();
     await page.getByLabel('Logo for this document size', { exact: true }).selectOption('horizontal');
-    await settingsSection(page, /Dropdowns & workflow/);
+    await settingsSection(page, /Payment methods/);
     await page.getByLabel('New payment method', { exact: true }).fill('Opay');
     await page.getByLabel('New payment accounting type', { exact: true }).selectOption('Transfer');
     await page.getByRole('button', { name: 'Add payment method', exact: true }).click();
+    await settingsSection(page, /Dropdowns & workflow/);
     await page.getByLabel('Expense categories', { exact: true }).fill('Materials\nFinishing supplies\nOther');
     await page.getByLabel('Job sources', { exact: true }).fill('Instagram DM\nWhatsApp');
     await page.getByLabel('Stock reasons', { exact: true }).fill('Weekly restock\nStock Count Correction');
@@ -272,6 +273,7 @@ try {
     await nav('Business Settings');
     await settingsSection(page, /Dropdowns & workflow/);
     await page.getByLabel('Job stages', { exact: true }).fill('Added\nPrinting\nCompleted\nCollected');
+    await settingsSection(page, /Payment methods/);
     await page.getByRole('button', { name: 'Remove payment method 4', exact: true }).click();
     await page.getByRole('button', { name: 'Save business settings', exact: true }).click();
     await page.getByText('Business settings saved.', { exact: true }).waitFor();
