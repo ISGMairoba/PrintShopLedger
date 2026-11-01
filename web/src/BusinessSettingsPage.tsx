@@ -50,7 +50,7 @@ export default function BusinessSettingsPage({
   online: boolean;
   demo: boolean;
   modifiedAt?: string;
-  /** The person's rank: Developer (4) sees every tab; others only the tabs given to their rank. */
+  /** The person's rank: Developer (5) sees every tab; others only the tabs given to their rank. */
   accessLevel: number;
   onSave: (settings: Branding, version: number) => Promise<unknown>;
   onReload: () => Promise<void>;
@@ -800,7 +800,8 @@ export default function BusinessSettingsPage({
                     );
                   })}
                   <small>
-                    Developers can always see them. Everyone else sees the client and staff views only.
+                    General Manager and Developer can always see them. Everyone else sees the client and staff
+                    views only.
                   </small>
                 </fieldset>
                 {sectionSave('Pricing templates', ['pricing'])}
@@ -1141,6 +1142,7 @@ export default function BusinessSettingsPage({
                   staff={branchStaff}
                   onBranches={(next) => field('branches', next)}
                   onAccess={(next) => field('branchAccess', next)}
+                  canSetAccess={accessLevel >= 4}
                   pricing={draft.branchPricing}
                   onPricing={(next) => field('branchPricing', next)}
                 />
@@ -1149,8 +1151,8 @@ export default function BusinessSettingsPage({
               <fieldset hidden={tab !== 'Page access'} disabled={busy || !ready}>
                 <legend>Page access by rank</legend>
                 <p>
-                  Developer can open every page. Choose the pages Cashier, Admin and Manager can open; My
-                  Account is always available. Seeing a page does not by itself allow approving corrections,
+                  Developer can open every page. Choose the pages Cashier, Admin, Manager and General Manager
+                  can open; My Account is always available. Seeing a page does not by itself allow approving corrections,
                   resolving conflicts or managing users. Only Developer can open this Page access tab.
                 </p>
                 <div className="table-wrap">
@@ -1158,7 +1160,7 @@ export default function BusinessSettingsPage({
                     <thead>
                       <tr>
                         <th>Page</th>
-                        {([1, 2, 3] as const).map((rank) => (
+                        {([1, 2, 3, 4] as const).map((rank) => (
                           <th key={rank}>{roleNames[rank]}</th>
                         ))}
                       </tr>
@@ -1171,7 +1173,7 @@ export default function BusinessSettingsPage({
                             {page === 'My Account' && <small>Always available</small>}
                             {minimumPageAccess(page) > 1 && <small>Admin and above</small>}
                           </td>
-                          {([1, 2, 3] as const).map((rank) => {
+                          {([1, 2, 3, 4] as const).map((rank) => {
                             const locked = page === 'My Account' || minimumPageAccess(page) > rank;
                             return (
                               <td key={rank}>
@@ -1206,7 +1208,8 @@ export default function BusinessSettingsPage({
                 </div>
                 <h3>Business Settings tabs</h3>
                 <p>
-                  When Admin or Manager can open Business Settings, choose which tabs they can see and change.
+                  When Admin, Manager or General Manager can open Business Settings, choose which tabs they can
+                  see and change.
                   They cannot change anything on tabs they do not have.
                 </p>
                 <div className="table-wrap">
@@ -1214,7 +1217,7 @@ export default function BusinessSettingsPage({
                     <thead>
                       <tr>
                         <th>Tab</th>
-                        {([2, 3] as const).map((rank) => (
+                        {([2, 3, 4] as const).map((rank) => (
                           <th key={rank}>
                             {roleNames[rank]}
                             {!draft.pageAccess[String(rank)].includes('Business Settings') && (
@@ -1228,14 +1231,14 @@ export default function BusinessSettingsPage({
                       {settingsTabs.map((name) => (
                         <tr key={name}>
                           <td>{w(name)}</td>
-                          {([2, 3] as const).map((rank) => (
+                          {([2, 3, 4] as const).map((rank) => (
                             <td key={rank}>
                               <input
                                 type="checkbox"
                                 aria-label={`${roleNames[rank]} access to the ${name} tab`}
-                                checked={draft.settingsTabs[String(rank) as '2' | '3'].includes(name)}
+                                checked={draft.settingsTabs[String(rank) as '2' | '3' | '4'].includes(name)}
                                 onChange={(event) => {
-                                  const current = draft.settingsTabs[String(rank) as '2' | '3'];
+                                  const current = draft.settingsTabs[String(rank) as '2' | '3' | '4'];
                                   field('settingsTabs', {
                                     ...draft.settingsTabs,
                                     [String(rank)]: event.target.checked

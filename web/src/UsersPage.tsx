@@ -7,7 +7,7 @@ import Modal from './Modal';
 import Icon from './Icon';
 import ToolbarActions, { MenuToggle } from './ToolbarActions';
 import { SortHeader, useTableSort } from './TableSort';
-import { accessLevels, rankValues, canManage, userCode, validateUser } from './users.mjs';
+import { accessLevels, GENERAL_MANAGER, rankValues, canManage, userCode, validateUser } from './users.mjs';
 import { useWords } from './Words';
 
 type Staff = {
@@ -16,7 +16,7 @@ type Staff = {
   name: string;
   username: string;
   rank: number;
-  role: 'admin' | 'manager' | 'cashier' | 'developer';
+  role: 'admin' | 'manager' | 'cashier' | 'general_manager' | 'developer';
   accessLevel: number;
   archived: boolean;
   version: number;
@@ -52,9 +52,11 @@ export default function UsersPage({ shopId, actorId, businessUserId, role, onlin
   const [error, setError, errorTone] = useFeedbackMessage('error');
   const [formError, setFormError] = useFeedbackMessage('error');
   const sorting = useTableSort<Staff>('name');
-  const allowed = !demo && ['admin', 'manager', 'developer'].includes(role);
+  const allowed = !demo && ['admin', 'manager', 'general_manager', 'developer'].includes(role);
   const actor = users.find((user) => user.userId === actorId);
   const editable = (user: Staff) => !!actor && canManage(actor, user);
+  // Only Developer can archive or revoke the General Manager.
+  const canTurnOff = (user: Staff) => editable(user) && (user.role !== GENERAL_MANAGER || actor?.rank === 5);
   async function load() {
     if (!supabase || !allowed || !online) return;
     const { data, error: failure } = await supabase.rpc('list_shop_users', { p_shop: shopId });
@@ -379,7 +381,7 @@ export default function UsersPage({ shopId, actorId, businessUserId, role, onlin
                           )}
                           <button
                             className={`text-button ${user.archived ? '' : 'danger-text'}`}
-                            disabled={busy || !online || !editable(user)}
+                            disabled={busy || !online || !canTurnOff(user)}
                             onClick={() => {
                               setConfirmation(user);
                               setFormError('');
@@ -392,7 +394,7 @@ export default function UsersPage({ shopId, actorId, businessUserId, role, onlin
                             <>
                               <button
                                 className="text-button"
-                                disabled={busy || !online || !editable(user)}
+                                disabled={busy || !online || !canTurnOff(user)}
                                 onClick={() => {
                                   setAccessChange(user);
                                   setFormError('');
@@ -423,8 +425,10 @@ export default function UsersPage({ shopId, actorId, businessUserId, role, onlin
           </div>
         )}
         <p className="muted">
-          Rank: Cashier 1, Admin 2, Manager 3, Developer 4. Revoking access sets it to 0 and retains the rank.
-          Managers cannot modify other Managers. Only Developers can modify Developer profiles.
+          Rank: Cashier 1, Admin 2, Manager 3, General Manager 4, Developer 5. Revoking access sets it to 0
+          and retains the rank. Managers cannot modify other Managers; the General Manager can. The General
+          Manager is the business account and cannot be added here; only Developer can archive it or revoke
+          its access. Only Developers can modify Developer profiles.
         </p>
       </section>
       {editor && (
@@ -464,7 +468,13 @@ export default function UsersPage({ shopId, actorId, businessUserId, role, onlin
               Rank
               <select aria-label="Rank" name="role" defaultValue={editor === 'new' ? 'cashier' : editor.role}>
                 {Object.entries(accessLevels)
-                  .filter(([value]) => rankValues[value as keyof typeof rankValues] <= (actor?.rank ?? 0))
+                  .filter(([value]) =>
+                    // The General Manager rank stays with the business account: never given here.
+                    editor !== 'new' && editor.role === GENERAL_MANAGER
+                      ? value === GENERAL_MANAGER
+                      : value !== GENERAL_MANAGER &&
+                        rankValues[value as keyof typeof rankValues] <= (actor?.rank ?? 0),
+                  )
                   .map(([value, label]) => (
                     <option value={value} key={value}>
                       {label} ({rankValues[value as keyof typeof rankValues]})

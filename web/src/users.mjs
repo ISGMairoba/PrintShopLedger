@@ -2,14 +2,17 @@ export const accessLevels = {
   cashier: 'Cashier',
   admin: 'Admin',
   manager: 'Manager',
+  general_manager: 'General Manager',
   developer: 'Developer',
 };
-export const rankValues = { cashier: 1, admin: 2, manager: 3, developer: 4 };
+export const rankValues = { cashier: 1, admin: 2, manager: 3, general_manager: 4, developer: 5 };
+/** The General Manager is the business account: given at registration, never added on the Users page. */
+export const GENERAL_MANAGER = 'general_manager';
 export function canManage(actor, target) {
   return (
     actor.accessLevel > 0 &&
     actor.rank >= 2 &&
-    (actor.rank === 4 || actor.userId === target.userId || actor.rank > target.rank)
+    (actor.rank === 5 || actor.userId === target.userId || actor.rank > target.rank)
   );
 }
 export function userCode(id) {

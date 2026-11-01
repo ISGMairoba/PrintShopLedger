@@ -85,7 +85,7 @@ try {
       name: 'Test Developer',
       username: 'developer',
       role: 'developer',
-      rank: 4,
+      rank: 5,
     },
   };
   const authUser = {

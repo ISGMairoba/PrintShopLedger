@@ -24,14 +24,14 @@ try {
       : {}),
   });
   for (const mobile of [false, true])
-    for (const rank of [1, 2, 3, 4]) {
+    for (const rank of [1, 2, 3, 5]) {
       const context = await browser.newContext({
         viewport: mobile ? { width: 390, height: 844 } : { width: 1280, height: 900 },
         serviceWorkers: 'block',
       });
       const id = '11111111-1111-4111-8111-111111111111',
         shop = '22222222-2222-4222-8222-222222222222',
-        role = ['', 'cashier', 'admin', 'manager', 'developer'][rank];
+        role = ['', 'cashier', 'admin', 'manager', 'general_manager', 'developer'][rank];
       const now = new Date().toISOString();
       let username = role,
         calls = 0,
@@ -182,7 +182,7 @@ try {
       await delay(50);
       assert.equal(await page.getByRole('button', { name: 'Save password', exact: true }).isDisabled(), true);
       await context.setOffline(false);
-      if (rank === 4) {
+      if (rank === 5) {
         await open();
         await nav.getByRole('button', { name: 'Business Settings', exact: true }).click();
         await page.getByLabel('Business name', { exact: true }).waitFor();

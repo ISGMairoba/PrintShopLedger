@@ -28,7 +28,8 @@ test('existing dropdown access upgrades once; account setup remains Developer on
   const up = validateBranding(b);
   assert.ok(!allowedSettingsTabs(2, up).includes('Payment methods'));
   assert.ok(!allowedSettingsTabs(2, up).includes('Accounts & payment methods'));
-  assert.ok(allowedSettingsTabs(4, up).includes('Accounts & payment methods'));
+  assert.ok(allowedSettingsTabs(5, up).includes('Accounts & payment methods'));
+  assert.ok(!allowedSettingsTabs(4, up).includes('Accounts & payment methods'));
   up.settingsTabs['2'] = ['Dropdowns & workflow'];
   assert.ok(!allowedSettingsTabs(2, validateBranding(up)).includes('Payment methods'));
 });

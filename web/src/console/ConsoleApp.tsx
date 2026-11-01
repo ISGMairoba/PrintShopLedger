@@ -524,7 +524,7 @@ function BusinessView({
                       <td>{s.name}</td>
                       <td>{s.username}</td>
                       <td>
-                        {s.role === 'developer' ? 'Developer' : s.role[0].toUpperCase() + s.role.slice(1)}
+                        {roleLabel(s.role)}
                       </td>
                       <td>{ago(s.lastActivity)}</td>
                       <td>
@@ -602,6 +602,8 @@ const roleOptions = [
   ['manager', 'Manager'],
   ['developer', 'Developer'],
 ] as const;
+const roleLabel = (role: string) =>
+  role === 'general_manager' ? 'General Manager' : role[0].toUpperCase() + role.slice(1);
 
 /** Staff accounts: add, change role, turn access off or on, set a password. */
 function ConsoleStaff({ data, onChanged }: { data: BusinessDetail; onChanged: () => void }) {
@@ -664,29 +666,33 @@ function ConsoleStaff({ data, onChanged }: { data: BusinessDetail; onChanged: ()
                     </small>
                   </td>
                   <td>
-                    <select
-                      aria-label={`Role of ${s.name}`}
-                      value={s.role}
-                      disabled={busy || s.archived}
-                      onChange={(e) =>
-                        act(
-                          () =>
-                            saveStaff(data.id, 'edit', {
-                              ...base(s),
-                              name: s.name,
-                              username: s.username,
-                              role: e.target.value,
-                            }),
-                          `${s.name} is now ${e.target.value}.`,
-                        )
-                      }
-                    >
-                      {roleOptions.map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
+                    {s.role === 'general_manager' ? (
+                      <span title="The business account. Only its name and username can change.">General Manager</span>
+                    ) : (
+                      <select
+                        aria-label={`Role of ${s.name}`}
+                        value={s.role}
+                        disabled={busy || s.archived}
+                        onChange={(e) =>
+                          act(
+                            () =>
+                              saveStaff(data.id, 'edit', {
+                                ...base(s),
+                                name: s.name,
+                                username: s.username,
+                                role: e.target.value,
+                              }),
+                            `${s.name} is now ${e.target.value}.`,
+                          )
+                        }
+                      >
+                        {roleOptions.map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </td>
                   <td>
                     {s.archived ? (

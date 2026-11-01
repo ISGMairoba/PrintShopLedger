@@ -234,7 +234,7 @@ export default function App() {
   const branchChoices = allowedBranches(
     branding.settings,
     shop?.userId ?? '',
-    demo ? 4 : (shop?.accessLevel ?? 0),
+    demo ? 5 : (shop?.accessLevel ?? 0),
   );
   const [branchChoice, setBranchChoice] = useState<string | null>(() => (scope ? storedBranch(scope) : null));
   useEffect(() => setBranchChoice(scope ? storedBranch(scope) : null), [scope]);
@@ -344,10 +344,12 @@ export default function App() {
       syncNow();
     } catch {}
   }
+  // Changing due dates: Admin and higher.
+  const canChangeDue = demo || (shop?.accessLevel ?? 0) >= 2;
   // The owner's master view (Dashboard and Reports): every branch together, or one of them.
   const ownerView =
     multiBranch &&
-    seesAllBranches(branding.settings, shop?.userId ?? '', demo ? 4 : (shop?.accessLevel ?? 0));
+    seesAllBranches(branding.settings, shop?.userId ?? '', demo ? 5 : (shop?.accessLevel ?? 0));
   const [masterBranch, setMasterBranch] = useState('all');
   const openBranches = useMemo(
     () => branchesOf(branding.settings).filter((b) => !b.archived),
@@ -514,7 +516,7 @@ export default function App() {
       (!demo && (!session || !shop || shop.userId !== session.user.id || shop.accessLevel === 0))
     )
       throw new Error('Please wait until the staff workspace is ready.');
-    if (['account.created', 'account.updated'].includes(operation.kind) && !demo && shop?.accessLevel !== 4)
+    if (['account.created', 'account.updated'].includes(operation.kind) && !demo && shop?.accessLevel !== 5)
       throw Error('Only a Developer can create accounts or change payment-method links.');
     setBusy(true);
     setMessage('');
@@ -1417,7 +1419,7 @@ export default function App() {
                   {helpFor !== undefined && (
                     <HelpPanel
                       page={helpFor}
-                      rank={demo ? 4 : (shop?.accessLevel ?? 1)}
+                      rank={demo ? 5 : (shop?.accessLevel ?? 1)}
                       businessName={businessName}
                       onClose={() => setHelpFor(undefined)}
                     />
@@ -1550,7 +1552,7 @@ export default function App() {
                       defaultTerms={branding.settings.documents.invoiceTerms}
                       discountPolicy={discountPolicy(
                         branding.settings.discounts,
-                        demo ? 4 : (shop?.accessLevel ?? 0),
+                        demo ? 5 : (shop?.accessLevel ?? 0),
                       )}
                       busy={busy}
                       paymentOnly={!checkoutConflict.event.data.jobs.length}
@@ -1810,7 +1812,7 @@ export default function App() {
                           </section>
                         ) : (
                           <ConflictInbox
-                            canConfigureAccounts={shop?.accessLevel === 4}
+                            canConfigureAccounts={shop?.accessLevel === 5}
                             key={scope}
                             scope={scope}
                             shopId={shop!.id}
@@ -1945,13 +1947,13 @@ export default function App() {
                           online={online}
                           demo={demo}
                           modifiedAt={branding.modifiedAt}
-                          accessLevel={demo ? 4 : (shop?.accessLevel ?? 0)}
+                          accessLevel={demo ? 5 : (shop?.accessLevel ?? 0)}
                           onSave={branding.save}
                           onReload={branding.reload}
                           accountSettings={
                             <AccountsPage
                               configurationOnly
-                              canConfigure={demo || shop?.accessLevel === 4}
+                              canConfigure={demo || shop?.accessLevel === 5}
                               ledger={allBranchesLedger({
                                 ...state.ledger,
                                 pricing: branding.settings.pricing,
@@ -2057,7 +2059,7 @@ export default function App() {
                           actor={salesActor}
                           discountPolicy={discountPolicy(
                             branding.settings.discounts,
-                            demo ? 4 : (shop?.accessLevel ?? 0),
+                            demo ? 5 : (shop?.accessLevel ?? 0),
                           )}
                           onSave={saveCatalogue}
                           onCreateOrder={(quote) => {
@@ -2083,7 +2085,7 @@ export default function App() {
                           onJob={setSelectedJob}
                           onNext={(job, mode) => setJobToAdvance({ job, mode })}
                           onBulkAction={(jobs, mode) => setBatchToAdvance({ jobs, mode })}
-                          onDue={setDeadlineJobs}
+                          onDue={canChangeDue ? setDeadlineJobs : undefined}
                           onReceipt={setReceipt}
                         />
                       ) : page === 'Users' ? (
@@ -2277,7 +2279,7 @@ export default function App() {
                           onJob={setSelectedJob}
                           onAction={(job, mode) => setJobToAdvance({ job, mode })}
                           onBulkAction={(jobs, mode) => setBatchToAdvance({ jobs, mode })}
-                          onDue={setDeadlineJobs}
+                          onDue={canChangeDue ? setDeadlineJobs : undefined}
                           onReceipt={setReceipt}
                           onCorrectPayment={canCorrectPayments ? setCorrectingPayment : undefined}
                         />
@@ -2301,7 +2303,7 @@ export default function App() {
                   )}
                   {currentJob && (
                     <JobDetails
-                      onDue={setDeadlineJobs}
+                      onDue={canChangeDue ? setDeadlineJobs : undefined}
                       job={currentJob}
                       ledger={ledger}
                       busy={busy}
@@ -2350,7 +2352,7 @@ export default function App() {
                       defaultTerms={branding.settings.documents.invoiceTerms}
                       discountPolicy={discountPolicy(
                         branding.settings.discounts,
-                        demo ? 4 : (shop?.accessLevel ?? 0),
+                        demo ? 5 : (shop?.accessLevel ?? 0),
                       )}
                     />
                   )}
@@ -2375,7 +2377,7 @@ export default function App() {
                       onReceipt={setReceipt}
                       discountPolicy={discountPolicy(
                         branding.settings.discounts,
-                        demo ? 4 : (shop?.accessLevel ?? 0),
+                        demo ? 5 : (shop?.accessLevel ?? 0),
                       )}
                     />
                   )}
@@ -2439,7 +2441,7 @@ export default function App() {
                           defaultTerms={branding.settings.documents.invoiceTerms}
                           discountPolicy={discountPolicy(
                             branding.settings.discounts,
-                            demo ? 4 : (shop?.accessLevel ?? 0),
+                            demo ? 5 : (shop?.accessLevel ?? 0),
                           )}
                         />
                       );

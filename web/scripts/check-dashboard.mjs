@@ -24,7 +24,7 @@ try {
       : {}),
   });
   for (const mobile of [false, true])
-    for (const rank of [1, 2, 3, 4]) {
+    for (const rank of [1, 2, 3, 5]) {
       const context = await browser.newContext({
         viewport: mobile ? { width: 390, height: 844 } : { width: 1280, height: 900 },
         serviceWorkers: 'block',
@@ -32,7 +32,7 @@ try {
       const id = '11111111-1111-4111-8111-111111111111',
         shop = '22222222-2222-4222-8222-222222222222',
         now = new Date().toISOString(),
-        role = ['', 'cashier', 'admin', 'manager', 'developer'][rank];
+        role = ['', 'cashier', 'admin', 'manager', 'general_manager', 'developer'][rank];
       const token = [
         { alg: 'HS256', typ: 'JWT' },
         { sub: id, role: 'authenticated', exp: Math.floor(Date.now() / 1000) + 3600 },
