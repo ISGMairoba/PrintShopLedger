@@ -1,0 +1,25 @@
+name: TEMP format
+on:
+  push:
+    branches: ['claude/format-payments']
+permissions:
+  contents: write
+jobs:
+  format:
+    if: ${{ !contains(github.event.head_commit.message, '[formatted]') }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - run: npx --yes @biomejs/biome@2.2.4 format --write .
+      - run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add -A
+          git commit -m "Format with Biome [formatted]" || echo "nothing to format"
+          git push
