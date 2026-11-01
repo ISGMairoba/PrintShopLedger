@@ -126,26 +126,47 @@ async function run(mode, port) {
     await page.goto(base);
     await page.getByRole('button', { name: 'Try locally on this device' }).click();
     await page.getByRole('heading', { name: 'Point of Service', exact: true }).waitFor();
-    console.log(`[${mode}] trial open, loading records`);
-    const state = await readCopy(page, 'local-trial');
+    const limit = (what, ms, promise) =>
+      Promise.race([promise, delay(ms).then(() => Promise.reject(Error(`${what} took over ${ms} ms`)))]);
+    console.log(`[${mode}] trial open; waiting for its saved copy`);
+    let state;
+    for (let i = 0; i < 60 && !state?.ledger; i++) {
+      state = await limit('reading the saved copy', 20000, readCopy(page, 'local-trial'));
+      if (!state?.ledger) await delay(500);
+    }
+    if (!state?.ledger) throw Error('The trial copy was never saved');
+    console.log(`[${mode}] building the large business`);
     state.ledger = { ...state.ledger, ...bigLedger() };
     state.pending = [];
-    await page.evaluate(
-      (state) =>
-        new Promise((resolve, reject) => {
-          const open = indexedDB.open('printshopledger-v1', 1);
-          open.onsuccess = () => {
-            const tx = open.result.transaction('ledgers', 'readwrite');
-            tx.objectStore('ledgers').put(state, 'local-trial');
-            tx.oncomplete = () => {
-              open.result.close();
-              resolve();
+    console.log(`[${mode}] saving it in the browser`);
+    await limit(
+      'saving the large copy',
+      120000,
+      page.evaluate(
+        (state) =>
+          new Promise((resolve, reject) => {
+            const open = indexedDB.open('printshopledger-v1', 1);
+            open.onsuccess = () => {
+              const tx = open.result.transaction('ledgers', 'readwrite'),
+                store = tx.objectStore('ledgers'),
+                keys = store.getAllKeys();
+              // The app keeps its copy in pieces: remove them so it reads this one.
+              keys.onsuccess = () => {
+                for (const k of keys.result) if (String(k).startsWith('local-trial|')) store.delete(k);
+                store.put(state, 'local-trial');
+              };
+              tx.oncomplete = () => {
+                open.result.close();
+                resolve();
+              };
+              tx.onerror = () => reject(tx.error);
             };
-            tx.onerror = () => reject(tx.error);
-          };
-        }),
-      state,
+            open.onerror = () => reject(open.error);
+          }),
+        state,
+      ),
     );
+    console.log(`[${mode}] saved; measuring`);
     const cdp = await context.newCDPSession(page);
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: CPU_SLOWDOWN });
     await cdp.send('Profiler.enable');
