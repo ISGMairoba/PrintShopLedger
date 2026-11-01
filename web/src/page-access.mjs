@@ -237,6 +237,7 @@ export function upgradeSettingsTabs(input, version = 0) {
     if (version < 2 && tabs.includes('Jobs & payments'))
       for (const tab of ['Default time frames', 'Words']) if (!tabs.includes(tab)) tabs.push(tab);
   }
-  for(const rank of ['2','3'])if(Array.isArray(next[rank]))next[rank]=next[rank].filter(t=>t!=='Payment methods');
+  for (const rank of ['2', '3', '4'])
+    if (Array.isArray(next[rank])) next[rank] = next[rank].filter((t) => t !== 'Payment methods');
   return next;
 }
