@@ -1,5 +1,18 @@
 import { normalizeCustomer } from './customers.mjs';
 import { materialSnapshot } from './material-display.mjs';
+/**
+ * A full download may send each sale's jobs shortened to what differs from the job's current record
+ * (jobsTrimmed): rebuild the whole copy, as it was at the sale, from the job records.
+ */
+export function rebuildSaleJobs(checkouts = [], jobs = []) {
+  if (!checkouts.some((c) => c?.jobsTrimmed)) return checkouts;
+  const byId = new Map(jobs.map((j) => [j.id, j]));
+  return checkouts.map((c) => {
+    if (!c?.jobsTrimmed) return c;
+    const { jobsTrimmed: _trimmed, ...rest } = c;
+    return { ...rest, jobs: (c.jobs ?? []).map((j) => ({ ...(byId.get(j.id) ?? {}), ...j })) };
+  });
+}
 export function normalizeLedger(ledger) {
   return {
     ...ledger,
@@ -12,7 +25,7 @@ export function normalizeLedger(ledger) {
     expenses: ledger.expenses ?? [],
     expenseHistory: ledger.expenseHistory ?? [],
     drawerClosings: ledger.drawerClosings ?? [],
-    checkouts: ledger.checkouts ?? [],
+    checkouts: rebuildSaleJobs(ledger.checkouts ?? [], ledger.jobs ?? []),
     customers: (ledger.customers ?? []).map(normalizeCustomer),
     materials: ledger.materials ?? [],
     materialHistory: ledger.materialHistory ?? [],

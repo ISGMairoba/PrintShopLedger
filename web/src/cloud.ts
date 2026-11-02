@@ -208,7 +208,7 @@ async function synchronize(scope: string, shopId: string) {
   const before = await readState(scope);
   const full = needsFullSync(before);
   const { data, error } = await supabase
-    .rpc('get_ledger_changes', { p_shop: shopId, p_since: full ? null : before.syncCursor })
+    .rpc('get_ledger_changes', { p_shop: shopId, p_since: full ? null : before.syncCursor, p_slim: true })
     .abortSignal(AbortSignal.timeout(60000));
   if (error) throw Error(error.message);
   await check();
