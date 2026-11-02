@@ -218,10 +218,13 @@ export default function MaterialsPage({
                     <td>{locationName(row.location)}</td>
                     <td>
                       {row.material.name}
-                      <small className={row.level === 'Critical' ? 'danger-text' : 'stock-near-text'}>{row.level}</small>
+                      <small className={row.level === 'Critical' ? 'danger-text' : 'stock-near-text'}>
+                        {row.level}
+                      </small>
                     </td>
                     <td className="cell-fit">
-                      {row.available.toLocaleString(undefined, { maximumFractionDigits: 3 })} {row.material.measurementUnit}
+                      {row.available.toLocaleString(undefined, { maximumFractionDigits: 3 })}{' '}
+                      {row.material.measurementUnit}
                     </td>
                     <td className="cell-fit">{row.material.minimumStock ?? 0}</td>
                     <td className="cell-fit">
