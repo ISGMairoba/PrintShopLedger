@@ -363,9 +363,19 @@ export default function ConflictInbox({
             </p>
           )}
           {review.conflict.source.kind === 'checkout.completed' ? (
-            <button disabled={!online || busy || !reason.trim()} onClick={() => setCheckout(true)}>
-              <Icon name="details" /> Review sale and stock
-            </button>
+            <div className="material-actions">
+              <button disabled={!online || busy || !reason.trim()} onClick={() => setCheckout(true)}>
+                <Icon name="details" /> Review sale and stock
+              </button>
+              {/* A sale already recorded another way (a duplicate) is not recorded; the reason is kept. */}
+              <button
+                className="secondary danger-text"
+                disabled={!online || busy || !reason.trim()}
+                onClick={() => void resolve([]).catch(() => {})}
+              >
+                <Icon name="close" /> Discard: do not record this sale
+              </button>
+            </div>
           ) : (
             <div className="material-actions">
               {['account.reconciled', 'account.assigned', 'account.transferred'].includes(
