@@ -28,3 +28,9 @@ test('a shortened sale is rebuilt exactly as it was at the sale', () => {
   assert.equal(rebuildSaleJobs([full], [job])[0], full);
   assert.deepEqual(normalizeLedger({ jobs: [job], checkouts: [sent] }).checkouts[0].jobs, [atSale]);
 });
+
+test('fields a job gained after the sale are not added to the sale copy', () => {
+  const job = { id: 'j1', description: 'Flex', dueDate: '2026-11-05', version: 3 };
+  const sent = { id: 'c1', jobsTrimmed: true, jobs: [{ id: 'j1', version: 1, $gone: ['dueDate'] }] };
+  assert.deepEqual(rebuildSaleJobs([sent], [job])[0].jobs, [{ id: 'j1', description: 'Flex', version: 1 }]);
+});

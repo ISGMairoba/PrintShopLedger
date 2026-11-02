@@ -1,6 +1,7 @@
 -- 1. Smaller first download. Each sale keeps a copy of its jobs as they were at the sale (receipts show
 --    those). On a full download, a device that asks for it (p_slim) receives, for each such job, only
---    what differs from the job's current record, and rebuilds the rest itself (normalizeLedger).
+--    what differs from the job's current record (and, in $gone, fields the job has now but did not have
+--    at the sale), and rebuilds the rest itself (normalizeLedger).
 --    Older app versions do not ask and keep receiving the whole copy.
 -- 2. Branch staff (not every branch) no longer receive the change history of money accounts that belong
 --    to other branches. History of shared accounts and payees (shared) stays.
@@ -13,6 +14,7 @@ language sql stable set search_path to '' as $f$
       c || jsonb_build_object('jobsTrimmed', true, 'jobs', (
         select jsonb_agg(case when cur.m ? (sj->>'id') then
             (select jsonb_object_agg(k, v) from jsonb_each(sj) e(k, v) where k = 'id' or (cur.m->(sj->>'id')->k) is distinct from v)
+            || coalesce((select jsonb_build_object('$gone', jsonb_agg(k)) from jsonb_object_keys(cur.m->(sj->>'id')) k where not sj ? k), '{}')
           else sj end order by o)
         from jsonb_array_elements(c->'jobs') with ordinality s(sj, o)))
     else c end order by co), '[]'::jsonb)

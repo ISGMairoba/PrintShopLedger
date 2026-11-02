@@ -10,7 +10,14 @@ export function rebuildSaleJobs(checkouts = [], jobs = []) {
   return checkouts.map((c) => {
     if (!c?.jobsTrimmed) return c;
     const { jobsTrimmed: _trimmed, ...rest } = c;
-    return { ...rest, jobs: (c.jobs ?? []).map((j) => ({ ...(byId.get(j.id) ?? {}), ...j })) };
+    return {
+      ...rest,
+      jobs: (c.jobs ?? []).map(({ $gone, ...j }) => {
+        const job = { ...(byId.get(j.id) ?? {}), ...j };
+        for (const key of $gone ?? []) delete job[key];
+        return job;
+      }),
+    };
   });
 }
 export function normalizeLedger(ledger) {
