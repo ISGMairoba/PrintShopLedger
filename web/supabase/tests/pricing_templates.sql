@@ -20,7 +20,7 @@ bad_tree:=jsonb_set(settings,'{pricing,templates,0,expenses,0,expression}','{"op
 insert into auth.users(id,email,raw_user_meta_data,created_at) values('a0000000-0000-4000-8000-000000000001','pricing-template-test@example.invalid','{}',now());
 perform set_config('request.jwt.claim.sub','a0000000-0000-4000-8000-000000000001',true);
 insert into public.shops(name) values('Pricing template integration test') returning id into shop;
-insert into public.shop_members(shop_id,user_id,role,rank,access_level,name,username) values(shop,'a0000000-0000-4000-8000-000000000001','developer',4,4,'Template tester','template-test');
+insert into public.shop_members(shop_id,user_id,role,rank,access_level,name,username) values(shop,'a0000000-0000-4000-8000-000000000001','developer',5,5,'Template tester','template-test');
 -- Decimal parity with the app: 15 random formulas.
 for p in select value from jsonb_array_elements(parity) loop
  if private.tpl_text(private.tpl_eval(p->0,'{}'::jsonb)) is distinct from p->>1 then raise exception 'Decimal result differs: % gives % not %',p->0,private.tpl_text(private.tpl_eval(p->0,'{}'::jsonb)),p->>1;end if;
@@ -49,6 +49,16 @@ begin perform public.save_business_settings(shop,coalesce((select version from p
 perform public.save_business_settings(shop,coalesce((select version from public.business_settings where shop_id=shop),0),settings);
 execute 'set local role authenticated';
 -- A quotation (book + margin-priced shirts) is checked but posts nothing.
+begin
+ changed:=jsonb_set(quotation,'{data,lines}',(select jsonb_agg(value||jsonb_build_object('amount',0,'lineDiscount',value->'grossAmount','discountAmount',value->'grossAmount','orderDiscountShare',0,'discount',jsonb_build_object('kind','percent','value',100))) from jsonb_array_elements(quotation->'data'->'lines')));
+ changed:=jsonb_set(changed,'{data,total}','0');changed:=jsonb_set(changed,'{data,discountTotal}',changed->'data'->'subtotal');
+ reset role;update public.shop_members set role='admin',rank=2,access_level=2 where shop_id=shop and user_id=auth.uid();set local role authenticated;
+ begin perform public.apply_quotation_event(shop,changed);raise exception 'Admin exceeded own quotation cap';exception when sqlstate 'PT409' then if sqlerrm not like '%staff discount limit%' then raise;end if;end;
+ reset role;update public.shop_members set role='manager',rank=3,access_level=3 where shop_id=shop and user_id=auth.uid();set local role authenticated;
+ perform public.apply_quotation_event(shop,changed);
+ if not exists(select 1 from public.quotations where shop_id=shop and id=(changed->'data'->>'id')::uuid and (data->>'total')::numeric=0) then raise exception 'Manager free quotation not saved';end if;
+ raise exception 'Rollback successful quotation override check' using errcode='ZX001';
+exception when sqlstate 'ZX001' then null;end;
 perform public.apply_quotation_event(shop,quotation);
 if (select count(*) from public.jobs where shop_id=shop)<>0 or (select available from public.materials where shop_id=shop and id='a0000000-0000-4000-8000-000000000003')<>2000 then raise exception 'Quotation posted stock or a job';end if;
 changed:=jsonb_set(quotation,'{id}','"a0000000-0000-4000-8000-000000000097"');changed:=jsonb_set(changed,'{data,lines,1,templateSnapshot,price,amount}','1');changed:=jsonb_set(changed,'{data,lines,1,grossAmount}','1');
@@ -59,7 +69,27 @@ begin perform public.apply_checkout_event(shop,changed);raise exception 'Tampere
 changed:=jsonb_set(e,'{data,jobs,0,templateSnapshot,stock,0,quantity}','1');
 begin perform public.apply_checkout_event(shop,changed);raise exception 'Tampered stock accepted';exception when sqlstate 'PT409' then null;end;
 execute 'reset role';update public.services set costing=jsonb_set(costing,'{amount}','510000') where shop_id=shop and id='a0000000-0000-4000-8000-000000000005';execute 'set local role authenticated';
-begin perform public.apply_checkout_event(shop,e);raise exception 'Stale cost accepted';exception when sqlstate 'PT409' then null;end;
+begin -- Management may discount a template to zero; the item floor applies only to Cashiers.
+begin
+ reset role;
+update public.shop_members set role='manager',rank=3,access_level=3 where shop_id=shop and user_id=auth.uid();
+set local role authenticated;
+ changed:=e;
+ changed:=jsonb_set(changed,'{data,jobs,0,discount}','{"kind":"percent","value":100}');
+ changed:=jsonb_set(changed,'{data,jobs,0,grossAmount}','2880000');
+ changed:=jsonb_set(changed,'{data,jobs,0,lineDiscount}','2880000');
+ changed:=jsonb_set(changed,'{data,jobs,0,discountAmount}','2880000');
+ changed:=jsonb_set(changed,'{data,jobs,0,amount}','0');
+ changed:=jsonb_set(changed,'{data,total}','0');
+ changed:=jsonb_set(changed,'{data,cashReceived}','0');
+ changed:=jsonb_set(changed,'{data,allocated}','0');
+ changed:=jsonb_set(changed,'{data,allocations}','[]');
+ changed:=jsonb_set(changed,'{data,outstandingAfter}','0');
+ perform public.apply_checkout_event(shop,changed);
+ if not exists(select 1 from public.jobs where shop_id=shop and id=(changed->'data'->'jobs'->0->>'id')::uuid and amount=0) then raise exception 'Manager free job not saved';end if;
+ raise exception 'Rollback successful management check' using errcode='ZX001';
+exception when sqlstate 'ZX001' then null;end;
+perform public.apply_checkout_event(shop,e);raise exception 'Stale cost accepted';exception when sqlstate 'PT409' then null;end;
 execute 'reset role';update public.services set costing=jsonb_set(costing,'{amount}','500000') where shop_id=shop and id='a0000000-0000-4000-8000-000000000005';execute 'set local role authenticated';
 perform public.apply_checkout_event(shop,e);
 if (select count(*) from public.jobs where shop_id=shop)<>1 or (select amount from public.jobs where shop_id=shop and id='a0000000-0000-4000-8000-000000000020')<>2880000 then raise exception 'Book job incorrect';end if;
@@ -71,8 +101,17 @@ if (select available from public.materials where shop_id=shop and id='a0000000-0
 changed:=jsonb_set(second,'{data,jobs,0,discount}','{"kind":"percent","value":6}');
 changed:=jsonb_set(changed,'{data,jobs,0,lineDiscount}','172800');changed:=jsonb_set(changed,'{data,jobs,0,discountAmount}','172800');changed:=jsonb_set(changed,'{data,jobs,0,grossAmount}','2880000');changed:=jsonb_set(changed,'{data,jobs,0,amount}','2707200');
 changed:=jsonb_set(changed,'{data,total}','2707200');changed:=jsonb_set(changed,'{data,outstandingBefore}',to_jsonb((second->'data'->>'outstandingBefore')::numeric-172800));changed:=jsonb_set(changed,'{data,outstandingAfter}',to_jsonb((second->'data'->>'outstandingAfter')::numeric-172800));
+reset role;
+update public.shop_members set role='cashier',rank=1,access_level=1 where shop_id=shop and user_id=auth.uid();
+set local role authenticated;
+reset role;
+update public.business_settings bs set settings=jsonb_set(bs.settings,'{discounts}', '{"maxPercent":{"1":100,"2":20,"3":100}}') where shop_id=shop;
+set local role authenticated;
 begin perform public.apply_checkout_event(shop,changed);raise exception 'Over-maximum discount accepted';exception when sqlstate 'PT409' then if sqlerrm not like 'This discount is outside%' then raise;end if;end;
 -- A templates-only item cannot be sold.
+reset role;
+update public.shop_members set role='developer',rank=5,access_level=5 where shop_id=shop and user_id=auth.uid();
+set local role authenticated;
 begin perform public.apply_checkout_event(shop,private_sale);raise exception 'Private item sold';exception when sqlstate 'PT409' then if sqlerrm not like '%templates only%' then raise;end if;end;
 perform public.apply_checkout_event(shop,second);
 if (select available from public.materials where shop_id=shop and id='a0000000-0000-4000-8000-000000000003')<>700 then raise exception 'Second book stock incorrect';end if;
@@ -83,6 +122,6 @@ perform public.save_business_settings(shop,(select version from public.business_
 execute 'set local role authenticated';
 begin perform public.apply_checkout_event(shop,jsonb_set(jsonb_set(e,'{id}','"a0000000-0000-4000-8000-000000000098"'),'{data,id}','"a0000000-0000-4000-8000-000000000098"'));raise exception 'Disabled template accepted';exception when sqlstate 'PT409' then null;end;
 execute 'reset role';
-raise exception 'PRICING_TEMPLATES_TEST_PASSED';
+raise notice 'PRICING_TEMPLATES_TEST_PASSED';
 end $test$;
 rollback;

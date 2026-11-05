@@ -284,7 +284,7 @@ export function prepareCheckout(
   // Order discount shared by price; with a policy, the giver's limits are checked here too.
   const discounts = applyOrderDiscount(quoted, input.orderDiscount, input.discountPolicy ?? null);
   const jobs = discounts.jobs;
-  for (const job of jobs) checkTemplateDiscount(job);
+  for (const job of jobs) checkTemplateDiscount(job, input.discountPolicy ?? null);
   const ids = new Set(jobs.map((j) => j.id));
   if (
     ids.size !== jobs.length ||
@@ -394,6 +394,8 @@ export function applyCheckout(ledger, event) {
       lines: data.jobs,
       termsAndConditions: data.termsAndConditions,
       accountId: data.accountId,
+      // Saved events already passed the originating checkout policy; the server rechecks its actor.
+      discountPolicy: { maxPercent: 100, canFlat: true },
       countedMaterialJobs: data.countedMaterialJobs,
       cashReceived: data.cashReceived,
       useWallet: data.useWallet,

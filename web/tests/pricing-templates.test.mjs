@@ -11,6 +11,7 @@ import {
   computedSpecs,
   templateSpecLines,
   discountCeiling,
+  templateDiscountImpact,
   evaluate,
   expenseControls,
   formulaFromControls,
@@ -738,4 +739,58 @@ test('a template can take stock from a product with variants: picked at checkout
     );
   assert.throws(() => wrong({ [VARIANT_PICK + 'envelopes']: id(7) }), /choose an available variant/);
   assert.throws(() => wrong({ [VARIANT_PICK + 'paper_required']: id(72) }), /Template variables changed/);
+});
+
+test('management can override template protection within their own allowance, including a free job', () => {
+  for (const canFlat of [false, true]) {
+    const { ledger, input } = fixture();
+    input.cashReceived = 0;
+    input.discountPolicy = { maxPercent: 100, canFlat };
+    input.lines[0].discount = { kind: 'percent', value: 100 };
+    if (!canFlat) assert.throws(() => prepareCheckout(ledger, input, actor), /most discount/);
+    else {
+      const event = prepareCheckout(ledger, input, actor);
+      assert.equal(event.data.total, 0);
+      assert.equal(applyCheckout(ledger, event).jobs[0].amount, 0);
+    }
+  }
+  const { ledger, input } = fixture();
+  input.cashReceived = 0;
+  input.discountPolicy = { maxPercent: 20, canFlat: true };
+  input.lines[0].discount = { kind: 'percent', value: 21 };
+  assert.throws(() => prepareCheckout(ledger, input, actor), /Your discount limit is 20%/);
+  input.lines[0].discount = { kind: 'percent', value: 20 };
+  assert.ok(prepareCheckout(ledger, input, actor));
+});
+test('whole-order and quotation template overrides still respect the staff cap', () => {
+  const { ledger, input, line } = fixture();
+  input.cashReceived = 0;
+  input.discountPolicy = { maxPercent: 100, canFlat: true };
+  input.orderDiscount = { kind: 'percent', value: 100 };
+  assert.equal(prepareCheckout(ledger, input, actor).data.total, 0);
+  const q = {
+    customerId: input.customerId,
+    lines: [{ ...line, discount: { kind: 'percent', value: 100 } }],
+    validUntil: '2026-12-01',
+  };
+  assert.equal(prepareQuotation(ledger, q, actor, { maxPercent: 100, canFlat: true }).data.total, 0);
+  assert.throws(
+    () => prepareQuotation(ledger, q, actor, { maxPercent: 20, canFlat: true }),
+    /discount limit/,
+  );
+});
+
+test('template override warnings report actual snapshot expenses and loss', () => {
+  const { ledger, input } = fixture();
+  input.cashReceived = 0;
+  input.discountPolicy = { maxPercent: 100, canFlat: true };
+  input.lines[0].discount = { kind: 'percent', value: 100 };
+  const job = prepareCheckout(ledger, input, actor).data.jobs[0];
+  assert.deepEqual(templateDiscountImpact(job), {
+    name: 'Books',
+    amount: 0,
+    cost: 2210000,
+    profit: -2210000,
+  });
+  assert.equal(templateDiscountImpact({ ...job, amount: job.templateSnapshot.price.amount }), null);
 });
