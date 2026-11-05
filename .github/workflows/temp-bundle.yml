@@ -1,0 +1,22 @@
+name: TEMP bundle
+on:
+  push:
+    branches: ['claude/history-window-stage2']
+jobs:
+  bundle:
+    if: ${{ !contains(github.event.head_commit.message, '[formatted]') }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - run: npx --yes esbuild@0.25.10 supabase/functions/ledger-window/index.ts --bundle --format=esm --platform=neutral --target=es2022 --minify --external:npm:* --outfile=bundle/index.js
+      - run: ls -la bundle && node -e "import('./bundle/index.js').catch(e=>console.log('import (expected Deno-only):', e.message.slice(0,120)))"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ledger-window
+          path: web/bundle/index.js

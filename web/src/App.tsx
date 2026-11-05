@@ -38,6 +38,7 @@ import AccountPage from './AccountPage';
 import { allowedSettingsTabs, canAccessPage, pageGroup, pages, navigationPages } from './page-access.mjs';
 import ExpensesPage from './ExpensesPage';
 import DrawerReviews from './DrawerReviews';
+import { setKeepChoice } from './history-keep.mjs';
 import type { ProgressMode } from './JobActions';
 import JobProgressDialog from './JobProgressDialog';
 import { stageMoveEvents } from './material-choice.mjs';
@@ -1945,6 +1946,17 @@ export default function App() {
                             lastSynced={state.lastSynced}
                             syncing={syncStatus === 'syncing'}
                             history={scope ? { ledger: state.ledger, scope } : undefined}
+                            onKeepChange={
+                              demo || !scope
+                                ? undefined
+                                : async (choice) => {
+                                    const target = scope;
+                                    setKeepChoice(target, choice);
+                                    const next = await requestFullSync(target);
+                                    if (activeScope.current === target) setState(next);
+                                    syncNow();
+                                  }
+                            }
                             onSyncAll={
                               demo || !scope
                                 ? undefined

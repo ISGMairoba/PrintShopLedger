@@ -174,6 +174,11 @@ export function walletBalance(ledger, customerId) {
     .filter((p) => p.customerId === customerId && counts(ledger, p))
     .reduce((sum, p) => sum + (p.walletAdded ?? 0) - (p.walletUsed ?? 0), 0);
 }
+/**
+ * What a sale or correction expects the customer's account to be: the wallet and every job still
+ * owing (or overpaid). Paid jobs are left out, so a device keeping recent history only (with old
+ * paid jobs left out) gives the same answer. The server accepts this and the older every-job form.
+ */
 export function accountToken(ledger, customerId) {
   return (
     'wallet=' +
@@ -182,6 +187,7 @@ export function accountToken(ledger, customerId) {
     ledger.jobs
       .filter((j) => j.customerId === customerId && counts(ledger, j))
       .map((j) => [j.id, jobBalance(ledger, j).outstanding])
+      .filter(([, outstanding]) => outstanding !== 0)
       .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
       .map(([id, n]) => id + ':' + n)
       .join(',')

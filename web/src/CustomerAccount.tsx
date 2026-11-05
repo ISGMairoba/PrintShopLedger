@@ -35,7 +35,8 @@ export default function CustomerAccount({
     },
   );
   const payments = ps.sortRows(
-    ledger.payments.filter((p) => p.customerId === customer.id),
+    // Carried-forward totals (devices keeping recent history only) are not payments to list.
+    ledger.payments.filter((p) => p.customerId === customer.id && !p.carryForward),
     {
       date: (p) => p.paidOn,
       method: paymentName,

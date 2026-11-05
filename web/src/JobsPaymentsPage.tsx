@@ -99,6 +99,7 @@ export default function JobsPaymentsPage({
   const matchingPayments = paymentSorting.sortRows(
     ledger.payments.filter(
       (payment) =>
+        !payment.carryForward &&
         inPeriod(payment.paidOn, period) &&
         `${payment.id} ${customerName(payment.customerId)} ${payment.reference} ${paymentName(payment)}`
           .toLowerCase()
