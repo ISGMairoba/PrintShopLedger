@@ -81,6 +81,20 @@ export default function MaterialsPage({
   const formId = useId();
   const [reorder, setReorder] = useState(false);
   const toReorder = reorderList({ materials, materialHistory: history } as never).length;
+  // Other locations this person can see (stores, the owner every location) that are low on an item.
+  const lowElsewhere = (locations?.stock ?? [])
+    .filter((s) => s.location !== locations?.here && locations?.list.some((l) => l.id === s.location))
+    .flatMap((s) => {
+      const material = materials.find((m) => m.id === s.materialId);
+      const level = material && stockLevel({ ...material, available: s.available });
+      return material && level ? [{ material, location: s.location, available: s.available, level }] : [];
+    })
+    .sort(
+      (a, b) =>
+        (a.level === b.level ? 0 : a.level === 'Critical' ? -1 : 1) ||
+        locationName(a.location).localeCompare(locationName(b.location)) ||
+        a.material.name.localeCompare(b.material.name),
+    );
   const { w } = useWords();
   const { stockReasons: stockReasonDefaults, materialUnits } = useBusinessOptions();
   const [query, setQuery] = useState('');
@@ -183,6 +197,63 @@ export default function MaterialsPage({
         <div className="notice" role="alert">
           {error}
         </div>
+      )}
+      {locations && lowElsewhere.length > 0 && (
+        <section className="panel" aria-labelledby="low-elsewhere">
+          <h2 id="low-elsewhere">Running low at other locations ({lowElsewhere.length})</h2>
+          <div className="table-wrap">
+            <table aria-label="Running low at other locations">
+              <thead>
+                <tr>
+                  <th>Location</th>
+                  <th>Item</th>
+                  <th>There now</th>
+                  <th>Minimum</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {lowElsewhere.map((row) => (
+                  <tr key={row.location + row.material.id}>
+                    <td>{locationName(row.location)}</td>
+                    <td>
+                      {row.material.name}
+                      <small className={row.level === 'Critical' ? 'danger-text' : 'stock-near-text'}>
+                        {row.level}
+                      </small>
+                    </td>
+                    <td className="cell-fit">
+                      {row.available.toLocaleString(undefined, { maximumFractionDigits: 3 })}{' '}
+                      {row.material.measurementUnit}
+                    </td>
+                    <td className="cell-fit">{row.material.minimumStock ?? 0}</td>
+                    <td className="cell-fit">
+                      {locations.sendFrom.some((from) => from !== row.location) && (
+                        <button
+                          className="text-button"
+                          disabled={busy}
+                          onClick={() => {
+                            const from = locations.sendFrom.includes(locations.here)
+                              ? locations.here
+                              : (locations.sendFrom.find((id) => id !== row.location) ?? locations.here);
+                            setMoving(row.material);
+                            setMoveFrom(from);
+                            setMoveTo(row.location);
+                            setMoveQty('');
+                            setMoveReason('Running low');
+                            setError('');
+                          }}
+                        >
+                          <Icon name="share" /> Send
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
       )}
       {locations && (
         <StockRequestsPanel
