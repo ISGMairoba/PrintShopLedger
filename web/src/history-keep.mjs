@@ -14,9 +14,10 @@ export const KEEP_CHOICES = [
   ['12m', 'Last 12 months'],
 ];
 const key = (scope) => `printshopledger:history-keep:${scope}`;
+/** @returns {string} */
 export function keepChoice(scope, storage = globalThis.localStorage) {
   try {
-    const value = storage?.getItem(key(scope));
+    const value = storage?.getItem(key(scope)) ?? 'all';
     return KEEP_CHOICES.some(([v]) => v === value) ? value : 'all';
   } catch {
     return 'all';
