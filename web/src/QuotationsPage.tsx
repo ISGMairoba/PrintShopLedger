@@ -389,7 +389,11 @@ export default function QuotationsPage({
               </button>
             )}
             {current.status !== 'converted' && (canDeleteAny || current.createdBy === actor.id) && (
-              <button className="text-button danger-text" disabled={busy} onClick={() => setDeleting(current)}>
+              <button
+                className="text-button danger-text"
+                disabled={busy}
+                onClick={() => setDeleting(current)}
+              >
                 <Icon name="close" /> Delete
               </button>
             )}
@@ -399,7 +403,8 @@ export default function QuotationsPage({
       {deleting && (
         <Modal title="Delete quotation?" busy={busy} onClose={() => setDeleting(null)}>
           <p>
-            <strong>{quotationRef(deleting.id)}</strong> · {deleting.customerName} · {currency(deleting.total)}
+            <strong>{quotationRef(deleting.id)}</strong> · {deleting.customerName} ·{' '}
+            {currency(deleting.total)}
           </p>
           <p>It will no longer appear anywhere in the app. This cannot be undone from the app.</p>
           <div className="material-actions">

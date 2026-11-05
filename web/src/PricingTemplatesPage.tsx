@@ -143,7 +143,11 @@ export default function PricingTemplatesPage({
       });
       setBusy(true);
       if (editingCost) {
-        const audit = { modifiedBy: actor.id, modifiedByLabel: actor.label, modifiedAt: new Date().toISOString() };
+        const audit = {
+          modifiedBy: actor.id,
+          modifiedByLabel: actor.label,
+          modifiedAt: new Date().toISOString(),
+        };
         await onSaveService({
           id: crypto.randomUUID(),
           kind: 'service.updated',
@@ -302,7 +306,11 @@ export default function PricingTemplatesPage({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
-            <select aria-label="Template category" value={category} onChange={(e) => setCategory(e.target.value)}>
+            <select
+              aria-label="Template category"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+            >
               <option value="">All categories</option>
               {categories.map((c) => (
                 <option key={c} value={c}>
@@ -700,7 +708,9 @@ export default function PricingTemplatesPage({
                     name="amount"
                     required
                     defaultValue={
-                      editingCost?.costing?.amount != null ? (editingCost.costing.amount / 100).toFixed(2) : undefined
+                      editingCost?.costing?.amount != null
+                        ? (editingCost.costing.amount / 100).toFixed(2)
+                        : undefined
                     }
                   />
                 </label>

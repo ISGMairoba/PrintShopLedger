@@ -48,8 +48,7 @@ export function dayTime(value, day, label = 'Time') {
   return value;
 }
 /** Lagos wall-clock "YYYY-MM-DDTHH:mm" for a datetime-local box, and back to an ISO time. */
-export const lagosLocal = (iso) =>
-  new Date(Date.parse(iso) + 3600000).toISOString().slice(0, 16);
+export const lagosLocal = (iso) => new Date(Date.parse(iso) + 3600000).toISOString().slice(0, 16);
 export const fromLagosLocal = (local) => new Date(`${local}:00+01:00`).toISOString();
 /** When an expense or payment happened: its time when saved with one, otherwise its day. */
 export const expenseWhen = (item) => item.incurredAt ?? item.incurredOn;

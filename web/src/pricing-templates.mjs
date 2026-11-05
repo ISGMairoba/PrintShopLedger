@@ -999,7 +999,9 @@ export const templateSpecLines = (job) =>
         )
     : [];
 
-const QUANTITY_LADDER = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500, 5000, 10000, 20000, 50000, 100000];
+const QUANTITY_LADDER = [
+  1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500, 5000, 10000, 20000, 50000, 100000,
+];
 /**
  * Quantities to compare: the one being priced, then where the price of a material used changes
  * (its quantity tiers and packs), then the usual print-run steps above it. At most five, in order,

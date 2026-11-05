@@ -66,7 +66,11 @@ export default function PayeesPage({
     .filter((p) => p.paidOn.startsWith(month))
     .reduce((n, p) => n + p.amount, 0);
   const activeCount = (ledger.payees ?? []).filter((p) => !p.archived).length;
-  const exportTitle = [businessName, 'Payees', `As of ${new Date().toLocaleString('en-NG', { timeZone: 'Africa/Lagos' })}`].filter(Boolean);
+  const exportTitle = [
+    businessName,
+    'Payees',
+    `As of ${new Date().toLocaleString('en-NG', { timeZone: 'Africa/Lagos' })}`,
+  ].filter(Boolean);
   const exportCsv = () => {
     setError('');
     try {
@@ -101,258 +105,262 @@ export default function PayeesPage({
   };
   return (
     <>
-    <section className="stats" aria-label="Payee summary">
-      <article>
-        <span>Owed to payees</span>
-        <strong>{currency(owedTotal)}</strong>
-        <small>{owedPayees === 1 ? '1 payee is owed' : `${owedPayees} payees are owed`}</small>
-      </article>
-      <article>
-        <span>Spent this month</span>
-        <strong>{currency(spentMonth)}</strong>
-        <small>Expenses with a saved payee</small>
-      </article>
-      <article>
-        <span>Paid this month</span>
-        <strong>{currency(paidMonth)}</strong>
-        <small>Payments to saved payees</small>
-      </article>
-      <article>
-        <span>Active payees</span>
-        <strong>{activeCount}</strong>
-      </article>
-    </section>
-    <section className="panel">
-      <div className="toolbar">
-        <input
-          aria-label="Search payees"
-          placeholder="Search name, phone, address or ID"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-        <label className="check-label">
-          <input type="checkbox" checked={archived} onChange={(e) => setArchived(e.target.checked)} />
-          Show archived
-        </label>
-        <button className="secondary" onClick={exportCsv}>
-          <Icon name="export" /> Spreadsheet
-        </button>
-        <button className="secondary" onClick={() => void exportPdf()}>
-          <Icon name="export" /> Print / PDF
-        </button>
-        <button disabled={busy} onClick={() => setEditing('new')}>
-          <Icon name="add" />
-          Add payee
-        </button>
-      </div>
-      {error && (
-        <p className="notice" role="alert">
-          {error}
-        </p>
-      )}
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <SortHeader label="Payee" column="name" sort={sorting} />
-              <SortHeader label="Expenses / payments" column="owed" sort={sorting} />
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((p) => {
-              const t = totals(p.id);
-              return (
-                <tr key={p.id}>
-                  <td>
-                    <strong>{p.name}</strong>
-                    <small>{p.phone}</small>
-                    <small>{p.address}</small>
-                    {p.archived && <small>Archived</small>}
-                  </td>
-                  <td>
-                    <strong>Outstanding {currency(t.owed)}</strong>
-                    <small>Incurred {currency(t.incurred)}</small>
-                    <small>Paid {currency(t.paid)}</small>
-                    {branches &&
-                      branches.length > 1 &&
-                      branches.map((b) => {
-                        const owed = b.ledger.expenses
-                          .filter((e) => e.payeeId === p.id && !e.voided)
-                          .reduce((n, e) => n + Math.max(0, e.amount - expensePaid(e)), 0);
-                        return (
-                          <small key={b.id}>
-                            {b.name}: owes {currency(owed)}
-                          </small>
-                        );
-                      })}
-                  </td>
-                  <td>
-                    <div className="material-actions">
-                      <button className="text-button" disabled={busy} onClick={() => setView(p)}>
-                        Transactions
-                      </button>
-                      {onStatement && (
-                        <button className="text-button" onClick={() => onStatement(p.id)}>
-                          <Icon name="reports" /> Statement
-                        </button>
-                      )}
-                      <button className="text-button" disabled={busy} onClick={() => setEditing(p)}>
-                        Edit
-                      </button>
-                      <button
-                        className={`text-button ${p.archived ? '' : 'danger-text'}`}
-                        disabled={busy}
-                        onClick={() =>
-                          void save(p.archived ? 'payee.restored' : 'payee.archived', {
-                            id: p.id,
-                            baseVersion: p.version,
-                          })
-                        }
-                      >
-                        {p.archived ? 'Restore' : 'Archive'}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      {!rows.length && <p className="muted">No matching payees.</p>}
-      {editing && (
-        <Modal
-          title={editing === 'new' ? 'Add payee' : 'Edit payee'}
-          busy={busy}
-          onClose={() => setEditing(null)}
-        >
-          {error && (
-            <p role="alert" className="notice">
-              {error}
-            </p>
-          )}
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              const f = new FormData(e.currentTarget);
-              if (
-                await save(editing === 'new' ? 'payee.created' : 'payee.updated', {
-                  id: editing === 'new' ? crypto.randomUUID() : editing.id,
-                  baseVersion: editing === 'new' ? undefined : editing.version,
-                  name: String(f.get('name')),
-                  phone: String(f.get('phone')),
-                  address: String(f.get('address')),
-                  note: String(f.get('note')),
-                })
-              )
-                setEditing(null);
-            }}
-          >
-            <fieldset disabled={busy}>
-              <label>
-                Payee name
-                <input
-                  name="name"
-                  aria-label="Payee name"
-                  maxLength={160}
-                  required
-                  defaultValue={editing === 'new' ? '' : editing.name}
-                />
-              </label>
-              <label>
-                Phone
-                <input name="phone" maxLength={40} defaultValue={editing === 'new' ? '' : editing.phone} />
-              </label>
-              <label>
-                Address
-                <textarea
-                  name="address"
-                  maxLength={500}
-                  defaultValue={editing === 'new' ? '' : editing.address}
-                />
-              </label>
-              <label>
-                Notes
-                <textarea name="note" maxLength={1000} defaultValue={editing === 'new' ? '' : editing.note} />
-              </label>
-              <button type="submit">Save payee</button>
-            </fieldset>
-          </form>
-        </Modal>
-      )}
-      {view && (
-        <Modal title={`Payee transactions · ${view.name}`} wide busy={busy} onClose={() => setView(null)}>
-          <p>
-            {view.phone} · {view.address}
+      <section className="stats" aria-label="Payee summary">
+        <article>
+          <span>Owed to payees</span>
+          <strong>{currency(owedTotal)}</strong>
+          <small>{owedPayees === 1 ? '1 payee is owed' : `${owedPayees} payees are owed`}</small>
+        </article>
+        <article>
+          <span>Spent this month</span>
+          <strong>{currency(spentMonth)}</strong>
+          <small>Expenses with a saved payee</small>
+        </article>
+        <article>
+          <span>Paid this month</span>
+          <strong>{currency(paidMonth)}</strong>
+          <small>Payments to saved payees</small>
+        </article>
+        <article>
+          <span>Active payees</span>
+          <strong>{activeCount}</strong>
+        </article>
+      </section>
+      <section className="panel">
+        <div className="toolbar">
+          <input
+            aria-label="Search payees"
+            placeholder="Search name, phone, address or ID"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <label className="check-label">
+            <input type="checkbox" checked={archived} onChange={(e) => setArchived(e.target.checked)} />
+            Show archived
+          </label>
+          <button className="secondary" onClick={exportCsv}>
+            <Icon name="export" /> Spreadsheet
+          </button>
+          <button className="secondary" onClick={() => void exportPdf()}>
+            <Icon name="export" /> Print / PDF
+          </button>
+          <button disabled={busy} onClick={() => setEditing('new')}>
+            <Icon name="add" />
+            Add payee
+          </button>
+        </div>
+        {error && (
+          <p className="notice" role="alert">
+            {error}
           </p>
-          <div className="detail-summary">
-            <span>
-              Incurred <strong>{currency(totals(view.id).incurred)}</strong>
-            </span>
-            <span>
-              Paid <strong>{currency(totals(view.id).paid)}</strong>
-            </span>
-            <span>
-              Outstanding <strong>{currency(totals(view.id).owed)}</strong>
-            </span>
-          </div>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Expense</th>
-                  <th>Amount / balance</th>
-                  <th>Payments</th>
-                </tr>
-              </thead>
-              <tbody>
-                {expenses(view.id)
-                  .sort((a, b) => b.incurredOn.localeCompare(a.incurredOn))
-                  .map((e) => (
-                    <tr key={e.id}>
-                      <td>
-                        {e.description}
-                        <small>
-                          {e.incurredOn} · {e.category}
-                        </small>
-                        <small>Recorded as: {e.payee}</small>
-                        {e.voided && <small>Voided · payments retained</small>}
-                      </td>
-                      <td>
-                        {currency(e.amount)}
-                        <small>
-                          Outstanding {currency(e.voided ? 0 : Math.max(0, e.amount - expensePaid(e)))}
-                        </small>
-                      </td>
-                      <td>
-                        {e.payments.map((p) => (
-                          <small key={p.id}>
-                            {p.paidAt
-                              ? new Date(p.paidAt).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' })
-                              : p.paidOn}{' '}
-                            · {currency(p.amount)} · {p.methodLabel || p.method}
+        )}
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <SortHeader label="Payee" column="name" sort={sorting} />
+                <SortHeader label="Expenses / payments" column="owed" sort={sorting} />
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((p) => {
+                const t = totals(p.id);
+                return (
+                  <tr key={p.id}>
+                    <td>
+                      <strong>{p.name}</strong>
+                      <small>{p.phone}</small>
+                      <small>{p.address}</small>
+                      {p.archived && <small>Archived</small>}
+                    </td>
+                    <td>
+                      <strong>Outstanding {currency(t.owed)}</strong>
+                      <small>Incurred {currency(t.incurred)}</small>
+                      <small>Paid {currency(t.paid)}</small>
+                      {branches &&
+                        branches.length > 1 &&
+                        branches.map((b) => {
+                          const owed = b.ledger.expenses
+                            .filter((e) => e.payeeId === p.id && !e.voided)
+                            .reduce((n, e) => n + Math.max(0, e.amount - expensePaid(e)), 0);
+                          return (
+                            <small key={b.id}>
+                              {b.name}: owes {currency(owed)}
+                            </small>
+                          );
+                        })}
+                    </td>
+                    <td>
+                      <div className="material-actions">
+                        <button className="text-button" disabled={busy} onClick={() => setView(p)}>
+                          Transactions
+                        </button>
+                        {onStatement && (
+                          <button className="text-button" onClick={() => onStatement(p.id)}>
+                            <Icon name="reports" /> Statement
+                          </button>
+                        )}
+                        <button className="text-button" disabled={busy} onClick={() => setEditing(p)}>
+                          Edit
+                        </button>
+                        <button
+                          className={`text-button ${p.archived ? '' : 'danger-text'}`}
+                          disabled={busy}
+                          onClick={() =>
+                            void save(p.archived ? 'payee.restored' : 'payee.archived', {
+                              id: p.id,
+                              baseVersion: p.version,
+                            })
+                          }
+                        >
+                          {p.archived ? 'Restore' : 'Archive'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {!rows.length && <p className="muted">No matching payees.</p>}
+        {editing && (
+          <Modal
+            title={editing === 'new' ? 'Add payee' : 'Edit payee'}
+            busy={busy}
+            onClose={() => setEditing(null)}
+          >
+            {error && (
+              <p role="alert" className="notice">
+                {error}
+              </p>
+            )}
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const f = new FormData(e.currentTarget);
+                if (
+                  await save(editing === 'new' ? 'payee.created' : 'payee.updated', {
+                    id: editing === 'new' ? crypto.randomUUID() : editing.id,
+                    baseVersion: editing === 'new' ? undefined : editing.version,
+                    name: String(f.get('name')),
+                    phone: String(f.get('phone')),
+                    address: String(f.get('address')),
+                    note: String(f.get('note')),
+                  })
+                )
+                  setEditing(null);
+              }}
+            >
+              <fieldset disabled={busy}>
+                <label>
+                  Payee name
+                  <input
+                    name="name"
+                    aria-label="Payee name"
+                    maxLength={160}
+                    required
+                    defaultValue={editing === 'new' ? '' : editing.name}
+                  />
+                </label>
+                <label>
+                  Phone
+                  <input name="phone" maxLength={40} defaultValue={editing === 'new' ? '' : editing.phone} />
+                </label>
+                <label>
+                  Address
+                  <textarea
+                    name="address"
+                    maxLength={500}
+                    defaultValue={editing === 'new' ? '' : editing.address}
+                  />
+                </label>
+                <label>
+                  Notes
+                  <textarea
+                    name="note"
+                    maxLength={1000}
+                    defaultValue={editing === 'new' ? '' : editing.note}
+                  />
+                </label>
+                <button type="submit">Save payee</button>
+              </fieldset>
+            </form>
+          </Modal>
+        )}
+        {view && (
+          <Modal title={`Payee transactions · ${view.name}`} wide busy={busy} onClose={() => setView(null)}>
+            <p>
+              {view.phone} · {view.address}
+            </p>
+            <div className="detail-summary">
+              <span>
+                Incurred <strong>{currency(totals(view.id).incurred)}</strong>
+              </span>
+              <span>
+                Paid <strong>{currency(totals(view.id).paid)}</strong>
+              </span>
+              <span>
+                Outstanding <strong>{currency(totals(view.id).owed)}</strong>
+              </span>
+            </div>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Expense</th>
+                    <th>Amount / balance</th>
+                    <th>Payments</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {expenses(view.id)
+                    .sort((a, b) => b.incurredOn.localeCompare(a.incurredOn))
+                    .map((e) => (
+                      <tr key={e.id}>
+                        <td>
+                          {e.description}
+                          <small>
+                            {e.incurredOn} · {e.category}
                           </small>
-                        ))}
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-          <details>
-            <summary>Audit history</summary>
-            {(ledger.operationHistory ?? [])
-              .filter((h) => h.recordId === view.id)
-              .map((h) => (
-                <p key={h.id}>
-                  {h.action} · {h.modifiedByLabel} · {new Date(h.modifiedAt).toLocaleString('en-NG')}
-                </p>
-              ))}
-          </details>
-        </Modal>
-      )}
-    </section>
+                          <small>Recorded as: {e.payee}</small>
+                          {e.voided && <small>Voided · payments retained</small>}
+                        </td>
+                        <td>
+                          {currency(e.amount)}
+                          <small>
+                            Outstanding {currency(e.voided ? 0 : Math.max(0, e.amount - expensePaid(e)))}
+                          </small>
+                        </td>
+                        <td>
+                          {e.payments.map((p) => (
+                            <small key={p.id}>
+                              {p.paidAt
+                                ? new Date(p.paidAt).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' })
+                                : p.paidOn}{' '}
+                              · {currency(p.amount)} · {p.methodLabel || p.method}
+                            </small>
+                          ))}
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+            <details>
+              <summary>Audit history</summary>
+              {(ledger.operationHistory ?? [])
+                .filter((h) => h.recordId === view.id)
+                .map((h) => (
+                  <p key={h.id}>
+                    {h.action} · {h.modifiedByLabel} · {new Date(h.modifiedAt).toLocaleString('en-NG')}
+                  </p>
+                ))}
+            </details>
+          </Modal>
+        )}
+      </section>
     </>
   );
 }

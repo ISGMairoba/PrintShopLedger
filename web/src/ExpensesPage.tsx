@@ -20,14 +20,7 @@ import {
   paymentWhen,
 } from './expenses.mjs';
 import { operationEvent } from './operations.mjs';
-import type {
-  Expense,
-  ExpenseEvent,
-  ExpensePayment,
-  Ledger,
-  LedgerEvent,
-  OperationsEvent,
-} from './types';
+import type { Expense, ExpenseEvent, ExpensePayment, Ledger, LedgerEvent, OperationsEvent } from './types';
 import { useWords } from './Words';
 import { renameActive as wt } from './Words';
 import { alphabetical } from './alphabetical.mjs';

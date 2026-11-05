@@ -8,13 +8,7 @@ import CurrencyInput from './CurrencyInput';
 import Icon from './Icon';
 import { amountError, normalizeAmount } from './currency-input.mjs';
 import { money } from './domain.mjs';
-import {
-  expenseCode,
-  expensePaid,
-  fromLagosLocal,
-  lagosLocal,
-  makeExpenseEvent,
-} from './expenses.mjs';
+import { expenseCode, expensePaid, fromLagosLocal, lagosLocal, makeExpenseEvent } from './expenses.mjs';
 import { accountPaymentOptions } from './account-methods.mjs';
 import { materialCode } from './material-display.mjs';
 import type {
@@ -84,13 +78,22 @@ export default function ExpenseEditor({
       accountId: o.accountId ?? '',
       source: o.kind === 'Cash' ? 'Business cash' : 'Business bank account',
     })),
-    { key: 'personal', text: 'Personal funds (not from the business)', label: 'Personal funds', kind: 'Other', accountId: '', source: 'Personal funds' },
+    {
+      key: 'personal',
+      text: 'Personal funds (not from the business)',
+      label: 'Personal funds',
+      kind: 'Other',
+      accountId: '',
+      source: 'Personal funds',
+    },
   ];
   const correctingKey = correcting
     ? correcting.source === 'Personal funds'
       ? 'personal'
       : (paidFromOptions.find(
-          (o) => o.accountId === (correcting.accountId ?? '') && o.label === (correcting.methodLabel || correcting.method),
+          (o) =>
+            o.accountId === (correcting.accountId ?? '') &&
+            o.label === (correcting.methodLabel || correcting.method),
         )?.key ??
         paidFromOptions.find((o) => o.label === (correcting.methodLabel || correcting.method))?.key ??
         '')
@@ -103,7 +106,11 @@ export default function ExpenseEditor({
   );
   const [whenTouched, setWhenTouched] = useState(false);
   const [paidWhen, setPaidWhen] = useState(
-    correcting ? (correcting.paidAt ? lagosLocal(correcting.paidAt) : `${correcting.paidOn}T00:00`) : nowLocal,
+    correcting
+      ? correcting.paidAt
+        ? lagosLocal(correcting.paidAt)
+        : `${correcting.paidOn}T00:00`
+      : nowLocal,
   );
   const [paidWhenTouched, setPaidWhenTouched] = useState(false);
   const [remove, setRemove] = useState(false);
@@ -180,7 +187,8 @@ export default function ExpenseEditor({
         : {
             description: String(f.get('description')),
             category: String(f.get('category')),
-            incurredOn: expense && !expense.incurredAt && !whenTouched ? expense.incurredOn : when.slice(0, 10),
+            incurredOn:
+              expense && !expense.incurredAt && !whenTouched ? expense.incurredOn : when.slice(0, 10),
             incurredAt: expense && !expense.incurredAt && !whenTouched ? null : fromLagosLocal(when),
             amount: money(total),
             payeeId,
@@ -223,7 +231,13 @@ export default function ExpenseEditor({
       onClose={onClose}
       footer={
         <DialogActions form={formId} busy={busy} onCancel={onClose}>
-          {correctOnly ? (remove ? 'Remove payment' : 'Save correction') : paymentOnly ? 'Save payment' : 'Save expense'}
+          {correctOnly
+            ? remove
+              ? 'Remove payment'
+              : 'Save correction'
+            : paymentOnly
+              ? 'Save payment'
+              : 'Save expense'}
         </DialogActions>
       }
     >
@@ -305,7 +319,11 @@ export default function ExpenseEditor({
                     />
                   </label>
                   {onCreatePayee && (
-                    <button type="button" className="text-button" onClick={() => setNewPayee({ name: '', phone: '' })}>
+                    <button
+                      type="button"
+                      className="text-button"
+                      onClick={() => setNewPayee({ name: '', phone: '' })}
+                    >
                       <Icon name="add" /> New payee
                     </button>
                   )}
@@ -455,7 +473,11 @@ export default function ExpenseEditor({
                 </label>
                 <label>
                   Paid from
-                  <select aria-label="Paid from" value={paidFrom} onChange={(e) => setPaidFrom(e.target.value)}>
+                  <select
+                    aria-label="Paid from"
+                    value={paidFrom}
+                    onChange={(e) => setPaidFrom(e.target.value)}
+                  >
                     {paidFromOptions.map((o) => (
                       <option key={o.key} value={o.key}>
                         {o.text}
@@ -472,14 +494,20 @@ export default function ExpenseEditor({
                 <>
                   <label>
                     Reason for the correction
-                    <input name="reason" maxLength={500} required placeholder="e.g. Paid by transfer, not cash" />
+                    <input
+                      name="reason"
+                      maxLength={500}
+                      required
+                      placeholder="e.g. Paid by transfer, not cash"
+                    />
                   </label>
                   <label className="check-label">
                     <input type="checkbox" checked={remove} onChange={(e) => setRemove(e.target.checked)} />
                     Remove this payment (it was entered by mistake)
                   </label>
                   <p className="muted">
-                    The account balances follow the correction. The original payment stays in the change history.
+                    The account balances follow the correction. The original payment stays in the change
+                    history.
                   </p>
                 </>
               ) : (
@@ -526,7 +554,9 @@ export default function ExpenseEditor({
               onClick={async () => {
                 setError('');
                 try {
-                  setPayeeId(await onCreatePayee({ name: newPayee.name.trim(), phone: newPayee.phone.trim() }));
+                  setPayeeId(
+                    await onCreatePayee({ name: newPayee.name.trim(), phone: newPayee.phone.trim() }),
+                  );
                   setNewPayee(null);
                 } catch (cause) {
                   setNewPayee(null);

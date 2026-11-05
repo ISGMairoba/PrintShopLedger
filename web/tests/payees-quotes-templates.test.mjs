@@ -6,7 +6,14 @@ import { applyQuotationEvent } from '../src/quotations.mjs';
 import { normalizeLedger } from '../src/materials.mjs';
 import { emptyLedger } from '../src/domain.mjs';
 
-const pay = (amount, paidOn) => ({ id: `p${amount}${paidOn}`, amount, paidOn, method: 'Cash', source: 'Business cash', reference: '' });
+const pay = (amount, paidOn) => ({
+  id: `p${amount}${paidOn}`,
+  amount,
+  paidOn,
+  method: 'Cash',
+  source: 'Business cash',
+  reference: '',
+});
 const expense = (id, incurredOn, amount, payments, extra = {}) => ({
   id,
   payeeId: 'pay1',
@@ -41,7 +48,10 @@ test('payee statement: period spending and payments, and everything still owed',
 
 test('compare suggests the quantity being priced, price tiers, then print-run steps', () => {
   assert.deepEqual(suggestQuantities(1), [1, 2, 5, 10, 20]);
-  assert.deepEqual(suggestQuantities(50, {}, [{ priceTiers: [{ from: 100 }, { from: 500 }] }]), [50, 100, 200, 500, 1000]);
+  assert.deepEqual(
+    suggestQuantities(50, {}, [{ priceTiers: [{ from: 100 }, { from: 500 }] }]),
+    [50, 100, 200, 500, 1000],
+  );
   assert.deepEqual(suggestQuantities(30, { max: 100 }), [30, 50, 100]);
 });
 
@@ -54,7 +64,10 @@ test('a deleted quotation disappears, and one that became an order cannot be del
     data: { id, modifiedBy: 'u1', modifiedByLabel: 'U', modifiedAt: '2026-11-05T10:00:00Z' },
   });
   const after = applyQuotationEvent(base, event('q1'));
-  assert.deepEqual(after.quotations.map((q) => q.id), ['q2']);
+  assert.deepEqual(
+    after.quotations.map((q) => q.id),
+    ['q2'],
+  );
   assert.throws(() => applyQuotationEvent(base, event('q2')), /cannot be deleted/);
   assert.equal(normalizeLedger({ quotations: [{ ...quote, status: 'deleted' }] }).quotations.length, 0);
 });

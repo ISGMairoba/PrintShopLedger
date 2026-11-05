@@ -1079,7 +1079,10 @@ export function payeeStatement(ledger, payeeId, from, to, now = new Date().toISO
     };
   };
   const byDate = (a, b) => a.date.localeCompare(b.date);
-  const expenses = all.filter((e) => within(e.incurredOn)).map(row).sort(byDate);
+  const expenses = all
+    .filter((e) => within(e.incurredOn))
+    .map(row)
+    .sort(byDate);
   const earlierOwing = all
     .filter((e) => e.incurredOn < from)
     .map(row)
@@ -1104,7 +1107,13 @@ export function payeeStatement(ledger, payeeId, from, to, now = new Date().toISO
     .sort((a, b) => (a.time ?? a.date).localeCompare(b.time ?? b.date));
   const active = all.filter((e) => !e.voided);
   return {
-    payee: { id: payee.id, name: payee.name, phone: payee.phone, address: payee.address, archived: payee.archived },
+    payee: {
+      id: payee.id,
+      name: payee.name,
+      phone: payee.phone,
+      address: payee.address,
+      archived: payee.archived,
+    },
     from,
     to,
     generatedAt: now,
@@ -1166,7 +1175,12 @@ export function payeeStatementSections(statement, { money = naira, unit = ' (NGN
         [`Owed to payee now${unit}`, money(t.owedNow)],
       ],
     },
-    { title: 'Expenses in this period', columns: expenseColumns, ...expenseLayout, rows: statement.expenses.map(expenseCells) },
+    {
+      title: 'Expenses in this period',
+      columns: expenseColumns,
+      ...expenseLayout,
+      rows: statement.expenses.map(expenseCells),
+    },
   ];
   if (statement.earlierOwing.length)
     sections.push({
@@ -1204,7 +1218,10 @@ export function payeeListSections(ledger, { money = naira, unit = ' (NGN)', arch
         p,
         incurred: active.reduce((n, e) => n + e.amount, 0),
         paid,
-        owed: active.reduce((n, e) => n + Math.max(0, e.amount - e.payments.reduce((m, x) => m + x.amount, 0)), 0),
+        owed: active.reduce(
+          (n, e) => n + Math.max(0, e.amount - e.payments.reduce((m, x) => m + x.amount, 0)),
+          0,
+        ),
         count: active.length,
       };
     })
@@ -1212,7 +1229,16 @@ export function payeeListSections(ledger, { money = naira, unit = ' (NGN)', arch
   return [
     {
       title: 'Payees',
-      columns: ['Payee', 'Phone', 'Address', 'Expenses', `Spent${unit}`, `Paid${unit}`, `Owed now${unit}`, 'Status'],
+      columns: [
+        'Payee',
+        'Phone',
+        'Address',
+        'Expenses',
+        `Spent${unit}`,
+        `Paid${unit}`,
+        `Owed now${unit}`,
+        'Status',
+      ],
       widths: [18, 11, 20, 8, 11, 11, 11, 8],
       numeric: [3, 4, 5, 6],
       rows: rows.map((r) => [

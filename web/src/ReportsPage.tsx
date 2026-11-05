@@ -537,7 +537,12 @@ function PayeeStatementTab({
               busy={busy}
               onCsv={() => csv(file, title, subtitle, payeeStatementSections(statement))}
               onPdf={() =>
-                void pdf(file, title, subtitle, payeeStatementSections(statement, { money: currency, unit: '' }))
+                void pdf(
+                  file,
+                  title,
+                  subtitle,
+                  payeeStatementSections(statement, { money: currency, unit: '' }),
+                )
               }
             />
           </section>

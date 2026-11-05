@@ -36,7 +36,11 @@ test('an expense and its payment keep the time they happened', () => {
   assert.equal(lagosLocal('2026-11-05T22:30:00.000Z'), '2026-11-05T23:30');
   assert.equal(fromLagosLocal('2026-11-05T23:30'), '2026-11-05T22:30:00.000Z');
   assert.throws(
-    () => applyEvent(emptyLedger(), event('expense.created', { ...base, incurredAt: '2026-11-06T08:00:00.000Z' })),
+    () =>
+      applyEvent(
+        emptyLedger(),
+        event('expense.created', { ...base, incurredAt: '2026-11-06T08:00:00.000Z' }),
+      ),
     /must be on the chosen day/,
   );
 });
@@ -44,10 +48,20 @@ test('an expense and its payment keep the time they happened', () => {
 test('a payment can be corrected or removed, with the reason kept', () => {
   const first = pay();
   let l = applyEvent(emptyLedger(), event('expense.created', { ...base, payment: first }));
-  const fixed = { ...first, amount: 500000, method: 'Transfer', methodLabel: 'Transfer', source: 'Business bank account' };
+  const fixed = {
+    ...first,
+    amount: 500000,
+    method: 'Transfer',
+    methodLabel: 'Transfer',
+    source: 'Business bank account',
+  };
   l = applyEvent(
     l,
-    event('expense.payment_corrected', { paymentId: first.id, payment: fixed, reason: 'Paid by transfer' }, l.expenses[0]),
+    event(
+      'expense.payment_corrected',
+      { paymentId: first.id, payment: fixed, reason: 'Paid by transfer' },
+      l.expenses[0],
+    ),
   );
   const p = l.expenses[0].payments[0];
   assert.equal(p.amount, 500000);
@@ -68,10 +82,25 @@ test('a payment can be corrected or removed, with the reason kept', () => {
     /cannot exceed/,
   );
   assert.throws(
-    () => applyEvent(l, event('expense.payment_corrected', { paymentId: first.id, payment: fixed, reason: ' ' }, l.expenses[0])),
+    () =>
+      applyEvent(
+        l,
+        event(
+          'expense.payment_corrected',
+          { paymentId: first.id, payment: fixed, reason: ' ' },
+          l.expenses[0],
+        ),
+      ),
     /Reason/,
   );
-  l = applyEvent(l, event('expense.payment_corrected', { paymentId: first.id, remove: true, reason: 'Entered twice' }, l.expenses[0]));
+  l = applyEvent(
+    l,
+    event(
+      'expense.payment_corrected',
+      { paymentId: first.id, remove: true, reason: 'Entered twice' },
+      l.expenses[0],
+    ),
+  );
   assert.equal(expensePaid(l.expenses[0]), 0);
   assert.equal(l.expenses[0].removedPayments[0].corrections.at(-1).reason, 'Entered twice');
   assert.equal(l.expenseHistory.at(-1).action, 'expense.payment_corrected');
