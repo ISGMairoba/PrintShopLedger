@@ -124,6 +124,8 @@ export const defaultBranding = () => ({
   backgrounds: defaultBackgrounds(),
   options: defaultOptions(),
   corrections: { recentDays: 7 },
+  /** autoClose: drawers left open overnight are closed "not counted" for an Admin to review. */
+  drawers: { autoClose: true },
   // syncMinutes: how often devices check for changes made on other devices.
   security: { autoLockMinutes: 0, syncMinutes: 2 },
   jobs: jobSettingsDefaults(),
@@ -257,6 +259,15 @@ export function validateBranding(input) {
       (preset === 'all' && pagesWithoutAll.includes(key))
     )
       throw Error('Choose a valid default period for each page.');
+  value.drawers ??= { autoClose: true };
+  if (
+    !value.drawers ||
+    typeof value.drawers !== 'object' ||
+    typeof (value.drawers.autoClose ?? true) !== 'boolean' ||
+    Object.keys(value.drawers).some((key) => key !== 'autoClose')
+  )
+    throw Error('Invalid drawer settings.');
+  value.drawers = { autoClose: value.drawers.autoClose ?? true };
   value.corrections ??= { recentDays: 7 };
   if (
     !Number.isInteger(value.corrections.recentDays) ||

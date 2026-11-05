@@ -475,9 +475,18 @@ export interface DrawerClosing {
   walletUsed: number;
   jobSales: number;
   expectedCash: number;
-  countedCash: number;
-  difference: number;
+  /** null: closed automatically and not counted (yet). */
+  countedCash: number | null;
+  difference: number | null;
   note: string;
+  /** Closed by the nightly drawer check, not by a handover. */
+  autoClosed?: boolean;
+  reviewStatus?: 'pending' | 'reviewed';
+  reviewedBy?: string;
+  reviewedByLabel?: string;
+  reviewedAt?: string;
+  reviewNote?: string;
+  coversUntil?: string;
 }
 export interface DrawerCommand {
   id: string;

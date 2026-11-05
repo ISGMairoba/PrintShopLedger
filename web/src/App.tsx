@@ -37,6 +37,7 @@ import BusinessSettingsPage from './BusinessSettingsPage';
 import AccountPage from './AccountPage';
 import { allowedSettingsTabs, canAccessPage, pageGroup, pages, navigationPages } from './page-access.mjs';
 import ExpensesPage from './ExpensesPage';
+import DrawerReviews from './DrawerReviews';
 import type { ProgressMode } from './JobActions';
 import JobProgressDialog from './JobProgressDialog';
 import { stageMoveEvents } from './material-choice.mjs';
@@ -662,6 +663,28 @@ export default function App() {
     } finally {
       setBusy(false);
     }
+  }
+  /** Conflict Inbox: an Admin reviews a drawer closed automatically overnight. */
+  async function reviewDrawer(id: string, counted: number | null, note: string) {
+    if (demo || !online || !scope || !shop) throw Error('Connect to review drawers.');
+    const target = scope;
+    const { data, error } = await supabase!.rpc('review_drawer_closing', {
+      p_shop: shop.id,
+      p_id: id,
+      p_counted: counted,
+      p_note: note,
+    });
+    if (error) throw Error(error.message);
+    await mutateState(target, (current) => ({
+      ...current,
+      ledger: {
+        ...current.ledger,
+        drawerClosings: current.ledger.drawerClosings.map((d) => (d.id === id ? data : d)),
+      },
+    }));
+    if (activeScope.current === target) setState(await readState(target));
+    channel.current?.postMessage('changed');
+    setMessage('Drawer reviewed.');
   }
   async function closeDrawer(command: DrawerCommand) {
     if (demo || !online || busy || !ready || !scope || !session || !shop)
@@ -1476,6 +1499,25 @@ export default function App() {
                       </button>
                     </div>
                   )}
+                  {!demo &&
+                    (shop?.accessLevel ?? 0) >= 2 &&
+                    page !== 'Conflict Inbox' &&
+                    allowed('Conflict Inbox') &&
+                    state.ledger.drawerClosings.some(
+                      (d) => d.autoClosed && d.reviewStatus !== 'reviewed',
+                    ) && (
+                      <div className="notice">
+                        {
+                          state.ledger.drawerClosings.filter(
+                            (d) => d.autoClosed && d.reviewStatus !== 'reviewed',
+                          ).length
+                        }{' '}
+                        drawer(s) were closed automatically and need a review.{' '}
+                        <button className="secondary" onClick={() => setPage('Conflict Inbox')}>
+                          <Icon name="inbox" /> Review drawers
+                        </button>
+                      </div>
+                    )}
                   {hasConflict && supervisor && (
                     <div className="notice">
                       Supervisor review: {supervisor}. The cashier remains signed in.
@@ -1819,22 +1861,31 @@ export default function App() {
                             <p>Remote reviews are available in a connected business workspace.</p>
                           </section>
                         ) : (
-                          <ConflictInbox
-                            canConfigureAccounts={shop?.accessLevel === 5}
-                            key={scope}
-                            scope={scope}
-                            shopId={shop!.id}
-                            online={online}
-                            onChanged={() => {
-                              if (activeScope.current !== scope) return;
-                              void readState(scope).then((next) => {
-                                if (activeScope.current === scope) setState(next);
-                              });
-                              setMessage(
-                                'Review saved. The original device will receive it automatically when connected.',
-                              );
-                            }}
-                          />
+                          <>
+                            {(shop?.accessLevel ?? 0) >= 2 && (
+                              <DrawerReviews
+                                closings={state.ledger.drawerClosings}
+                                online={online}
+                                onReview={reviewDrawer}
+                              />
+                            )}
+                            <ConflictInbox
+                              canConfigureAccounts={shop?.accessLevel === 5}
+                              key={scope}
+                              scope={scope}
+                              shopId={shop!.id}
+                              online={online}
+                              onChanged={() => {
+                                if (activeScope.current !== scope) return;
+                                void readState(scope).then((next) => {
+                                  if (activeScope.current === scope) setState(next);
+                                });
+                                setMessage(
+                                  'Review saved. The original device will receive it automatically when connected.',
+                                );
+                              }}
+                            />
+                          </>
                         )
                       ) : page === 'My Account' ? (
                         <>
