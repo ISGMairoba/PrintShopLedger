@@ -114,6 +114,15 @@ export default function ExpenseEditor({
   );
   const [paidWhenTouched, setPaidWhenTouched] = useState(false);
   const [remove, setRemove] = useState(false);
+  const categoryOptions = [...new Set([...expenseCategories, ...(expense ? [expense.category] : [])])];
+  const [category, setCategory] = useState(
+    expense?.category ??
+      (prefill?.category && expenseCategories.includes(prefill.category)
+        ? prefill.category
+        : expenseCategories.includes('Other')
+          ? 'Other'
+          : expenseCategories[0]),
+  );
   const correctOnly = mode === 'correct';
   const paymentOnly = mode === 'payment' || correctOnly;
   const [error, setError] = useFeedbackMessage('error');

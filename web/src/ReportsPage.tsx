@@ -418,6 +418,36 @@ type TabProps = {
   ) => Promise<void>;
 };
 
+type PayeeExpenseRow = {
+  id: string;
+  date: string;
+  ref: string;
+  description: string;
+  category: string;
+  amount: number;
+  paid: number;
+  outstanding: number;
+  status: string;
+};
+type PayeePaymentRow = {
+  id: string;
+  date: string;
+  ref: string;
+  expense: string;
+  method: string;
+  source: string;
+  reference: string;
+  amount: number;
+};
+type PayeeStatement = {
+  payee: { id: string; name: string; phone?: string; address?: string; archived?: boolean };
+  from: string;
+  to: string;
+  expenses: PayeeExpenseRow[];
+  earlierOwing: PayeeExpenseRow[];
+  payments: PayeePaymentRow[];
+  totals: { incurred: number; paid: number; owedNow: number; lastPaid: string };
+};
 function PayeeStatementTab({
   ledger,
   freshness,
@@ -440,7 +470,7 @@ function PayeeStatementTab({
   const statement = useMemo(
     () =>
       valid && payeeId && payees.some((p) => p.id === payeeId)
-        ? payeeStatement(ledger, payeeId, range.from, range.to)
+        ? (payeeStatement(ledger, payeeId, range.from, range.to) as PayeeStatement)
         : null,
     [ledger, payees, payeeId, range.from, range.to, valid],
   );
@@ -456,7 +486,7 @@ function PayeeStatementTab({
     ? reportFileName('Payee statement', statement.payee.name, `${statement.from} to ${statement.to}`)
     : '';
   const t = statement?.totals;
-  const expenseTable = (rows: NonNullable<typeof statement>['expenses'], label: string) =>
+  const expenseTable = (rows: PayeeExpenseRow[], label: string) =>
     rows.length ? (
       <div className="table-wrap">
         <table aria-label={label}>
