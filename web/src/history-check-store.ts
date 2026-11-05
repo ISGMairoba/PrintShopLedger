@@ -34,7 +34,8 @@ let scheduled = '';
  */
 export function historyCheckIfDue(scope: string, ledger: Ledger): Promise<boolean> {
   // A device already keeping recent history only has nothing to compare against.
-  if (!scope || ledger.historySummary?.cutoff || !due(scope) || scheduled === scope) return Promise.resolve(false);
+  if (!scope || ledger.historySummary?.cutoff || !due(scope) || scheduled === scope)
+    return Promise.resolve(false);
   scheduled = scope;
   return new Promise((resolve) => {
     const work = () => {

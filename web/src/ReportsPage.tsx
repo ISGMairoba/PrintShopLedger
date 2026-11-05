@@ -335,8 +335,8 @@ export default function ReportsPage({
         month: 'short',
         year: 'numeric',
       })}
-      . Balances and totals are complete; for the detail of earlier records, choose Everything in My Account
-      → This device, or use a device that keeps everything.
+      . Balances and totals are complete; for the detail of earlier records, choose Everything in My Account →
+      This device, or use a device that keeps everything.
     </div>
   ) : null;
   const freshness0 =

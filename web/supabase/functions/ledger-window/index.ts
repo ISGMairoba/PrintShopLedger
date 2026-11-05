@@ -26,7 +26,11 @@ Deno.serve(async (request: Request) => {
   }
   if (typeof body.shopId !== 'string' || !/^[0-9a-f-]{36}$/i.test(body.shopId))
     return reply(400, { error: 'Invalid business.' });
-  if (typeof body.cutoff !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(body.cutoff) || Number.isNaN(Date.parse(body.cutoff)))
+  if (
+    typeof body.cutoff !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(body.cutoff) ||
+    Number.isNaN(Date.parse(body.cutoff))
+  )
     return reply(400, { error: 'Invalid history window.' });
   const branch = request.headers.get('x-psl-branch');
   const client = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
@@ -39,6 +43,9 @@ Deno.serve(async (request: Request) => {
     const { ledger, dropped, carried } = trimHistory(normalizeLedger(data.ledger), body.cutoff);
     return reply(200, { ...data, full: true, ledger, window: { cutoff: body.cutoff, dropped, carried } });
   } catch (cause) {
-    return reply(500, { error: 'Could not prepare the recent history: ' + (cause instanceof Error ? cause.message : String(cause)) });
+    return reply(500, {
+      error:
+        'Could not prepare the recent history: ' + (cause instanceof Error ? cause.message : String(cause)),
+    });
   }
 });

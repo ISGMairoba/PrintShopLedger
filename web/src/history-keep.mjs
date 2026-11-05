@@ -51,6 +51,8 @@ export function needsFreshWindow(ledger, changes) {
   if (!cutoff) return false;
   return Object.entries(DATED).some(([collection, dateOf]) => {
     const have = new Set((ledger[collection] ?? []).map((r) => r.id));
-    return (changes?.[collection] ?? []).some((r) => !have.has(r.id) && String(dateOf(r) ?? '').slice(0, 10) < cutoff);
+    return (changes?.[collection] ?? []).some(
+      (r) => !have.has(r.id) && String(dateOf(r) ?? '').slice(0, 10) < cutoff,
+    );
   });
 }

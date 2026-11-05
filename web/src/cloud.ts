@@ -215,7 +215,11 @@ async function synchronize(scope: string, shopId: string) {
     full && cutoff
       ? await windowCopy(shopId, cutoff)
       : await supabase
-          .rpc('get_ledger_changes', { p_shop: shopId, p_since: full ? null : before.syncCursor, p_slim: true })
+          .rpc('get_ledger_changes', {
+            p_shop: shopId,
+            p_since: full ? null : before.syncCursor,
+            p_slim: true,
+          })
           .abortSignal(AbortSignal.timeout(60000));
   if (error) throw Error(error.message);
   await check();
