@@ -1017,9 +1017,9 @@ export default function BusinessSettingsPage({
                   Close drawers left open overnight
                 </label>
                 <p className="muted">
-                  Each night, sales from earlier days that no handover closed are closed for each staff member as
-                  “Closed automatically, not counted”. An Admin then enters the cash found, or marks it reviewed,
-                  in the Conflict Inbox. The staff member’s next drawer starts at zero.
+                  Each night, sales from earlier days that no handover closed are closed for each staff member
+                  as “Closed automatically, not counted”. An Admin then enters the cash found, or marks it
+                  reviewed, in the Conflict Inbox. The staff member’s next drawer starts at zero.
                 </p>
                 {sectionSave('Cash drawers', ['drawers'])}
               </fieldset>

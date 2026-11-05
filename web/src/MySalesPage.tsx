@@ -235,7 +235,9 @@ export default function MySalesPage({
                   {drawers.map((d) => (
                     <tr key={d.id}>
                       <td>
-                        {d.autoClosed ? `${d.fromUserLabel} · closed automatically` : `${d.fromUserLabel} → ${d.toUserLabel}`}
+                        {d.autoClosed
+                          ? `${d.fromUserLabel} · closed automatically`
+                          : `${d.fromUserLabel} → ${d.toUserLabel}`}
                         <small className="record-id">{d.id.slice(0, 8).toUpperCase()}</small>
                         {d.autoClosed && (
                           <small>

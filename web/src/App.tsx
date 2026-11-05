@@ -1503,11 +1503,14 @@ export default function App() {
                     (shop?.accessLevel ?? 0) >= 2 &&
                     page !== 'Conflict Inbox' &&
                     allowed('Conflict Inbox') &&
-                    state.ledger.drawerClosings.some((d) => d.autoClosed && d.reviewStatus !== 'reviewed') && (
+                    state.ledger.drawerClosings.some(
+                      (d) => d.autoClosed && d.reviewStatus !== 'reviewed',
+                    ) && (
                       <div className="notice">
                         {
-                          state.ledger.drawerClosings.filter((d) => d.autoClosed && d.reviewStatus !== 'reviewed')
-                            .length
+                          state.ledger.drawerClosings.filter(
+                            (d) => d.autoClosed && d.reviewStatus !== 'reviewed',
+                          ).length
                         }{' '}
                         drawer(s) were closed automatically and need a review.{' '}
                         <button className="secondary" onClick={() => setPage('Conflict Inbox')}>
@@ -1859,29 +1862,29 @@ export default function App() {
                           </section>
                         ) : (
                           <>
-                          {(shop?.accessLevel ?? 0) >= 2 && (
-                            <DrawerReviews
-                              closings={state.ledger.drawerClosings}
+                            {(shop?.accessLevel ?? 0) >= 2 && (
+                              <DrawerReviews
+                                closings={state.ledger.drawerClosings}
+                                online={online}
+                                onReview={reviewDrawer}
+                              />
+                            )}
+                            <ConflictInbox
+                              canConfigureAccounts={shop?.accessLevel === 5}
+                              key={scope}
+                              scope={scope}
+                              shopId={shop!.id}
                               online={online}
-                              onReview={reviewDrawer}
+                              onChanged={() => {
+                                if (activeScope.current !== scope) return;
+                                void readState(scope).then((next) => {
+                                  if (activeScope.current === scope) setState(next);
+                                });
+                                setMessage(
+                                  'Review saved. The original device will receive it automatically when connected.',
+                                );
+                              }}
                             />
-                          )}
-                          <ConflictInbox
-                            canConfigureAccounts={shop?.accessLevel === 5}
-                            key={scope}
-                            scope={scope}
-                            shopId={shop!.id}
-                            online={online}
-                            onChanged={() => {
-                              if (activeScope.current !== scope) return;
-                              void readState(scope).then((next) => {
-                                if (activeScope.current === scope) setState(next);
-                              });
-                              setMessage(
-                                'Review saved. The original device will receive it automatically when connected.',
-                              );
-                            }}
-                          />
                           </>
                         )
                       ) : page === 'My Account' ? (

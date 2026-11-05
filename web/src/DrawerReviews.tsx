@@ -114,13 +114,14 @@ export default function DrawerReviews({
           <fieldset disabled={busy}>
             <label>
               Cash found (₦)
-              <CurrencyInput aria-label="Cash found" value={count} onValueChange={setCount} placeholder="Leave empty if not counted" />
+              <CurrencyInput
+                aria-label="Cash found"
+                value={count}
+                onValueChange={setCount}
+                placeholder="Leave empty if not counted"
+              />
             </label>
-            {count && (
-              <p className="muted">
-                Difference: {currency(money(count) - open.expectedCash)}
-              </p>
-            )}
+            {count && <p className="muted">Difference: {currency(money(count) - open.expectedCash)}</p>}
             <label>
               Note (optional)
               <input maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
