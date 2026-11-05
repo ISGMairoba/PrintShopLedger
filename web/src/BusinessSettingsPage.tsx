@@ -1006,6 +1006,23 @@ export default function BusinessSettingsPage({
                 </div>
                 {sectionSave('Discount limits', ['discounts'])}
               </fieldset>
+              <fieldset hidden={tab !== 'Jobs & payments'} disabled={busy || !ready}>
+                <legend>Cash drawers</legend>
+                <label className="check-label">
+                  <input
+                    type="checkbox"
+                    checked={draft.drawers.autoClose}
+                    onChange={(event) => field('drawers', { autoClose: event.target.checked })}
+                  />
+                  Close drawers left open overnight
+                </label>
+                <p className="muted">
+                  Each night, sales from earlier days that no handover closed are closed for each staff member as
+                  “Closed automatically, not counted”. An Admin then enters the cash found, or marks it reviewed,
+                  in the Conflict Inbox. The staff member’s next drawer starts at zero.
+                </p>
+                {sectionSave('Cash drawers', ['drawers'])}
+              </fieldset>
               <fieldset hidden={tab !== 'Default time frames'} disabled={busy || !ready}>
                 <legend>Default time frames</legend>
                 <p>

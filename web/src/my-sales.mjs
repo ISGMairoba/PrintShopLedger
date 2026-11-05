@@ -49,7 +49,10 @@ export function drawerSnapshot(ledger, userId) {
   );
   const lastClosed = closings.find((d) => d.fromUserId === userId);
   const opening = closings.find(
-    (d) => d.toUserId === userId && (!lastClosed || Date.parse(d.closedAt) > Date.parse(lastClosed.closedAt)),
+    (d) =>
+      d.toUserId === userId &&
+      d.fromUserId !== userId && // a drawer closed automatically hands nothing over
+      (!lastClosed || Date.parse(d.closedAt) > Date.parse(lastClosed.closedAt)),
   );
   const closedIds = new Set(closings.flatMap((d) => d.checkoutIds));
   const records = myTransactions(ledger, userId).filter((r) => !r.drawerClosingId && !closedIds.has(r.id));

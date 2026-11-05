@@ -92,7 +92,7 @@ export default function MySalesPage({
       (d) =>
         (d.fromUserId === userId || d.toUserId === userId) &&
         inPeriod(d.closedAt, dates.period) &&
-        [d.id, d.fromUserLabel, d.toUserLabel, d.countedCash / 100, d.note, d.closedAt]
+        [d.id, d.fromUserLabel, d.toUserLabel, (d.countedCash ?? 0) / 100, d.note, d.closedAt]
           .join(' ')
           .toLowerCase()
           .includes(query.toLowerCase()),
@@ -103,8 +103,8 @@ export default function MySalesPage({
       from: (d) => d.fromUserLabel,
       to: (d) => d.toUserLabel,
       expected: (d) => d.expectedCash,
-      counted: (d) => d.countedCash,
-      difference: (d) => d.difference,
+      counted: (d) => d.countedCash ?? -1,
+      difference: (d) => d.difference ?? 0,
     },
   );
   let difference: number | null = null;
@@ -235,13 +235,20 @@ export default function MySalesPage({
                   {drawers.map((d) => (
                     <tr key={d.id}>
                       <td>
-                        {d.fromUserLabel} → {d.toUserLabel}
+                        {d.autoClosed ? `${d.fromUserLabel} · closed automatically` : `${d.fromUserLabel} → ${d.toUserLabel}`}
                         <small className="record-id">{d.id.slice(0, 8).toUpperCase()}</small>
+                        {d.autoClosed && (
+                          <small>
+                            {d.reviewStatus === 'reviewed'
+                              ? `Reviewed by ${d.reviewedByLabel}`
+                              : 'Waiting for an Admin to review'}
+                          </small>
+                        )}
                       </td>
                       <td className="cell-fit">
-                        {currency(d.countedCash)}
+                        {d.countedCash === null ? 'Not counted' : currency(d.countedCash)}
                         <small>Expected: {currency(d.expectedCash)}</small>
-                        <small>Difference: {currency(d.difference)}</small>
+                        {d.difference !== null && <small>Difference: {currency(d.difference)}</small>}
                       </td>
                       <td className="cell-fit">{date(d.closedAt)}</td>
                       <td>
@@ -474,11 +481,22 @@ export default function MySalesPage({
               Expected cash <strong>{currency(details.expectedCash)}</strong>
             </p>
             <p>
-              Counted cash <strong>{currency(details.countedCash)}</strong>
+              Counted cash{' '}
+              <strong>{details.countedCash === null ? 'Not counted' : currency(details.countedCash)}</strong>
             </p>
             <p>
-              Difference <strong>{currency(details.difference)}</strong>
+              Difference <strong>{details.difference === null ? '—' : currency(details.difference)}</strong>
             </p>
+            {details.autoClosed && (
+              <p>
+                Closed automatically
+                <strong>
+                  {details.reviewStatus === 'reviewed'
+                    ? `Reviewed by ${details.reviewedByLabel}${details.reviewNote ? ` · ${details.reviewNote}` : ''}`
+                    : 'Waiting for review'}
+                </strong>
+              </p>
+            )}
             <p>
               All collections <strong>{currency(details.totalCollected)}</strong>
             </p>
@@ -507,7 +525,7 @@ export default function MySalesPage({
                 <br />
                 Revised variance:{' '}
                 {currency(
-                  details.difference -
+                  (details.difference ?? 0) -
                     ledger.saleAdjustments
                       .filter((a) => a.historicalClosingId === details.id)
                       .reduce((n, a) => n + (a.cashDelta ?? 0), 0),
