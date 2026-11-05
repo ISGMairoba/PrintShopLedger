@@ -8,6 +8,11 @@
 -- * review_drawer_closing: an Admin or above enters the cash actually found (or leaves it empty) and
 --   the closing is marked "Reviewed by …".
 
+-- A handover goes to someone else; only an automatic closing has no receiver (to_user = from_user).
+alter table public.drawer_closings drop constraint if exists drawer_closings_check;
+alter table public.drawer_closings add constraint drawer_closings_check
+  check (from_user <> to_user or coalesce((data->>'autoClosed')::boolean, false));
+
 create or replace function private.auto_close_drawer(p_shop uuid, p_actor uuid, p_cutoff timestamptz) returns jsonb
 language plpgsql security definer set search_path to '' as $f$
 declare actor public.shop_members%rowtype; ids uuid[]; refund_ids uuid[]; opening public.drawer_closings%rowtype; last_closed timestamptz;
