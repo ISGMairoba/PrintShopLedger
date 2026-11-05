@@ -163,6 +163,17 @@ export function applyQuotationEvent(input, event) {
       createdAt: old?.createdAt ?? d.modifiedAt,
       ...audit,
     };
+  } else if (event.kind === 'quotation.deleted') {
+    if (!old) throw Error('Quotation not found.');
+    if (old.status === 'converted') throw Error('A quotation that became an order cannot be deleted.');
+    next = {
+      ...old,
+      ...audit,
+      status: 'deleted',
+      deletedAt: d.modifiedAt,
+      deletedByLabel: audit.modifiedByLabel,
+      version: old.version + 1,
+    };
   } else if (['quotation.archived', 'quotation.restored', 'quotation.converted'].includes(event.kind)) {
     if (!old) throw Error('Quotation not found.');
     const status =
@@ -181,7 +192,10 @@ export function applyQuotationEvent(input, event) {
   } else throw Error('Unknown quotation operation.');
   return {
     ...ledger,
-    quotations: old ? ledger.quotations.map((q) => (q.id === d.id ? next : q)) : [...ledger.quotations, next],
+    quotations: (old
+      ? ledger.quotations.map((q) => (q.id === d.id ? next : q))
+      : [...ledger.quotations, next]
+    ).filter((q) => q.status !== 'deleted'),
   };
 }
 

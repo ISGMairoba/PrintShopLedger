@@ -53,6 +53,8 @@ type Props = {
   discountPolicy: { maxPercent: number; canFlat: boolean };
   onSave: (event: QuotationEvent) => Promise<void>;
   onCreateOrder: (quote: Quotation) => void;
+  /** Admins and above may delete any quotation; others only the ones they made. */
+  canDeleteAny?: boolean;
   /** Open a new quotation with one template line (from the Pricing Templates page). */
   start?: TemplateStart | null;
 };
@@ -104,6 +106,7 @@ export default function QuotationsPage({
   discountPolicy,
   onSave,
   onCreateOrder,
+  canDeleteAny = false,
   start = null,
 }: Props) {
   // Load the PDF and share code now: phones only open the share sheet straight after the tap.
@@ -118,6 +121,7 @@ export default function QuotationsPage({
   // The template line is only for the first new quotation opened from Pricing Templates.
   const [pendingStart, setPendingStart] = useState(start);
   const [viewing, setViewing] = useState<Quotation | null>(null);
+  const [deleting, setDeleting] = useState<Quotation | null>(null);
   const [error, setError] = useFeedbackMessage('error');
   const notify = useFeedback();
   const sorting = useTableSort<Quotation>('date', 'desc');
@@ -170,7 +174,10 @@ export default function QuotationsPage({
       setError(cause instanceof Error ? cause.message : 'Could not share the quotation.');
     }
   }
-  async function setStatus(quote: Quotation, kind: 'quotation.archived' | 'quotation.restored') {
+  async function setStatus(
+    quote: Quotation,
+    kind: 'quotation.archived' | 'quotation.restored' | 'quotation.deleted',
+  ) {
     setError('');
     try {
       await onSave({
@@ -381,6 +388,35 @@ export default function QuotationsPage({
                 <Icon name="restore" /> Restore
               </button>
             )}
+            {current.status !== 'converted' && (canDeleteAny || current.createdBy === actor.id) && (
+              <button className="text-button danger-text" disabled={busy} onClick={() => setDeleting(current)}>
+                <Icon name="close" /> Delete
+              </button>
+            )}
+          </div>
+        </Modal>
+      )}
+      {deleting && (
+        <Modal title="Delete quotation?" busy={busy} onClose={() => setDeleting(null)}>
+          <p>
+            <strong>{quotationRef(deleting.id)}</strong> · {deleting.customerName} · {currency(deleting.total)}
+          </p>
+          <p>It will no longer appear anywhere in the app. This cannot be undone from the app.</p>
+          <div className="material-actions">
+            <button type="button" className="secondary" onClick={() => setDeleting(null)}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="danger-button"
+              disabled={busy}
+              onClick={async () => {
+                await setStatus(deleting, 'quotation.deleted');
+                setDeleting(null);
+              }}
+            >
+              <Icon name="close" /> Delete quotation
+            </button>
           </div>
         </Modal>
       )}

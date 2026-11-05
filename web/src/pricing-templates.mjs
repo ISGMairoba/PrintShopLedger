@@ -998,3 +998,31 @@ export const templateSpecLines = (job) =>
           }),
         )
     : [];
+
+const QUANTITY_LADDER = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500, 5000, 10000, 20000, 50000, 100000];
+/**
+ * Quantities to compare: the one being priced, then where the price of a material used changes
+ * (its quantity tiers and packs), then the usual print-run steps above it. At most five, in order,
+ * within the quantity's allowed range.
+ * @param {number} quantity
+ * @param {{ min?: number, max?: number } | undefined} limits the template's quantity variable
+ * @param {{ priceTiers?: { from: number }[], packPrices?: { quantity: number }[] }[]} services used by the template
+ */
+export function suggestQuantities(quantity, limits = {}, services = []) {
+  const q = Number(quantity) > 0 ? Number(quantity) : 1;
+  const min = limits?.min ?? 1,
+    max = limits?.max ?? 100000;
+  const tiers = services.flatMap((s) => [
+    ...(s.priceTiers ?? []).map((t) => t.from),
+    ...(s.packPrices ?? []).map((p) => p.quantity),
+  ]);
+  const above = (list) => list.filter((n) => Number.isFinite(n) && n > q && n >= min && n <= max);
+  const picked = [...new Set(above(tiers))].sort((a, b) => a - b).slice(0, 3);
+  for (const n of above(QUANTITY_LADDER)) {
+    if (picked.length >= 4) break;
+    // Skip a step too close to one already chosen (e.g. 20 next to 25).
+    if ([q, ...picked].some((p) => n < p * 1.5 && n > p / 1.5)) continue;
+    picked.push(n);
+  }
+  return [q, ...picked.sort((a, b) => a - b)];
+}

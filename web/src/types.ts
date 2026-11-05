@@ -523,7 +523,9 @@ export interface Quotation {
   total: number;
   validUntil: string;
   note: string;
-  status: 'open' | 'converted' | 'archived';
+  status: 'open' | 'converted' | 'archived' | 'deleted';
+  deletedAt?: string;
+  deletedByLabel?: string;
   checkoutId?: string;
   convertedAt?: string;
   convertedByLabel?: string;
@@ -538,7 +540,12 @@ export interface Quotation {
 }
 export type QuotationEvent = {
   id: string;
-  kind: 'quotation.saved' | 'quotation.archived' | 'quotation.restored' | 'quotation.converted';
+  kind:
+    | 'quotation.saved'
+    | 'quotation.archived'
+    | 'quotation.restored'
+    | 'quotation.converted'
+    | 'quotation.deleted';
   data: Partial<Quotation> & {
     id: string;
     baseVersion?: number;
@@ -643,9 +650,19 @@ export interface ExpensePayment {
   method: string;
   source: string;
   reference: string;
+  /** When it was paid (ISO); older payments have only paidOn. */
+  paidAt?: string | null;
   createdBy?: string;
   createdByLabel?: string;
   createdAt?: string;
+  corrections?: {
+    reason: string;
+    correctedBy: string;
+    correctedByLabel: string;
+    correctedAt: string;
+    before: Omit<ExpensePayment, 'corrections'>;
+  }[];
+  removedAt?: string;
 }
 export interface Expense {
   payeeId?: string;
@@ -653,12 +670,16 @@ export interface Expense {
   description: string;
   category: string;
   incurredOn: string;
+  /** When it happened (ISO); older expenses have only incurredOn. */
+  incurredAt?: string | null;
   amount: number;
   payee: string;
   note: string;
   receiptReference: string;
   materials: ExpenseMaterial[];
   payments: ExpensePayment[];
+  /** Payments taken off as entered by mistake, with the reason (kept for the audit trail). */
+  removedPayments?: ExpensePayment[];
   voided: boolean;
   voidReason: string;
   version: number;
@@ -677,12 +698,15 @@ export interface ExpenseCommand {
   description?: string;
   category?: string;
   incurredOn?: string;
+  incurredAt?: string | null;
   amount?: number;
   payee?: string;
   note?: string;
   receiptReference?: string;
   materials?: ExpenseMaterial[];
   payment?: ExpensePayment;
+  paymentId?: string;
+  remove?: boolean;
   reason?: string;
   stockIds: Record<string, string>;
   modifiedBy: string;
@@ -691,7 +715,12 @@ export interface ExpenseCommand {
 }
 export type ExpenseEvent = {
   id: string;
-  kind: 'expense.created' | 'expense.updated' | 'expense.payment_recorded' | 'expense.voided';
+  kind:
+    | 'expense.created'
+    | 'expense.updated'
+    | 'expense.payment_recorded'
+    | 'expense.payment_corrected'
+    | 'expense.voided';
   data: ExpenseCommand;
 };
 export interface ExpenseHistoryEntry {

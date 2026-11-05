@@ -10,7 +10,7 @@ import Icon from './Icon';
 import ToolbarActions from './ToolbarActions';
 import { TemplateCalculator, useTemplateAudit, type TemplateStart } from './TemplateFields';
 import CurrencyInput from './CurrencyInput';
-import type { Ledger, PricingTemplate, ServiceEvent } from './types';
+import type { Ledger, PricingTemplate, Service, ServiceEvent } from './types';
 import type { Branding } from './useBusinessBranding';
 import { useFeedbackMessage, FeedbackBanner } from './Feedback';
 import {
@@ -71,6 +71,12 @@ export default function PricingTemplatesPage({
   const [exporting, setExporting] = useState<{ templates: PricingTemplate[]; share: boolean } | null>(null);
   const [editing, setEditing] = useState<PricingTemplate | null>(null);
   const [adding, setAdding] = useState(false);
+  // A private cost being changed (Costs tab → Edit); the add form is reused.
+  const [editingCost, setEditingCost] = useState<Service | null>(null);
+  const [query, setQuery] = useState('');
+  const [category, setCategory] = useState('');
+  const [sortBy, setSortBy] = useState<'name' | 'category' | 'recent'>('name');
+  const [costQuery, setCostQuery] = useState('');
   const [busy, setBusy] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [message, setMessage, tone] = useFeedbackMessage('success');
@@ -136,6 +142,30 @@ export default function PricingTemplatesPage({
         unit: String(data.get('unit') ?? ''),
       });
       setBusy(true);
+      if (editingCost) {
+        const audit = { modifiedBy: actor.id, modifiedByLabel: actor.label, modifiedAt: new Date().toISOString() };
+        await onSaveService({
+          id: crypto.randomUUID(),
+          kind: 'service.updated',
+          data: {
+            id: editingCost.id,
+            baseVersion: editingCost.version,
+            description,
+            materialId: String(data.get('material')) || null,
+            price: editingCost.price,
+            shelfItem: editingCost.shelfItem ?? false,
+            private: true,
+            costing,
+            packPrices: editingCost.packPrices ?? [],
+            priceTiers: editingCost.priceTiers ?? [],
+            ...audit,
+          },
+        } as ServiceEvent);
+        setAdding(false);
+        setEditingCost(null);
+        setMessage(`${description} saved. Saved orders and quotations keep the cost they were priced with.`);
+        return;
+      }
       await onSaveService({
         id: crypto.randomUUID(),
         kind: 'service.created',
@@ -171,7 +201,32 @@ export default function PricingTemplatesPage({
     }
   }
   const visible = pricing.templates.filter((t) => showArchived || !t.archived);
+  const categories = [...new Set(visible.map((t) => t.category || 'General'))].sort((a, b) =>
+    a.localeCompare(b),
+  );
+  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const shown = visible
+    .filter((t) => !category || (t.category || 'General') === category)
+    .filter((t) => {
+      const text = `${t.name} ${t.category} ${t.description}`.toLowerCase();
+      return words.every((word) => text.includes(word));
+    })
+    .sort((a, b) =>
+      sortBy === 'category'
+        ? (a.category || 'General').localeCompare(b.category || 'General') || a.name.localeCompare(b.name)
+        : sortBy === 'recent'
+          ? b.version - a.version || a.name.localeCompare(b.name)
+          : a.name.localeCompare(b.name),
+    );
   const costs = ledger.services.filter((s) => !s.archived && s.costing);
+  const costWords = costQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const shownCosts = alphabetical(
+    costs.filter((s) => {
+      const text = `${s.description} ${s.costing?.key ?? ''}`.toLowerCase();
+      return costWords.every((word) => text.includes(word));
+    }),
+    (s) => s.description,
+  );
   return (
     <section className="panel editor" aria-label="Pricing templates">
       <input
@@ -240,6 +295,30 @@ export default function PricingTemplatesPage({
             </article>
           </section>
           <div className="toolbar">
+            <input
+              type="search"
+              aria-label="Search templates"
+              placeholder="Search name, category or description"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            <select aria-label="Template category" value={category} onChange={(e) => setCategory(e.target.value)}>
+              <option value="">All categories</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label="Sort templates"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+            >
+              <option value="name">Sort: name</option>
+              <option value="category">Sort: category</option>
+              <option value="recent">Sort: most changed</option>
+            </select>
             <label className="check-label">
               <input
                 type="checkbox"
@@ -297,9 +376,11 @@ export default function PricingTemplatesPage({
                 calculate, the expenses, and your markup or margin.
               </p>
             </div>
+          ) : !shown.length ? (
+            <p className="muted">No templates match the search or category.</p>
           ) : (
             <div className="template-grid">
-              {visible.map((t) => {
+              {shown.map((t) => {
                 const problem = t.archived ? '' : templateProblem(ledger, t);
                 return (
                   <article className="template-card" key={t.id}>
@@ -415,6 +496,7 @@ export default function PricingTemplatesPage({
                   type="button"
                   disabled={!ready || busy}
                   onClick={() => {
+                    setEditingCost(null);
                     setAdding(true);
                     setCostKey('');
                   }}
@@ -430,6 +512,15 @@ export default function PricingTemplatesPage({
             Private ones are for templates only and never appear at checkout. Change costs on the{' '}
             {w('Services')} page; saved orders and quotations keep the costs they were priced with.
           </p>
+          {costs.length > 8 && (
+            <input
+              type="search"
+              aria-label="Search costs"
+              placeholder="Search costs or formula names"
+              value={costQuery}
+              onChange={(e) => setCostQuery(e.target.value)}
+            />
+          )}
           {!costs.length ? (
             <p className="empty">
               No costs yet. Add a template cost to a {w('service')}, or use Add private cost.
@@ -449,10 +540,11 @@ export default function PricingTemplatesPage({
                       <th>Formula name</th>
                       <th className="numeric">Cost</th>
                       <th className="numeric">Per unit</th>
+                      {canEditCosts && <th />}
                     </tr>
                   </thead>
                   <tbody>
-                    {costs.map((s) => {
+                    {shownCosts.map((s) => {
                       const unit = consumptionUnit(s, ledger.materials);
                       return (
                         <tr key={s.id}>
@@ -486,6 +578,26 @@ export default function PricingTemplatesPage({
                           <td className="numeric">
                             {hasCost(s.costing) ? `₦${canonical(costRate(s.costing!))} / ${unit}` : '—'}
                           </td>
+                          {canEditCosts && (
+                            <td className="cell-fit">
+                              {s.private ? (
+                                <button
+                                  type="button"
+                                  className="text-button"
+                                  disabled={!ready || busy}
+                                  onClick={() => {
+                                    setEditingCost(s);
+                                    setCostKey(s.costing?.key ?? '');
+                                    setAdding(true);
+                                  }}
+                                >
+                                  <Icon name="edit" /> Edit
+                                </button>
+                              ) : (
+                                <small>{w('Services')} page</small>
+                              )}
+                            </td>
+                          )}
                         </tr>
                       );
                     })}
@@ -539,7 +651,14 @@ export default function PricingTemplatesPage({
         />
       )}
       {adding && (
-        <Modal title="Add private cost" busy={busy} onClose={() => setAdding(false)}>
+        <Modal
+          title={editingCost ? 'Edit private cost' : 'Add private cost'}
+          busy={busy}
+          onClose={() => {
+            setAdding(false);
+            setEditingCost(null);
+          }}
+        >
           <p className="muted">
             A cost used only in templates (for example labour, plates, electricity or a material you never
             sell on its own). It is saved as a private {w('service')} and never offered at checkout.
@@ -554,30 +673,61 @@ export default function PricingTemplatesPage({
                     maxLength={500}
                     required
                     placeholder="e.g. Printing plate"
-                    onChange={(e) => setCostKey(suggestCostKey(e.target.value, ledger.services))}
+                    defaultValue={editingCost?.description ?? ''}
+                    onChange={(e) => {
+                      if (!editingCost) setCostKey(suggestCostKey(e.target.value, ledger.services));
+                    }}
                   />
                 </label>
                 <label>
                   Formula name
-                  <input name="key" required value={costKey} onChange={(e) => setCostKey(e.target.value)} />
-                  <small>Lowercase letters, numbers and _.</small>
+                  <input
+                    name="key"
+                    required
+                    value={costKey}
+                    readOnly={!!editingCost}
+                    onChange={(e) => setCostKey(e.target.value)}
+                  />
+                  <small>
+                    {editingCost
+                      ? 'Templates use this name, so it cannot be changed.'
+                      : 'Lowercase letters, numbers and _.'}
+                  </small>
                 </label>
                 <label>
                   Cost (₦)
-                  <CurrencyInput name="amount" required />
+                  <CurrencyInput
+                    name="amount"
+                    required
+                    defaultValue={
+                      editingCost?.costing?.amount != null ? (editingCost.costing.amount / 100).toFixed(2) : undefined
+                    }
+                  />
                 </label>
                 <label>
                   For how many units
-                  <input name="per" type="number" min="0.001" step="0.001" defaultValue="1" required />
+                  <input
+                    name="per"
+                    type="number"
+                    min="0.001"
+                    step="0.001"
+                    defaultValue={editingCost?.costing?.per ?? 1}
+                    required
+                  />
                   <small>e.g. ₦5,000 for 500 sheets: enter 500.</small>
                 </label>
                 <label>
                   Bought as (optional)
-                  <input name="unit" maxLength={40} placeholder="e.g. ream" />
+                  <input
+                    name="unit"
+                    maxLength={40}
+                    placeholder="e.g. ream"
+                    defaultValue={editingCost?.costing?.unit ?? ''}
+                  />
                 </label>
                 <label>
                   {w('Stock item')} (optional)
-                  <select name="material" defaultValue="">
+                  <select name="material" defaultValue={editingCost?.materialId ?? ''}>
                     <option value="">No stock — cost only</option>
                     {alphabetical(
                       ledger.materials.filter((m) => !m.archived),
@@ -592,7 +742,7 @@ export default function PricingTemplatesPage({
                 </label>
               </div>
               <button type="submit">
-                <Icon name="save" /> {busy ? 'Saving...' : 'Save private cost'}
+                <Icon name="save" /> {busy ? 'Saving...' : editingCost ? 'Save changes' : 'Save private cost'}
               </button>
             </fieldset>
           </form>

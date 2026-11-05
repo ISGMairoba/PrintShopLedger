@@ -2,7 +2,9 @@ import { useState } from 'react';
 import Modal from './Modal';
 import Icon from './Icon';
 import { operationEvent } from './operations.mjs';
-import { expensePaid } from './expenses.mjs';
+import { expensePaid, expenseDay } from './expenses.mjs';
+import { payeeListSections } from './reports.mjs';
+import { downloadCsv } from './export-csv';
 import { currency } from './receipts.mjs';
 import type { Ledger, Payee, OperationsEvent } from './types';
 import { SortHeader, useTableSort } from './TableSort';
@@ -12,7 +14,12 @@ export default function PayeesPage({
   actor,
   onSave,
   branches,
+  businessName = '',
+  onStatement,
 }: {
+  businessName?: string;
+  /** Open this payee's statement in Reports. */
+  onStatement?: (id: string) => void;
   /** The owner's view: each branch's records, to show what each branch owes a payee. */
   branches?: { id: string; name: string; ledger: Ledger }[];
   ledger: Ledger;
@@ -42,6 +49,46 @@ export default function PayeesPage({
     ),
     { name: (p) => p.name, owed: (p) => totals(p.id).owed },
   );
+  // Summary cards: what is owed to payees, and what was spent and paid this month (Lagos).
+  const month = expenseDay(new Date().toISOString()).slice(0, 7);
+  const linked = ledger.expenses.filter((e) => e.payeeId);
+  const owedTotal = linked
+    .filter((e) => !e.voided)
+    .reduce((n, e) => n + Math.max(0, e.amount - expensePaid(e)), 0);
+  const owedPayees = new Set(
+    linked.filter((e) => !e.voided && e.amount > expensePaid(e)).map((e) => e.payeeId),
+  ).size;
+  const spentMonth = linked
+    .filter((e) => !e.voided && e.incurredOn.startsWith(month))
+    .reduce((n, e) => n + e.amount, 0);
+  const paidMonth = linked
+    .flatMap((e) => e.payments)
+    .filter((p) => p.paidOn.startsWith(month))
+    .reduce((n, p) => n + p.amount, 0);
+  const activeCount = (ledger.payees ?? []).filter((p) => !p.archived).length;
+  const exportTitle = [businessName, 'Payees', `As of ${new Date().toLocaleString('en-NG', { timeZone: 'Africa/Lagos' })}`].filter(Boolean);
+  const exportCsv = () => {
+    setError('');
+    try {
+      downloadCsv('Payees', exportTitle, payeeListSections(ledger, { archived }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+  const exportPdf = async () => {
+    setError('');
+    try {
+      const { downloadReportPdf } = await import('./report-pdf');
+      downloadReportPdf('Payees', businessName, {
+        title: 'Payees',
+        subtitle: exportTitle.slice(2),
+        sections: payeeListSections(ledger, { archived, money: currency, unit: '' }),
+        generatedAt: new Date().toISOString(),
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
   const save = async (kind: OperationsEvent['kind'], data: Record<string, any>) => {
     setError('');
     try {
@@ -53,6 +100,28 @@ export default function PayeesPage({
     }
   };
   return (
+    <>
+    <section className="stats" aria-label="Payee summary">
+      <article>
+        <span>Owed to payees</span>
+        <strong>{currency(owedTotal)}</strong>
+        <small>{owedPayees === 1 ? '1 payee is owed' : `${owedPayees} payees are owed`}</small>
+      </article>
+      <article>
+        <span>Spent this month</span>
+        <strong>{currency(spentMonth)}</strong>
+        <small>Expenses with a saved payee</small>
+      </article>
+      <article>
+        <span>Paid this month</span>
+        <strong>{currency(paidMonth)}</strong>
+        <small>Payments to saved payees</small>
+      </article>
+      <article>
+        <span>Active payees</span>
+        <strong>{activeCount}</strong>
+      </article>
+    </section>
     <section className="panel">
       <div className="toolbar">
         <input
@@ -65,6 +134,12 @@ export default function PayeesPage({
           <input type="checkbox" checked={archived} onChange={(e) => setArchived(e.target.checked)} />
           Show archived
         </label>
+        <button className="secondary" onClick={exportCsv}>
+          <Icon name="export" /> Spreadsheet
+        </button>
+        <button className="secondary" onClick={() => void exportPdf()}>
+          <Icon name="export" /> Print / PDF
+        </button>
         <button disabled={busy} onClick={() => setEditing('new')}>
           <Icon name="add" />
           Add payee
@@ -117,6 +192,11 @@ export default function PayeesPage({
                       <button className="text-button" disabled={busy} onClick={() => setView(p)}>
                         Transactions
                       </button>
+                      {onStatement && (
+                        <button className="text-button" onClick={() => onStatement(p.id)}>
+                          <Icon name="reports" /> Statement
+                        </button>
+                      )}
                       <button className="text-button" disabled={busy} onClick={() => setEditing(p)}>
                         Edit
                       </button>
@@ -248,7 +328,10 @@ export default function PayeesPage({
                       <td>
                         {e.payments.map((p) => (
                           <small key={p.id}>
-                            {p.paidOn} · {currency(p.amount)} · {p.methodLabel || p.method}
+                            {p.paidAt
+                              ? new Date(p.paidAt).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' })
+                              : p.paidOn}{' '}
+                            · {currency(p.amount)} · {p.methodLabel || p.method}
                           </small>
                         ))}
                       </td>
@@ -270,5 +353,6 @@ export default function PayeesPage({
         </Modal>
       )}
     </section>
+    </>
   );
 }

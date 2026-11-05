@@ -37,7 +37,8 @@ export function normalizeLedger(ledger) {
     materials: ledger.materials ?? [],
     materialHistory: ledger.materialHistory ?? [],
     services: ledger.services ?? [],
-    quotations: ledger.quotations ?? [],
+    // Deleted quotations stay on the server for the record but are not shown anywhere.
+    quotations: (ledger.quotations ?? []).filter((q) => q.status !== 'deleted'),
     reminders: ledger.reminders ?? [],
   };
 }

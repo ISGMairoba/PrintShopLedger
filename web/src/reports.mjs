@@ -4,6 +4,7 @@ import { businessDay, validRange, dashboardSummary } from './dashboard.mjs';
 import { paymentName } from './business-options.mjs';
 import { adjustmentLabels } from './sale-adjustments.mjs';
 import { customerCode } from './customers.mjs';
+import { expenseCode } from './expenses.mjs';
 import { materialActionLabels } from './material-display.mjs';
 
 // Reports read the synced ledger only; they never create events.
@@ -1049,4 +1050,181 @@ export function summarySections(summary, { money = naira, unit = ' (NGN)' } = {}
       ]),
     });
   return sections;
+}
+
+/**
+ * Payee statement: the expenses from one payee and the payments made to them in the period, and
+ * what is still owed to them (any date). Voided expenses owe nothing; their payments still show.
+ */
+export function payeeStatement(ledger, payeeId, from, to, now = new Date().toISOString()) {
+  const payee = (ledger.payees ?? []).find((p) => p.id === payeeId);
+  if (!payee) throw Error('Choose a payee.');
+  const day = (v) => (v ?? '').slice(0, 10);
+  const within = (d) => d >= from && d <= to;
+  const all = ledger.expenses.filter((e) => e.payeeId === payeeId);
+  const paidOf = (e) => e.payments.reduce((n, p) => n + p.amount, 0);
+  const row = (e) => {
+    const paid = paidOf(e);
+    const outstanding = e.voided ? 0 : Math.max(0, e.amount - paid);
+    return {
+      id: e.id,
+      date: e.incurredOn,
+      ref: expenseCode(e.id, ledger.expenses),
+      description: e.description,
+      category: e.category,
+      amount: e.voided ? 0 : e.amount,
+      paid,
+      outstanding,
+      status: e.voided ? 'Voided' : outstanding === 0 ? 'Paid' : paid ? 'Partly paid' : 'Unpaid',
+    };
+  };
+  const byDate = (a, b) => a.date.localeCompare(b.date);
+  const expenses = all.filter((e) => within(e.incurredOn)).map(row).sort(byDate);
+  const earlierOwing = all
+    .filter((e) => e.incurredOn < from)
+    .map(row)
+    .filter((r) => r.outstanding > 0)
+    .sort(byDate);
+  const payments = all
+    .flatMap((e) =>
+      e.payments
+        .filter((p) => within(p.paidOn))
+        .map((p) => ({
+          id: p.id,
+          date: p.paidOn,
+          time: p.paidAt ?? null,
+          ref: expenseCode(e.id, ledger.expenses),
+          expense: e.description,
+          method: p.methodLabel || p.method,
+          source: p.source,
+          reference: p.reference,
+          amount: p.amount,
+        })),
+    )
+    .sort((a, b) => (a.time ?? a.date).localeCompare(b.time ?? b.date));
+  const active = all.filter((e) => !e.voided);
+  return {
+    payee: { id: payee.id, name: payee.name, phone: payee.phone, address: payee.address, archived: payee.archived },
+    from,
+    to,
+    generatedAt: now,
+    expenses,
+    earlierOwing,
+    payments,
+    totals: {
+      incurred: expenses.reduce((n, r) => n + r.amount, 0),
+      paid: payments.reduce((n, p) => n + p.amount, 0),
+      owedNow: active.reduce((n, e) => n + Math.max(0, e.amount - paidOf(e)), 0),
+      expenseCount: active.length,
+      lastPaid: day(
+        all
+          .flatMap((e) => e.payments.map((p) => p.paidAt ?? p.paidOn))
+          .sort()
+          .at(-1),
+      ),
+    },
+  };
+}
+
+/** Payee statement as report sections (CSV and PDF). */
+export function payeeStatementSections(statement, { money = naira, unit = ' (NGN)' } = {}) {
+  const t = statement.totals;
+  const expenseColumns = [
+    'Date',
+    'Expense ID',
+    'Description',
+    'Category',
+    `Amount${unit}`,
+    `Paid${unit}`,
+    `Outstanding${unit}`,
+    'Status',
+  ];
+  const expenseLayout = { widths: [9, 9, 26, 12, 11, 11, 11, 10], numeric: [4, 5, 6] };
+  const expenseCells = (r) => [
+    r.date,
+    r.ref,
+    r.description,
+    r.category,
+    money(r.amount),
+    money(r.paid),
+    money(r.outstanding),
+    r.status,
+  ];
+  const sections = [
+    {
+      title: 'Summary',
+      columns: ['Item', 'Value'],
+      widths: [2, 3],
+      numeric: [],
+      rows: [
+        ['Payee', statement.payee.name],
+        ['Phone', statement.payee.phone ?? ''],
+        ['Address', statement.payee.address ?? ''],
+        ['Period', `${statement.from} to ${statement.to}`],
+        [`Expenses in period${unit}`, money(t.incurred)],
+        [`Paid in period${unit}`, money(t.paid)],
+        [`Owed to payee now${unit}`, money(t.owedNow)],
+      ],
+    },
+    { title: 'Expenses in this period', columns: expenseColumns, ...expenseLayout, rows: statement.expenses.map(expenseCells) },
+  ];
+  if (statement.earlierOwing.length)
+    sections.push({
+      title: 'Earlier expenses still owed',
+      columns: expenseColumns,
+      ...expenseLayout,
+      rows: statement.earlierOwing.map(expenseCells),
+    });
+  sections.push({
+    title: 'Payments in this period',
+    columns: ['Date', 'Expense ID', 'Expense', 'Paid from', 'Reference', `Amount${unit}`],
+    widths: [10, 9, 30, 16, 14, 11],
+    numeric: [5],
+    rows: statement.payments.map((p) => [
+      p.date,
+      p.ref,
+      p.expense,
+      p.source === 'Personal funds' ? 'Personal funds' : p.method,
+      p.reference,
+      money(p.amount),
+    ]),
+  });
+  return sections;
+}
+
+/** Every payee with what was spent with them, paid, and still owed (Payees page export). */
+export function payeeListSections(ledger, { money = naira, unit = ' (NGN)', archived = false } = {}) {
+  const rows = (ledger.payees ?? [])
+    .filter((p) => archived || !p.archived)
+    .map((p) => {
+      const list = ledger.expenses.filter((e) => e.payeeId === p.id);
+      const active = list.filter((e) => !e.voided);
+      const paid = list.reduce((n, e) => n + e.payments.reduce((m, x) => m + x.amount, 0), 0);
+      return {
+        p,
+        incurred: active.reduce((n, e) => n + e.amount, 0),
+        paid,
+        owed: active.reduce((n, e) => n + Math.max(0, e.amount - e.payments.reduce((m, x) => m + x.amount, 0)), 0),
+        count: active.length,
+      };
+    })
+    .sort((a, b) => b.owed - a.owed || a.p.name.localeCompare(b.p.name));
+  return [
+    {
+      title: 'Payees',
+      columns: ['Payee', 'Phone', 'Address', 'Expenses', `Spent${unit}`, `Paid${unit}`, `Owed now${unit}`, 'Status'],
+      widths: [18, 11, 20, 8, 11, 11, 11, 8],
+      numeric: [3, 4, 5, 6],
+      rows: rows.map((r) => [
+        r.p.name,
+        r.p.phone ?? '',
+        r.p.address ?? '',
+        r.count,
+        money(r.incurred),
+        money(r.paid),
+        money(r.owed),
+        r.p.archived ? 'Archived' : 'Active',
+      ]),
+    },
+  ];
 }

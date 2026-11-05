@@ -176,6 +176,7 @@ export default function App() {
   const [deadlineJobs, setDeadlineJobs] = useState<Job[] | null>(null);
   const [page, setPage] = useState<Page>('Point of Service');
   const [reportCustomer, setReportCustomer] = useState('');
+  const [reportPayee, setReportPayee] = useState('');
   const [supervisor, setSupervisor] = useState('');
   const [query, setQuery] = useState('');
   const [form, setForm] = useState<'customer' | 'job' | 'payment' | null>(null);
@@ -1681,6 +1682,8 @@ export default function App() {
                             businessName={businessName}
                             customerId={reportCustomer}
                             onCustomerChange={setReportCustomer}
+                            payeeId={reportPayee}
+                            onPayeeChange={setReportPayee}
                             access={{
                               customers:
                                 demo ||
@@ -1986,6 +1989,16 @@ export default function App() {
                       ) : page === 'Payees' ? (
                         <PayeesPage
                           ledger={ledger}
+                          businessName={businessName}
+                          onStatement={
+                            demo ||
+                            canAccessPage('Reports', shop?.accessLevel ?? 0, branding.settings.pageAccess)
+                              ? (id) => {
+                                  setReportPayee(id);
+                                  setPage('Reports');
+                                }
+                              : undefined
+                          }
                           branches={ownerBranches}
                           busy={busy || hasConflict}
                           actor={salesActor}
@@ -2066,6 +2079,7 @@ export default function App() {
                             branding.settings.discounts,
                             demo ? 5 : (shop?.accessLevel ?? 0),
                           )}
+                          canDeleteAny={demo || (shop?.accessLevel ?? 0) >= 2}
                           onSave={saveCatalogue}
                           onCreateOrder={(quote) => {
                             setForm(null);
@@ -2123,6 +2137,7 @@ export default function App() {
                             )
                               ? (id) => {
                                   setReportCustomer(id);
+                                  setReportPayee('');
                                   setPage('Reports');
                                 }
                               : undefined

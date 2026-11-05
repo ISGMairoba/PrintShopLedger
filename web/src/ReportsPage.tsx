@@ -4,6 +4,8 @@ import { validRange } from './dashboard.mjs';
 import PeriodFilter, { usePeriod } from './PeriodFilter';
 import {
   customerStatement,
+  payeeStatement,
+  payeeStatementSections,
   filterStatement,
   statementSections,
   transactionRegister,
@@ -47,11 +49,13 @@ type Props = {
   businessName: string;
   customerId: string;
   onCustomerChange: (id: string) => void;
+  payeeId?: string;
+  onPayeeChange?: (id: string) => void;
   access: ReportAccess;
   /** The owner's choice of branch (All branches or one). */
   branchControl?: ReactNode;
 };
-type Tab = 'Customer statement' | 'Transactions' | 'Summary';
+type Tab = 'Customer statement' | 'Payee statement' | 'Transactions' | 'Summary';
 type StatementJob = {
   id: string;
   ref: string;
@@ -264,6 +268,8 @@ export default function ReportsPage({
   businessName,
   customerId,
   onCustomerChange,
+  payeeId = '',
+  onPayeeChange = () => {},
   access,
   branchControl,
 }: Props) {
@@ -272,10 +278,14 @@ export default function ReportsPage({
     void import('./report-pdf');
     void import('./share-pdf');
   }, []);
-  const tabs = (['Customer statement', 'Transactions', 'Summary'] as Tab[]).filter(
-    (t) => t !== 'Customer statement' || (access.customers && access.jobs && access.payments),
+  const tabs = (['Customer statement', 'Payee statement', 'Transactions', 'Summary'] as Tab[]).filter(
+    (t) =>
+      (t !== 'Customer statement' || (access.customers && access.jobs && access.payments)) &&
+      (t !== 'Payee statement' || access.expenses),
   );
-  const [tab, setTab] = useState<Tab>(tabs[0]);
+  const [tab, setTab] = useState<Tab>(
+    payeeId && tabs.includes('Payee statement') ? 'Payee statement' : tabs[0],
+  );
   const [busy, setBusy] = useState(false),
     [error, setError] = useState('');
   const brand = branding.businessName ? branding : businessName;
@@ -379,6 +389,8 @@ export default function ReportsPage({
       </div>
       {tab === 'Customer statement' ? (
         <StatementTab {...shared} customerId={customerId} onCustomerChange={onCustomerChange} />
+      ) : tab === 'Payee statement' ? (
+        <PayeeStatementTab {...shared} payeeId={payeeId} onPayeeChange={onPayeeChange} />
       ) : tab === 'Transactions' ? (
         <TransactionsTab {...shared} access={access} />
       ) : (
@@ -405,6 +417,203 @@ type TabProps = {
     to: { text: string; phone?: string },
   ) => Promise<void>;
 };
+
+function PayeeStatementTab({
+  ledger,
+  freshness,
+  busy,
+  error,
+  pdf,
+  csv,
+  payeeId,
+  onPayeeChange,
+}: TabProps & { payeeId: string; onPayeeChange: (id: string) => void }) {
+  const { range, valid, controls } = useRange();
+  const payees = useMemo(
+    () => [...(ledger.payees ?? [])].sort((a, b) => a.name.localeCompare(b.name)),
+    [ledger.payees],
+  );
+  const [text, setText] = useState(() => {
+    const saved = payees.find((p) => p.id === payeeId);
+    return saved ? customerOption(saved) : '';
+  });
+  const statement = useMemo(
+    () =>
+      valid && payeeId && payees.some((p) => p.id === payeeId)
+        ? payeeStatement(ledger, payeeId, range.from, range.to)
+        : null,
+    [ledger, payees, payeeId, range.from, range.to, valid],
+  );
+  const title = 'Payee statement';
+  const subtitle = statement
+    ? [
+        `${statement.payee.name}${statement.payee.phone ? ' - ' + statement.payee.phone : ''}`,
+        `Period: ${statement.from} to ${statement.to}`,
+        'The amount owed is current as of the generated time.',
+      ]
+    : [];
+  const file = statement
+    ? reportFileName('Payee statement', statement.payee.name, `${statement.from} to ${statement.to}`)
+    : '';
+  const t = statement?.totals;
+  const expenseTable = (rows: NonNullable<typeof statement>['expenses'], label: string) =>
+    rows.length ? (
+      <div className="table-wrap">
+        <table aria-label={label}>
+          <thead>
+            <tr>
+              <th>Date / expense</th>
+              <th>Amount</th>
+              <th>Paid</th>
+              <th>Outstanding</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id}>
+                <td>
+                  {r.date} · {r.description}
+                  <small>
+                    {r.ref} · {r.category}
+                  </small>
+                </td>
+                <td>{currency(r.amount)}</td>
+                <td>{currency(r.paid)}</td>
+                <td>{currency(r.outstanding)}</td>
+                <td>{r.status}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    ) : (
+      <p className="muted report-none">None.</p>
+    );
+  return (
+    <>
+      <section className="panel dashboard-filters report-filters">
+        <div className="wide">
+          <ListedCombobox
+            label="Payee"
+            name="statement-payee"
+            placeholder="Type a payee name or phone number"
+            required={false}
+            emptyText="No matching payee."
+            options={payees.map(customerOption)}
+            value={text}
+            onChange={(next) => {
+              setText(next);
+              const picked = payees.find((p) => customerOption(p) === next);
+              if ((picked?.id ?? '') !== payeeId) onPayeeChange(picked?.id ?? '');
+            }}
+          />
+        </div>
+        {controls}
+        <small>Dates use Africa/Lagos.</small>
+      </section>
+      {freshness}
+      {!valid ? (
+        <div className="dashboard-warning" role="alert">
+          Choose valid From and To dates, in order, spanning no more than ten years.
+        </div>
+      ) : !statement || !t ? (
+        <section className="panel empty">
+          <h2>No payee chosen</h2>
+          <p>Choose a payee above to see what was spent with them, paid, and still owed.</p>
+        </section>
+      ) : (
+        <>
+          <section className="panel report-header">
+            <div>
+              <h2>{statement.payee.name}</h2>
+              <p>
+                {statement.payee.phone}
+                {statement.payee.address && ` · ${statement.payee.address}`}
+                {statement.payee.archived && ' · Archived'}
+              </p>
+            </div>
+            <Exports
+              busy={busy}
+              onCsv={() => csv(file, title, subtitle, payeeStatementSections(statement))}
+              onPdf={() =>
+                void pdf(file, title, subtitle, payeeStatementSections(statement, { money: currency, unit: '' }))
+              }
+            />
+          </section>
+          {error && (
+            <p role="alert" className="dashboard-warning">
+              {error}
+            </p>
+          )}
+          <section className="stats dashboard-stats" aria-label="Payee statement summary">
+            <article>
+              <span>Owed to payee now</span>
+              <strong>{currency(t.owedNow)}</strong>
+              <small>All unpaid expenses, any date</small>
+            </article>
+            <article>
+              <span>Expenses in period</span>
+              <strong>{currency(t.incurred)}</strong>
+              <small>{statement.expenses.length} expenses</small>
+            </article>
+            <article>
+              <span>Paid in period</span>
+              <strong>{currency(t.paid)}</strong>
+              <small>{statement.payments.length} payments</small>
+            </article>
+            <article>
+              <span>Last paid</span>
+              <strong>{t.lastPaid || '—'}</strong>
+            </article>
+          </section>
+          <section className="panel">
+            <h2>Expenses in this period</h2>
+            {expenseTable(statement.expenses, 'Expenses in this period')}
+          </section>
+          {statement.earlierOwing.length > 0 && (
+            <section className="panel">
+              <h2>Earlier expenses still owed</h2>
+              {expenseTable(statement.earlierOwing, 'Earlier expenses still owed')}
+            </section>
+          )}
+          <section className="panel">
+            <h2>Payments in this period</h2>
+            {statement.payments.length ? (
+              <div className="table-wrap">
+                <table aria-label="Payments to payee">
+                  <thead>
+                    <tr>
+                      <th>Date / expense</th>
+                      <th>Paid from</th>
+                      <th>Reference</th>
+                      <th>Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {statement.payments.map((p) => (
+                      <tr key={p.id}>
+                        <td>
+                          {p.date} · {p.expense}
+                          <small>{p.ref}</small>
+                        </td>
+                        <td>{p.source === 'Personal funds' ? 'Personal funds' : p.method}</td>
+                        <td>{p.reference}</td>
+                        <td>{currency(p.amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="muted report-none">No payments in this period.</p>
+            )}
+          </section>
+        </>
+      )}
+    </>
+  );
+}
 
 function StatementTab({
   ledger,
