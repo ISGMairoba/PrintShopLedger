@@ -39,6 +39,20 @@ function date(value) {
   )
     throw Error('Choose a valid date.');
 }
+/** A time on the chosen day (Lagos). Missing → null (records saved by older app versions). */
+export function dayTime(value, day, label = 'Time') {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T/.test(value) || Number.isNaN(Date.parse(value)))
+    throw Error(`${label} is not valid.`);
+  if (expenseDay(value) !== day) throw Error(`${label} must be on the chosen day.`);
+  return value;
+}
+/** Lagos wall-clock "YYYY-MM-DDTHH:mm" for a datetime-local box, and back to an ISO time. */
+export const lagosLocal = (iso) => new Date(Date.parse(iso) + 3600000).toISOString().slice(0, 16);
+export const fromLagosLocal = (local) => new Date(`${local}:00+01:00`).toISOString();
+/** When an expense or payment happened: its time when saved with one, otherwise its day. */
+export const expenseWhen = (item) => item.incurredAt ?? item.incurredOn;
+export const paymentWhen = (payment) => payment.paidAt ?? payment.paidOn;
 function text(value, label, max, required = false) {
   if (typeof value !== 'string' || value.trim().length > max || (required && !value.trim()))
     throw Error(`${label} ${required ? 'is required and' : 'must be'} up to ${max} characters.`);
@@ -58,6 +72,7 @@ function payment(data, audit) {
     id: data.id,
     amount: data.amount,
     paidOn: data.paidOn,
+    paidAt: dayTime(data.paidAt, data.paidOn, 'Payment time'),
     method: data.method,
     ...(data.methodLabel ? { methodLabel: text(data.methodLabel, 'Payment method', 80, true) } : {}),
     ...(data.accountId ? { accountId: data.accountId } : {}),
@@ -83,7 +98,7 @@ export function makeExpenseEvent(kind, data, existing, actor, id = () => crypto.
   const lines =
     kind === 'expense.voided'
       ? []
-      : kind === 'expense.payment_recorded'
+      : kind === 'expense.payment_recorded' || kind === 'expense.payment_corrected'
         ? existing.materials
         : data.materials;
   const stockIds = Object.fromEntries(
@@ -193,6 +208,7 @@ export function applyExpenseEvent(input, event) {
       description: text(data.description, 'Description', 500, true),
       category: text(data.category, 'Category', 80, true),
       incurredOn: data.incurredOn,
+      incurredAt: dayTime(data.incurredAt, data.incurredOn),
       amount: data.amount,
       payeeId: data.payeeId === undefined ? (existing?.payeeId ?? '') : data.payeeId,
       payee: text(data.payee, 'Paid to', 160),
@@ -216,6 +232,46 @@ export function applyExpenseEvent(input, event) {
     if (existing.payments.some((item) => item.id === p.id)) throw Error('Payment ID already used.');
     next = { ...existing, payments: [...existing.payments, p], version: existing.version + 1, ...audit };
     if (expensePaid(next) > next.amount) throw Error('Payment exceeds the outstanding expense amount.');
+  } else if (event.kind === 'expense.payment_corrected') {
+    const reason = text(data.reason, 'Reason', 500, true);
+    const old = existing.payments.find((item) => item.id === data.paymentId);
+    if (!old) throw Error('Payment not found.');
+    const { corrections = [], ...before } = old;
+    const correction = {
+      reason,
+      correctedBy: audit.modifiedBy,
+      correctedByLabel: audit.modifiedByLabel,
+      correctedAt: audit.modifiedAt,
+      before,
+    };
+    if (data.remove) {
+      next = {
+        ...existing,
+        payments: existing.payments.filter((item) => item.id !== old.id),
+        removedPayments: [
+          ...(existing.removedPayments ?? []),
+          { ...old, corrections: [...corrections, correction], removedAt: audit.modifiedAt },
+        ],
+        version: existing.version + 1,
+        ...audit,
+      };
+    } else {
+      const fixed = payment({ ...data.payment, id: old.id }, audit);
+      const kept = {
+        ...fixed,
+        createdBy: old.createdBy,
+        createdByLabel: old.createdByLabel,
+        createdAt: old.createdAt,
+        corrections: [...corrections, correction],
+      };
+      next = {
+        ...existing,
+        payments: existing.payments.map((item) => (item.id === old.id ? kept : item)),
+        version: existing.version + 1,
+        ...audit,
+      };
+    }
+    if (expensePaid(next) > next.amount) throw Error('Payments cannot exceed the expense amount.');
   } else if (event.kind === 'expense.voided') {
     next = {
       ...existing,
@@ -226,7 +282,9 @@ export function applyExpenseEvent(input, event) {
     };
   } else throw Error('Unknown expense operation.');
   const deltas =
-    event.kind === 'expense.payment_recorded' ? [] : stockDeltas(existing, next.materials, next.voided);
+    event.kind === 'expense.payment_recorded' || event.kind === 'expense.payment_corrected'
+      ? []
+      : stockDeltas(existing, next.materials, next.voided);
   if (
     !data.stockIds ||
     Object.keys(data.stockIds).length !== deltas.length ||

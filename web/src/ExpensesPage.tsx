@@ -10,21 +10,39 @@ import { useDateFilter } from './PeriodFilter';
 import ResponsiveTable from './ResponsiveTable';
 import { auditCells, auditHeaders } from './AuditColumns';
 import { SortHeader, useTableSort } from './TableSort';
-import { expenseCode, expensePaid, expenseStatus, expenseSummary, makeExpenseEvent } from './expenses.mjs';
-import type { Expense, ExpenseEvent, Ledger, LedgerEvent } from './types';
+import {
+  expenseCode,
+  expensePaid,
+  expenseStatus,
+  expenseSummary,
+  expenseWhen,
+  makeExpenseEvent,
+  paymentWhen,
+} from './expenses.mjs';
+import { operationEvent } from './operations.mjs';
+import type { Expense, ExpenseEvent, ExpensePayment, Ledger, LedgerEvent, OperationsEvent } from './types';
 import { useWords } from './Words';
 import { renameActive as wt } from './Words';
 import { alphabetical } from './alphabetical.mjs';
 const currency = (value: number) =>
   new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(value / 100);
 const timestamp = (value: string) => new Date(value).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' });
+const dayFormat = new Intl.DateTimeFormat('en-NG', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  timeZone: 'Africa/Lagos',
+});
+const timeFormat = new Intl.DateTimeFormat('en-NG', {
+  hour: 'numeric',
+  minute: '2-digit',
+  timeZone: 'Africa/Lagos',
+});
+/** A day ("2026-11-05") or a time ("2026-11-05T09:30:00.000Z"); times also show the clock. */
 const day = (value: string) =>
-  new Date(value + 'T12:00:00+01:00').toLocaleDateString('en-NG', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'Africa/Lagos',
-  });
+  value.length <= 10
+    ? dayFormat.format(new Date(value + 'T12:00:00+01:00'))
+    : `${dayFormat.format(new Date(value))}, ${timeFormat.format(new Date(value))}`;
 export default function ExpensesPage({
   ledger,
   ready,
@@ -38,7 +56,7 @@ export default function ExpensesPage({
   busy: boolean;
   actor: { id: string; label: string };
   pending: LedgerEvent[];
-  onSave: (event: ExpenseEvent) => Promise<void>;
+  onSave: (event: ExpenseEvent | OperationsEvent) => Promise<void>;
 }) {
   const { w } = useWords();
   const { expenseCategories } = useBusinessOptions();
@@ -53,6 +71,7 @@ export default function ExpensesPage({
   const [audit, setAudit] = useState(false),
     [editor, setEditor] = useState<Expense | 'new' | null>(null),
     [payment, setPayment] = useState<Expense | null>(null),
+    [correcting, setCorrecting] = useState<{ expense: Expense; payment: ExpensePayment } | null>(null),
     [detail, setDetail] = useState<Expense | null>(null),
     [voiding, setVoiding] = useState<Expense | null>(null),
     [reason, setReason] = useState(''),
@@ -95,7 +114,7 @@ export default function ExpensesPage({
       description: (item) => item.description,
       category: (item) => item.category,
       payee: (item) => item.payee,
-      date: (item) => item.incurredOn,
+      date: (item) => expenseWhen(item),
       amount: (item) => item.amount,
       paid: (item) => expensePaid(item),
       outstanding: (item) => (item.voided ? 0 : item.amount - expensePaid(item)),
@@ -106,6 +125,13 @@ export default function ExpensesPage({
       modifiedAt: (item) => Date.parse(item.modifiedAt),
     },
   );
+  const createPayee = async (payee: { name: string; phone: string }) => {
+    const id = crypto.randomUUID();
+    await onSave(
+      operationEvent('payee.created', { id, ...payee, address: '', note: '' }, actor) as OperationsEvent,
+    );
+    return id;
+  };
   const selected = detail && ledger.expenses.find((item) => item.id === detail.id);
   const history = selected
     ? ledger.expenseHistory
@@ -285,7 +311,7 @@ export default function ExpensesPage({
                         </small>
                       </td>
                       <td>{item.payee || '—'}</td>
-                      <td className="cell-fit">{day(item.incurredOn)}</td>
+                      <td className="cell-fit">{day(expenseWhen(item))}</td>
                       <td className="cell-fit">
                         {currency(item.amount)}
                         <small>Paid: {currency(expensePaid(item))}</small>
@@ -361,7 +387,24 @@ export default function ExpensesPage({
           actor={actor}
           busy={busy}
           onSave={onSave}
+          onCreatePayee={createPayee}
           onClose={() => setEditor(null)}
+        />
+      )}
+      {correcting && (
+        <ExpenseEditor
+          key={correcting.payment.id + ':' + correcting.expense.version}
+          expense={correcting.expense}
+          correcting={correcting.payment}
+          mode="correct"
+          expenses={ledger.expenses}
+          payees={ledger.payees}
+          accounts={ledger.moneyAccounts}
+          materials={ledger.materials}
+          actor={actor}
+          busy={busy}
+          onSave={onSave}
+          onClose={() => setCorrecting(null)}
         />
       )}
       {payment && (
@@ -431,7 +474,7 @@ export default function ExpensesPage({
         >
           <h3>{selected.description}</h3>
           <p>
-            {selected.category} · {day(selected.incurredOn)} · {selected.payee || 'No supplier recorded'}
+            {selected.category} · {day(expenseWhen(selected))} · {selected.payee || 'No supplier recorded'}
           </p>
           <div className="detail-summary">
             <span>
@@ -470,16 +513,44 @@ export default function ExpensesPage({
             selected.payments.map((p) => (
               <div className="history" key={p.id}>
                 <span>
-                  {day(p.paidOn)} · {paymentName(p)}
+                  {day(paymentWhen(p))} · {paymentName(p)}
                   <small>
                     {p.source} · {p.createdByLabel}
                     {p.reference && ` · ${p.reference}`}
                   </small>
+                  {(p.corrections ?? []).map((c) => (
+                    <small key={c.correctedAt}>
+                      Corrected by {c.correctedByLabel} · {timestamp(c.correctedAt)} · {c.reason} (was{' '}
+                      {currency(c.before.amount)} · {paymentName(c.before)} · {day(paymentWhen(c.before))})
+                    </small>
+                  ))}
                 </span>
                 <strong>{currency(p.amount)}</strong>
+                {!selected.voided && !busy && (
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() => setCorrecting({ expense: selected, payment: p })}
+                  >
+                    Correct
+                  </button>
+                )}
               </div>
             ))
           )}
+          {(selected.removedPayments ?? []).map((p) => (
+            <div className="history muted" key={p.id}>
+              <span>
+                <s>
+                  {day(paymentWhen(p))} · {paymentName(p)} · {currency(p.amount)}
+                </s>
+                <small>
+                  Removed by {p.corrections?.at(-1)?.correctedByLabel} ·{' '}
+                  {p.removedAt ? timestamp(p.removedAt) : ''} · {p.corrections?.at(-1)?.reason}
+                </small>
+              </span>
+            </div>
+          ))}
           <h3>Change history</h3>
           {history.map((entry) => (
             <details key={entry.id} className="expense-change">
@@ -489,6 +560,7 @@ export default function ExpensesPage({
                     'expense.created': 'Created',
                     'expense.updated': 'Edited',
                     'expense.payment_recorded': 'Payment recorded',
+                    'expense.payment_corrected': 'Payment corrected',
                     'expense.voided': 'Voided',
                   }[entry.action]
                 }{' '}

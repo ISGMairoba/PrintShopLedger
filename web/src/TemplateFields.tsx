@@ -12,6 +12,7 @@ import {
   groupRows,
   quoteTemplate,
   scenarioInputs,
+  suggestQuantities,
   snapshotValue,
   templateDefaults,
   valueLabel,
@@ -757,7 +758,20 @@ export function CompareOptions({
   onUse: (inputs: Record<string, number | string>, quantity: string) => void;
 }) {
   const choices = template.variables.filter((v) => v.key !== 'quantity');
-  const [quantities, setQuantities] = useState(() => [quantity, '50', '100'].filter(Boolean).join(', '));
+  // Suggested quantities follow the quantity being priced (and the price tiers of the materials it
+  // uses) until someone types their own list.
+  const suggested = () => {
+    const base = Object.fromEntries(choices.map((v) => [v.key, inputs[v.key] ?? v.default]));
+    const priced = tryTemplate(ledger, template, base, quantity);
+    const used = (priced.quote?.templateSnapshot.references ?? [])
+      .map((r) => ledger.services.find((s) => s.id === r.serviceId))
+      .filter((s): s is NonNullable<typeof s> => !!s);
+    const qv = template.variables.find((v) => v.key === 'quantity');
+    return suggestQuantities(Number(quantity) || 1, qv, used).join(', ');
+  };
+  const [ownQuantities, setOwnQuantities] = useState<string | null>(null);
+  const quantities = ownQuantities ?? suggested();
+  const setQuantities = setOwnQuantities;
   const [sets, setSets] = useState<OptionSet[]>([]);
   const [groupBy, setGroupBy] = useState('quantity');
   const [rows, setRows] = useState<Scenario[]>([]);
@@ -898,7 +912,14 @@ export function CompareOptions({
       <label>
         Quantities
         <input aria-label="Quantities" value={quantities} onChange={(e) => setQuantities(e.target.value)} />
-        <small>Separate values with commas</small>
+        <small>
+          Separate values with commas.{' '}
+          {ownQuantities !== null && (
+            <button type="button" className="text-button" onClick={() => setOwnQuantities(null)}>
+              Use suggested quantities
+            </button>
+          )}
+        </small>
       </label>
       {sets.map((set, index) => {
         const v = choices.find((x) => x.key === set.key)!;
