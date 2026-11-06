@@ -1,6 +1,7 @@
 import { sameEvent } from './sale-adjustments.mjs';
 import { acknowledgeReviews, blockedWork, projectPending } from './sync-dependencies.mjs';
 import { mergeChanges, needsFullSync } from './sync-delta.mjs';
+import { keepChoice, keepCutoff, needsFreshWindow } from './history-keep.mjs';
 import { requireConflictReviewer } from './conflict-review';
 import { resolveExpenseState } from './expense-conflicts.mjs';
 import { checkoutReviewBase, replacePendingCheckout, adoptJobStatus } from './checkout-conflicts.mjs';
@@ -206,10 +207,20 @@ async function synchronize(scope: string, shopId: string) {
   // Download only what changed since the last sync when this device's copy is exactly the
   // business copy; otherwise (first sync, unsent or held work, every half hour) everything.
   const before = await readState(scope);
-  const full = needsFullSync(before);
-  const { data, error } = await supabase
-    .rpc('get_ledger_changes', { p_shop: shopId, p_since: full ? null : before.syncCursor, p_slim: true })
-    .abortSignal(AbortSignal.timeout(60000));
+  // A device keeping recent history only (My Account → This device) downloads its full copy
+  // trimmed by the server; switching between that and Everything downloads everything again.
+  const cutoff = keepCutoff(keepChoice(scope));
+  const full = needsFullSync(before) || !!cutoff !== !!before.ledger.historySummary?.cutoff;
+  const { data, error } =
+    full && cutoff
+      ? await windowCopy(shopId, cutoff)
+      : await supabase
+          .rpc('get_ledger_changes', {
+            p_shop: shopId,
+            p_since: full ? null : before.syncCursor,
+            p_slim: true,
+          })
+          .abortSignal(AbortSignal.timeout(60000));
   if (error) throw Error(error.message);
   await check();
   const now = new Date().toISOString();
@@ -226,6 +237,11 @@ async function synchronize(scope: string, shopId: string) {
     // Work started on this device while the changes were downloading: keep the cursor, so the
     // next sync (which sends that work) downloads these changes again with everything else.
     if (current.pending.length || current.syncCursor !== before.syncCursor) return current;
+    // A change to a record older than this device keeps: download the recent copy again next time.
+    if (needsFreshWindow(current.ledger, result.ledger)) {
+      const { fullSyncAt: _full, ...rest } = current;
+      return rest;
+    }
     return {
       ...current,
       ledger: normalizeLedger(
@@ -291,6 +307,18 @@ export async function resolveRemoteConflict(
   if (error) throw Error(error.message);
 }
 
+/** The recent-history copy from the ledger-window server function (same shape as a full sync). */
+async function windowCopy(shopId: string, cutoff: string) {
+  const { data, error } = await supabase!.functions.invoke('ledger-window', { body: { shopId, cutoff } });
+  if (!error) return { data, error: null };
+  let message = error.message;
+  const response = (error as { context?: Response }).context;
+  if (response)
+    try {
+      message = (await response.json()).error || message;
+    } catch {}
+  return { data: null, error: { message } };
+}
 /** Sync all: the next sync downloads the whole business again instead of only the changes. */
 export const requestFullSync = (scope: string) =>
   mutateState(scope, ({ fullSyncAt: _full, ...current }) => current);

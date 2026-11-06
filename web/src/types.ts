@@ -226,6 +226,8 @@ export interface Allocation {
 }
 export interface Payment {
   refundId?: string;
+  /** A carried-forward wallet total on a device keeping recent history only (not a real payment). */
+  carryForward?: boolean;
   methodLabel?: string;
   id: string;
   customerId: string;

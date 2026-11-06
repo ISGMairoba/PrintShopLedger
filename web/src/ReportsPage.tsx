@@ -326,7 +326,20 @@ export default function ReportsPage({
         Loading report records…
       </section>
     );
-  const freshness =
+  const keptFrom = ledger.historySummary?.cutoff;
+  const kept = keptFrom ? (
+    <div className="dashboard-warning" role="status">
+      This device keeps records from{' '}
+      {new Date(keptFrom + 'T12:00:00+01:00').toLocaleDateString('en-NG', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      })}
+      . Balances and totals are complete; for the detail of earlier records, choose Everything in My Account →
+      This device, or use a device that keeps everything.
+    </div>
+  ) : null;
+  const freshness0 =
     !online || pending > 0 ? (
       <div className="dashboard-warning" role="status">
         {!online ? 'Offline — showing saved device records. ' : ''}
@@ -340,6 +353,12 @@ export default function ReportsPage({
           ` Last synced: ${new Date(lastSynced).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' })}.`}
       </p>
     );
+  const freshness = (
+    <>
+      {kept}
+      {freshness0}
+    </>
+  );
   async function share(
     file: string,
     title: string,

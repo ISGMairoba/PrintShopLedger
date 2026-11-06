@@ -326,21 +326,7 @@ export function historyCheck(ledger, { now = new Date().toISOString(), cutoff } 
   for (const c of ledger.customers) {
     same(`Wallet of ${c.name}`, (l) => walletBalance(l, c.id));
     same(`Amount owed by ${c.name}`, (l) => customerBalanceFast(l, c.id));
-    // The checkout account check covers every job today; a trimmed device needs it to cover the
-    // jobs still owing only (with the server, in stage 2). Compare that version.
-    same(`Checkout account check for ${c.name}`, (l) =>
-      accountToken(l, c.id)
-        .split(';')
-        .map((part, i) =>
-          i === 0
-            ? part
-            : part
-                .split(',')
-                .filter((x) => x && !x.endsWith(':0'))
-                .join(','),
-        )
-        .join(';'),
-    );
+    same(`Checkout account check for ${c.name}`, (l) => accountToken(l, c.id));
     same(`Statement of ${c.name} since ${from}`, (l) => {
       const s = customerStatement(l, c.id, from, today, { now });
       return { ...s, customer: undefined };

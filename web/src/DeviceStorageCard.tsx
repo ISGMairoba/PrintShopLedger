@@ -4,6 +4,7 @@ import { useWords } from './Words';
 import Icon from './Icon';
 import HistoryCheck from './HistoryCheck';
 import type { Ledger } from './types';
+import { KEEP_CHOICES, keepChoice } from './history-keep.mjs';
 
 const mb = (bytes: number | null) => (bytes === null ? '—' : `${Math.round(bytes / 1048576)} MB`);
 export const LOW_SPACE = 200 * 1048576;
@@ -15,6 +16,7 @@ export default function DeviceStorageCard({
   syncing = false,
   onSyncAll,
   history,
+  onKeepChange,
 }: {
   pending: number;
   lastSynced?: string;
@@ -23,6 +25,8 @@ export default function DeviceStorageCard({
   onSyncAll?: () => Promise<void>;
   /** The device's ledger, for the history check. */
   history?: { ledger: Ledger; scope: string };
+  /** Change how much history this device keeps (downloads again). */
+  onKeepChange?: (choice: string) => Promise<void>;
 }) {
   const { w } = useWords();
   const [asked, setAsked] = useState(''),
@@ -32,6 +36,9 @@ export default function DeviceStorageCard({
     void storageHealth().then(setHealth);
   }, [pending, lastSynced]);
   const low = health?.free != null && health.free < LOW_SPACE;
+  const [keep, setKeep] = useState(() => (history ? keepChoice(history.scope) : 'all'));
+  const [keepError, setKeepError] = useState('');
+  const cutoff = history?.ledger.historySummary?.cutoff;
   return (
     <section className="panel editor" aria-labelledby="device-storage">
       <h2 id="device-storage">{w('This device')}</h2>
@@ -87,7 +94,45 @@ export default function DeviceStorageCard({
           )}
         </div>
       )}
-      {history && <HistoryCheck ledger={history.ledger} scope={history.scope} />}
+      {history && onKeepChange && (
+        <div className="device-keep">
+          <label>
+            History kept on this device
+            <select
+              aria-label="History kept on this device"
+              value={keep}
+              disabled={syncing || pending > 0}
+              onChange={(e) => {
+                const next = e.target.value;
+                setKeepError('');
+                setKeep(next);
+                onKeepChange(next).catch((cause) => {
+                  setKeep(keepChoice(history.scope));
+                  setKeepError(cause instanceof Error ? cause.message : String(cause));
+                });
+              }}
+            >
+              {KEEP_CHOICES.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="muted">
+            {cutoff
+              ? `This device keeps records from ${new Date(cutoff + 'T12:00:00+01:00').toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}, plus every job still owing or not collected. Balances, wallets and stock are the same as on every other device. Older detail (old reports and statements) needs Everything.`
+              : 'Everything: this device has every record. A shorter choice downloads less and keeps phones fast; balances stay the same. Nothing is deleted from the business.'}
+            {pending > 0 && ' Wait until all work on this device has synced before changing this.'}
+          </p>
+          {keepError && (
+            <p className="danger-text" role="alert">
+              {keepError}
+            </p>
+          )}
+        </div>
+      )}
+      {history && !cutoff && <HistoryCheck ledger={history.ledger} scope={history.scope} />}
       {low && (
         <p className="notice" role="status">
           {w(

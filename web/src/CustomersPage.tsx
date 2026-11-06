@@ -48,10 +48,11 @@ export default function CustomersPage({
   const sorting = useTableSort<Customer>('name');
   // Per-customer job counts and wallets, worked out once per screen (not once per customer per sort).
   const jobCounts = useMemo(() => {
-    const n = new Map<string, number>();
+    // A device keeping recent history only counts the jobs it left out from historySummary.
+    const n = new Map<string, number>(Object.entries(ledger.historySummary?.customerJobs ?? {}));
     for (const item of ledger.jobs) n.set(item.customerId, (n.get(item.customerId) ?? 0) + 1);
     return n;
-  }, [ledger.jobs]);
+  }, [ledger.jobs, ledger.historySummary]);
   const jobs = (id: string) => jobCounts.get(id) ?? 0;
   const wallets = new Map<string, number>();
   for (const p of ledger.payments)
