@@ -1153,7 +1153,8 @@ export default function TemplateEditor({
             {Number(p.maxDiscount) > limit && !problem && (
               <p className="notice notice-warning" role="status">
                 With a {p.rate}% {p.method} and a {p.floor}% minimum, the deepest discount that keeps the
-                minimum is <strong>{limit}%</strong>. Staff will be limited to {limit}%, not {p.maxDiscount}%.
+                minimum is <strong>{limit}%</strong>. Cashiers will be limited to {limit}%, not{' '}
+                {p.maxDiscount}%. Admins and Managers use their own discount allowance and see a cost warning.
               </p>
             )}
             <h4>Preview with the default values</h4>

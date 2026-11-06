@@ -819,7 +819,9 @@ export function policyDiscountLimit(p) {
 /** The discount staff can actually give: the lower of the maximum and the minimum-profit limit. */
 export const discountCeiling = (p) => Math.min(p.maxDiscount, policyDiscountLimit(p));
 /** After discounts: a template job may not go below its minimum price or past its maximum discount. */
-export function checkTemplateDiscount(job) {
+export function checkTemplateDiscount(job, policy = null) {
+  // Flat-discount permission is granted only to Admin and higher by discountPolicy.
+  if (policy?.canFlat) return;
   const s = job.templateSnapshot;
   if (!s) return;
   const gross = s.price.amount;
@@ -832,6 +834,20 @@ export function checkTemplateDiscount(job) {
     throw Error(
       `${job.description}: this discount takes ${s.template.name} below its minimum ${s.template.pricing.floor}% ${s.template.pricing.method}. Reduce the discount.`,
     );
+}
+
+/** Cost impact when management overrides a template's item-specific protection. */
+export function templateDiscountImpact(job) {
+  const s = job.templateSnapshot;
+  if (!s) return null;
+  const off = s.price.amount - job.amount;
+  if (
+    off <= Math.ceil((s.price.amount * s.template.pricing.maxDiscount) / 100) &&
+    job.amount >= s.price.minimum
+  )
+    return null;
+  const cost = Math.round(Number(s.price.cost) * 100);
+  return { name: s.template.name, amount: job.amount, cost, profit: job.amount - cost };
 }
 
 // ---------------------------------------------------------------- display helpers

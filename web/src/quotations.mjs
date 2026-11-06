@@ -52,7 +52,7 @@ export function priceQuotation(ledger, lines, orderDiscount = null, policy = nul
     return quoteLine(ledger, { ...line, source: 'Quotation', sourceNote: '', dueAt: '' });
   });
   const priced = applyOrderDiscount(quoted, orderDiscount, policy);
-  for (const job of priced.jobs) checkTemplateDiscount(job);
+  for (const job of priced.jobs) checkTemplateDiscount(job, policy);
   const out = priced.jobs.map((j, index) => ({
     id: lines[index].id,
     serviceId: lines[index].serviceId,

@@ -1,3 +1,4 @@
+import TemplateDiscountWarning from './TemplateDiscountWarning';
 import { defaultMoneyAccount } from './operations.mjs';
 import { notEnoughStock } from './stock-rule.mjs';
 import DialogActions from './DialogActions';
@@ -938,6 +939,12 @@ export default function CheckoutEditor({
                           }
                         />
                       )}
+                      {!orderDiscount.kind && (
+                        <TemplateDiscountWarning
+                          jobs={priced?.jobs.filter((j) => j.id === item.id) ?? []}
+                          allowed={discountPolicy.canFlat}
+                        />
+                      )}
                       {quote && (
                         <p>
                           {quote.templateSnapshot
@@ -1018,6 +1025,9 @@ export default function CheckoutEditor({
                     maxPercent={discountPolicy.maxPercent}
                     onChange={setOrderDiscount}
                   />
+                )}
+                {!!orderDiscount.kind && (
+                  <TemplateDiscountWarning jobs={priced?.jobs ?? []} allowed={discountPolicy.canFlat} />
                 )}
                 <p className="cart-total" aria-live="polite">
                   {cartTotal !== null && cartGross > cartTotal && (
