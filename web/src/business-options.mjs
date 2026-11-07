@@ -1,3 +1,4 @@
+import { validStageHours } from './stage-time.mjs';
 export const defaultOptions = () => ({
   paymentMethods: [
     { label: 'Cash', kind: 'Cash', enabled: true },
@@ -20,6 +21,8 @@ export const defaultOptions = () => ({
   stockReasons: ['Restocking', 'Stock Count Correction', 'Returned Stock', 'Damaged Stock'],
   materialUnits: ['sheet', 'piece', 'metre', 'square metre', 'roll', 'kilogram', 'litre'],
   jobStages: ['Added', 'In Queue', 'Printing', 'Completed', 'Collected'],
+  /** Hours a job may stay at a stage before it is flagged (stages left out: automatic). */
+  stageHours: /** @type {Record<string, number>} */ ({}),
 });
 export function validateList(values, label, max = 80) {
   if (!Array.isArray(values) || values.length < 1 || values.length > 30)
@@ -60,6 +63,7 @@ export function validateOptions(input) {
   ])
     value[key] = validateList(value[key], label, max);
   value.jobStages = validateWorkflow(value.jobStages);
+  value.stageHours = validStageHours(value.stageHours, value.jobStages);
   if (
     !Array.isArray(value.paymentMethods) ||
     !value.paymentMethods.length ||

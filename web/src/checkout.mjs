@@ -557,6 +557,8 @@ export function applyJobStatus(ledger, event) {
     ...job,
     version: (job.version ?? 1) + 1,
     productionStatus: data.status,
+    // When it entered this stage ("Too long at this stage").
+    stageAt: data.modifiedAt,
     modifiedBy: data.modifiedBy,
     modifiedByLabel: data.modifiedByLabel,
     modifiedAt: data.modifiedAt,

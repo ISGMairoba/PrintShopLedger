@@ -1966,3 +1966,35 @@ label small > .field-error {
 .collapsible-list[open] > summary {
   margin-bottom: 8px;
 }
+/* Jobs: at a stage longer than its time (Business Settings → Dropdowns & workflow). */
+.stage-late {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #fde4e1;
+  color: #8a1c12;
+  font-weight: 600;
+}
+[data-theme="dark"] .stage-late {
+  background: #4a1e19;
+  color: #ffc9c2;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .stage-late {
+    background: #4a1e19;
+    color: #ffc9c2;
+  }
+}
+.stage-hours {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  margin: 12px 0;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.stage-hours p {
+  margin: 0;
+}

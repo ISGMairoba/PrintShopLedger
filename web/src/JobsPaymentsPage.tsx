@@ -15,6 +15,9 @@ import { inPeriod } from './dashboard.mjs';
 import type { CheckoutRecord, Job, Ledger, Payment } from './types';
 import { useWords } from './Words';
 import { useBusinessOptions } from './BusinessOptionsContext';
+import { LATE_FILTER_KEY, stageOverdue } from './stage-time.mjs';
+
+const LATE = '__late__';
 
 type Props = {
   page: 'Jobs' | 'Payments';
@@ -73,10 +76,19 @@ export default function JobsPaymentsPage({
   const jobSorting = useTableSort<Job>('createdAt', 'desc');
   const paymentSorting = useTableSort<Payment>('createdAt', 'desc');
   // Jobs → Stage: show the jobs at one stage (with how many are at each).
-  const [stageFilter, setStageFilter] = useState('');
-  const { jobStages } = useBusinessOptions();
+  const [stageFilter, setStageFilter] = useState(() => {
+    try {
+      const asked = sessionStorage.getItem(LATE_FILTER_KEY);
+      sessionStorage.removeItem(LATE_FILTER_KEY);
+      return asked === 'late' && page === 'Jobs' ? LATE : '';
+    } catch {
+      return '';
+    }
+  });
+  const { jobStages, stageHours } = useBusinessOptions();
   const stageOf = (job: Job) => job.productionStatus ?? 'Added';
-  const inStage = (job: Job) => !stageFilter || stageOf(job) === stageFilter;
+  const inStage = (job: Job) =>
+    !stageFilter || (stageFilter === LATE ? !!stageOverdue(job, stageHours) : stageOf(job) === stageFilter);
   const matchingJobs = jobSorting.sortRows(
     ledger.jobs.filter(
       (job) =>
@@ -195,7 +207,22 @@ export default function JobsPaymentsPage({
                 onChange={(e) => setStageFilter(e.target.value)}
               >
                 <option value="">All stages</option>
-                {[...new Set([...jobStages, 'Cancelled', ...(stageFilter ? [stageFilter] : [])])].map((s) => {
+                <option value={LATE}>
+                  Too long at a stage (
+                  {
+                    ledger.jobs.filter(
+                      (job) => inPeriod(job.createdAt, period) && stageOverdue(job, stageHours),
+                    ).length
+                  }
+                  )
+                </option>
+                {[
+                  ...new Set([
+                    ...jobStages,
+                    'Cancelled',
+                    ...(stageFilter && stageFilter !== LATE ? [stageFilter] : []),
+                  ]),
+                ].map((s) => {
                   const n = ledger.jobs.filter(
                     (job) => stageOf(job) === s && inPeriod(job.createdAt, period),
                   ).length;
