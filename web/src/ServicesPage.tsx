@@ -944,29 +944,38 @@ export default function ServicesPage({
                       'Tick 2 to 10 materials with the same unit, for example 2 ft, 5 ft and 10 ft rolls. The price stays the same whichever is used. No stock is taken at the sale; staff confirm what was really used, and how much, when the job leaves the stage below.',
                     )}
                   </p>
-                  <div className="material-choice-list">
-                    {materials
-                      .filter((m) => !m.archived || choiceIds.includes(m.id))
-                      .map((m) => (
-                        <label className="checkbox" key={m.id}>
-                          <input
-                            type="checkbox"
-                            checked={choiceIds.includes(m.id)}
-                            onChange={(e) =>
-                              setChoiceIds((ids) =>
-                                e.target.checked ? [...ids, m.id] : ids.filter((x) => x !== m.id),
-                              )
-                            }
-                          />
-                          {shortLabel(m.name)}
-                          <small>
-                            {m.measurementUnit}
-                            {m.requireSize ? ' · by size' : ''}
-                            {m.archived ? ' · Archived' : ''}
-                          </small>
-                        </label>
-                      ))}
-                  </div>
+                  <details className="collapsible-list" open={!choiceIds.length}>
+                    <summary>
+                      {choiceIds.length
+                        ? `${choiceIds.length} chosen: ${choiceIds
+                            .map((id) => shortLabel(materials.find((m) => m.id === id)?.name ?? ''))
+                            .join(', ')}`
+                        : w('Choose the materials')}
+                    </summary>
+                    <div className="material-choice-list">
+                      {materials
+                        .filter((m) => !m.archived || choiceIds.includes(m.id))
+                        .map((m) => (
+                          <label className="checkbox" key={m.id}>
+                            <input
+                              type="checkbox"
+                              checked={choiceIds.includes(m.id)}
+                              onChange={(e) =>
+                                setChoiceIds((ids) =>
+                                  e.target.checked ? [...ids, m.id] : ids.filter((x) => x !== m.id),
+                                )
+                              }
+                            />
+                            {shortLabel(m.name)}
+                            <small>
+                              {m.measurementUnit}
+                              {m.requireSize ? ' · by size' : ''}
+                              {m.archived ? ' · Archived' : ''}
+                            </small>
+                          </label>
+                        ))}
+                    </div>
+                  </details>
                   <label>
                     {w('Confirm material used when the job leaves')}
                     <select value={confirmStage} onChange={(e) => setConfirmStage(e.target.value)}>
