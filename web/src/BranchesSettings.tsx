@@ -70,28 +70,38 @@ export default function BranchesSettings({
                   onChange={(e) => change(b.id, { name: e.target.value })}
                 />
               </label>
-              <label>
-                Phone on this branch's receipts
-                <input
-                  type="tel"
-                  aria-label={`Branch ${i + 1} phone`}
-                  maxLength={80}
-                  placeholder="Business phone"
-                  value={b.phone}
-                  onChange={(e) => change(b.id, { phone: e.target.value })}
-                />
-              </label>
-              <label>
-                Address on this branch's receipts
-                <input
-                  aria-label={`Branch ${i + 1} address`}
-                  maxLength={300}
-                  placeholder="Business address"
-                  value={b.address}
-                  onChange={(e) => change(b.id, { address: e.target.value })}
-                />
-              </label>
+              {b.kind !== 'store' && (
+                <>
+                  <label>
+                    Phone on this branch's receipts
+                    <input
+                      type="tel"
+                      aria-label={`Branch ${i + 1} phone`}
+                      maxLength={80}
+                      placeholder="Business phone"
+                      value={b.phone}
+                      onChange={(e) => change(b.id, { phone: e.target.value })}
+                    />
+                  </label>
+                  <label>
+                    Address on this branch's receipts
+                    <input
+                      aria-label={`Branch ${i + 1} address`}
+                      maxLength={300}
+                      placeholder="Business address"
+                      value={b.address}
+                      onChange={(e) => change(b.id, { address: e.target.value })}
+                    />
+                  </label>
+                </>
+              )}
             </div>
+            {b.kind === 'store' && (
+              <small className="muted">
+                A store keeps stock only: no sales happen there, so it does not count towards your branch
+                limit.
+              </small>
+            )}
             {i > 0 && (
               <button
                 type="button"
@@ -99,7 +109,7 @@ export default function BranchesSettings({
                 onClick={() => change(b.id, { archived: !b.archived })}
               >
                 <Icon name={b.archived ? 'restore' : 'archive'} />{' '}
-                {b.archived ? 'Open again' : 'Close branch'}
+                {b.archived ? 'Open again' : b.kind === 'store' ? 'Close store' : 'Close branch'}
               </button>
             )}
           </div>
