@@ -14,6 +14,7 @@ import { useDateFilter } from './PeriodFilter';
 import { inPeriod } from './dashboard.mjs';
 import type { CheckoutRecord, Job, Ledger, Payment } from './types';
 import { useWords } from './Words';
+import { useBusinessOptions } from './BusinessOptionsContext';
 
 type Props = {
   page: 'Jobs' | 'Payments';
@@ -54,7 +55,7 @@ export default function JobsPaymentsPage({
   onReceipt,
   onCorrectPayment,
 }: Props) {
-  const { w } = useWords();
+  const { w, stage } = useWords();
   const [grouped, setGrouped] = useState(false);
   const [selecting, setSelecting] = useState(false);
   // Looked up once per list of customers, not once per job.
@@ -71,9 +72,15 @@ export default function JobsPaymentsPage({
   const [audit, setAudit] = useState(false);
   const jobSorting = useTableSort<Job>('createdAt', 'desc');
   const paymentSorting = useTableSort<Payment>('createdAt', 'desc');
+  // Jobs → Stage: show the jobs at one stage (with how many are at each).
+  const [stageFilter, setStageFilter] = useState('');
+  const { jobStages } = useBusinessOptions();
+  const stageOf = (job: Job) => job.productionStatus ?? 'Added';
+  const inStage = (job: Job) => !stageFilter || stageOf(job) === stageFilter;
   const matchingJobs = jobSorting.sortRows(
     ledger.jobs.filter(
       (job) =>
+        inStage(job) &&
         inPeriod(job.createdAt, period) &&
         `${job.createdByLabel ?? ''} ${job.modifiedByLabel ?? ''} ${job.description} ${job.service} ${customerName(job.customerId)} ${customersById.get(job.customerId)?.phone ?? ''} ${job.productionStatus ?? 'Added'} ${job.id}`
           .toLowerCase()
@@ -179,6 +186,26 @@ export default function JobsPaymentsPage({
             onChange={(e) => onQuery(e.target.value)}
           />
           {dates.button}
+          {page === 'Jobs' && (
+            <label className="list-sort-select">
+              {w('Job stage')}
+              <select
+                aria-label={w('Filter jobs by stage')}
+                value={stageFilter}
+                onChange={(e) => setStageFilter(e.target.value)}
+              >
+                <option value="">All stages</option>
+                {[...new Set([...jobStages, 'Cancelled', ...(stageFilter ? [stageFilter] : [])])].map((s) => {
+                  const n = ledger.jobs.filter((job) => stageOf(job) === s && inPeriod(job.createdAt, period)).length;
+                  return (
+                    <option key={s} value={s}>
+                      {stage(s)} ({n})
+                    </option>
+                  );
+                })}
+              </select>
+            </label>
+          )}
           <label className="list-sort-select">
             Sort by
             <select

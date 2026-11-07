@@ -1948,3 +1948,21 @@ label small > .field-error {
   gap: 8px;
   margin: 12px 0;
 }
+
+/* Tick boxes listed one under another get a small space between them. Their space from other
+   fields stays as it was; lists that already space their items (grids) are left alone. */
+:where(.check-label, label.checkbox) + :where(.check-label, label.checkbox) {
+  margin-top: 8px;
+}
+:where(.material-choice-list, .toolbar) > :where(.check-label, label.checkbox) {
+  margin-top: 0;
+}
+/* A collapsible list (Items → materials that can do this job). */
+.collapsible-list > summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 4px 0;
+}
+.collapsible-list[open] > summary {
+  margin-bottom: 8px;
+}
