@@ -279,7 +279,7 @@ export default function CheckoutEditor({
     jobSources = options.jobSources;
   const { w, stage } = useWords();
   // A job's stages and hours: its item's own steps, else the business's usual ones.
-  const workflowLine = (id: string) => {
+  const workflowLine = (id: string): Partial<CartLine> => {
     const production =
       working.pricing?.templates.find((t) => t.id === id)?.production ??
       working.services.find((s) => s.id === id)?.production;

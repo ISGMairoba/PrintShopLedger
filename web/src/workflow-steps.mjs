@@ -63,10 +63,16 @@ export function stagesToSteps(stages, hours = {}) {
 /** The amount and unit to show for a step's time. */
 export const stepAmount = (step) => (step.minutes ? step.minutes / UNITS[step.unit ?? 'm'] : '');
 
-/** The steps a business gives items without their own: its fallback saved workflow, else Processing. */
+/**
+ * The steps a business gives items without their own: its fallback saved workflow, else Processing.
+ * @returns {import('./types').Step[]}
+ */
 export function fallbackSteps(options) {
   const saved = (options.workflows ?? []).find((w) => w.id === options.defaultWorkflowId);
   return saved ? saved.steps : MASTER_STEPS;
 }
-/** The steps an item's jobs follow: its own, else the business's fallback. */
+/**
+ * The steps an item's jobs follow: its own, else the business's fallback.
+ * @returns {import('./types').Step[]}
+ */
 export const itemSteps = (options, production) => production?.steps ?? fallbackSteps(options);

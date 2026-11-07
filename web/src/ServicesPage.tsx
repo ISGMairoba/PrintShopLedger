@@ -97,8 +97,7 @@ export default function ServicesPage({
   const [costCovered, setCostCovered] = useState(false);
   const [perItemText, setPerItemText] = useState('1');
   const [steps, setSteps] = useState<Step[] | undefined>(undefined);
-  const options = useBusinessOptions();
-  const { jobStages } = options;
+  const { jobStages } = useBusinessOptions();
   const { stage } = useWords();
   const confirmStages = (steps ? stepsWorkflow(steps).stages : jobStages).filter((s) => s !== 'Collected');
   const defaultConfirmStage = confirmStages.includes('Printing')
