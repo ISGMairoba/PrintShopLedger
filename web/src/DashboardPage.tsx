@@ -133,7 +133,9 @@ export default function DashboardPage({
               card(
                 'Estimated profit',
                 profit.totals.profit,
-                (profit.totals.margin === null ? 'No sales with a cost set' : `${profit.totals.margin}% of sales with a cost`) +
+                (profit.totals.margin === null
+                  ? 'No sales with a cost set'
+                  : `${profit.totals.margin}% of sales with a cost`) +
                   (profit.totals.unknownJobs ? ` · ${profit.totals.unknownJobs} jobs with no cost set` : '') +
                   ' · Reports → Profit',
               )}

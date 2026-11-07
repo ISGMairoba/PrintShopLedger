@@ -364,10 +364,15 @@ export default function App() {
   // Admin and higher in a business with locations: once a day, items running low at other locations.
   const [lowStockSeen, setLowStockSeen] = useState(false);
   const lowElsewhereCount = useMemo(() => {
-    if (demo || !multiBranch || !activeBranch || !scope || lowStockSeen || (shop?.accessLevel ?? 0) < 2) return 0;
+    if (demo || !multiBranch || !activeBranch || !scope || lowStockSeen || (shop?.accessLevel ?? 0) < 2)
+      return 0;
     if (!lowStockReminderDue(scope, businessDay(new Date().toISOString()))) return 0;
-    return lowAtOtherLocations(state.ledger.materials, state.ledger.locationStock ?? [], activeBranch.id, openBranches)
-      .length;
+    return lowAtOtherLocations(
+      state.ledger.materials,
+      state.ledger.locationStock ?? [],
+      activeBranch.id,
+      openBranches,
+    ).length;
   }, [demo, multiBranch, activeBranch, scope, lowStockSeen, shop?.accessLevel, state.ledger, openBranches]);
   // Stores keep stock only, so the sales comparisons leave them out.
   const salesBranches = useMemo(() => openBranches.filter((b) => b.kind !== 'store'), [openBranches]);
@@ -1853,7 +1858,9 @@ export default function App() {
                                   shop?.accessLevel ?? 0,
                                   branding.settings.pageAccess,
                                 ),
-                              costs: demo || canSeeTemplateCosts(branding.settings.pricing, shop?.accessLevel ?? 0),
+                              costs:
+                                demo ||
+                                canSeeTemplateCosts(branding.settings.pricing, shop?.accessLevel ?? 0),
                             }}
                           />
                         </Suspense>
