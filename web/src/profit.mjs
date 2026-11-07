@@ -41,7 +41,12 @@ export function jobCost(ledger, job) {
     } else if (job.materialChoice) {
       const usages = job.materialUsed?.usages?.length
         ? job.materialUsed.usages
-        : [{ materialId: job.materialChoice.plannedMaterialId ?? job.materialChoice.options[0], quantity: job.materialChoice.work }];
+        : [
+            {
+              materialId: job.materialChoice.plannedMaterialId ?? job.materialChoice.options[0],
+              quantity: job.materialChoice.work,
+            },
+          ];
       for (const u of usages) {
         const rate = materialUnitCost(ledger, u.materialId);
         if (rate === null) known = false;
@@ -139,11 +144,26 @@ export function profitSections(report, { money, unit = ' (NGN)' }) {
       columns: ['Service / template', 'Jobs', `Sales${unit}`, `Cost${unit}`, `Profit${unit}`, 'No cost set'],
       widths: [30, 8, 14, 14, 14, 10],
       numeric: [1, 2, 3, 4, 5],
-      rows: report.byItem.map((g) => [g.item, g.jobs, money(g.revenue), money(g.cost), money(g.profit), g.unknown]),
+      rows: report.byItem.map((g) => [
+        g.item,
+        g.jobs,
+        money(g.revenue),
+        money(g.cost),
+        money(g.profit),
+        g.unknown,
+      ]),
     },
     {
       title: 'Jobs',
-      columns: ['Date', 'Service / template', 'Description', `Sale${unit}`, `Cost${unit}`, `Profit${unit}`, 'Cost from'],
+      columns: [
+        'Date',
+        'Service / template',
+        'Description',
+        `Sale${unit}`,
+        `Cost${unit}`,
+        `Profit${unit}`,
+        'Cost from',
+      ],
       widths: [10, 18, 26, 11, 11, 11, 13],
       numeric: [3, 4, 5],
       rows: report.jobs.map((r) => [

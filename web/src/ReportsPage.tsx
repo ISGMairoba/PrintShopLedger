@@ -281,7 +281,9 @@ export default function ReportsPage({
     void import('./report-pdf');
     void import('./share-pdf');
   }, []);
-  const tabs = (['Customer statement', 'Payee statement', 'Transactions', 'Summary', 'Profit'] as Tab[]).filter(
+  const tabs = (
+    ['Customer statement', 'Payee statement', 'Transactions', 'Summary', 'Profit'] as Tab[]
+  ).filter(
     (t) =>
       (t !== 'Customer statement' || (access.customers && access.jobs && access.payments)) &&
       (t !== 'Payee statement' || access.expenses) &&
@@ -1257,7 +1259,9 @@ function ProfitTab({ ledger, freshness, busy, error, pdf, csv }: TabProps) {
     <>
       <section className="panel dashboard-filters report-filters">
         {controls}
-        <small>Dates use Africa/Lagos. Jobs count on the day they were sold; cancelled jobs are left out.</small>
+        <small>
+          Dates use Africa/Lagos. Jobs count on the day they were sold; cancelled jobs are left out.
+        </small>
       </section>
       {freshness}
       {!valid || !report || !t ? (
@@ -1272,14 +1276,23 @@ function ProfitTab({ ledger, freshness, busy, error, pdf, csv }: TabProps) {
                 {report.from} to {report.to}
               </h2>
               <small>
-                Costs come from template estimates at the sale, service costs, the costs linked to each material,
-                and materials added in production (unless already in the price).
+                Costs come from template estimates at the sale, service costs, the costs linked to each
+                material, and materials added in production (unless already in the price).
               </small>
             </div>
             <Exports
               busy={busy}
-              onCsv={() => csv(file, title, subtitle, profitSections(report, { money: (k: number) => (k / 100).toFixed(2) }))}
-              onPdf={() => void pdf(file, title, subtitle, profitSections(report, { money: currency, unit: '' }))}
+              onCsv={() =>
+                csv(
+                  file,
+                  title,
+                  subtitle,
+                  profitSections(report, { money: (k: number) => (k / 100).toFixed(2) }),
+                )
+              }
+              onPdf={() =>
+                void pdf(file, title, subtitle, profitSections(report, { money: currency, unit: '' }))
+              }
             />
           </section>
           {error && (
