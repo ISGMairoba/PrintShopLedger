@@ -132,7 +132,9 @@ export default function DashboardPage({
                 profit
                   ? `Estimated profit ${money(profit.totals.profit)}` +
                       (profit.totals.margin === null ? '' : ` (${profit.totals.margin}%)`) +
-                      (profit.totals.unknownJobs ? ` · ${profit.totals.unknownJobs} jobs with no cost set` : '')
+                      (profit.totals.unknownJobs
+                        ? ` · ${profit.totals.unknownJobs} jobs with no cost set`
+                        : '')
                   : undefined,
               )}
             {access.payments &&
