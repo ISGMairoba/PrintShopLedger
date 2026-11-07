@@ -13,6 +13,8 @@ import { currency } from './receipts.mjs';
 import { deadlineState } from './job-deadlines.mjs';
 import type { Ledger, Job } from './types';
 import { useWords } from './Words';
+import { useBusinessOptions } from './BusinessOptionsContext';
+import { spanLabel, stageOverdue } from './stage-time.mjs';
 // One formatter each (made once, not per row).
 const dateFormat = new Intl.DateTimeFormat('en-NG', {
   timeZone: 'Africa/Lagos',
@@ -59,6 +61,7 @@ export default function JobTable({
   pageSort?: boolean;
 }) {
   const { w, stage: stageLabel } = useWords();
+  const { stageHours } = useBusinessOptions();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const visibleKey = jobs.map((job) => job.id).join('|');
   useEffect(() => {
@@ -220,6 +223,14 @@ export default function JobTable({
                   {materialPending(job) && stage !== 'Cancelled' && (
                     <small className="material-pending">Material to confirm</small>
                   )}
+                  {(() => {
+                    const late = stageOverdue(job, stageHours);
+                    return late ? (
+                      <small className="stage-late">
+                        Too long at this stage: {spanLabel(late.spent)} (allowed {spanLabel(late.allowed)})
+                      </small>
+                    ) : null;
+                  })()}
                   {pointOfService && (
                     <small>
                       Source: {job.source ?? 'Not recorded'}

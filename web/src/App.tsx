@@ -42,6 +42,7 @@ import { setKeepChoice } from './history-keep.mjs';
 import { extraMaterialsRank } from './production-materials.mjs';
 import { dismissLowStockReminder, lowAtOtherLocations, lowStockReminderDue } from './low-stock-locations.mjs';
 import { businessDay } from './dashboard.mjs';
+import { dismissLateReminder, LATE_FILTER_KEY, lateReminderDue, stageOverdue } from './stage-time.mjs';
 import type { ProgressMode } from './JobActions';
 import JobProgressDialog from './JobProgressDialog';
 import { stageMoveEvents } from './material-choice.mjs';
@@ -374,6 +375,14 @@ export default function App() {
       openBranches,
     ).length;
   }, [demo, multiBranch, activeBranch, scope, lowStockSeen, shop?.accessLevel, state.ledger, openBranches]);
+  // Admin and higher: once a day, jobs that have been at a stage too long.
+  const [lateSeen, setLateSeen] = useState(false);
+  const lateJobs = useMemo(() => {
+    if (demo || !scope || lateSeen || (shop?.accessLevel ?? 0) < 2) return 0;
+    if (!lateReminderDue(scope, businessDay(new Date().toISOString()))) return 0;
+    const hours = branding.settings.options.stageHours ?? {};
+    return state.ledger.jobs.filter((job) => stageOverdue(job, hours)).length;
+  }, [demo, scope, lateSeen, shop?.accessLevel, branding.settings.options, state.ledger.jobs]);
   // Stores keep stock only, so the sales comparisons leave them out.
   const salesBranches = useMemo(() => openBranches.filter((b) => b.kind !== 'store'), [openBranches]);
   const masterLedger = useMemo(() => {
@@ -1513,6 +1522,33 @@ export default function App() {
                       {heldWork.eventIds.size} pending operations await review. Unaffected sales can continue.{' '}
                       <button className="secondary" onClick={() => setPage('Conflict Inbox')}>
                         <Icon name="inbox" /> Open conflict inbox
+                      </button>
+                    </div>
+                  )}
+                  {lateJobs > 0 && page !== 'Jobs' && (
+                    <div className="notice">
+                      {lateJobs} job(s) have been at a stage too long.{' '}
+                      <button
+                        className="secondary"
+                        onClick={() => {
+                          dismissLateReminder(scope, businessDay(new Date().toISOString()));
+                          setLateSeen(true);
+                          try {
+                            sessionStorage.setItem(LATE_FILTER_KEY, 'late');
+                          } catch {}
+                          setPage('Jobs');
+                        }}
+                      >
+                        <Icon name="jobs" /> Show them
+                      </button>{' '}
+                      <button
+                        className="text-button"
+                        onClick={() => {
+                          dismissLateReminder(scope, businessDay(new Date().toISOString()));
+                          setLateSeen(true);
+                        }}
+                      >
+                        Not now
                       </button>
                     </div>
                   )}

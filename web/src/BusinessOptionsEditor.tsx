@@ -203,6 +203,39 @@ export default function BusinessOptionsEditor({
                 ` Screens show them as ${stage('Added')}, ${stage('Completed')} and ${stage('Collected')} (Words).`}
             </small>
           </label>
+          <fieldset className="stage-hours">
+            <legend>{w('Time per stage')}</legend>
+            <p className="muted">
+              {w(
+                'A job at a stage longer than this is marked "Too long at this stage". Leave a stage empty to share the time to the due date evenly across the stages before Completed (jobs without a due date are then not checked).',
+              )}
+            </p>
+            <div className="form-grid">
+              {value.jobStages
+                .map((s) => s.trim())
+                .filter((s) => s && !['Completed', 'Collected'].includes(s))
+                .map((s) => (
+                  <label key={s}>
+                    {stage(s)} (hours)
+                    <input
+                      aria-label={`${stage(s)} hours`}
+                      type="number"
+                      min="0.25"
+                      max="2160"
+                      step="0.25"
+                      placeholder="Automatic"
+                      value={value.stageHours?.[s] ?? ''}
+                      onChange={(e) => {
+                        const next = { ...(value.stageHours ?? {}) };
+                        if (e.target.value === '') delete next[s];
+                        else next[s] = Number(e.target.value);
+                        onChange({ ...value, stageHours: next });
+                      }}
+                    />
+                  </label>
+                ))}
+            </div>
+          </fieldset>
         </>
       )}
       {saveControl}
