@@ -209,9 +209,20 @@ export default function JobsPaymentsPage({
                 <option value="">All stages</option>
                 <option value={LATE}>
                   Too long at a stage (
-                  {ledger.jobs.filter((job) => inPeriod(job.createdAt, period) && stageOverdue(job, stageHours)).length})
+                  {
+                    ledger.jobs.filter(
+                      (job) => inPeriod(job.createdAt, period) && stageOverdue(job, stageHours),
+                    ).length
+                  }
+                  )
                 </option>
-                {[...new Set([...jobStages, 'Cancelled', ...(stageFilter && stageFilter !== LATE ? [stageFilter] : [])])].map((s) => {
+                {[
+                  ...new Set([
+                    ...jobStages,
+                    'Cancelled',
+                    ...(stageFilter && stageFilter !== LATE ? [stageFilter] : []),
+                  ]),
+                ].map((s) => {
                   const n = ledger.jobs.filter(
                     (job) => stageOf(job) === s && inPeriod(job.createdAt, period),
                   ).length;
