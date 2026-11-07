@@ -5,7 +5,7 @@ import Icon from './Icon';
 import JobTable from './JobTable';
 import ResponsiveTable from './ResponsiveTable';
 import { SortHeader, useTableSort } from './TableSort';
-import type { ProgressMode } from './JobActions';
+import type { HoldChange, ProgressMode } from './JobActions';
 import { paymentName } from './business-options.mjs';
 import { currency, dateLabel, shortId } from './app/shared';
 import { useMemo, useState } from 'react';
@@ -18,6 +18,7 @@ import { useBusinessOptions } from './BusinessOptionsContext';
 import { LATE_FILTER_KEY, stageOverdue } from './stage-time.mjs';
 
 const LATE = '__late__';
+const HELD = '__held__';
 
 type Props = {
   page: 'Jobs' | 'Payments';
@@ -33,6 +34,7 @@ type Props = {
   onAddCustomer: () => void;
   onJob: (jobId: string) => void;
   onAction: (job: Job, mode: ProgressMode) => void;
+  onHold?: (job: Job, hold: HoldChange) => Promise<void>;
   onDue?: (jobs: Job[]) => void;
   onBulkAction: (jobs: Job[], mode: ProgressMode) => void;
   onReceipt: (record: CheckoutRecord) => void;
@@ -53,6 +55,7 @@ export default function JobsPaymentsPage({
   onAddCustomer,
   onJob,
   onAction,
+  onHold,
   onDue,
   onBulkAction,
   onReceipt,
@@ -88,7 +91,12 @@ export default function JobsPaymentsPage({
   const { jobStages, stageHours } = useBusinessOptions();
   const stageOf = (job: Job) => job.productionStatus ?? 'Added';
   const inStage = (job: Job) =>
-    !stageFilter || (stageFilter === LATE ? !!stageOverdue(job, stageHours) : stageOf(job) === stageFilter);
+    !stageFilter ||
+    (stageFilter === LATE
+      ? !!stageOverdue(job, stageHours)
+      : stageFilter === HELD
+        ? !!job.hold
+        : stageOf(job) === stageFilter);
   const matchingJobs = jobSorting.sortRows(
     ledger.jobs.filter(
       (job) =>
@@ -207,6 +215,9 @@ export default function JobsPaymentsPage({
                 onChange={(e) => setStageFilter(e.target.value)}
               >
                 <option value="">All stages</option>
+                <option value={HELD}>
+                  On hold ({ledger.jobs.filter((job) => inPeriod(job.createdAt, period) && job.hold).length})
+                </option>
                 <option value={LATE}>
                   Too long at a stage (
                   {
@@ -220,7 +231,7 @@ export default function JobsPaymentsPage({
                   ...new Set([
                     ...jobStages,
                     'Cancelled',
-                    ...(stageFilter && stageFilter !== LATE ? [stageFilter] : []),
+                    ...(stageFilter && stageFilter !== LATE && stageFilter !== HELD ? [stageFilter] : []),
                   ]),
                 ].map((s) => {
                   const n = ledger.jobs.filter(
@@ -336,6 +347,7 @@ export default function JobsPaymentsPage({
                   audit={audit}
                   onJob={onJob}
                   onAction={onAction}
+                  onHold={onHold}
                   onBulkAction={onBulkAction}
                   onDue={onDue}
                   grouped={grouped}

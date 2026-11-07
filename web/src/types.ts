@@ -69,7 +69,7 @@ export type PricingTemplate = {
   expenses: TemplateExpense[];
   pricing: TemplatePricing;
   /** Materials may be added in production; costCovered: the formula already prices them. */
-  production?: { extraMaterials: boolean; costCovered: boolean };
+  production?: { extraMaterials?: boolean; costCovered?: boolean; workflowId?: string };
 };
 export type PricingSettings = {
   enabled: boolean;
@@ -200,6 +200,23 @@ export interface Job {
   unitPrice?: number;
   /** A choice-of-materials job: its linked materials, confirmation stage and size in material units. */
   materialChoice?: MaterialChoice;
+  /** When the job entered its current stage, and time on hold at that stage (ms). */
+  stageAt?: string;
+  stageHeldMs?: number;
+  /** The workflow it was sold with: its name and hours per stage. */
+  workflowName?: string;
+  stageHours?: Record<string, number>;
+  /** On hold: what it waits for, who held it and at which stage. */
+  hold?: { reason: string; note: string; heldBy: string; heldByLabel: string; heldAt: string; stage: string };
+  holdHistory?: {
+    reason: string;
+    note: string;
+    heldByLabel: string;
+    heldAt: string;
+    stage: string;
+    resumedByLabel: string;
+    resumedAt: string;
+  }[];
   /** Materials added in production (services and templates that accept them): current totals. */
   extraMaterials?: {
     usages: { materialId: string; quantity: number }[];
@@ -370,7 +387,13 @@ export interface Service {
 }
 /** Template use: a formula name, and optionally a cost (amount in kobo for `per` units). */
 export type ServiceCosting = { key: string; amount?: number; per?: number; unit?: string };
-export type ServiceProduction = { extraMaterials?: boolean; costCovered?: boolean; perItem?: number };
+export type ServiceProduction = {
+  extraMaterials?: boolean;
+  costCovered?: boolean;
+  perItem?: number;
+  /** The workflow its jobs follow (Business Settings → Dropdowns & workflow). */
+  workflowId?: string;
+};
 export type JobExtraMaterialsEvent = {
   id: string;
   kind: 'job.extra_materials_set';

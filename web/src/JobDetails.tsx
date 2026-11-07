@@ -5,7 +5,7 @@ import Icon from './Icon';
 import { TemplateSummary } from './TemplateFields';
 import Modal from './Modal';
 import { deadlineState } from './job-deadlines.mjs';
-import JobActions, { type ProgressMode } from './JobActions';
+import JobActions, { type HoldChange, type ProgressMode } from './JobActions';
 import { AdjustmentHistory } from './SaleAdjustmentsPage';
 import { paymentName } from './business-options.mjs';
 import { currency, dateLabel, shortId } from './app/shared';
@@ -44,6 +44,7 @@ type Props = {
   /** Who is signed in, and saving materials added in production (left out: not allowed). */
   actor?: { id: string; label: string };
   onExtraMaterials?: (event: JobExtraMaterialsEvent) => Promise<void>;
+  onHold?: (job: Job, hold: HoldChange) => Promise<void>;
 };
 
 /** One job: amounts, payment history, adjustments and the next actions. */
@@ -63,6 +64,7 @@ export default function JobDetails({
   onPayment,
   actor,
   onExtraMaterials,
+  onHold,
 }: Props) {
   const { w } = useWords();
   const customerName = (id: string) =>
@@ -177,6 +179,25 @@ export default function JobDetails({
             ),
         )}
       />
+      {job.hold && (
+        <p className="notice notice-warning">
+          On hold since {lagosTime(job.hold.heldAt)}: {job.hold.reason}
+          {job.hold.note ? ` — ${job.hold.note}` : ''} ({job.hold.heldByLabel})
+        </p>
+      )}
+      {!!job.holdHistory?.length && (
+        <details>
+          <summary>Hold history ({job.holdHistory.length})</summary>
+          {job.holdHistory.map((h) => (
+            <p key={h.heldAt}>
+              {h.reason}
+              {h.note ? ` — ${h.note}` : ''} · at {h.stage} · {lagosTime(h.heldAt)} ({h.heldByLabel}) →{' '}
+              {lagosTime(h.resumedAt)} ({h.resumedByLabel})
+            </p>
+          ))}
+        </details>
+      )}
+      {job.workflowName && <p className="muted">Workflow: {job.workflowName}</p>}
       {actor && (
         <ExtraMaterials
           job={job}
@@ -188,7 +209,7 @@ export default function JobDetails({
       )}
       <section className="job-detail-stage" aria-label={w('Job stage')}>
         <h3>{w('Job stage')}</h3>
-        <JobActions job={job} busy={busy || legacyConflict} onAction={onAction} />
+        <JobActions job={job} busy={busy || legacyConflict} onAction={onAction} onHold={onHold} />
       </section>
     </Modal>
   );

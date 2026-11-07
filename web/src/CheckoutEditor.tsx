@@ -10,6 +10,7 @@ import { lineWithDescription, nextDescription } from './job-batches.mjs';
 import SearchSelect from './SearchSelect';
 import { useFeedbackMessage } from './Feedback';
 import { useBusinessOptions } from './BusinessOptionsContext';
+import { workflowFor } from './business-options.mjs';
 import CurrencyInput from './CurrencyInput';
 import { useEffect, useId, useState } from 'react';
 import Modal from './Modal';
@@ -52,6 +53,8 @@ type Props = {
   defaultTerms?: string;
   /** What this user may discount: the cap per job (%) and whether flat/whole-order is allowed. */
   discountPolicy?: { maxPercent: number; canFlat: boolean };
+  /** Admins and above may give a job another workflow than its item's. */
+  canChooseWorkflow?: boolean;
   /** Start from an accepted quotation: its lines, customer and discounts. */
   fromQuotation?: QuotationStart;
   /** Start with one template line, priced on the Pricing Templates page. */
@@ -197,6 +200,10 @@ type CartLine = {
   /** Deadline as an ISO time, or '' for none. */
   dueAt?: string;
   workflow?: string[];
+  /** The workflow it follows (its item's, or one an Admin chose): its id, name and hours. */
+  workflowId?: string;
+  workflowName?: string;
+  stageHours?: Record<string, number>;
   /** This job's own discount, as typed. */
   discountDraft?: DiscountDraft;
   /** A custom-price service: the price per item as typed (₦). */
@@ -244,6 +251,7 @@ export default function CheckoutEditor({
   jobSettings = jobSettingsDefaults(),
   defaultTerms = '',
   discountPolicy = { maxPercent: 0, canFlat: false },
+  canChooseWorkflow = false,
   fromQuotation,
   startTemplate,
 }: Props) {
@@ -254,6 +262,19 @@ export default function CheckoutEditor({
   const options = useBusinessOptions(),
     jobSources = options.jobSources;
   const { w, stage } = useWords();
+  // A job's stages and hours: its item's workflow (or one an Admin chose), else the standard one.
+  const workflowLine = (id: string | null | undefined) => {
+    const wf = workflowFor(options, id);
+    return {
+      workflow: [...wf.stages],
+      workflowId: wf.id ?? undefined,
+      workflowName: wf.id ? wf.name : undefined,
+      stageHours: wf.id ? wf.hours : undefined,
+    };
+  };
+  const itemWorkflowId = (id: string) =>
+    working.pricing?.templates.find((t) => t.id === id)?.production?.workflowId ??
+    working.services.find((s) => s.id === id)?.production?.workflowId;
   const newLine = () => ({
     ...line(),
     source: jobSources[0],
@@ -770,6 +791,7 @@ export default function CheckoutEditor({
                                     ? {
                                         ...line,
                                         serviceId: next,
+                                        ...workflowLine(itemWorkflowId(next)),
                                         templateSnapshot: undefined,
                                         templateInputs: chosenTemplate
                                           ? templateDefaults(chosenTemplate)
@@ -908,6 +930,29 @@ export default function CheckoutEditor({
                             onChange={(e) => editLine(item.id, 'sourceNote', e.target.value)}
                           />
                         </label>
+                        {!service?.shelfItem && (options.workflows?.length ?? 0) > 0 && (
+                          <label>
+                            {w('Workflow')}
+                            <select
+                              aria-label={w('Job workflow')}
+                              value={item.workflowId ?? ''}
+                              disabled={!canChooseWorkflow}
+                              title={canChooseWorkflow ? undefined : 'Admins can choose another workflow'}
+                              onChange={(e) =>
+                                setLines((items) =>
+                                  items.map((l) => (l.id === item.id ? { ...l, ...workflowLine(e.target.value || null) } : l)),
+                                )
+                              }
+                            >
+                              <option value="">Standard</option>
+                              {options.workflows.map((wf) => (
+                                <option key={wf.id} value={wf.id}>
+                                  {wf.name}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        )}
                         {!service?.shelfItem && (
                           <label>
                             Deadline

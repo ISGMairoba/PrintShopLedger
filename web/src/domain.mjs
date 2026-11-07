@@ -1,5 +1,6 @@
 import { routeMoneyEvent, routeMoneyResult } from './account-methods.mjs';
 import { applyJobExtraMaterials } from './production-materials.mjs';
+import { applyJobHold } from './job-hold.mjs';
 import { applyOperation } from './operations.mjs';
 import { applySaleAdjustment, applyWaste } from './sale-adjustments.mjs';
 import { normalizeAmount } from './currency-input.mjs';
@@ -102,6 +103,7 @@ function applyEventCore(ledger, event) {
   if (event.kind === 'job.status_changed') return applyJobStatus(ledger, event);
   if (event.kind === 'job.material_used') return applyJobMaterial(ledger, event);
   if (event.kind === 'job.extra_materials_set') return applyJobExtraMaterials(ledger, event);
+  if (event.kind === 'job.held' || event.kind === 'job.resumed') return applyJobHold(ledger, event);
   const data = event.data;
   if (!event.id || !data.id) throw new Error('Missing record identifier.');
   if (event.kind === 'job.created') {

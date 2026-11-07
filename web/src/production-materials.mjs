@@ -22,8 +22,14 @@ export function validProduction(value) {
   if (value === null) return {};
   if (typeof value !== 'object' || Array.isArray(value)) throw Error('Invalid production settings.');
   for (const key of Object.keys(value))
-    if (!['extraMaterials', 'costCovered', 'perItem'].includes(key))
+    if (!['extraMaterials', 'costCovered', 'perItem', 'workflowId'].includes(key))
       throw Error('Invalid production settings.');
+  if (
+    value.workflowId !== undefined &&
+    value.workflowId !== null &&
+    (typeof value.workflowId !== 'string' || !/^[0-9a-z-]{8,40}$/i.test(value.workflowId))
+  )
+    throw Error('Choose a workflow.');
   for (const key of ['extraMaterials', 'costCovered'])
     if (value[key] !== undefined && typeof value[key] !== 'boolean')
       throw Error('Invalid production settings.');
@@ -34,6 +40,7 @@ export function validProduction(value) {
     ...(value.extraMaterials ? { extraMaterials: true } : {}),
     ...(value.extraMaterials && value.costCovered ? { costCovered: true } : {}),
     ...(per !== 1 ? { perItem: per } : {}),
+    ...(value.workflowId ? { workflowId: value.workflowId } : {}),
   };
 }
 /** How much of its material one item of a service uses. */
