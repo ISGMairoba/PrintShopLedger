@@ -940,7 +940,9 @@ export default function CheckoutEditor({
                               title={canChooseWorkflow ? undefined : 'Admins can choose another workflow'}
                               onChange={(e) =>
                                 setLines((items) =>
-                                  items.map((l) => (l.id === item.id ? { ...l, ...workflowLine(e.target.value || null) } : l)),
+                                  items.map((l) =>
+                                    l.id === item.id ? { ...l, ...workflowLine(e.target.value || null) } : l,
+                                  ),
                                 )
                               }
                             >

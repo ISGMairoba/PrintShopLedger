@@ -36,14 +36,22 @@ export function applyJobHold(ledger, event) {
   let next;
   if (event.kind === 'job.held') {
     if (job.hold) throw Error('This job is already on hold.');
-    if (finished.includes(job.productionStatus ?? 'Added')) throw Error('Only jobs still in production can be put on hold.');
+    if (finished.includes(job.productionStatus ?? 'Added'))
+      throw Error('Only jobs still in production can be put on hold.');
     if (!HOLD_REASONS.includes(d.reason)) throw Error('Choose why the job is on hold.');
     const note = String(d.note ?? '').trim();
     if (note.length > 300) throw Error('Keep the note to 300 characters.');
     if (d.reason === 'Other' && !note) throw Error('Say what the job is waiting for.');
     next = {
       ...job,
-      hold: { reason: d.reason, note, heldBy: d.modifiedBy, heldByLabel: d.modifiedByLabel, heldAt: d.modifiedAt, stage: job.productionStatus ?? 'Added' },
+      hold: {
+        reason: d.reason,
+        note,
+        heldBy: d.modifiedBy,
+        heldByLabel: d.modifiedByLabel,
+        heldAt: d.modifiedAt,
+        stage: job.productionStatus ?? 'Added',
+      },
     };
   } else if (event.kind === 'job.resumed') {
     if (!job.hold) throw Error('This job is not on hold.');

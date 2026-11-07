@@ -300,7 +300,9 @@ export default function BusinessOptionsEditor({
                   <button
                     type="button"
                     className="text-button danger-text"
-                    onClick={() => onChange({ ...value, workflows: value.workflows.filter((_, j) => j !== i) })}
+                    onClick={() =>
+                      onChange({ ...value, workflows: value.workflows.filter((_, j) => j !== i) })
+                    }
                   >
                     Remove workflow
                   </button>

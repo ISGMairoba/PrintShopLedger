@@ -1018,7 +1018,11 @@ export default function ServicesPage({
               {!privateItem && (workflows?.length ?? 0) > 0 && (
                 <label>
                   {w('Workflow')}
-                  <select aria-label="Item workflow" value={workflowId} onChange={(e) => setWorkflowId(e.target.value)}>
+                  <select
+                    aria-label="Item workflow"
+                    value={workflowId}
+                    onChange={(e) => setWorkflowId(e.target.value)}
+                  >
                     <option value="">Standard</option>
                     {workflows.map((wf) => (
                       <option key={wf.id} value={wf.id}>
@@ -1026,7 +1030,9 @@ export default function ServicesPage({
                       </option>
                     ))}
                   </select>
-                  <small>{w('The stages its jobs go through (Business Settings → Dropdowns & workflow).')}</small>
+                  <small>
+                    {w('The stages its jobs go through (Business Settings → Dropdowns & workflow).')}
+                  </small>
                 </label>
               )}
               {!privateItem && (

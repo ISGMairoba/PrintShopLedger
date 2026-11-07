@@ -2227,7 +2227,7 @@ export default function App() {
                           busy={busy || legacyConflict}
                           branding={docBusiness}
                           actor={salesActor}
-                      discountPolicy={discountPolicy(
+                          discountPolicy={discountPolicy(
                             branding.settings.discounts,
                             demo ? 5 : (shop?.accessLevel ?? 0),
                           )}
@@ -2623,7 +2623,7 @@ export default function App() {
                           jobSettings={branding.settings.jobs}
                           defaultTerms={branding.settings.documents.invoiceTerms}
                           canChooseWorkflow={demo || (shop?.accessLevel ?? 0) >= 2}
-                      discountPolicy={discountPolicy(
+                          discountPolicy={discountPolicy(
                             branding.settings.discounts,
                             demo ? 5 : (shop?.accessLevel ?? 0),
                           )}

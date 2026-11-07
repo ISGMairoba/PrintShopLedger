@@ -57,7 +57,9 @@ export default function JobActions({
       </button>
       <button
         className="text-button"
-        disabled={busy || held || job.productionStatus === 'Cancelled' || index >= jobStatuses.indexOf('Completed')}
+        disabled={
+          busy || held || job.productionStatus === 'Cancelled' || index >= jobStatuses.indexOf('Completed')
+        }
         onClick={() => onAction(job, 'complete')}
       >
         <Icon name="complete" />{' '}
@@ -95,7 +97,8 @@ export default function JobActions({
             </p>
           )}
           <p className="muted">
-            The job stays at {stage(job.productionStatus ?? 'Added')} and its stage clock stops until you resume it.
+            The job stays at {stage(job.productionStatus ?? 'Added')} and its stage clock stops until you
+            resume it.
           </p>
           <label>
             Waiting for
@@ -109,7 +112,12 @@ export default function JobActions({
           </label>
           <label>
             Note{reason === 'Other' ? '' : ' (optional)'}
-            <input aria-label="Hold note" maxLength={300} value={note} onChange={(e) => setNote(e.target.value)} />
+            <input
+              aria-label="Hold note"
+              maxLength={300}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
           </label>
           <div className="material-actions">
             <button type="button" className="secondary" onClick={() => setAsking(false)}>

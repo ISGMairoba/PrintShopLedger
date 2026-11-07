@@ -24,7 +24,8 @@ export const defaultOptions = () => ({
   /** Hours a job may stay at a stage before it is flagged (stages left out: automatic). */
   stageHours: /** @type {Record<string, number>} */ ({}),
   /** Named workflows (Logo, Paper bag…): their own stages and hours. Items pick one. */
-  workflows: /** @type {{ id: string, name: string, stages: string[], hours: Record<string, number> }[]} */ ([]),
+  workflows:
+    /** @type {{ id: string, name: string, stages: string[], hours: Record<string, number> }[]} */ ([]),
 });
 export function validateList(values, label, max = 80) {
   if (!Array.isArray(values) || values.length < 1 || values.length > 30)
@@ -62,7 +63,8 @@ export function validateWorkflows(list) {
   const names = new Set();
   return list.map((w) => {
     const name = String(w?.name ?? '').trim();
-    if (!name || name.length > 60 || /[\x00-\x1f\x7f]/.test(name)) throw Error('Give each workflow a name up to 60 characters.');
+    if (!name || name.length > 60 || /[\x00-\x1f\x7f]/.test(name))
+      throw Error('Give each workflow a name up to 60 characters.');
     if (names.has(name.toLowerCase())) throw Error(`Two workflows are called "${name}".`);
     names.add(name.toLowerCase());
     if (typeof w.id !== 'string' || !/^[0-9a-z-]{8,40}$/i.test(w.id)) throw Error('Invalid workflow.');

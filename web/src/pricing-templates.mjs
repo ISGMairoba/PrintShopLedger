@@ -365,7 +365,8 @@ export function validateTemplate(t) {
             ...(t.production.extraMaterials
               ? { extraMaterials: true, costCovered: t.production.costCovered !== false }
               : {}),
-            ...(typeof t.production.workflowId === 'string' && /^[0-9a-z-]{8,40}$/i.test(t.production.workflowId)
+            ...(typeof t.production.workflowId === 'string' &&
+            /^[0-9a-z-]{8,40}$/i.test(t.production.workflowId)
               ? { workflowId: t.production.workflowId }
               : {}),
           },

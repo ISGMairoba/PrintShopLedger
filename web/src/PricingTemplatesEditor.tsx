@@ -1193,7 +1193,11 @@ export default function TemplateEditor({
                   onChange={(e) =>
                     change({
                       production: e.target.checked
-                        ? { ...(d.production ?? {}), extraMaterials: true, costCovered: d.production?.costCovered ?? true }
+                        ? {
+                            ...(d.production ?? {}),
+                            extraMaterials: true,
+                            costCovered: d.production?.costCovered ?? true,
+                          }
                         : d.production?.workflowId
                           ? { workflowId: d.production.workflowId }
                           : undefined,
@@ -1208,7 +1212,13 @@ export default function TemplateEditor({
                     type="checkbox"
                     checked={d.production.costCovered}
                     onChange={(e) =>
-                      change({ production: { ...(d.production ?? {}), extraMaterials: true, costCovered: e.target.checked } })
+                      change({
+                        production: {
+                          ...(d.production ?? {}),
+                          extraMaterials: true,
+                          costCovered: e.target.checked,
+                        },
+                      })
                     }
                   />
                   Their cost is already in this template's price (its formulas include them)
