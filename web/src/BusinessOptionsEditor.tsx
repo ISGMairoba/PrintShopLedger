@@ -1,4 +1,5 @@
 import Icon from './Icon';
+import { StepBuilder } from './StepBuilder';
 import { useFeedbackMessage } from './Feedback';
 import { useState, type ReactNode } from 'react';
 import { defaultOptions } from './business-options.mjs';
@@ -187,121 +188,66 @@ export default function BusinessOptionsEditor({
               </label>
             ))}
           </div>
-          <label>
-            {w('Job stages')}
-            <textarea
-              aria-label={w('Job stages')}
-              rows={7}
-              value={value.jobStages.join('\n')}
-              onChange={(e) => update('jobStages', e.target.value.split('\n'))}
-            />
-            <small>
-              {w(
-                'One stage per line, in production order. Keep Added first, and Completed then Collected last. Add steps such as Design, Approval, Finishing or Packing in between. Existing jobs retain their saved workflow.',
-              )}
-              {['Added', 'Completed', 'Collected'].some((s) => stage(s) !== s) &&
-                ` Screens show them as ${stage('Added')}, ${stage('Completed')} and ${stage('Collected')} (Words).`}
-            </small>
-          </label>
-          <fieldset className="stage-hours">
-            <legend>{w('Time per stage')}</legend>
-            <p className="muted">
-              {w(
-                'A job at a stage longer than this is marked "Too long at this stage". Leave a stage empty to share the time to the due date evenly across the stages before Completed (jobs without a due date are then not checked).',
-              )}
-            </p>
-            <div className="form-grid">
-              {value.jobStages
-                .map((s) => s.trim())
-                .filter((s) => s && !['Completed', 'Collected'].includes(s))
-                .map((s) => (
-                  <label key={s}>
-                    {stage(s)} (hours)
-                    <input
-                      aria-label={`${stage(s)} hours`}
-                      type="number"
-                      min="0.25"
-                      max="2160"
-                      step="0.25"
-                      placeholder="Automatic"
-                      value={value.stageHours?.[s] ?? ''}
-                      onChange={(e) => {
-                        const next = { ...(value.stageHours ?? {}) };
-                        if (e.target.value === '') delete next[s];
-                        else next[s] = Number(e.target.value);
-                        onChange({ ...value, stageHours: next });
-                      }}
-                    />
-                  </label>
-                ))}
-            </div>
-          </fieldset>
           <fieldset className="stage-hours">
             <legend>{w('Workflows')}</legend>
             <p className="muted">
               {w(
-                'Different kinds of work can follow their own stages, each with its own time: a logo (Design, Approval, Delivered), a paper bag (Design, Printing, Lamination, Cutting, Gumming, Packaging). Choose a workflow on each item; everything else uses the stages above.',
+                'Every job starts at Added and ends at Completed, then Collected. The steps between can differ by item: a logo (Design, Approval), a paper bag (Design, Printing, Lamination, Cutting, Gumming, Packaging). Save workflows here as starting points; an item copies one and can change its copy (Items and Pricing Templates → Production steps).',
               )}
             </p>
+            <label>
+              {w('Items without their own steps follow')}
+              <select
+                aria-label="Usual steps"
+                value={value.defaultWorkflowId ?? ''}
+                onChange={(e) => onChange({ ...value, defaultWorkflowId: e.target.value || null })}
+              >
+                <option value="">
+                  {stage('Added')} → {stage('Processing')} → {stage('Completed')}
+                </option>
+                {(value.workflows ?? []).map((wf) => (
+                  <option key={wf.id} value={wf.id}>
+                    {wf.name || 'Unnamed workflow'}
+                  </option>
+                ))}
+              </select>
+              <small>
+                {w(
+                  'A step without a time shares the time to the due date evenly; jobs without a due date are then not checked.',
+                )}
+              </small>
+            </label>
             {(value.workflows ?? []).map((wf, i) => {
               const setWf = (patch: Partial<typeof wf>) =>
                 onChange({
                   ...value,
                   workflows: value.workflows.map((x, j) => (j === i ? { ...x, ...patch } : x)),
                 });
-              const stages = wf.stages.map((st) => st.trim()).filter(Boolean);
               return (
                 <div key={wf.id} className="workflow-row">
-                  <div className="form-grid">
-                    <label>
-                      {w('Workflow name')}
-                      <input
-                        aria-label={`Workflow ${i + 1} name`}
-                        maxLength={60}
-                        value={wf.name}
-                        onChange={(e) => setWf({ name: e.target.value })}
-                      />
-                    </label>
-                    <label>
-                      {w('Stages')}
-                      <textarea
-                        aria-label={`Workflow ${i + 1} stages`}
-                        rows={Math.max(5, wf.stages.length + 1)}
-                        value={wf.stages.join('\n')}
-                        onChange={(e) => setWf({ stages: e.target.value.split('\n') })}
-                      />
-                      <small>{w('One per line. Keep Added first, and Completed then Collected last.')}</small>
-                    </label>
-                  </div>
-                  <div className="form-grid">
-                    {stages
-                      .filter((st) => !['Completed', 'Collected'].includes(st))
-                      .map((st) => (
-                        <label key={st}>
-                          {stage(st)} (hours)
-                          <input
-                            aria-label={`${wf.name || 'Workflow'} ${stage(st)} hours`}
-                            type="number"
-                            min="0.25"
-                            max="2160"
-                            step="0.25"
-                            placeholder="Automatic"
-                            value={wf.hours?.[st] ?? ''}
-                            onChange={(e) => {
-                              const hours = { ...(wf.hours ?? {}) };
-                              if (e.target.value === '') delete hours[st];
-                              else hours[st] = Number(e.target.value);
-                              setWf({ hours });
-                            }}
-                          />
-                        </label>
-                      ))}
-                  </div>
+                  <label>
+                    {w('Workflow name')}
+                    <input
+                      aria-label={`Workflow ${i + 1} name`}
+                      maxLength={60}
+                      value={wf.name}
+                      onChange={(e) => setWf({ name: e.target.value })}
+                    />
+                  </label>
+                  <StepBuilder
+                    steps={wf.steps}
+                    onChange={(steps) => setWf({ steps })}
+                    label={wf.name || `Workflow ${i + 1}`}
+                  />
                   <button
                     type="button"
                     className="text-button danger-text"
                     onClick={() =>
-                      onChange({ ...value, workflows: value.workflows.filter((_, j) => j !== i) })
+                      onChange({
+                        ...value,
+                        workflows: value.workflows.filter((_, j) => j !== i),
+                        defaultWorkflowId: value.defaultWorkflowId === wf.id ? null : value.defaultWorkflowId,
+                      })
                     }
                   >
                     Remove workflow
@@ -318,12 +264,7 @@ export default function BusinessOptionsEditor({
                   ...value,
                   workflows: [
                     ...(value.workflows ?? []),
-                    {
-                      id: crypto.randomUUID(),
-                      name: '',
-                      stages: ['Added', 'Design', 'Approval', 'Completed', 'Collected'],
-                      hours: {},
-                    },
+                    { id: crypto.randomUUID(), name: '', steps: [{ name: 'Design' }, { name: 'Approval' }] },
                   ],
                 })
               }
@@ -331,7 +272,9 @@ export default function BusinessOptionsEditor({
               <Icon name="add" /> {w('Add workflow')}
             </button>
             <small className="muted">
-              {w('Jobs keep the workflow they were sold with; changes apply to new jobs.')}
+              {w(
+                'Jobs keep the steps they were sold with, and items keep their copies: changes here apply to new jobs of items that follow the usual steps.',
+              )}
             </small>
           </fieldset>
         </>

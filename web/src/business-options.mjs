@@ -1,4 +1,5 @@
 import { validStageHours } from './stage-time.mjs';
+import { fallbackSteps, stagesToSteps, stepsWorkflow, validSteps } from './workflow-steps.mjs';
 export const defaultOptions = () => ({
   paymentMethods: [
     { label: 'Cash', kind: 'Cash', enabled: true },
@@ -20,13 +21,18 @@ export const defaultOptions = () => ({
   jobSources: ['In shop / USB', 'Shop network', 'WhatsApp', 'Email', 'Other'],
   stockReasons: ['Restocking', 'Stock Count Correction', 'Returned Stock', 'Damaged Stock'],
   materialUnits: ['sheet', 'piece', 'metre', 'square metre', 'roll', 'kilogram', 'litre'],
-  jobStages: ['Added', 'In Queue', 'Printing', 'Completed', 'Collected'],
-  /** Hours a job may stay at a stage before it is flagged (stages left out: automatic). */
+  /** The stages of items without their own steps (kept from the fallback below, for older apps). */
+  jobStages: ['Added', 'Processing', 'Completed', 'Collected'],
+  /** Hours per stage of jobStages (kept from the fallback below). */
   stageHours: /** @type {Record<string, number>} */ ({}),
-  /** Named workflows (Logo, Paper bag…): their own stages and hours. Items pick one. */
-  workflows:
-    /** @type {{ id: string, name: string, stages: string[], hours: Record<string, number> }[]} */ ([]),
+  /** Saved workflows: starting blocks an item copies and changes (Logo, Paper bag…). */
+  workflows: /** @type {SavedWorkflow[]} */ ([]),
+  /** The saved workflow items without their own steps follow; none: Added → Processing → Completed. */
+  defaultWorkflowId: /** @type {string | null} */ (null),
 });
+/** @typedef {{ name: string, minutes?: number, unit?: 'm' | 'h' | 'd' }} Step */
+/** @typedef {{ id: string, name: string, steps: Step[] }} SavedWorkflow */
+export const CURRENT_STAGES_ID = 'our-current-stages';
 export function validateList(values, label, max = 80) {
   if (!Array.isArray(values) || values.length < 1 || values.length > 30)
     throw Error(`${label}: enter 1–30 options.`);
@@ -56,7 +62,7 @@ export function validateWorkflow(value) {
     throw Error('Job stages must start with Added and end with Completed, then Collected (up to 20 stages).');
   return stages;
 }
-/** Named workflows: up to 30, each with a unique name, valid stages and hours per stage. */
+/** Saved workflows: up to 30, each with a unique name and its steps (older ones kept stages). */
 export function validateWorkflows(list) {
   if (list === undefined || list === null) return [];
   if (!Array.isArray(list) || list.length > 30) throw Error('Keep at most 30 workflows.');
@@ -68,24 +74,8 @@ export function validateWorkflows(list) {
     if (names.has(name.toLowerCase())) throw Error(`Two workflows are called "${name}".`);
     names.add(name.toLowerCase());
     if (typeof w.id !== 'string' || !/^[0-9a-z-]{8,40}$/i.test(w.id)) throw Error('Invalid workflow.');
-    let stages;
-    try {
-      stages = validateWorkflow((w.stages ?? []).map((s) => String(s).trim()).filter(Boolean));
-    } catch (cause) {
-      throw Error(`${name}: ${cause instanceof Error ? cause.message : cause}`);
-    }
-    return { id: w.id, name, stages, hours: validStageHours(w.hours, stages) };
+    return { id: w.id, name, steps: validSteps(w.steps ?? stagesToSteps(w.stages, w.hours), name) };
   });
-}
-/**
- * The workflow a job follows: a named workflow, or the business's standard stages.
- * @returns {{ id: string | null, name: string, stages: string[], hours: Record<string, number> }}
- */
-export function workflowFor(options, id) {
-  const named = id ? (options.workflows ?? []).find((w) => w.id === id) : null;
-  return named
-    ? { id: named.id, name: named.name, stages: named.stages, hours: named.hours ?? {} }
-    : { id: null, name: 'Standard', stages: options.jobStages, hours: options.stageHours ?? {} };
 }
 export function validateOptions(input) {
   const value = { ...defaultOptions(), ...input };
@@ -96,9 +86,21 @@ export function validateOptions(input) {
     ['materialUnits', 'Material units', 40],
   ])
     value[key] = validateList(value[key], label, max);
-  value.jobStages = validateWorkflow(value.jobStages);
-  value.stageHours = validStageHours(value.stageHours, value.jobStages);
   value.workflows = validateWorkflows(value.workflows);
+  // Before saved workflows, a business had one list of stages: it becomes the saved workflow
+  // "Our current stages", followed by items without their own steps, so nothing changes.
+  if (input?.defaultWorkflowId === undefined && !value.workflows.some((w) => w.id === CURRENT_STAGES_ID)) {
+    const old = validateWorkflow(value.jobStages);
+    const steps = stagesToSteps(old, validStageHours(value.stageHours, old));
+    if (steps.length && !(steps.length === 1 && steps[0].name === 'Processing' && !steps[0].minutes)) {
+      value.workflows = [{ id: CURRENT_STAGES_ID, name: 'Our current stages', steps }, ...value.workflows].slice(0, 30);
+      value.defaultWorkflowId = CURRENT_STAGES_ID;
+    }
+  }
+  if (!value.workflows.some((w) => w.id === value.defaultWorkflowId)) value.defaultWorkflowId = null;
+  const fallback = stepsWorkflow(fallbackSteps(value));
+  value.jobStages = fallback.stages;
+  value.stageHours = fallback.hours;
   if (
     !Array.isArray(value.paymentMethods) ||
     !value.paymentMethods.length ||
@@ -118,7 +120,9 @@ export function validateOptions(input) {
     throw Error('Keep at least one payment method enabled.');
   return value;
 }
-export const jobWorkflow = (job) => validateWorkflow(job.workflow ?? defaultOptions().jobStages);
+// Jobs from before each job kept its own stages followed the stages of the time.
+export const jobWorkflow = (job) =>
+  validateWorkflow(job.workflow ?? ['Added', 'In Queue', 'Printing', 'Completed', 'Collected']);
 /**
  * How a payment or checkout was paid. No money taken shows as "Wallet" when customer credit
  * covered it, otherwise "None" — never the method that happened to be selected.

@@ -69,7 +69,7 @@ export type PricingTemplate = {
   expenses: TemplateExpense[];
   pricing: TemplatePricing;
   /** Materials may be added in production; costCovered: the formula already prices them. */
-  production?: { extraMaterials?: boolean; costCovered?: boolean; workflowId?: string };
+  production?: { extraMaterials?: boolean; costCovered?: boolean; workflowId?: string; steps?: Step[] };
 };
 export type PricingSettings = {
   enabled: boolean;
@@ -391,9 +391,13 @@ export type ServiceProduction = {
   extraMaterials?: boolean;
   costCovered?: boolean;
   perItem?: number;
-  /** The workflow its jobs follow (Business Settings → Dropdowns & workflow). */
+  /** Older: the saved workflow its jobs followed. */
   workflowId?: string;
+  /** Its own steps between Added and Completed (none: the business's usual steps). */
+  steps?: Step[];
 };
+/** A production step between Added and Completed, with an optional time (minutes, typed in unit). */
+export type Step = { name: string; minutes?: number; unit?: 'm' | 'h' | 'd' };
 export type JobExtraMaterialsEvent = {
   id: string;
   kind: 'job.extra_materials_set';

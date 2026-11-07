@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { applyEvent, emptyLedger } from '../src/domain.mjs';
 import { holdEvent } from '../src/job-hold.mjs';
 import { stageOverdue } from '../src/stage-time.mjs';
-import { validateOptions, workflowFor } from '../src/business-options.mjs';
 
 const actor = { id: 'u', label: 'Ada' };
 const H = 3600000;
@@ -74,31 +73,5 @@ test('a hold needs a reason, and Other needs a note', () => {
   assert.throws(
     () => applyEvent(l, holdEvent(l.jobs[0], { reason: 'Other', note: '' }, actor)),
     /waiting for/,
-  );
-});
-
-test('named workflows carry their own stages and hours; others use the standard stages', () => {
-  const o = validateOptions({
-    stageHours: { Printing: 3 },
-    workflows: [
-      {
-        id: 'logo-0001',
-        name: 'Logo',
-        stages: ['Added', 'Design', 'Approval', 'Completed', 'Collected'],
-        hours: { Design: 120 },
-      },
-    ],
-  });
-  assert.deepEqual(workflowFor(o, 'logo-0001'), {
-    id: 'logo-0001',
-    name: 'Logo',
-    stages: ['Added', 'Design', 'Approval', 'Completed', 'Collected'],
-    hours: { Design: 120 },
-  });
-  assert.equal(workflowFor(o, 'gone').name, 'Standard');
-  assert.deepEqual(workflowFor(o, null).hours, { Printing: 3 });
-  assert.throws(
-    () => validateOptions({ workflows: [{ id: 'a-000001', name: 'X', stages: ['Design'] }] }),
-    /X:/,
   );
 });

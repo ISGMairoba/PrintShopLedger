@@ -1,3 +1,4 @@
+import { validSteps } from './workflow-steps.mjs';
 import {
   floorDiv,
   keyPattern,
@@ -359,7 +360,7 @@ export function validateTemplate(t) {
     pricing: { method: p.method, rate, floor, maxDiscount, rounding },
     // Materials added in production and the template's workflow (left off when not used, so older
     // templates stay the same).
-    ...(t.production?.extraMaterials || t.production?.workflowId
+    ...(t.production?.extraMaterials || t.production?.workflowId || t.production?.steps
       ? {
           production: {
             ...(t.production.extraMaterials
@@ -369,6 +370,7 @@ export function validateTemplate(t) {
             /^[0-9a-z-]{8,40}$/i.test(t.production.workflowId)
               ? { workflowId: t.production.workflowId }
               : {}),
+            ...(t.production.steps ? { steps: validSteps(t.production.steps, `${t.name}: production steps`) } : {}),
           },
         }
       : {}),

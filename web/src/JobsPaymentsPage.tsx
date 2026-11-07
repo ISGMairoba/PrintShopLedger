@@ -229,7 +229,10 @@ export default function JobsPaymentsPage({
                 </option>
                 {[
                   ...new Set([
-                    ...jobStages,
+                    // The usual steps, then any other step a job follows (items can have their own).
+                    ...jobStages.slice(0, -2),
+                    ...ledger.jobs.flatMap((job) => (job.workflow ?? []).slice(1, -2)),
+                    ...jobStages.slice(-2),
                     'Cancelled',
                     ...(stageFilter && stageFilter !== LATE && stageFilter !== HELD ? [stageFilter] : []),
                   ]),

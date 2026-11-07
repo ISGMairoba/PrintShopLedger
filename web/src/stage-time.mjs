@@ -1,5 +1,5 @@
 // How long a job may stay at a stage before it is flagged "Too long at this stage":
-// * a fixed time set for that stage (Business Settings → Dropdowns & workflow → Time per stage), or
+// * a time set for that step (the item's steps, or a saved workflow in Business Settings), or
 // * for a job with a due date, an even share of the time from the sale to the due date across the
 //   stages before Completed.
 // A job with neither is never flagged. When a job entered its stage: stageAt (recorded when it
@@ -18,8 +18,8 @@ export function validStageHours(value, stages) {
     if (!stages.includes(stage) || finished.includes(stage)) continue;
     if (hours === null || hours === '' || hours === undefined) continue;
     const n = Number(hours);
-    if (!(n >= 0.25) || n > 2160 || Math.round(n * 100) / 100 !== n)
-      throw Error(`${stage}: enter hours from 0.25 to 2160 (90 days).`);
+    if (!(n >= 0.0166) || n > 2160 || Math.round(n * 10000) / 10000 !== n)
+      throw Error(`${stage}: enter a time from 1 minute to 90 days.`);
     out[stage] = n;
   }
   return out;

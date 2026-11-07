@@ -8,6 +8,7 @@
 // The server applies the same rules (apply_service_event, apply_checkout_event,
 // apply_job_extra_materials_event); keep them in step.
 import { materialSnapshot } from './material-display.mjs';
+import { validSteps } from './workflow-steps.mjs';
 
 const round3 = (n) => Math.round(n * 1000) / 1000;
 export const MAX_EXTRA_MATERIALS = 30;
@@ -15,14 +16,15 @@ export const MAX_EXTRA_MATERIALS = 30;
 /**
  * The production settings to store for a service or template: only what differs from the
  * defaults. undefined keeps the existing value; null or {} clears it.
- * @returns {{ extraMaterials?: true, costCovered?: true, perItem?: number } | undefined}
+ * steps: the item's own production steps (none: the business's usual steps).
+ * @returns {{ extraMaterials?: true, costCovered?: true, perItem?: number, workflowId?: string, steps?: import('./types').Step[] } | undefined}
  */
 export function validProduction(value) {
   if (value === undefined) return undefined;
   if (value === null) return {};
   if (typeof value !== 'object' || Array.isArray(value)) throw Error('Invalid production settings.');
   for (const key of Object.keys(value))
-    if (!['extraMaterials', 'costCovered', 'perItem', 'workflowId'].includes(key))
+    if (!['extraMaterials', 'costCovered', 'perItem', 'workflowId', 'steps'].includes(key))
       throw Error('Invalid production settings.');
   if (
     value.workflowId !== undefined &&
@@ -41,6 +43,7 @@ export function validProduction(value) {
     ...(value.extraMaterials && value.costCovered ? { costCovered: true } : {}),
     ...(per !== 1 ? { perItem: per } : {}),
     ...(value.workflowId ? { workflowId: value.workflowId } : {}),
+    ...(value.steps ? { steps: validSteps(value.steps, 'Production steps') } : {}),
   };
 }
 /** How much of its material one item of a service uses. */
