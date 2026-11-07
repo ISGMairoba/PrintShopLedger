@@ -70,6 +70,8 @@ export default function BranchesSettings({
                   onChange={(e) => change(b.id, { name: e.target.value })}
                 />
               </label>
+              {b.kind !== 'store' && (
+              <>
               <label>
                 Phone on this branch's receipts
                 <input
@@ -91,7 +93,14 @@ export default function BranchesSettings({
                   onChange={(e) => change(b.id, { address: e.target.value })}
                 />
               </label>
+              </>
+              )}
             </div>
+            {b.kind === 'store' && (
+              <small className="muted">
+                A store keeps stock only: no sales happen there, so it does not count towards your branch limit.
+              </small>
+            )}
             {i > 0 && (
               <button
                 type="button"
@@ -99,7 +108,7 @@ export default function BranchesSettings({
                 onClick={() => change(b.id, { archived: !b.archived })}
               >
                 <Icon name={b.archived ? 'restore' : 'archive'} />{' '}
-                {b.archived ? 'Open again' : 'Close branch'}
+                {b.archived ? 'Open again' : b.kind === 'store' ? 'Close store' : 'Close branch'}
               </button>
             )}
           </div>
