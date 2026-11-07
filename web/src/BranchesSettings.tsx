@@ -71,34 +71,35 @@ export default function BranchesSettings({
                 />
               </label>
               {b.kind !== 'store' && (
-              <>
-              <label>
-                Phone on this branch's receipts
-                <input
-                  type="tel"
-                  aria-label={`Branch ${i + 1} phone`}
-                  maxLength={80}
-                  placeholder="Business phone"
-                  value={b.phone}
-                  onChange={(e) => change(b.id, { phone: e.target.value })}
-                />
-              </label>
-              <label>
-                Address on this branch's receipts
-                <input
-                  aria-label={`Branch ${i + 1} address`}
-                  maxLength={300}
-                  placeholder="Business address"
-                  value={b.address}
-                  onChange={(e) => change(b.id, { address: e.target.value })}
-                />
-              </label>
-              </>
+                <>
+                  <label>
+                    Phone on this branch's receipts
+                    <input
+                      type="tel"
+                      aria-label={`Branch ${i + 1} phone`}
+                      maxLength={80}
+                      placeholder="Business phone"
+                      value={b.phone}
+                      onChange={(e) => change(b.id, { phone: e.target.value })}
+                    />
+                  </label>
+                  <label>
+                    Address on this branch's receipts
+                    <input
+                      aria-label={`Branch ${i + 1} address`}
+                      maxLength={300}
+                      placeholder="Business address"
+                      value={b.address}
+                      onChange={(e) => change(b.id, { address: e.target.value })}
+                    />
+                  </label>
+                </>
               )}
             </div>
             {b.kind === 'store' && (
               <small className="muted">
-                A store keeps stock only: no sales happen there, so it does not count towards your branch limit.
+                A store keeps stock only: no sales happen there, so it does not count towards your branch
+                limit.
               </small>
             )}
             {i > 0 && (
