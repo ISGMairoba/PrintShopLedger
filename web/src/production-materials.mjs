@@ -72,7 +72,10 @@ function ownMaterials(job) {
     ].filter(Boolean),
   );
 }
-/** The materials added to a job in production and how much of each (current totals). */
+/**
+ * The materials added to a job in production and how much of each (current totals).
+ * @returns {{ materialId: string, quantity: number }[]}
+ */
 export const extraUsages = (job) => job?.extraMaterials?.usages ?? [];
 
 /**
