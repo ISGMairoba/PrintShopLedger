@@ -78,12 +78,13 @@ export default function DashboardPage({
         Loading dashboard records…
       </section>
     );
-  const card = (label: string, value: number, note: string, comparison?: string) => (
+  const card = (label: string, value: number, note: string, comparison?: string, extra?: string) => (
     <article key={label}>
       <span>{w(label)}</span>
       <strong>{money(value)}</strong>
       <small>{w(note)}</small>
       {comparison && <small>{comparison}</small>}
+      {extra && <small className="dashboard-profit">{extra}</small>}
     </article>
   );
   return (
@@ -128,16 +129,11 @@ export default function DashboardPage({
                 w(`${summary.jobs} jobs · ${summary.cancelled} cancelled`) +
                   (summary.discounts > 0 ? ` · after ${money(summary.discounts)} discounts` : ''),
                 change(summary.sales, summary.previous.sales),
-              )}
-            {profit &&
-              card(
-                'Estimated profit',
-                profit.totals.profit,
-                (profit.totals.margin === null
-                  ? 'No sales with a cost set'
-                  : `${profit.totals.margin}% of sales with a cost`) +
-                  (profit.totals.unknownJobs ? ` · ${profit.totals.unknownJobs} jobs with no cost set` : '') +
-                  ' · Reports → Profit',
+                profit
+                  ? `Estimated profit ${money(profit.totals.profit)}` +
+                      (profit.totals.margin === null ? '' : ` (${profit.totals.margin}%)`) +
+                      (profit.totals.unknownJobs ? ` · ${profit.totals.unknownJobs} jobs with no cost set` : '')
+                  : undefined,
               )}
             {access.payments &&
               card(
