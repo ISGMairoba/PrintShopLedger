@@ -4,6 +4,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import DashboardBreakdowns from './DashboardBreakdowns';
 import { InteractiveTrend } from './InteractiveCharts';
 import { dashboardSummary, validRange } from './dashboard.mjs';
+import { profitReport } from './profit.mjs';
 import type { Ledger, Material } from './types';
 import './dashboard.css';
 import { useWords } from './Words';
@@ -21,6 +22,8 @@ type Access = {
   expenses: boolean;
   materials: boolean;
   customers: boolean;
+  /** May see costs and profit. */
+  costs?: boolean;
 };
 export default function DashboardPage({
   ledger,
@@ -59,6 +62,15 @@ export default function DashboardPage({
         ? branches.map((b) => ({ ...b, summary: dashboardSummary(b.ledger, range.from, range.to, 'auto') }))
         : [],
     [branches, range.from, range.to, valid],
+  );
+  const profit = useMemo(
+    () =>
+      ready && valid && access.costs && access.sales
+        ? (profitReport(ledger, range.from, range.to) as {
+            totals: { profit: number; margin: number | null; unknownJobs: number };
+          })
+        : null,
+    [ledger, range.from, range.to, valid, ready, access.costs, access.sales],
   );
   if (!ready)
     return (
@@ -116,6 +128,14 @@ export default function DashboardPage({
                 w(`${summary.jobs} jobs · ${summary.cancelled} cancelled`) +
                   (summary.discounts > 0 ? ` · after ${money(summary.discounts)} discounts` : ''),
                 change(summary.sales, summary.previous.sales),
+              )}
+            {profit &&
+              card(
+                'Estimated profit',
+                profit.totals.profit,
+                (profit.totals.margin === null ? 'No sales with a cost set' : `${profit.totals.margin}% of sales with a cost`) +
+                  (profit.totals.unknownJobs ? ` · ${profit.totals.unknownJobs} jobs with no cost set` : '') +
+                  ' · Reports → Profit',
               )}
             {access.payments &&
               card(

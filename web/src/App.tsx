@@ -40,6 +40,8 @@ import ExpensesPage from './ExpensesPage';
 import DrawerReviews from './DrawerReviews';
 import { setKeepChoice } from './history-keep.mjs';
 import { extraMaterialsRank } from './production-materials.mjs';
+import { dismissLowStockReminder, lowAtOtherLocations, lowStockReminderDue } from './low-stock-locations.mjs';
+import { businessDay } from './dashboard.mjs';
 import type { ProgressMode } from './JobActions';
 import JobProgressDialog from './JobProgressDialog';
 import { stageMoveEvents } from './material-choice.mjs';
@@ -359,6 +361,14 @@ export default function App() {
     () => branchesOf(branding.settings).filter((b) => !b.archived),
     [branding.settings],
   );
+  // Admin and higher in a business with locations: once a day, items running low at other locations.
+  const [lowStockSeen, setLowStockSeen] = useState(false);
+  const lowElsewhereCount = useMemo(() => {
+    if (demo || !multiBranch || !activeBranch || !scope || lowStockSeen || (shop?.accessLevel ?? 0) < 2) return 0;
+    if (!lowStockReminderDue(scope, businessDay(new Date().toISOString()))) return 0;
+    return lowAtOtherLocations(state.ledger.materials, state.ledger.locationStock ?? [], activeBranch.id, openBranches)
+      .length;
+  }, [demo, multiBranch, activeBranch, scope, lowStockSeen, shop?.accessLevel, state.ledger, openBranches]);
   // Stores keep stock only, so the sales comparisons leave them out.
   const salesBranches = useMemo(() => openBranches.filter((b) => b.kind !== 'store'), [openBranches]);
   const masterLedger = useMemo(() => {
@@ -1501,6 +1511,30 @@ export default function App() {
                       </button>
                     </div>
                   )}
+                  {lowElsewhereCount > 0 && page !== 'Materials' && (
+                    <div className="notice">
+                      {lowElsewhereCount} item(s) are running low at other locations.{' '}
+                      <button
+                        className="secondary"
+                        onClick={() => {
+                          dismissLowStockReminder(scope, businessDay(new Date().toISOString()));
+                          setLowStockSeen(true);
+                          setPage('Materials');
+                        }}
+                      >
+                        <Icon name="materials" /> Open Materials
+                      </button>{' '}
+                      <button
+                        className="text-button"
+                        onClick={() => {
+                          dismissLowStockReminder(scope, businessDay(new Date().toISOString()));
+                          setLowStockSeen(true);
+                        }}
+                      >
+                        Not now
+                      </button>
+                    </div>
+                  )}
                   {!demo &&
                     (shop?.accessLevel ?? 0) >= 2 &&
                     page !== 'Conflict Inbox' &&
@@ -1819,6 +1853,7 @@ export default function App() {
                                   shop?.accessLevel ?? 0,
                                   branding.settings.pageAccess,
                                 ),
+                              costs: demo || canSeeTemplateCosts(branding.settings.pricing, shop?.accessLevel ?? 0),
                             }}
                           />
                         </Suspense>

@@ -1,4 +1,5 @@
 import DialogActions from './DialogActions';
+import { lowAtOtherLocations } from './low-stock-locations.mjs';
 import { useFeedbackMessage } from './Feedback';
 import { useBusinessOptions } from './BusinessOptionsContext';
 import ResponsiveTable from './ResponsiveTable';
@@ -82,19 +83,9 @@ export default function MaterialsPage({
   const [reorder, setReorder] = useState(false);
   const toReorder = reorderList({ materials, materialHistory: history } as never).length;
   // Other locations this person can see (stores, the owner every location) that are low on an item.
-  const lowElsewhere = (locations?.stock ?? [])
-    .filter((s) => s.location !== locations?.here && locations?.list.some((l) => l.id === s.location))
-    .flatMap((s) => {
-      const material = materials.find((m) => m.id === s.materialId);
-      const level = material && stockLevel({ ...material, available: s.available });
-      return material && level ? [{ material, location: s.location, available: s.available, level }] : [];
-    })
-    .sort(
-      (a, b) =>
-        (a.level === b.level ? 0 : a.level === 'Critical' ? -1 : 1) ||
-        locationName(a.location).localeCompare(locationName(b.location)) ||
-        a.material.name.localeCompare(b.material.name),
-    );
+  const lowElsewhere: { material: Material; location: string; available: number; level: string }[] = locations
+    ? lowAtOtherLocations(materials, locations.stock ?? [], locations.here, locations.list)
+    : [];
   const { w } = useWords();
   const { stockReasons: stockReasonDefaults, materialUnits } = useBusinessOptions();
   const [query, setQuery] = useState('');
