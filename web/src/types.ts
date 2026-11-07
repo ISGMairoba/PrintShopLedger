@@ -406,6 +406,19 @@ export type JobExtraMaterialsEvent = {
     modifiedAt: string;
   };
 };
+export type JobHoldEvent = {
+  id: string;
+  kind: 'job.held' | 'job.resumed';
+  data: {
+    id: string;
+    baseVersion: number;
+    reason?: string;
+    note?: string;
+    modifiedBy: string;
+    modifiedByLabel: string;
+    modifiedAt: string;
+  };
+};
 export interface PriceTier {
   from: number;
   price: number;
@@ -678,6 +691,7 @@ export type LedgerEvent =
   | JobStatusEvent
   | JobMaterialEvent
   | JobExtraMaterialsEvent
+  | JobHoldEvent
   | CustomerEvent
   | { id: string; kind: 'job.created'; data: Job }
   | { id: string; kind: 'payment.recorded'; data: Payment }
