@@ -258,8 +258,12 @@ export default function ServicesPage({
         priceTiers: !privateItem && pricing === 'ranges' ? tiersFrom(tiers) : [],
         customPrice: !privateItem && pricing === 'custom',
         production: {
-          ...(!privateItem && extraMaterials ? { extraMaterials: true, ...(costCovered ? { costCovered: true } : {}) } : {}),
-          ...(materialValue && !privateItem && Number(perItemText) !== 1 ? { perItem: Number(perItemText) } : {}),
+          ...(!privateItem && extraMaterials
+            ? { extraMaterials: true, ...(costCovered ? { costCovered: true } : {}) }
+            : {}),
+          ...(materialValue && !privateItem && Number(perItemText) !== 1
+            ? { perItem: Number(perItemText) }
+            : {}),
         },
       };
       const event: ServiceEvent = {

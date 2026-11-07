@@ -59,9 +59,11 @@ export default function ExtraMaterials({
       const removed = used
         .filter((u) => !wanted.some((r) => r.materialId === u.materialId))
         .map((u) => ({ materialId: u.materialId, quantity: 0 }));
-      const usages = [...wanted.map((r) => ({ materialId: r.materialId, quantity: Number(r.quantity) })), ...removed];
-      if (usages.some((u) => !(u.quantity >= 0)))
-        throw Error('Enter how much of each material was used.');
+      const usages = [
+        ...wanted.map((r) => ({ materialId: r.materialId, quantity: Number(r.quantity) })),
+        ...removed,
+      ];
+      if (usages.some((u) => !(u.quantity >= 0))) throw Error('Enter how much of each material was used.');
       await onSave(extraMaterialsEvent(ledger, job, usages, actor) as JobExtraMaterialsEvent);
       setRows(null);
     } catch (cause) {
@@ -85,7 +87,8 @@ export default function ExtraMaterials({
             {job.extraMaterials?.costCovered
               ? `Their cost is already in the price${cost.kobo ? ` (materials actually used: about ${currency(cost.kobo)})` : ''}.`
               : `Estimated cost ${currency(cost.kobo)}, added to this job's cost.`}
-            {cost.unpriced.length > 0 && ` ${cost.unpriced.length} material(s) have no cost set in Pricing Templates → Costs.`}{' '}
+            {cost.unpriced.length > 0 &&
+              ` ${cost.unpriced.length} material(s) have no cost set in Pricing Templates → Costs.`}{' '}
             Last changed by {job.extraMaterials?.updatedByLabel}.
           </p>
         </>
@@ -94,7 +97,8 @@ export default function ExtraMaterials({
       )}
       {onSave && acceptsExtraMaterials(ledger, job) && (!cancelled || used.length > 0) && (
         <button type="button" className="secondary" disabled={busy} onClick={open}>
-          <Icon name="add" /> {cancelled ? 'Return materials' : used.length ? 'Add or correct materials' : 'Add materials used'}
+          <Icon name="add" />{' '}
+          {cancelled ? 'Return materials' : used.length ? 'Add or correct materials' : 'Add materials used'}
         </button>
       )}
       {rows && (
@@ -118,7 +122,9 @@ export default function ExtraMaterials({
                     aria-label={`Material ${i + 1}`}
                     value={r.materialId}
                     disabled={cancelled}
-                    onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, materialId: e.target.value } : x)))}
+                    onChange={(e) =>
+                      setRows(rows.map((x, j) => (j === i ? { ...x, materialId: e.target.value } : x)))
+                    }
                   >
                     <option value="">Choose a material…</option>
                     {choices.map((c) => (
@@ -138,7 +144,9 @@ export default function ExtraMaterials({
                     aria-label={`Amount used ${i + 1}`}
                     inputMode="decimal"
                     value={r.quantity}
-                    onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, quantity: e.target.value } : x)))}
+                    onChange={(e) =>
+                      setRows(rows.map((x, j) => (j === i ? { ...x, quantity: e.target.value } : x)))
+                    }
                   />
                 </label>
                 <button

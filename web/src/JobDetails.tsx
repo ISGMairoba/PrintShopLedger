@@ -178,7 +178,13 @@ export default function JobDetails({
         )}
       />
       {actor && (
-        <ExtraMaterials job={job} ledger={ledger} busy={busy || legacyConflict} actor={actor} onSave={onExtraMaterials} />
+        <ExtraMaterials
+          job={job}
+          ledger={ledger}
+          busy={busy || legacyConflict}
+          actor={actor}
+          onSave={onExtraMaterials}
+        />
       )}
       <section className="job-detail-stage" aria-label={w('Job stage')}>
         <h3>{w('Job stage')}</h3>

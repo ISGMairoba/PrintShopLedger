@@ -22,9 +22,11 @@ export function validProduction(value) {
   if (value === null) return {};
   if (typeof value !== 'object' || Array.isArray(value)) throw Error('Invalid production settings.');
   for (const key of Object.keys(value))
-    if (!['extraMaterials', 'costCovered', 'perItem'].includes(key)) throw Error('Invalid production settings.');
+    if (!['extraMaterials', 'costCovered', 'perItem'].includes(key))
+      throw Error('Invalid production settings.');
   for (const key of ['extraMaterials', 'costCovered'])
-    if (value[key] !== undefined && typeof value[key] !== 'boolean') throw Error('Invalid production settings.');
+    if (value[key] !== undefined && typeof value[key] !== 'boolean')
+      throw Error('Invalid production settings.');
   const per = value.perItem ?? 1;
   if (typeof per !== 'number' || !(per > 0) || per > 10000 || round3(per) !== per)
     throw Error('Enter how much material one item uses: more than 0, up to three decimal places.');
@@ -61,12 +63,14 @@ export function validProductionSettings(value) {
 
 /** Materials a job may not take as extras: its fixed material and its choice of materials. */
 function ownMaterials(job) {
-  return new Set([
-    job.materialId,
-    ...(job.materialChoice?.options ?? []),
-    ...(job.materialChoice?.groups ?? []).flatMap((g) => g.options),
-    ...(job.templateSnapshot?.stock ?? []).map((s) => s.materialId),
-  ].filter(Boolean));
+  return new Set(
+    [
+      job.materialId,
+      ...(job.materialChoice?.options ?? []),
+      ...(job.materialChoice?.groups ?? []).flatMap((g) => g.options),
+      ...(job.templateSnapshot?.stock ?? []).map((s) => s.materialId),
+    ].filter(Boolean),
+  );
 }
 /** The materials added to a job in production and how much of each (current totals). */
 export const extraUsages = (job) => job?.extraMaterials?.usages ?? [];
@@ -166,7 +170,8 @@ export function applyJobExtraMaterials(ledger, event) {
   const usages = [...totals]
     .filter(([, quantity]) => quantity > 0)
     .map(([materialId, quantity]) => ({ materialId, quantity }));
-  if (usages.length > MAX_EXTRA_MATERIALS) throw Error(`Add at most ${MAX_EXTRA_MATERIALS} materials to a job.`);
+  if (usages.length > MAX_EXTRA_MATERIALS)
+    throw Error(`Add at most ${MAX_EXTRA_MATERIALS} materials to a job.`);
   const next = {
     ...job,
     extraMaterials: {
@@ -182,7 +187,12 @@ export function applyJobExtraMaterials(ledger, event) {
     modifiedAt: d.modifiedAt,
     lastEventId: event.id,
   };
-  return { ...ledger, materials, materialHistory: history, jobs: ledger.jobs.map((j) => (j.id === job.id ? next : j)) };
+  return {
+    ...ledger,
+    materials,
+    materialHistory: history,
+    jobs: ledger.jobs.map((j) => (j.id === job.id ? next : j)),
+  };
 }
 
 /**

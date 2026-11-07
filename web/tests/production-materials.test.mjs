@@ -16,11 +16,25 @@ function shop() {
     return data.id;
   };
   const material = (name, available) =>
-    apply('material.created', { id: id(), name, available, measurementUnit: 'sheet', requireSize: false, minimumStock: 0, reason: 'Opening' });
+    apply('material.created', {
+      id: id(),
+      name,
+      available,
+      measurementUnit: 'sheet',
+      requireSize: false,
+      minimumStock: 0,
+      reason: 'Opening',
+    });
   const film = material('Lamination film (A4 units)', 100);
   const fbb = material('FBB board', 50);
   const glue = material('Glue', 10);
-  const a2 = apply('service.created', { id: id(), description: 'A2 lamination', materialId: film, price: 80000, production: { perItem: 4 } });
+  const a2 = apply('service.created', {
+    id: id(),
+    description: 'A2 lamination',
+    materialId: film,
+    price: 80000,
+    production: { perItem: 4 },
+  });
   const bag = apply('service.created', {
     id: id(),
     description: 'Paper bag',
@@ -36,14 +50,35 @@ function shop() {
     private: true,
     costing: { key: 'fbb', amount: 30000, per: 1 },
   });
-  const customer = apply('customer.created', { id: id(), name: 'Bello', phone: '0801', address: '', creditLimit: 0 });
+  const customer = apply('customer.created', {
+    id: id(),
+    name: 'Bello',
+    phone: '0801',
+    address: '',
+    creditLimit: 0,
+  });
   return { get: () => ledger, set: (l) => (ledger = l), film, fbb, glue, a2, bag, customer };
 }
 const sell = (s, serviceId, quantity) => {
-  const line = { id: id(), serviceId, description: 'Job', quantity: String(quantity), source: 'In shop / USB', sourceNote: '' };
+  const line = {
+    id: id(),
+    serviceId,
+    description: 'Job',
+    quantity: String(quantity),
+    source: 'In shop / USB',
+    sourceNote: '',
+  };
   const event = prepareCheckout(
     s.get(),
-    { customerId: s.customer, lines: [line], cashReceived: 0, useWallet: false, paidOn: '2026-11-07', method: 'Cash', reference: '' },
+    {
+      customerId: s.customer,
+      lines: [line],
+      cashReceived: 0,
+      useWallet: false,
+      paidOn: '2026-11-07',
+      method: 'Cash',
+      reference: '',
+    },
     actor,
     id(),
     at,
@@ -64,7 +99,15 @@ test('a service can use several units of its material per item (A2 lamination = 
 test('materials can be added in production, corrected and returned; stock moves by the difference', () => {
   const s = shop();
   const job = sell(s, s.bag, 100);
-  let event = extraMaterialsEvent(s.get(), job, [{ materialId: s.fbb, quantity: 25 }, { materialId: s.glue, quantity: 1.5 }], actor);
+  let event = extraMaterialsEvent(
+    s.get(),
+    job,
+    [
+      { materialId: s.fbb, quantity: 25 },
+      { materialId: s.glue, quantity: 1.5 },
+    ],
+    actor,
+  );
   s.set(applyEvent(s.get(), event));
   let after = s.get().jobs.find((j) => j.id === job.id);
   assert.deepEqual(after.extraMaterials.usages, [
@@ -75,7 +118,10 @@ test('materials can be added in production, corrected and returned; stock moves 
   assert.equal(stock(s, s.glue), 8.5);
   assert.equal(after.amount, 150000 * 100, 'The price does not change');
   // 25 sheets of FBB at ₦300 each (from its cost); glue has no cost set.
-  assert.deepEqual(extraMaterialsCost(s.get(), after.extraMaterials.usages), { kobo: 750000, unpriced: [s.glue] });
+  assert.deepEqual(extraMaterialsCost(s.get(), after.extraMaterials.usages), {
+    kobo: 750000,
+    unpriced: [s.glue],
+  });
   // Correct FBB to 20 (5 back to stock), leave glue alone.
   event = extraMaterialsEvent(s.get(), after, [{ materialId: s.fbb, quantity: 20 }], actor);
   s.set(applyEvent(s.get(), event));
@@ -83,17 +129,35 @@ test('materials can be added in production, corrected and returned; stock moves 
   assert.equal(stock(s, s.fbb), 30);
   assert.equal(after.extraMaterials.usages.length, 2);
   const history = s.get().materialHistory.filter((h) => h.jobId === job.id);
-  assert.deepEqual(history.map((h) => h.action), ['material.job_used', 'material.job_used', 'material.job_corrected']);
+  assert.deepEqual(
+    history.map((h) => h.action),
+    ['material.job_used', 'material.job_used', 'material.job_corrected'],
+  );
 });
 
 test('only services set to accept them take added materials, and never their own material', () => {
   const s = shop();
   const lam = sell(s, s.a2, 1);
-  assert.throws(() => extraMaterialsEvent(s.get(), lam, [{ materialId: s.glue, quantity: 1 }], actor), /does not take added materials/);
-  const bag = sell(s, s.bag, 1);
-  assert.throws(() => extraMaterialsEvent(s.get(), bag, [{ materialId: s.glue, quantity: -1 }], actor), /how much/);
   assert.throws(
-    () => extraMaterialsEvent(s.get(), bag, [{ materialId: s.glue, quantity: 1 }, { materialId: s.glue, quantity: 2 }], actor),
+    () => extraMaterialsEvent(s.get(), lam, [{ materialId: s.glue, quantity: 1 }], actor),
+    /does not take added materials/,
+  );
+  const bag = sell(s, s.bag, 1);
+  assert.throws(
+    () => extraMaterialsEvent(s.get(), bag, [{ materialId: s.glue, quantity: -1 }], actor),
+    /how much/,
+  );
+  assert.throws(
+    () =>
+      extraMaterialsEvent(
+        s.get(),
+        bag,
+        [
+          { materialId: s.glue, quantity: 1 },
+          { materialId: s.glue, quantity: 2 },
+        ],
+        actor,
+      ),
     /once/,
   );
 });
