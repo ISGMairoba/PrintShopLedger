@@ -952,29 +952,29 @@ export default function ServicesPage({
                             .join(', ')}`
                         : w('Choose the materials')}
                     </summary>
-                  <div className="material-choice-list">
-                    {materials
-                      .filter((m) => !m.archived || choiceIds.includes(m.id))
-                      .map((m) => (
-                        <label className="checkbox" key={m.id}>
-                          <input
-                            type="checkbox"
-                            checked={choiceIds.includes(m.id)}
-                            onChange={(e) =>
-                              setChoiceIds((ids) =>
-                                e.target.checked ? [...ids, m.id] : ids.filter((x) => x !== m.id),
-                              )
-                            }
-                          />
-                          {shortLabel(m.name)}
-                          <small>
-                            {m.measurementUnit}
-                            {m.requireSize ? ' · by size' : ''}
-                            {m.archived ? ' · Archived' : ''}
-                          </small>
-                        </label>
-                      ))}
-                  </div>
+                    <div className="material-choice-list">
+                      {materials
+                        .filter((m) => !m.archived || choiceIds.includes(m.id))
+                        .map((m) => (
+                          <label className="checkbox" key={m.id}>
+                            <input
+                              type="checkbox"
+                              checked={choiceIds.includes(m.id)}
+                              onChange={(e) =>
+                                setChoiceIds((ids) =>
+                                  e.target.checked ? [...ids, m.id] : ids.filter((x) => x !== m.id),
+                                )
+                              }
+                            />
+                            {shortLabel(m.name)}
+                            <small>
+                              {m.measurementUnit}
+                              {m.requireSize ? ' · by size' : ''}
+                              {m.archived ? ' · Archived' : ''}
+                            </small>
+                          </label>
+                        ))}
+                    </div>
                   </details>
                   <label>
                     {w('Confirm material used when the job leaves')}

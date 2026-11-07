@@ -196,7 +196,9 @@ export default function JobsPaymentsPage({
               >
                 <option value="">All stages</option>
                 {[...new Set([...jobStages, 'Cancelled', ...(stageFilter ? [stageFilter] : [])])].map((s) => {
-                  const n = ledger.jobs.filter((job) => stageOf(job) === s && inPeriod(job.createdAt, period)).length;
+                  const n = ledger.jobs.filter(
+                    (job) => stageOf(job) === s && inPeriod(job.createdAt, period),
+                  ).length;
                   return (
                     <option key={s} value={s}>
                       {stage(s)} ({n})
