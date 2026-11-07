@@ -370,7 +370,9 @@ export function validateTemplate(t) {
             /^[0-9a-z-]{8,40}$/i.test(t.production.workflowId)
               ? { workflowId: t.production.workflowId }
               : {}),
-            ...(t.production.steps ? { steps: validSteps(t.production.steps, `${t.name}: production steps`) } : {}),
+            ...(t.production.steps
+              ? { steps: validSteps(t.production.steps, `${t.name}: production steps`) }
+              : {}),
           },
         }
       : {}),

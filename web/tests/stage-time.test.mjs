@@ -40,9 +40,14 @@ test('time per stage is saved with the business options; unknown stages are drop
     { Printing: 2 },
   );
   assert.throws(() => validStageHours({ Printing: 0.01 }, ['Added', 'Printing', 'Completed', 'Collected']));
-  assert.deepEqual(validStageHours({ Printing: 0.0167 }, ['Added', 'Printing', 'Completed', 'Collected']), { Printing: 0.0167 });
+  assert.deepEqual(validStageHours({ Printing: 0.0167 }, ['Added', 'Printing', 'Completed', 'Collected']), {
+    Printing: 0.0167,
+  });
   assert.deepEqual(
-    validateOptions({ jobStages: ['Added', 'Printing', 'Completed', 'Collected'], stageHours: { Printing: 4 } }).stageHours,
+    validateOptions({
+      jobStages: ['Added', 'Printing', 'Completed', 'Collected'],
+      stageHours: { Printing: 4 },
+    }).stageHours,
     { Printing: 4 },
   );
 });

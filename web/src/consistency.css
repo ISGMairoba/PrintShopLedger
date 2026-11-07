@@ -2041,7 +2041,7 @@ label small > .field-error {
   position: relative;
 }
 .step-builder > li + li::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 22px;
   top: -11px;

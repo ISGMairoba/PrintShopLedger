@@ -93,7 +93,10 @@ export function validateOptions(input) {
     const old = validateWorkflow(value.jobStages);
     const steps = stagesToSteps(old, validStageHours(value.stageHours, old));
     if (steps.length && !(steps.length === 1 && steps[0].name === 'Processing' && !steps[0].minutes)) {
-      value.workflows = [{ id: CURRENT_STAGES_ID, name: 'Our current stages', steps }, ...value.workflows].slice(0, 30);
+      value.workflows = [
+        { id: CURRENT_STAGES_ID, name: 'Our current stages', steps },
+        ...value.workflows,
+      ].slice(0, 30);
       value.defaultWorkflowId = CURRENT_STAGES_ID;
     }
   }

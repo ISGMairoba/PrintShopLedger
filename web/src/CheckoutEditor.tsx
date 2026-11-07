@@ -952,7 +952,10 @@ export default function CheckoutEditor({
                           <div className="job-steps">
                             <span>
                               {w('Steps')}:{' '}
-                              {(item.steps ? stepsWorkflow(item.steps).stages : (item.workflow ?? options.jobStages))
+                              {(item.steps
+                                ? stepsWorkflow(item.steps).stages
+                                : (item.workflow ?? options.jobStages)
+                              )
                                 .map((s) => stage(s))
                                 .join(' → ')}
                             </span>
@@ -969,7 +972,10 @@ export default function CheckoutEditor({
                                         l.id === item.id
                                           ? {
                                               ...l,
-                                              steps: stagesToSteps(l.workflow ?? options.jobStages, l.stageHours),
+                                              steps: stagesToSteps(
+                                                l.workflow ?? options.jobStages,
+                                                l.stageHours,
+                                              ),
                                             }
                                           : l,
                                       ),
@@ -984,7 +990,9 @@ export default function CheckoutEditor({
                                 steps={item.steps}
                                 label={`${w('Job')} ${index + 1} steps`}
                                 onChange={(steps) =>
-                                  setLines((items) => items.map((l) => (l.id === item.id ? { ...l, steps } : l)))
+                                  setLines((items) =>
+                                    items.map((l) => (l.id === item.id ? { ...l, steps } : l)),
+                                  )
                                 }
                               />
                             )}

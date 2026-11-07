@@ -21,8 +21,11 @@ export function validSteps(steps, label = 'Workflow') {
   if (!Array.isArray(steps) || steps.length > 20) throw Error(`${label}: use at most 20 steps.`);
   const seen = new Set();
   return steps.map((step) => {
-    const name = String(step?.name ?? '').trim().replace(/\s+/g, ' ');
-    if (!name || name.length > 40 || /[\x00-\x1f\x7f]/.test(name)) throw Error(`${label}: give each step a name up to 40 characters.`);
+    const name = String(step?.name ?? '')
+      .trim()
+      .replace(/\s+/g, ' ');
+    if (!name || name.length > 40 || /[\x00-\x1f\x7f]/.test(name))
+      throw Error(`${label}: give each step a name up to 40 characters.`);
     if (FIXED.some((f) => f.toLowerCase() === name.toLowerCase()))
       throw Error(`${label}: ${name} is already the first or last step.`);
     if (seen.has(name.toLowerCase())) throw Error(`${label}: two steps are called "${name}".`);

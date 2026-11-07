@@ -24,7 +24,8 @@ export function StepBuilder({
   disabled?: boolean;
 }) {
   const { stage } = useWords();
-  const set = (i: number, patch: Partial<Step>) => onChange(steps.map((s, j) => (j === i ? { ...s, ...patch } : s)));
+  const set = (i: number, patch: Partial<Step>) =>
+    onChange(steps.map((s, j) => (j === i ? { ...s, ...patch } : s)));
   const move = (i: number, by: number) => {
     const next = [...steps];
     [next[i], next[i + by]] = [next[i + by], next[i]];
@@ -32,7 +33,12 @@ export function StepBuilder({
   };
   const time = (i: number, amount: string, unit: Unit) => {
     const n = Number(amount);
-    set(i, amount === '' || !(n > 0) ? { minutes: undefined, unit } : { minutes: Math.max(1, Math.round(n * UNITS[unit])), unit });
+    set(
+      i,
+      amount === '' || !(n > 0)
+        ? { minutes: undefined, unit }
+        : { minutes: Math.max(1, Math.round(n * UNITS[unit])), unit },
+    );
   };
   const fixed = (name: string) => (
     <li key={name} className="step-box step-fixed">

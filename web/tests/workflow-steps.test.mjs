@@ -23,7 +23,10 @@ test('steps sit between the fixed Added and Completed, Collected', () => {
 });
 
 test('a business with its own stages keeps them as the saved workflow items follow', () => {
-  const o = validateOptions({ jobStages: ['Added', 'In Queue', 'Printing', 'Completed', 'Collected'], stageHours: { Printing: 3 } });
+  const o = validateOptions({
+    jobStages: ['Added', 'In Queue', 'Printing', 'Completed', 'Collected'],
+    stageHours: { Printing: 3 },
+  });
   assert.equal(o.defaultWorkflowId, CURRENT_STAGES_ID);
   assert.deepEqual(o.workflows[0], {
     id: CURRENT_STAGES_ID,
@@ -54,7 +57,14 @@ test('items keep their own copy of steps', () => {
   });
   // Older saved workflows (stages and hours) read as steps.
   const old = validateOptions({
-    workflows: [{ id: 'a-000001', name: 'X', stages: ['Added', 'Design', 'Completed', 'Collected'], hours: { Design: 2 } }],
+    workflows: [
+      {
+        id: 'a-000001',
+        name: 'X',
+        stages: ['Added', 'Design', 'Completed', 'Collected'],
+        hours: { Design: 2 },
+      },
+    ],
     defaultWorkflowId: null,
   });
   assert.deepEqual(old.workflows[0].steps, [{ name: 'Design', minutes: 120, unit: 'h' }]);
@@ -62,5 +72,8 @@ test('items keep their own copy of steps', () => {
 
 test('Processing uses the business words', () => {
   assert.equal(stageName('Processing', validateTerms({ preset: 'retail' })), 'Preparing');
-  assert.equal(stageName('Processing', validateTerms({ preset: 'print', stages: { Added: 'Added' } })), 'Processing');
+  assert.equal(
+    stageName('Processing', validateTerms({ preset: 'print', stages: { Added: 'Added' } })),
+    'Processing',
+  );
 });
