@@ -40,6 +40,8 @@ import ExpensesPage from './ExpensesPage';
 import DrawerReviews from './DrawerReviews';
 import { setKeepChoice } from './history-keep.mjs';
 import { extraMaterialsRank } from './production-materials.mjs';
+import { holdEvent } from './job-hold.mjs';
+import type { HoldChange } from './JobActions';
 import { dismissLowStockReminder, lowAtOtherLocations, lowStockReminderDue } from './low-stock-locations.mjs';
 import { businessDay } from './dashboard.mjs';
 import { dismissLateReminder, LATE_FILTER_KEY, lateReminderDue, stageOverdue } from './stage-time.mjs';
@@ -515,6 +517,10 @@ export default function App() {
     };
   }, [scope]);
 
+  /** Put a job on hold with a reason, or resume it (anyone who can move jobs). */
+  async function holdJob(job: Job, hold: HoldChange) {
+    await save(holdEvent(job, hold, catalogueActor) as LedgerEvent);
+  }
   async function save(operation: LedgerEvent) {
     if (!scope) throw new Error('Sign in to a staff workspace first.');
     const target = scope;
@@ -1675,6 +1681,7 @@ export default function App() {
                       }}
                       jobSettings={branding.settings.jobs}
                       defaultTerms={branding.settings.documents.invoiceTerms}
+                      canChooseWorkflow={demo || (shop?.accessLevel ?? 0) >= 2}
                       discountPolicy={discountPolicy(
                         branding.settings.discounts,
                         demo ? 5 : (shop?.accessLevel ?? 0),
@@ -2443,6 +2450,7 @@ export default function App() {
                           onAddCustomer={() => setForm('customer')}
                           onJob={setSelectedJob}
                           onAction={(job, mode) => setJobToAdvance({ job, mode })}
+                          onHold={holdJob}
                           onBulkAction={(jobs, mode) => setBatchToAdvance({ jobs, mode })}
                           onDue={canChangeDue ? setDeadlineJobs : undefined}
                           onReceipt={setReceipt}
@@ -2492,6 +2500,7 @@ export default function App() {
                       onAction={(job, mode) => setJobToAdvance({ job, mode })}
                       onPayment={openPayment}
                       actor={catalogueActor}
+                      onHold={holdJob}
                       onExtraMaterials={
                         demo || (shop?.accessLevel ?? 0) >= extraMaterialsRank(branding.settings)
                           ? async (event) => {
@@ -2523,6 +2532,7 @@ export default function App() {
                       onReceipt={setReceipt}
                       jobSettings={branding.settings.jobs}
                       defaultTerms={branding.settings.documents.invoiceTerms}
+                      canChooseWorkflow={demo || (shop?.accessLevel ?? 0) >= 2}
                       discountPolicy={discountPolicy(
                         branding.settings.discounts,
                         demo ? 5 : (shop?.accessLevel ?? 0),
@@ -2612,6 +2622,7 @@ export default function App() {
                           onReceipt={setReceipt}
                           jobSettings={branding.settings.jobs}
                           defaultTerms={branding.settings.documents.invoiceTerms}
+                          canChooseWorkflow={demo || (shop?.accessLevel ?? 0) >= 2}
                           discountPolicy={discountPolicy(
                             branding.settings.discounts,
                             demo ? 5 : (shop?.accessLevel ?? 0),

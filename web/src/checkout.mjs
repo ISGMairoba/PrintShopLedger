@@ -1,5 +1,6 @@
 import { counts } from './branches.mjs';
 import { perItem } from './production-materials.mjs';
+import { validStageHours } from './stage-time.mjs';
 import { validDocumentTerms } from './document-terms.mjs';
 import { tierLabel, tierPrice, usesTiers } from './price-tiers.mjs';
 import { validDueAt } from './job-deadlines.mjs';
@@ -17,6 +18,19 @@ import {
   materialChoiceFor,
   materialConfirmDue,
 } from './material-choice.mjs';
+/** A job's stages, and the workflow it was sold with (its name and hours per stage). */
+function workflowFields(line) {
+  if (!line.workflow) return {};
+  const workflow = validateWorkflow(line.workflow);
+  const name = typeof line.workflowName === 'string' ? line.workflowName.trim().slice(0, 60) : '';
+  const hours = validStageHours(line.stageHours, workflow);
+  return {
+    workflow,
+    ...(name ? { workflowName: name } : {}),
+    ...(line.workflowId && name ? { workflowId: String(line.workflowId).slice(0, 40) } : {}),
+    ...(Object.keys(hours).length ? { stageHours: hours } : {}),
+  };
+}
 export const jobStatuses = ['Added', 'In Queue', 'Printing', 'Completed', 'Collected'];
 export const jobSources = ['In shop / USB', 'Shop network', 'WhatsApp', 'Email', 'Other'];
 const maxMoney = 100000000000;
@@ -64,7 +78,7 @@ export function quoteLine(ledger, line) {
       description: line.description.trim(),
       sourceNote: String(line.sourceNote ?? '').trim(),
       stockCountEventId: null,
-      ...(line.workflow ? { workflow: validateWorkflow(line.workflow) } : {}),
+      ...workflowFields(line),
       ...(dueAt ? { dueAt } : {}),
       ...(discount ? { discount } : {}),
       grossAmount: priced.amount,
@@ -146,7 +160,7 @@ export function quoteLine(ledger, line) {
     ...(dueAt ? { dueAt } : {}),
     ...(discount ? { discount } : {}),
     stockCountEventId: material && !choice ? stockCountEvent(ledger, material.id) : null,
-    ...(line.workflow ? { workflow: validateWorkflow(line.workflow) } : {}),
+    ...workflowFields(line),
     ...(shelfItem ? { shelfItem: true } : {}),
     description: line.description.trim(),
     quantity,
@@ -553,12 +567,14 @@ export function applyJobStatus(ledger, event) {
     throw Error('Review the latest job status before proceeding.');
   if (materialConfirmDue(job, data.status))
     throw Error('Confirm the material used for this job before moving it on.');
+  if (job.hold) throw Error('This job is on hold. Resume it before moving it on.');
   const next = {
     ...job,
     version: (job.version ?? 1) + 1,
     productionStatus: data.status,
-    // When it entered this stage ("Too long at this stage").
+    // When it entered this stage ("Too long at this stage"); time on hold restarts per stage.
     stageAt: data.modifiedAt,
+    stageHeldMs: 0,
     modifiedBy: data.modifiedBy,
     modifiedByLabel: data.modifiedByLabel,
     modifiedAt: data.modifiedAt,

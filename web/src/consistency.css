@@ -1998,3 +1998,33 @@ label small > .field-error {
 .stage-hours p {
   margin: 0;
 }
+.workflow-row {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+.workflow-row:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+/* Jobs on hold (waiting for approval, a balance, materials…). */
+.job-held {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #e5ecf7;
+  color: #1f3f73;
+  font-weight: 600;
+}
+[data-theme="dark"] .job-held {
+  background: #1d2c44;
+  color: #c6d8f5;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .job-held {
+    background: #1d2c44;
+    color: #c6d8f5;
+  }
+}

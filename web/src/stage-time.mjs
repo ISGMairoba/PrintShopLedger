@@ -27,11 +27,15 @@ export function validStageHours(value, stages) {
 
 export const stageStartedAt = (job) => job.stageAt ?? job.modifiedAt ?? job.createdAt;
 
-/** The time (ms) a job may spend at its current stage, or null when nothing says. */
+/**
+ * The time (ms) a job may spend at its current stage, or null when nothing says. A job sold with a
+ * workflow carries its own hours; older jobs use the business's.
+ */
 export function stageAllowance(job, stageHours = {}) {
   const stage = job.productionStatus ?? 'Added';
   if (finished.includes(stage)) return null;
-  if (stageHours[stage]) return stageHours[stage] * HOUR;
+  const hours = job.stageHours ?? stageHours;
+  if (hours[stage]) return hours[stage] * HOUR;
   if (!job.dueAt || Number.isNaN(Date.parse(job.dueAt))) return null;
   const flow = jobWorkflow(job);
   const working = flow.slice(0, Math.max(1, flow.indexOf('Completed')));
@@ -41,9 +45,11 @@ export function stageAllowance(job, stageHours = {}) {
 
 /** Whether a job has been at its stage longer than allowed, and by how much (ms). */
 export function stageOverdue(job, stageHours = {}, now = Date.now()) {
+  // On hold: the stage clock stops (and time already on hold at this stage is not counted).
+  if (job.hold) return null;
   const allowed = stageAllowance(job, stageHours);
   if (allowed === null) return null;
-  const spent = now - Date.parse(stageStartedAt(job));
+  const spent = now - Date.parse(stageStartedAt(job)) - (job.stageHeldMs ?? 0);
   return spent > allowed ? { spent, allowed, over: spent - allowed } : null;
 }
 

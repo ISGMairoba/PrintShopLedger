@@ -1,3 +1,4 @@
+import { useBusinessOptions } from './BusinessOptionsContext';
 import { useRef, useState } from 'react';
 import Modal from './Modal';
 import Icon from './Icon';
@@ -427,6 +428,7 @@ export default function TemplateEditor({
     (g) => g.name,
   );
   const change = (patch: Partial<Draft>) => setD((x) => ({ ...x, ...patch }));
+  const { workflows } = useBusinessOptions();
   // New names avoid the template's own names and every cost's formula name.
   const used = () =>
     new Set(
@@ -1157,6 +1159,31 @@ export default function TemplateEditor({
                 {p.maxDiscount}%. Admins and Managers use their own discount allowance and see a cost warning.
               </p>
             )}
+            {(workflows?.length ?? 0) > 0 && (
+              <label>
+                Workflow
+                <select
+                  aria-label="Template workflow"
+                  value={d.production?.workflowId ?? ''}
+                  onChange={(e) =>
+                    change({
+                      production:
+                        e.target.value || d.production?.extraMaterials
+                          ? { ...(d.production ?? {}), workflowId: e.target.value || undefined }
+                          : undefined,
+                    })
+                  }
+                >
+                  <option value="">Standard</option>
+                  {workflows.map((wf) => (
+                    <option key={wf.id} value={wf.id}>
+                      {wf.name}
+                    </option>
+                  ))}
+                </select>
+                <small>The stages this template's jobs go through.</small>
+              </label>
+            )}
             <fieldset className="choice-materials">
               <legend>Materials added in production</legend>
               <label className="check-label">
@@ -1166,8 +1193,14 @@ export default function TemplateEditor({
                   onChange={(e) =>
                     change({
                       production: e.target.checked
-                        ? { extraMaterials: true, costCovered: d.production?.costCovered ?? true }
-                        : undefined,
+                        ? {
+                            ...(d.production ?? {}),
+                            extraMaterials: true,
+                            costCovered: d.production?.costCovered ?? true,
+                          }
+                        : d.production?.workflowId
+                          ? { workflowId: d.production.workflowId }
+                          : undefined,
                     })
                   }
                 />
@@ -1179,7 +1212,13 @@ export default function TemplateEditor({
                     type="checkbox"
                     checked={d.production.costCovered}
                     onChange={(e) =>
-                      change({ production: { extraMaterials: true, costCovered: e.target.checked } })
+                      change({
+                        production: {
+                          ...(d.production ?? {}),
+                          extraMaterials: true,
+                          costCovered: e.target.checked,
+                        },
+                      })
                     }
                   />
                   Their cost is already in this template's price (its formulas include them)

@@ -236,6 +236,104 @@ export default function BusinessOptionsEditor({
                 ))}
             </div>
           </fieldset>
+          <fieldset className="stage-hours">
+            <legend>{w('Workflows')}</legend>
+            <p className="muted">
+              {w(
+                'Different kinds of work can follow their own stages, each with its own time: a logo (Design, Approval, Delivered), a paper bag (Design, Printing, Lamination, Cutting, Gumming, Packaging). Choose a workflow on each item; everything else uses the stages above.',
+              )}
+            </p>
+            {(value.workflows ?? []).map((wf, i) => {
+              const setWf = (patch: Partial<typeof wf>) =>
+                onChange({
+                  ...value,
+                  workflows: value.workflows.map((x, j) => (j === i ? { ...x, ...patch } : x)),
+                });
+              const stages = wf.stages.map((st) => st.trim()).filter(Boolean);
+              return (
+                <div key={wf.id} className="workflow-row">
+                  <div className="form-grid">
+                    <label>
+                      {w('Workflow name')}
+                      <input
+                        aria-label={`Workflow ${i + 1} name`}
+                        maxLength={60}
+                        value={wf.name}
+                        onChange={(e) => setWf({ name: e.target.value })}
+                      />
+                    </label>
+                    <label>
+                      {w('Stages')}
+                      <textarea
+                        aria-label={`Workflow ${i + 1} stages`}
+                        rows={Math.max(5, wf.stages.length + 1)}
+                        value={wf.stages.join('\n')}
+                        onChange={(e) => setWf({ stages: e.target.value.split('\n') })}
+                      />
+                      <small>{w('One per line. Keep Added first, and Completed then Collected last.')}</small>
+                    </label>
+                  </div>
+                  <div className="form-grid">
+                    {stages
+                      .filter((st) => !['Completed', 'Collected'].includes(st))
+                      .map((st) => (
+                        <label key={st}>
+                          {stage(st)} (hours)
+                          <input
+                            aria-label={`${wf.name || 'Workflow'} ${stage(st)} hours`}
+                            type="number"
+                            min="0.25"
+                            max="2160"
+                            step="0.25"
+                            placeholder="Automatic"
+                            value={wf.hours?.[st] ?? ''}
+                            onChange={(e) => {
+                              const hours = { ...(wf.hours ?? {}) };
+                              if (e.target.value === '') delete hours[st];
+                              else hours[st] = Number(e.target.value);
+                              setWf({ hours });
+                            }}
+                          />
+                        </label>
+                      ))}
+                  </div>
+                  <button
+                    type="button"
+                    className="text-button danger-text"
+                    onClick={() =>
+                      onChange({ ...value, workflows: value.workflows.filter((_, j) => j !== i) })
+                    }
+                  >
+                    Remove workflow
+                  </button>
+                </div>
+              );
+            })}
+            <button
+              type="button"
+              className="secondary"
+              disabled={(value.workflows?.length ?? 0) >= 30}
+              onClick={() =>
+                onChange({
+                  ...value,
+                  workflows: [
+                    ...(value.workflows ?? []),
+                    {
+                      id: crypto.randomUUID(),
+                      name: '',
+                      stages: ['Added', 'Design', 'Approval', 'Completed', 'Collected'],
+                      hours: {},
+                    },
+                  ],
+                })
+              }
+            >
+              <Icon name="add" /> {w('Add workflow')}
+            </button>
+            <small className="muted">
+              {w('Jobs keep the workflow they were sold with; changes apply to new jobs.')}
+            </small>
+          </fieldset>
         </>
       )}
       {saveControl}

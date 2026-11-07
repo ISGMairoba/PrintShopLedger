@@ -94,7 +94,8 @@ export default function ServicesPage({
   const [extraMaterials, setExtraMaterials] = useState(false);
   const [costCovered, setCostCovered] = useState(false);
   const [perItemText, setPerItemText] = useState('1');
-  const { jobStages } = useBusinessOptions();
+  const [workflowId, setWorkflowId] = useState('');
+  const { jobStages, workflows } = useBusinessOptions();
   const { stage } = useWords();
   const confirmStages = jobStages.filter((s) => s !== 'Collected');
   const defaultConfirmStage = confirmStages.includes('Printing')
@@ -142,6 +143,7 @@ export default function ServicesPage({
     setExtraMaterials(!!s?.production?.extraMaterials);
     setCostCovered(!!s?.production?.costCovered);
     setPerItemText(String(s?.production?.perItem ?? 1));
+    setWorkflowId(s?.production?.workflowId ?? '');
     setStockDraft(null);
     setEditor(target);
   };
@@ -264,6 +266,7 @@ export default function ServicesPage({
           ...(materialValue && !privateItem && Number(perItemText) !== 1
             ? { perItem: Number(perItemText) }
             : {}),
+          ...(!privateItem && workflowId ? { workflowId } : {}),
         },
       };
       const event: ServiceEvent = {
@@ -1009,6 +1012,26 @@ export default function ServicesPage({
                     {w(
                       'How many units of the material one item takes. Example: A2 lamination from film counted in A4 units uses 4 (A4 = 1, A3 = 2).',
                     )}
+                  </small>
+                </label>
+              )}
+              {!privateItem && (workflows?.length ?? 0) > 0 && (
+                <label>
+                  {w('Workflow')}
+                  <select
+                    aria-label="Item workflow"
+                    value={workflowId}
+                    onChange={(e) => setWorkflowId(e.target.value)}
+                  >
+                    <option value="">Standard</option>
+                    {workflows.map((wf) => (
+                      <option key={wf.id} value={wf.id}>
+                        {wf.name}
+                      </option>
+                    ))}
+                  </select>
+                  <small>
+                    {w('The stages its jobs go through (Business Settings → Dropdowns & workflow).')}
                   </small>
                 </label>
               )}

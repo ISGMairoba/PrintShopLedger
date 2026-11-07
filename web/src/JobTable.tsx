@@ -8,7 +8,7 @@ import { jobWorkflow } from './business-options.mjs';
 import ResponsiveTable from './ResponsiveTable';
 import { useShowMore } from './ShowMore';
 import { SortHeader, useTableSort } from './TableSort';
-import JobActions, { type ProgressMode } from './JobActions';
+import JobActions, { type HoldChange, type ProgressMode } from './JobActions';
 import { currency } from './receipts.mjs';
 import { deadlineState } from './job-deadlines.mjs';
 import type { Ledger, Job } from './types';
@@ -38,6 +38,7 @@ export default function JobTable({
   audit = false,
   onJob,
   onAction,
+  onHold,
   onBulkAction,
   onDue,
   grouped = false,
@@ -53,6 +54,7 @@ export default function JobTable({
   audit?: boolean;
   onJob: (id: string) => void;
   onAction: (job: Job, mode: ProgressMode) => void;
+  onHold?: (job: Job, hold: HoldChange) => Promise<void>;
   onDue?: (jobs: Job[]) => void;
   onBulkAction?: (jobs: Job[], mode: ProgressMode) => void;
   grouped?: boolean;
@@ -223,6 +225,20 @@ export default function JobTable({
                   {materialPending(job) && stage !== 'Cancelled' && (
                     <small className="material-pending">Material to confirm</small>
                   )}
+                  {job.hold && (
+                    <small className="job-held">
+                      On hold: {job.hold.reason}
+                      {job.hold.note ? ` — ${job.hold.note}` : ''}
+                    </small>
+                  )}
+                  {job.workflowName && <small>Workflow: {job.workflowName}</small>}
+                  {job.hold && (
+                    <small className="job-held">
+                      On hold: {job.hold.reason}
+                      {job.hold.note ? ` — ${job.hold.note}` : ''}
+                    </small>
+                  )}
+                  {job.workflowName && <small>Workflow: {job.workflowName}</small>}
                   {(() => {
                     const late = stageOverdue(job, stageHours);
                     return late ? (
@@ -272,7 +288,7 @@ export default function JobTable({
                 )}
                 <td>
                   {/* The next stage stays the first (main) action; on phones the rest go under More. */}
-                  <JobActions job={job} busy={busy} onAction={onAction} />
+                  <JobActions job={job} busy={busy} onAction={onAction} onHold={onHold} />
                   {onDue && !['Completed', 'Collected', 'Cancelled'].includes(job.productionStatus ?? '') && (
                     <button className="text-button" disabled={busy} onClick={() => onDue([job])}>
                       <Icon name="calendar" /> Change due date
