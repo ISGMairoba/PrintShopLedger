@@ -1,4 +1,5 @@
 import { validDocumentTerms } from './document-terms.mjs';
+import { validProductionSettings } from './production-materials.mjs';
 import { logoPositions } from './document-logos.mjs';
 import {
   logoVariantsDefaults,
@@ -126,6 +127,8 @@ export const defaultBranding = () => ({
   corrections: { recentDays: 7 },
   /** autoClose: drawers left open overnight are closed "not counted" for an Admin to review. */
   drawers: { autoClose: true },
+  /** extraMaterialsRank: the lowest rank that may add materials to a job in production. */
+  production: { extraMaterialsRank: 1 },
   // syncMinutes: how often devices check for changes made on other devices.
   security: { autoLockMinutes: 0, syncMinutes: 2 },
   jobs: jobSettingsDefaults(),
@@ -259,6 +262,7 @@ export function validateBranding(input) {
       (preset === 'all' && pagesWithoutAll.includes(key))
     )
       throw Error('Choose a valid default period for each page.');
+  value.production = validProductionSettings(value.production);
   value.drawers ??= { autoClose: true };
   if (
     !value.drawers ||

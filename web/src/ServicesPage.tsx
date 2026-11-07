@@ -90,6 +90,10 @@ export default function ServicesPage({
   const [stockDraft, setStockDraft] = useState<StockDraft | null>(null);
   const [choiceIds, setChoiceIds] = useState<string[]>([]);
   const [confirmStage, setConfirmStage] = useState('Printing');
+  // Materials in production: added materials, their cost covered, material per item.
+  const [extraMaterials, setExtraMaterials] = useState(false);
+  const [costCovered, setCostCovered] = useState(false);
+  const [perItemText, setPerItemText] = useState('1');
   const { jobStages } = useBusinessOptions();
   const { stage } = useWords();
   const confirmStages = jobStages.filter((s) => s !== 'Collected');
@@ -135,6 +139,9 @@ export default function ServicesPage({
     setMaterialValue(s?.materialOptions?.length ? CHOICE : (s?.materialId ?? ''));
     setChoiceIds(s?.materialOptions ?? []);
     setConfirmStage(s?.confirmStage ?? defaultConfirmStage);
+    setExtraMaterials(!!s?.production?.extraMaterials);
+    setCostCovered(!!s?.production?.costCovered);
+    setPerItemText(String(s?.production?.perItem ?? 1));
     setStockDraft(null);
     setEditor(target);
   };
@@ -250,6 +257,14 @@ export default function ServicesPage({
         packPrices: !privateItem && pricing === 'packs' ? packPricesFrom(packs) : [],
         priceTiers: !privateItem && pricing === 'ranges' ? tiersFrom(tiers) : [],
         customPrice: !privateItem && pricing === 'custom',
+        production: {
+          ...(!privateItem && extraMaterials
+            ? { extraMaterials: true, ...(costCovered ? { costCovered: true } : {}) }
+            : {}),
+          ...(materialValue && !privateItem && Number(perItemText) !== 1
+            ? { perItem: Number(perItemText) }
+            : {}),
+        },
       };
       const event: ServiceEvent = {
         id: crypto.randomUUID(),
@@ -967,6 +982,53 @@ export default function ServicesPage({
                       )}
                     </small>
                   </label>
+                </fieldset>
+              )}
+              {materialValue && !privateItem && (
+                <label>
+                  {w('Material used per item')}
+                  <input
+                    aria-label="Material used per item"
+                    type="number"
+                    min="0.001"
+                    max="10000"
+                    step="0.001"
+                    value={perItemText}
+                    onChange={(e) => setPerItemText(e.target.value)}
+                  />
+                  <small>
+                    {w(
+                      'How many units of the material one item takes. Example: A2 lamination from film counted in A4 units uses 4 (A4 = 1, A3 = 2).',
+                    )}
+                  </small>
+                </label>
+              )}
+              {!privateItem && (
+                <fieldset className="choice-materials">
+                  <legend>{w('Materials added in production')}</legend>
+                  <label className="check-label">
+                    <input
+                      type="checkbox"
+                      checked={extraMaterials}
+                      onChange={(e) => setExtraMaterials(e.target.checked)}
+                    />
+                    {w('Accepts additional materials')}
+                  </label>
+                  {extraMaterials && (
+                    <label className="check-label">
+                      <input
+                        type="checkbox"
+                        checked={costCovered}
+                        onChange={(e) => setCostCovered(e.target.checked)}
+                      />
+                      {w("Their cost is already in this item's price")}
+                    </label>
+                  )}
+                  <small>
+                    {w(
+                      'In production, staff can add any material from stock with the amount used (for example board, lamination and glue for a paper bag). Stock is taken when added; the price does not change.',
+                    )}
+                  </small>
                 </fieldset>
               )}
               {!privateItem && (

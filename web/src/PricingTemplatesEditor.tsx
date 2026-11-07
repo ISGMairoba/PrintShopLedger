@@ -1157,6 +1157,39 @@ export default function TemplateEditor({
                 {p.maxDiscount}%. Admins and Managers use their own discount allowance and see a cost warning.
               </p>
             )}
+            <fieldset className="choice-materials">
+              <legend>Materials added in production</legend>
+              <label className="check-label">
+                <input
+                  type="checkbox"
+                  checked={!!d.production?.extraMaterials}
+                  onChange={(e) =>
+                    change({
+                      production: e.target.checked
+                        ? { extraMaterials: true, costCovered: d.production?.costCovered ?? true }
+                        : undefined,
+                    })
+                  }
+                />
+                Accepts additional materials
+              </label>
+              {d.production?.extraMaterials && (
+                <label className="check-label">
+                  <input
+                    type="checkbox"
+                    checked={d.production.costCovered}
+                    onChange={(e) =>
+                      change({ production: { extraMaterials: true, costCovered: e.target.checked } })
+                    }
+                  />
+                  Their cost is already in this template's price (its formulas include them)
+                </label>
+              )}
+              <small>
+                In production, staff can add any material from stock with the amount used. Stock is taken when
+                added; the price does not change.
+              </small>
+            </fieldset>
             <h4>Preview with the default values</h4>
             {preview ? (
               <TemplateAudit

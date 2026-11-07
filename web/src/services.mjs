@@ -1,4 +1,5 @@
 import { normalizeLedger } from './materials.mjs';
+import { validProduction } from './production-materials.mjs';
 import { materialCode } from './material-display.mjs';
 import { hasCost, validCosting } from './pricing-templates.mjs';
 import { validPackPrices } from './pack-prices.mjs';
@@ -149,6 +150,7 @@ export function applyServiceEvent(input, event) {
         ? { variantGroup: data.variantGroup, variantName: String(data.variantName).trim() }
         : {}),
       ...choiceFields(ledger, data),
+      production: validProduction(data.production) ?? {},
       archived: false,
       version: 1,
       createdBy: data.modifiedBy,
@@ -185,6 +187,7 @@ export function applyServiceEvent(input, event) {
     delete next.customPrice;
     if (data.customPrice ?? existing.customPrice) next.customPrice = true;
     Object.assign(next, choiceFields(ledger, data, existing));
+    next.production = validProduction(data.production) ?? existing.production ?? {};
     // Joining or leaving a product's variants: null clears the link (left out keeps it).
     if (data.variantGroup !== undefined) {
       delete next.variantGroup;
