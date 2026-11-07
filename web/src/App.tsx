@@ -1753,6 +1753,7 @@ export default function App() {
                                   shop?.accessLevel ?? 0,
                                   branding.settings.pageAccess,
                                 ),
+                              costs: demo || canSeeTemplateCosts(branding.settings.pricing, shop?.accessLevel ?? 0),
                               stock:
                                 demo ||
                                 canAccessPage(

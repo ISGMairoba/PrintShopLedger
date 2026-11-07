@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { profitReport, profitSections } from './profit.mjs';
 import ResponsiveTable from './ResponsiveTable';
 import { validRange } from './dashboard.mjs';
 import PeriodFilter, { usePeriod } from './PeriodFilter';
@@ -38,6 +39,8 @@ export type ReportAccess = {
   payments: boolean;
   expenses: boolean;
   stock: boolean;
+  /** May see costs and profit (Business Settings → Pricing templates → who sees costs). */
+  costs?: boolean;
 };
 type Props = {
   ledger: Ledger;
@@ -55,7 +58,7 @@ type Props = {
   /** The owner's choice of branch (All branches or one). */
   branchControl?: ReactNode;
 };
-type Tab = 'Customer statement' | 'Payee statement' | 'Transactions' | 'Summary';
+type Tab = 'Customer statement' | 'Payee statement' | 'Transactions' | 'Summary' | 'Profit';
 type StatementJob = {
   id: string;
   ref: string;
@@ -278,10 +281,11 @@ export default function ReportsPage({
     void import('./report-pdf');
     void import('./share-pdf');
   }, []);
-  const tabs = (['Customer statement', 'Payee statement', 'Transactions', 'Summary'] as Tab[]).filter(
+  const tabs = (['Customer statement', 'Payee statement', 'Transactions', 'Summary', 'Profit'] as Tab[]).filter(
     (t) =>
       (t !== 'Customer statement' || (access.customers && access.jobs && access.payments)) &&
-      (t !== 'Payee statement' || access.expenses),
+      (t !== 'Payee statement' || access.expenses) &&
+      (t !== 'Profit' || (!!access.costs && access.jobs)),
   );
   const [tab, setTab] = useState<Tab>(
     payeeId && tabs.includes('Payee statement') ? 'Payee statement' : tabs[0],
@@ -408,6 +412,8 @@ export default function ReportsPage({
       </div>
       {tab === 'Customer statement' ? (
         <StatementTab {...shared} customerId={customerId} onCustomerChange={onCustomerChange} />
+      ) : tab === 'Profit' ? (
+        <ProfitTab {...shared} />
       ) : tab === 'Payee statement' ? (
         <PayeeStatementTab {...shared} payeeId={payeeId} onPayeeChange={onPayeeChange} />
       ) : tab === 'Transactions' ? (
@@ -1230,6 +1236,181 @@ function TransactionsTab({
     </>
   );
 }
+
+function ProfitTab({ ledger, freshness, busy, error, pdf, csv }: TabProps) {
+  const { range, valid, controls } = useRange();
+  const report = useMemo(
+    () => (valid ? (profitReport(ledger, range.from, range.to) as ProfitReport) : null),
+    [ledger, range.from, range.to, valid],
+  );
+  const [showJobs, setShowJobs] = useState(false);
+  const title = 'Profit';
+  const subtitle = report
+    ? [
+        `Period: ${report.from} to ${report.to}`,
+        'Estimated from the costs set in Pricing Templates; jobs with no cost set are counted separately.',
+      ]
+    : [];
+  const file = report ? reportFileName('Profit', `${report.from} to ${report.to}`) : '';
+  const t = report?.totals;
+  return (
+    <>
+      <section className="panel dashboard-filters report-filters">
+        {controls}
+        <small>Dates use Africa/Lagos. Jobs count on the day they were sold; cancelled jobs are left out.</small>
+      </section>
+      {freshness}
+      {!valid || !report || !t ? (
+        <div className="dashboard-warning" role="alert">
+          Choose valid From and To dates, in order, spanning no more than ten years.
+        </div>
+      ) : (
+        <>
+          <section className="panel report-header">
+            <div>
+              <h2>
+                {report.from} to {report.to}
+              </h2>
+              <small>
+                Costs come from template estimates at the sale, service costs, the costs linked to each material,
+                and materials added in production (unless already in the price).
+              </small>
+            </div>
+            <Exports
+              busy={busy}
+              onCsv={() => csv(file, title, subtitle, profitSections(report, { money: (k: number) => (k / 100).toFixed(2) }))}
+              onPdf={() => void pdf(file, title, subtitle, profitSections(report, { money: currency, unit: '' }))}
+            />
+          </section>
+          {error && (
+            <p role="alert" className="dashboard-warning">
+              {error}
+            </p>
+          )}
+          <section className="stats dashboard-stats" aria-label="Profit summary">
+            <article>
+              <span>Estimated profit</span>
+              <strong>{currency(t.profit)}</strong>
+              <small>{t.margin === null ? 'No sales with a cost' : `${t.margin}% of sales`}</small>
+            </article>
+            <article>
+              <span>Sales</span>
+              <strong>{currency(t.revenue)}</strong>
+              <small>{t.jobs - t.unknownJobs} jobs with a cost</small>
+            </article>
+            <article>
+              <span>Estimated cost</span>
+              <strong>{currency(t.cost)}</strong>
+            </article>
+            <article>
+              <span>No cost set</span>
+              <strong>{t.unknownJobs} jobs</strong>
+              <small>{currency(t.unknownRevenue)} of sales not in the profit</small>
+            </article>
+          </section>
+          <section className="panel">
+            <h2>By service or template</h2>
+            {report.byItem.length ? (
+              <div className="table-wrap">
+                <table aria-label="Profit by service or template">
+                  <thead>
+                    <tr>
+                      <th>Service / template</th>
+                      <th>Sales</th>
+                      <th>Cost</th>
+                      <th>Profit</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {report.byItem.map((g) => (
+                      <tr key={g.item}>
+                        <td>
+                          {g.item}
+                          <small>
+                            {g.jobs} jobs{g.unknown ? ` · ${g.unknown} with no cost set` : ''}
+                          </small>
+                        </td>
+                        <td>{currency(g.revenue)}</td>
+                        <td>{currency(g.cost)}</td>
+                        <td className={g.profit < 0 ? 'danger-text' : undefined}>{currency(g.profit)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="muted report-none">No jobs in this period.</p>
+            )}
+          </section>
+          {report.jobs.length > 0 && (
+            <section className="panel">
+              <h2>Jobs</h2>
+              <button type="button" className="text-button" onClick={() => setShowJobs(!showJobs)}>
+                {showJobs ? 'Hide jobs' : `Show all ${report.jobs.length} jobs`}
+              </button>
+              {showJobs && (
+                <div className="table-wrap">
+                  <table aria-label="Profit by job">
+                    <thead>
+                      <tr>
+                        <th>Date / job</th>
+                        <th>Sale</th>
+                        <th>Cost</th>
+                        <th>Profit</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {report.jobs.map((r) => (
+                        <tr key={r.id}>
+                          <td>
+                            {r.day} · {r.description}
+                            <small>
+                              {r.item} · {r.basis}
+                            </small>
+                          </td>
+                          <td>{currency(r.revenue)}</td>
+                          <td>{r.known ? currency(r.cost) : '—'}</td>
+                          <td className={r.known && r.profit < 0 ? 'danger-text' : undefined}>
+                            {r.known ? currency(r.profit) : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          )}
+        </>
+      )}
+    </>
+  );
+}
+type ProfitReport = {
+  from: string;
+  to: string;
+  totals: {
+    jobs: number;
+    revenue: number;
+    cost: number;
+    profit: number;
+    margin: number | null;
+    unknownJobs: number;
+    unknownRevenue: number;
+  };
+  byItem: { item: string; jobs: number; revenue: number; cost: number; profit: number; unknown: number }[];
+  jobs: {
+    id: string;
+    day: string;
+    item: string;
+    description: string;
+    revenue: number;
+    cost: number;
+    known: boolean;
+    basis: string;
+    profit: number;
+  }[];
+};
 
 function SummaryTab({
   ledger,
