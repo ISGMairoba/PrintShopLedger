@@ -357,6 +357,10 @@ export function validateTemplate(t) {
     computed,
     expenses,
     pricing: { method: p.method, rate, floor, maxDiscount, rounding },
+    // Materials added in production (left off when not used, so older templates stay the same).
+    ...(t.production?.extraMaterials
+      ? { production: { extraMaterials: true, costCovered: t.production.costCovered !== false } }
+      : {}),
   };
 }
 export function validatePricingSettings(input = pricingDefaults()) {

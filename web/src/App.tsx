@@ -39,6 +39,7 @@ import { allowedSettingsTabs, canAccessPage, pageGroup, pages, navigationPages }
 import ExpensesPage from './ExpensesPage';
 import DrawerReviews from './DrawerReviews';
 import { setKeepChoice } from './history-keep.mjs';
+import { extraMaterialsRank } from './production-materials.mjs';
 import type { ProgressMode } from './JobActions';
 import JobProgressDialog from './JobProgressDialog';
 import { stageMoveEvents } from './material-choice.mjs';
@@ -2409,6 +2410,14 @@ export default function App() {
                       }}
                       onAction={(job, mode) => setJobToAdvance({ job, mode })}
                       onPayment={openPayment}
+                      actor={catalogueActor}
+                      onExtraMaterials={
+                        demo || (shop?.accessLevel ?? 0) >= extraMaterialsRank(branding.settings)
+                          ? async (event) => {
+                              await save(event);
+                            }
+                          : undefined
+                      }
                     />
                   )}
                   {form === 'customer' && (

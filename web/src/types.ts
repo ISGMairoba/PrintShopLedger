@@ -68,6 +68,8 @@ export type PricingTemplate = {
   computed: TemplateComputed[];
   expenses: TemplateExpense[];
   pricing: TemplatePricing;
+  /** Materials may be added in production; costCovered: the formula already prices them. */
+  production?: { extraMaterials: boolean; costCovered: boolean };
 };
 export type PricingSettings = {
   enabled: boolean;
@@ -198,6 +200,15 @@ export interface Job {
   unitPrice?: number;
   /** A choice-of-materials job: its linked materials, confirmation stage and size in material units. */
   materialChoice?: MaterialChoice;
+  /** Materials added in production (services and templates that accept them): current totals. */
+  extraMaterials?: {
+    usages: { materialId: string; quantity: number }[];
+    /** The template's or service's price already covers their cost. */
+    costCovered?: boolean;
+    updatedBy: string;
+    updatedByLabel: string;
+    updatedAt: string;
+  };
   /** The material(s) confirmed as used in production. */
   materialUsed?: {
     usages: { id?: string; materialId: string; quantity: number; group?: number }[];
@@ -342,6 +353,8 @@ export interface Service {
   materialOptions?: string[];
   /** The stage after which the material used is confirmed (the business's stage name). */
   confirmStage?: string;
+  /** Materials in production: added materials allowed, their cost covered, material per item. */
+  production?: ServiceProduction;
   archived: boolean;
   version: number;
   createdBy: string;
@@ -357,6 +370,19 @@ export interface Service {
 }
 /** Template use: a formula name, and optionally a cost (amount in kobo for `per` units). */
 export type ServiceCosting = { key: string; amount?: number; per?: number; unit?: string };
+export type ServiceProduction = { extraMaterials?: boolean; costCovered?: boolean; perItem?: number };
+export type JobExtraMaterialsEvent = {
+  id: string;
+  kind: 'job.extra_materials_set';
+  data: {
+    id: string;
+    baseVersion: number;
+    usages: { id: string; materialId: string; quantity: number }[];
+    modifiedBy: string;
+    modifiedByLabel: string;
+    modifiedAt: string;
+  };
+};
 export interface PriceTier {
   from: number;
   price: number;
@@ -366,6 +392,7 @@ export interface PackPrice {
   price: number;
 }
 export interface ServiceCommand {
+  production?: ServiceProduction;
   materialOptions?: string[];
   confirmStage?: string;
   packPrices?: PackPrice[];
@@ -627,6 +654,7 @@ export type LedgerEvent =
   | CheckoutEvent
   | JobStatusEvent
   | JobMaterialEvent
+  | JobExtraMaterialsEvent
   | CustomerEvent
   | { id: string; kind: 'job.created'; data: Job }
   | { id: string; kind: 'payment.recorded'; data: Payment }

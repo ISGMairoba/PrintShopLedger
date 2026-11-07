@@ -1,4 +1,5 @@
 import { counts } from './branches.mjs';
+import { perItem } from './production-materials.mjs';
 import { validDocumentTerms } from './document-terms.mjs';
 import { tierLabel, tierPrice, usesTiers } from './price-tiers.mjs';
 import { validDueAt } from './job-deadlines.mjs';
@@ -93,7 +94,9 @@ export function quoteLine(ledger, line) {
     raw *= BigInt(Math.round(width * 1000)) * BigInt(Math.round(height * 1000));
     divisor = 1000000000n;
   }
-  const needed = Number((raw * 1000n + divisor / 2n) / divisor) / 1000;
+  // Material used: the size times how much one item uses (A2 lamination = 4 A4 units).
+  const per = BigInt(Math.round(perItem(service) * 1000));
+  const needed = Number((raw * per + divisor / 2n) / divisor) / 1000;
   // The price per item: entered at the sale for a custom-price service, the rate of the quantity's
   // range for a service priced by range, else the service price.
   let unitPrice = service.price;
