@@ -4,6 +4,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import DashboardBreakdowns from './DashboardBreakdowns';
 import { InteractiveTrend } from './InteractiveCharts';
 import { dashboardSummary, validRange } from './dashboard.mjs';
+import { profitReport } from './profit.mjs';
 import type { Ledger, Material } from './types';
 import './dashboard.css';
 import { useWords } from './Words';
@@ -21,6 +22,8 @@ type Access = {
   expenses: boolean;
   materials: boolean;
   customers: boolean;
+  /** May see costs and profit. */
+  costs?: boolean;
 };
 export default function DashboardPage({
   ledger,
@@ -60,18 +63,28 @@ export default function DashboardPage({
         : [],
     [branches, range.from, range.to, valid],
   );
+  const profit = useMemo(
+    () =>
+      ready && valid && access.costs && access.sales
+        ? (profitReport(ledger, range.from, range.to) as {
+            totals: { profit: number; margin: number | null; unknownJobs: number };
+          })
+        : null,
+    [ledger, range.from, range.to, valid, ready, access.costs, access.sales],
+  );
   if (!ready)
     return (
       <section className="panel empty" role="status">
         Loading dashboard records…
       </section>
     );
-  const card = (label: string, value: number, note: string, comparison?: string) => (
+  const card = (label: string, value: number, note: string, comparison?: string, extra?: string) => (
     <article key={label}>
       <span>{w(label)}</span>
       <strong>{money(value)}</strong>
       <small>{w(note)}</small>
       {comparison && <small>{comparison}</small>}
+      {extra && <small className="dashboard-profit">{extra}</small>}
     </article>
   );
   return (
@@ -116,6 +129,13 @@ export default function DashboardPage({
                 w(`${summary.jobs} jobs · ${summary.cancelled} cancelled`) +
                   (summary.discounts > 0 ? ` · after ${money(summary.discounts)} discounts` : ''),
                 change(summary.sales, summary.previous.sales),
+                profit
+                  ? `Estimated profit ${money(profit.totals.profit)}` +
+                      (profit.totals.margin === null ? '' : ` (${profit.totals.margin}%)`) +
+                      (profit.totals.unknownJobs
+                        ? ` · ${profit.totals.unknownJobs} jobs with no cost set`
+                        : '')
+                  : undefined,
               )}
             {access.payments &&
               card(
