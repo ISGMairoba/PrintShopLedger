@@ -42,8 +42,12 @@ export function validSteps(steps, label = 'Workflow') {
   });
 }
 
-/** A step list as a job's workflow: its stages and hours per stage. */
+/**
+ * A step list as a job's workflow: its stages and hours per stage.
+ * @returns {{ stages: string[], hours: Record<string, number> }}
+ */
 export function stepsWorkflow(steps) {
+  /** @type {Record<string, number>} */
   const hours = {};
   for (const s of steps) if (s.minutes) hours[s.name] = Math.round((s.minutes / 60) * 10000) / 10000;
   return { stages: [...FIXED_START, ...steps.map((s) => s.name), ...FIXED_END], hours };
