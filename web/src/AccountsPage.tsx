@@ -9,8 +9,10 @@ import { businessDay } from './dashboard.mjs';
 import { accountBalance, accountBranch, moneyTransactions, operationEvent } from './operations.mjs';
 import { useBusinessOptions } from './BusinessOptionsContext';
 import { accountSummary } from './account-summary.mjs';
+import { MONEY_TYPES, lenderBalances } from './money-moves.mjs';
 import type { Ledger, MoneyAccount, OperationsEvent, AccountPaymentMethod } from './types';
 const today = () => businessDay(new Date().toISOString());
+const NEW_LENDER = '__new';
 export default function AccountsPage({
   ledger,
   busy,
@@ -39,7 +41,9 @@ export default function AccountsPage({
     [showArchived, setShowArchived] = useState(false),
     [editor, setEditor] = useState<MoneyAccount | 'new' | null>(null),
     [detail, setDetail] = useState<MoneyAccount | null>(null),
-    [action, setAction] = useState<'transfer' | 'reconcile' | 'assign' | null>(null),
+    [action, setAction] = useState<'transfer' | 'reconcile' | 'assign' | 'money' | null>(null),
+    [moneyType, setMoneyType] = useState<keyof typeof MONEY_TYPES>('loan_in'),
+    [lender, setLender] = useState(''),
     [selected, setSelected] = useState(''),
     [on, setOn] = useState(today()),
     [error, setError] = useState('');
@@ -95,6 +99,8 @@ export default function AccountsPage({
     today(),
   );
   const leftOut = active.length - summary.accounts;
+  const payees = ledger.payees ?? [],
+    owedTo = lenderBalances(ledger);
   return (
     <>
       {!configurationOnly && (
@@ -113,12 +119,20 @@ export default function AccountsPage({
           <article>
             <span>Money in this month</span>
             <strong>{currency(summary.moneyIn)}</strong>
-            <small>Customer payments into these accounts</small>
+            <small>
+              {summary.otherIn
+                ? `Customer payments, and ${currency(summary.otherIn)} loans, owner money or other income`
+                : 'Customer payments into these accounts'}
+            </small>
           </article>
           <article>
             <span>Money out this month</span>
             <strong>{currency(summary.moneyOut)}</strong>
-            <small>Expenses paid and refunds</small>
+            <small>
+              {summary.otherOut
+                ? `Expenses, refunds, and ${currency(summary.otherOut)} loan repayments or owner withdrawals`
+                : 'Expenses paid and refunds'}
+            </small>
           </article>
           <article>
             <span>Last reconciled</span>
@@ -139,6 +153,13 @@ export default function AccountsPage({
                   : 'No differences this month'}
             </small>
           </article>
+          {summary.owedToLenders > 0 && (
+            <article>
+              <span>Owed to lenders</span>
+              <strong>{currency(summary.owedToLenders)}</strong>
+              <small>{summary.lenders === 1 ? '1 loan' : `${summary.lenders} lenders`} still to repay</small>
+            </article>
+          )}
           {summary.unassignedCount > 0 && (
             <article>
               <span>Not in an account</span>
@@ -199,6 +220,18 @@ export default function AccountsPage({
           <button
             className="secondary"
             hidden={configurationOnly}
+            disabled={busy || !active.length}
+            onClick={() => {
+              setMoneyType('loan_in');
+              setLender('');
+              open('money');
+            }}
+          >
+            Money in / out
+          </button>
+          <button
+            className="secondary"
+            hidden={configurationOnly}
             disabled={busy || !active.length || !unassigned.length}
             onClick={() => open('assign')}
           >
@@ -225,6 +258,14 @@ export default function AccountsPage({
             {unassigned.length} payment{unassigned.length === 1 ? '' : 's'} without an account. They are
             excluded from account balances until assigned. Opening balances should cover transactions before
             your chosen start date.
+          </p>
+        )}
+        {!configurationOnly && Object.keys(owedTo).length > 0 && (
+          <p className="panel-note">
+            <strong>Loans still owed:</strong>{' '}
+            {Object.entries(owedTo)
+              .map(([id, n]) => `${payees.find((p) => p.id === id)?.name ?? 'Lender'} ${currency(n)}`)
+              .join(' · ')}
           </p>
         )}
         <div className="table-wrap">
@@ -496,7 +537,9 @@ export default function AccountsPage({
                 ? 'Transfer between accounts'
                 : action === 'reconcile'
                   ? 'Reconcile account'
-                  : 'Assign previous payment'
+                  : action === 'money'
+                    ? 'Money in / out'
+                    : 'Assign previous payment'
             }
             busy={busy}
             onClose={() => setAction(null)}
@@ -517,6 +560,35 @@ export default function AccountsPage({
                       paidOn: on,
                       reason: String(f.get('reason')),
                     };
+                  if (action === 'money') {
+                    let lenderId = '';
+                    if (MONEY_TYPES[moneyType].lender) {
+                      if (lender === NEW_LENDER) {
+                        lenderId = crypto.randomUUID();
+                        const name = String(f.get('lenderName') ?? '').trim();
+                        if (!name) throw Error("Enter the lender's name.");
+                        if (
+                          !(await save('payee.created', {
+                            id: lenderId,
+                            name,
+                            phone: '',
+                            address: '',
+                            note: 'Lender',
+                          }))
+                        )
+                          return;
+                      } else lenderId = lender;
+                      if (!lenderId) throw Error('Choose the lender.');
+                    }
+                    const ok = await save('account.money_moved', {
+                      ...base,
+                      moneyType,
+                      amount: money(String(f.get('amount'))),
+                      ...(lenderId ? { lenderId } : {}),
+                    });
+                    if (ok) setAction(null);
+                    return;
+                  }
                   const kind =
                     action === 'transfer'
                       ? 'account.transferred'
@@ -586,6 +658,71 @@ export default function AccountsPage({
                       <CurrencyInput name="amount" required />
                     </label>
                   </>
+                ) : action === 'money' ? (
+                  <>
+                    <label>
+                      What is it?
+                      <select
+                        aria-label="Kind of money"
+                        value={moneyType}
+                        onChange={(e) => {
+                          setMoneyType(e.target.value as keyof typeof MONEY_TYPES);
+                          setLender('');
+                        }}
+                      >
+                        {(Object.keys(MONEY_TYPES) as (keyof typeof MONEY_TYPES)[]).map((k) => (
+                          <option key={k} value={k}>
+                            {MONEY_TYPES[k].label} ({MONEY_TYPES[k].direction > 0 ? 'in' : 'out'})
+                          </option>
+                        ))}
+                      </select>
+                      <small>
+                        {moneyType === 'loan_in'
+                          ? 'Adds to the account and is owed to the lender until repaid. Not income.'
+                          : moneyType === 'loan_repayment'
+                            ? 'Takes from the account and reduces what is owed. Record any interest as an expense.'
+                            : moneyType === 'owner_in'
+                              ? "The owner's own money put into the business. Not income."
+                              : moneyType === 'owner_out'
+                                ? 'Money the owner takes for personal use. Not an expense.'
+                                : 'Money received that is not a sale, such as a gift or grant. Shown as other income in reports.'}
+                      </small>
+                    </label>
+                    {MONEY_TYPES[moneyType].lender && (
+                      <label>
+                        Lender
+                        <select
+                          aria-label="Lender"
+                          required
+                          value={lender}
+                          onChange={(e) => setLender(e.target.value)}
+                        >
+                          <option value="">Choose the lender</option>
+                          {(moneyType === 'loan_in'
+                            ? payees.filter((p) => !p.archived)
+                            : payees.filter((p) => owedTo[p.id])
+                          ).map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name}
+                              {owedTo[p.id] ? ` · owed ${currency(owedTo[p.id])}` : ''}
+                            </option>
+                          ))}
+                          {moneyType === 'loan_in' && <option value={NEW_LENDER}>New lender…</option>}
+                        </select>
+                        <small>Lenders are saved with your payees.</small>
+                      </label>
+                    )}
+                    {lender === NEW_LENDER && MONEY_TYPES[moneyType].lender && (
+                      <label>
+                        Lender's name
+                        <input aria-label="Lender's name" name="lenderName" required maxLength={160} />
+                      </label>
+                    )}
+                    <label>
+                      Amount (₦)
+                      <CurrencyInput name="amount" required />
+                    </label>
+                  </>
                 ) : action === 'reconcile' ? (
                   <>
                     <p>
@@ -630,8 +767,16 @@ export default function AccountsPage({
                   </label>
                 )}
                 <label>
-                  Reason / note
-                  <textarea aria-label="Account entry reason" name="reason" required maxLength={500} />
+                  {action === 'money' ? 'Note' : 'Reason / note'}
+                  <textarea
+                    aria-label="Account entry reason"
+                    name="reason"
+                    required
+                    maxLength={500}
+                    placeholder={
+                      action === 'money' ? 'e.g. Loan from Moniepoint for the new printer' : undefined
+                    }
+                  />
                 </label>
                 <button type="submit">
                   Save{' '}
@@ -639,7 +784,9 @@ export default function AccountsPage({
                     ? 'transfer'
                     : action === 'reconcile'
                       ? 'reconciliation'
-                      : 'assignment'}
+                      : action === 'money'
+                        ? MONEY_TYPES[moneyType].label.toLowerCase()
+                        : 'assignment'}
                 </button>
               </fieldset>
             </form>
@@ -684,12 +831,18 @@ export default function AccountsPage({
                 </tbody>
               </table>
             </div>
-            <h3>Transfers and reconciliations</h3>
+            <h3>Transfers, reconciliations and other money</h3>
             {accountBalance(ledger, detail.id)
               .entries.filter((e: Record<string, any>) => e.action !== 'assignment')
               .map((e: Record<string, any>) => (
                 <p key={e.id}>
-                  {e.paidOn} · {e.action} · {currency(e.amount)}
+                  {e.paidOn} ·{' '}
+                  {e.action === 'money'
+                    ? `${MONEY_TYPES[e.moneyType as keyof typeof MONEY_TYPES]?.label ?? 'Money'}${
+                        e.lenderId ? ` · ${payees.find((p) => p.id === e.lenderId)?.name ?? 'Lender'}` : ''
+                      } · ${e.direction < 0 ? '−' : '+'}`
+                    : `${e.action} · `}
+                  {currency(e.amount)}
                   {e.action === 'transfer'
                     ? ` · ${accounts.find((a) => a.id === e.accountId)?.name} → ${accounts.find((a) => a.id === e.toAccountId)?.name}`
                     : ''}

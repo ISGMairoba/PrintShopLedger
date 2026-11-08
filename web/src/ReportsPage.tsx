@@ -1320,6 +1320,13 @@ function ProfitTab({ ledger, freshness, busy, error, pdf, csv }: TabProps) {
               <strong>{t.unknownJobs} jobs</strong>
               <small>{currency(t.unknownRevenue)} of sales not in the profit</small>
             </article>
+            {!!t.otherIncome && (
+              <article>
+                <span>Other income</span>
+                <strong>{currency(t.otherIncome)}</strong>
+                <small>Gifts, grants and other money that is not a sale; not in the profit</small>
+              </article>
+            )}
           </section>
           <section className="panel">
             <h2>By service or template</h2>
@@ -1410,6 +1417,7 @@ type ProfitReport = {
     margin: number | null;
     unknownJobs: number;
     unknownRevenue: number;
+    otherIncome?: number;
   };
   byItem: { item: string; jobs: number; revenue: number; cost: number; profit: number; unknown: number }[];
   jobs: {

@@ -2,6 +2,7 @@ import { prepareAccountMethods, routingLabels } from './account-methods.mjs';
 import { validDueAt } from './job-deadlines.mjs';
 import { businessDay } from './dashboard.mjs';
 import { localBranchId } from './branches.mjs';
+import { MONEY_TYPES, lenderBalances } from './money-moves.mjs';
 
 // Money accounts belong to a branch ('main' when not set) or are shared by all branches ('*').
 export const accountBranch = (a) => a?.branch || 'main';
@@ -215,6 +216,24 @@ export function applyOperation(ledger, event) {
         expectedBalance: expected,
         actualBalance: d.actualBalance,
       });
+    } else if (kind === 'account.money_moved') {
+      const type = MONEY_TYPES[d.moneyType];
+      if (!type || !Object.hasOwn(MONEY_TYPES, d.moneyType))
+        throw Error('Choose what kind of money this is.');
+      if (amount(d.amount) <= 0) throw Error('Enter an amount greater than zero.');
+      Object.assign(entry, {
+        action: 'money',
+        moneyType: d.moneyType,
+        amount: d.amount,
+        direction: type.direction,
+      });
+      if (type.lender) {
+        const lender = (ledger.payees ?? []).find((p) => p.id === d.lenderId);
+        if (!lender || (d.moneyType === 'loan_in' && lender.archived)) throw Error('Choose the lender.');
+        if (d.moneyType === 'loan_repayment' && d.amount > (lenderBalances(ledger)[lender.id] ?? 0))
+          throw Error(`That is more than is still owed to ${lender.name}.`);
+        entry.lenderId = lender.id;
+      }
     } else if (kind === 'account.assigned') {
       const transaction = moneyTransactions(ledger).find((t) => t.id === d.transactionId);
       if (!transaction || transaction.accountId || transaction.paidOn < account.openingDate)
@@ -306,6 +325,7 @@ export function accountBalance(ledger, id, to = businessDay(new Date().toISOStri
       if (e.accountId === id) balance -= e.amount;
       if (e.toAccountId === id) balance += e.amount;
     } else if (e.action === 'reconciliation' && e.accountId === id) balance += e.amount;
+    else if (e.action === 'money' && e.accountId === id) balance += e.direction * e.amount;
   }
   return {
     balance,

@@ -12,6 +12,7 @@ export function eventResources(event, ledger) {
     add('account', d.accountId ?? d.id);
     add('account', d.toAccountId);
     add('transaction', d.transactionId);
+    add('payee', d.lenderId);
   } else if (event.kind === 'job.due_changed') {
     for (const id of d.jobIds ?? [d.id]) add('job', id);
   } else if (event.kind === 'checkout.completed') {

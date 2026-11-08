@@ -93,6 +93,7 @@ test('profit report: period, cancelled left out, unknown jobs kept apart', () =>
     margin: 80,
     unknownJobs: 1,
     unknownRevenue: 30000,
+    otherIncome: 0,
   });
   assert.equal(r.byItem[0].item, 'Design');
   assert.equal(profitSections(r, { money: (k) => (k / 100).toFixed(2) })[0].rows[4][1], '800.00');

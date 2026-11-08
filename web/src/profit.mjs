@@ -4,6 +4,7 @@
 // * otherwise the cost linked to its material (fixed, or the materials confirmed in production);
 // * plus materials added in production, unless their cost is already in the price.
 // Jobs with no cost to go on are counted separately, so the profit is never guessed.
+import { moneyMoveTotals } from './money-moves.mjs';
 import { businessDay } from './dashboard.mjs';
 import { extraMaterialsCost, extraUsages } from './production-materials.mjs';
 
@@ -113,6 +114,8 @@ export function profitReport(ledger, from, to) {
       margin: revenue ? Math.round((profit / revenue) * 1000) / 10 : null,
       unknownJobs: rows.length - knownRows.length,
       unknownRevenue: sum(rows, 'revenue') - revenue,
+      // Gifts, grants and other money that is not a sale (Accounts → Money in / out).
+      otherIncome: moneyMoveTotals(ledger, from, to).other_income,
     },
     byItem: [...byItem.values()].sort((a, b) => b.profit - a.profit || a.item.localeCompare(b.item)),
     jobs: rows,
@@ -137,6 +140,7 @@ export function profitSections(report, { money, unit = ' (NGN)' }) {
         ['Margin', t.margin === null ? '—' : `${t.margin}%`],
         ['Jobs with no cost set', t.unknownJobs],
         [`Their sales (not in the profit)${unit}`, money(t.unknownRevenue)],
+        [`Other income: gifts, grants (not in the profit)${unit}`, money(t.otherIncome ?? 0)],
       ],
     },
     {
