@@ -1416,7 +1416,7 @@ type ProfitReport = {
     profit: number;
     margin: number | null;
     unknownJobs: number;
-        unknownRevenue: number;
+    unknownRevenue: number;
     otherIncome?: number;
   };
   byItem: { item: string; jobs: number; revenue: number; cost: number; profit: number; unknown: number }[];

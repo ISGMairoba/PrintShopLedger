@@ -696,7 +696,7 @@ export function summaryReport(
     add('refunded', 'Refunds paid', base.refunded, 'Money returned to customers', prev?.refunded);
     add('netCollected', 'Net collected', base.netCollected, 'Received minus refunds', prev?.netCollected);
   }
-    if (access.payments) {
+  if (access.payments) {
     // Money that is not a sale or an expense (Accounts → Money in / out), shown when there is any.
     const moves = moneyMoveTotals(ledger, from, to),
       before = prev ? moneyMoveTotals(ledger, base.previous.from, base.previous.to) : null;

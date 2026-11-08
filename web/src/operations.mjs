@@ -218,9 +218,15 @@ export function applyOperation(ledger, event) {
       });
     } else if (kind === 'account.money_moved') {
       const type = MONEY_TYPES[d.moneyType];
-      if (!type || !Object.hasOwn(MONEY_TYPES, d.moneyType)) throw Error('Choose what kind of money this is.');
+      if (!type || !Object.hasOwn(MONEY_TYPES, d.moneyType))
+        throw Error('Choose what kind of money this is.');
       if (amount(d.amount) <= 0) throw Error('Enter an amount greater than zero.');
-      Object.assign(entry, { action: 'money', moneyType: d.moneyType, amount: d.amount, direction: type.direction });
+      Object.assign(entry, {
+        action: 'money',
+        moneyType: d.moneyType,
+        amount: d.amount,
+        direction: type.direction,
+      });
       if (type.lender) {
         const lender = (ledger.payees ?? []).find((p) => p.id === d.lenderId);
         if (!lender || (d.moneyType === 'loan_in' && lender.archived)) throw Error('Choose the lender.');

@@ -157,9 +157,7 @@ export default function AccountsPage({
             <article>
               <span>Owed to lenders</span>
               <strong>{currency(summary.owedToLenders)}</strong>
-              <small>
-                {summary.lenders === 1 ? '1 loan' : `${summary.lenders} lenders`} still to repay
-              </small>
+              <small>{summary.lenders === 1 ? '1 loan' : `${summary.lenders} lenders`} still to repay</small>
             </article>
           )}
           {summary.unassignedCount > 0 && (
@@ -220,23 +218,23 @@ export default function AccountsPage({
             Transfer
           </button>
           <button
-          className="secondary"
-          hidden={configurationOnly}
-          disabled={busy || !active.length}
-          onClick={() => {
-            setMoneyType('loan_in');
-            setLender('');
-            open('money');
-          }}
-        >
-          Money in / out
-        </button>
-        <button
-          className="secondary"
-          hidden={configurationOnly}
-          disabled={busy || !active.length || !unassigned.length}
-          onClick={() => open('assign')}
-        >
+            className="secondary"
+            hidden={configurationOnly}
+            disabled={busy || !active.length}
+            onClick={() => {
+              setMoneyType('loan_in');
+              setLender('');
+              open('money');
+            }}
+          >
+            Money in / out
+          </button>
+          <button
+            className="secondary"
+            hidden={configurationOnly}
+            disabled={busy || !active.length || !unassigned.length}
+            onClick={() => open('assign')}
+          >
             Assign previous payment
           </button>
         </div>
@@ -263,18 +261,18 @@ export default function AccountsPage({
           </p>
         )}
         {!configurationOnly && Object.keys(owedTo).length > 0 && (
-        <p className="panel-note">
-          <strong>Loans still owed:</strong>{' '}
-          {Object.entries(owedTo)
-            .map(([id, n]) => `${payees.find((p) => p.id === id)?.name ?? 'Lender'} ${currency(n)}`)
-            .join(' · ')}
-        </p>
-      )}
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Account</th>
+          <p className="panel-note">
+            <strong>Loans still owed:</strong>{' '}
+            {Object.entries(owedTo)
+              .map(([id, n]) => `${payees.find((p) => p.id === id)?.name ?? 'Lender'} ${currency(n)}`)
+              .join(' · ')}
+          </p>
+        )}
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Account</th>
                 {!configurationOnly && <th>Expected balance</th>}
                 <th>Actions</th>
               </tr>
@@ -569,7 +567,15 @@ export default function AccountsPage({
                         lenderId = crypto.randomUUID();
                         const name = String(f.get('lenderName') ?? '').trim();
                         if (!name) throw Error("Enter the lender's name.");
-                        if (!(await save('payee.created', { id: lenderId, name, phone: '', address: '', note: 'Lender' })))
+                        if (
+                          !(await save('payee.created', {
+                            id: lenderId,
+                            name,
+                            phone: '',
+                            address: '',
+                            note: 'Lender',
+                          }))
+                        )
                           return;
                       } else lenderId = lender;
                       if (!lenderId) throw Error('Choose the lender.');
@@ -685,7 +691,12 @@ export default function AccountsPage({
                     {MONEY_TYPES[moneyType].lender && (
                       <label>
                         Lender
-                        <select aria-label="Lender" required value={lender} onChange={(e) => setLender(e.target.value)}>
+                        <select
+                          aria-label="Lender"
+                          required
+                          value={lender}
+                          onChange={(e) => setLender(e.target.value)}
+                        >
                           <option value="">Choose the lender</option>
                           {(moneyType === 'loan_in'
                             ? payees.filter((p) => !p.archived)
@@ -762,7 +773,9 @@ export default function AccountsPage({
                     name="reason"
                     required
                     maxLength={500}
-                    placeholder={action === 'money' ? 'e.g. Loan from Moniepoint for the new printer' : undefined}
+                    placeholder={
+                      action === 'money' ? 'e.g. Loan from Moniepoint for the new printer' : undefined
+                    }
                   />
                 </label>
                 <button type="submit">

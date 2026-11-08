@@ -112,7 +112,7 @@ export function profitReport(ledger, from, to) {
       cost: sum(knownRows, 'cost'),
       profit,
       margin: revenue ? Math.round((profit / revenue) * 1000) / 10 : null,
-            unknownJobs: rows.length - knownRows.length,
+      unknownJobs: rows.length - knownRows.length,
       unknownRevenue: sum(rows, 'revenue') - revenue,
       // Gifts, grants and other money that is not a sale (Accounts → Money in / out).
       otherIncome: moneyMoveTotals(ledger, from, to).other_income,
@@ -139,7 +139,7 @@ export function profitSections(report, { money, unit = ' (NGN)' }) {
         [`Estimated profit${unit}`, money(t.profit)],
         ['Margin', t.margin === null ? '—' : `${t.margin}%`],
         ['Jobs with no cost set', t.unknownJobs],
-                [`Their sales (not in the profit)${unit}`, money(t.unknownRevenue)],
+        [`Their sales (not in the profit)${unit}`, money(t.unknownRevenue)],
         [`Other income: gifts, grants (not in the profit)${unit}`, money(t.otherIncome ?? 0)],
       ],
     },
