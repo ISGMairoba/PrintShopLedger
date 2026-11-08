@@ -119,12 +119,16 @@ function FormulaEditor({
       .filter((s) => hasCost(s.costing))
       .map((s) => [s.costing!.key, `${s.description} · cost · ${s.costing!.key}`]),
     ...costs
-      .filter((s) => !s.private)
+      .filter((s) => !s.private && !s.customPrice)
       .map((s) => [`${s.costing!.key}_price`, `${s.description} · selling price · ${s.costing!.key}_price`]),
     ...draft.variables
       .filter((v) => v.kind === 'material')
       .map((v) => [v.key + '_rate', `${v.label} · selected item's cost (${v.key}_rate)`]),
   ];
+  // PRICE(item, count) starts with an item that has packs or ranges, else any item that is sold.
+  const sold = costs.filter((s) => !s.private && !s.customPrice && s.price > 0);
+  const packedItem =
+    (sold.find((s) => s.packPrices?.length || s.priceTiers?.length) ?? sold[0])?.costing?.key ?? 'item';
   const rateSource = rates.find(([key]) => key === c.rate.trim())?.[0] ?? '';
   let syntax = '';
   try {
@@ -158,7 +162,9 @@ function FormulaEditor({
         ? `${token}(${selected || '0'}, 0)`
         : token === 'IF'
           ? `IF(${selected || 'quantity > 0'}, 0, 0)`
-          : token;
+          : token === 'PRICE'
+            ? `PRICE(${packedItem}, ${selected || 'quantity'})`
+            : token;
     const next = value.slice(0, start) + text + value.slice(end);
     direct(next);
     const pos = start + text.length;
@@ -313,6 +319,7 @@ function FormulaEditor({
               ['MAX', 'MAX · Largest value'],
               ['ABS', 'ABS · Without sign'],
               ['IF', 'IF · condition, then, otherwise'],
+              ['PRICE', 'PRICE · Selling price of a count (packs, ranges)'],
             ]
               .filter(([f]) => f in formulaFunctions)
               .map(([f, text]) => (
