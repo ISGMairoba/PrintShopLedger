@@ -59,13 +59,7 @@ type Props = {
   /** The owner's choice of branch (All branches or one). */
   branchControl?: ReactNode;
 };
-type Tab =
-  | 'Customer statement'
-  | 'Payee statement'
-  | 'Transactions'
-  | 'Summary'
-  | 'Profit'
-  | 'Profit & loss';
+type Tab = 'Customer statement' | 'Payee statement' | 'Transactions' | 'Summary' | 'Profit' | 'Profit & loss';
 type StatementJob = {
   id: string;
   ref: string;
@@ -1447,9 +1441,16 @@ function ProfitLossTab({ ledger, freshness, busy, error, pdf, csv }: TabProps) {
   const file = report ? reportFileName('Profit and loss', `${report.from} to ${report.to}`) : '';
   const change = (now: number, before: number) => {
     const d = now - before;
-    return d === 0 ? 'Same as the period before' : `${d > 0 ? '+' : '−'}${currency(Math.abs(d))} on the period before`;
+    return d === 0
+      ? 'Same as the period before'
+      : `${d > 0 ? '+' : '−'}${currency(Math.abs(d))} on the period before`;
   };
-  const line = (label: string, now: number, before: number, opts: { strong?: boolean; minus?: boolean } = {}) => (
+  const line = (
+    label: string,
+    now: number,
+    before: number,
+    opts: { strong?: boolean; minus?: boolean } = {},
+  ) => (
     <tr className={opts.strong ? 'report-total' : undefined}>
       <td>{opts.strong ? <strong>{label}</strong> : label}</td>
       <td className={now < 0 && !opts.minus ? 'danger-text' : undefined}>
@@ -1488,7 +1489,12 @@ function ProfitLossTab({ ledger, freshness, busy, error, pdf, csv }: TabProps) {
             <Exports
               busy={busy}
               onCsv={() =>
-                csv(file, title, subtitle, profitLossSections(report, { money: (k: number) => (k / 100).toFixed(2) }))
+                csv(
+                  file,
+                  title,
+                  subtitle,
+                  profitLossSections(report, { money: (k: number) => (k / 100).toFixed(2) }),
+                )
               }
               onPdf={() =>
                 void pdf(file, title, subtitle, profitLossSections(report, { money: currency, unit: '' }))
