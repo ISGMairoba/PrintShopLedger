@@ -246,33 +246,34 @@ export default function BusinessOptionsEditor({
                     </span>
                   </summary>
                   <div className="workflow-body">
-                  <label>
-                    {w('Workflow name')}
-                    <input
-                      aria-label={`Workflow ${i + 1} name`}
-                      maxLength={60}
-                      value={wf.name}
-                      onChange={(e) => setWf({ name: e.target.value })}
+                    <label>
+                      {w('Workflow name')}
+                      <input
+                        aria-label={`Workflow ${i + 1} name`}
+                        maxLength={60}
+                        value={wf.name}
+                        onChange={(e) => setWf({ name: e.target.value })}
+                      />
+                    </label>
+                    <StepBuilder
+                      steps={wf.steps}
+                      onChange={(steps) => setWf({ steps })}
+                      label={wf.name || `Workflow ${i + 1}`}
                     />
-                  </label>
-                  <StepBuilder
-                    steps={wf.steps}
-                    onChange={(steps) => setWf({ steps })}
-                    label={wf.name || `Workflow ${i + 1}`}
-                  />
-                  <button
-                    type="button"
-                    className="text-button danger-text"
-                    onClick={() =>
-                      onChange({
-                        ...value,
-                        workflows: value.workflows.filter((_, j) => j !== i),
-                        defaultWorkflowId: value.defaultWorkflowId === wf.id ? null : value.defaultWorkflowId,
-                      })
-                    }
-                  >
-                    Remove workflow
-                  </button>
+                    <button
+                      type="button"
+                      className="text-button danger-text"
+                      onClick={() =>
+                        onChange({
+                          ...value,
+                          workflows: value.workflows.filter((_, j) => j !== i),
+                          defaultWorkflowId:
+                            value.defaultWorkflowId === wf.id ? null : value.defaultWorkflowId,
+                        })
+                      }
+                    >
+                      Remove workflow
+                    </button>
                   </div>
                 </details>
               );
@@ -286,7 +287,10 @@ export default function BusinessOptionsEditor({
                 setOpenFlows((ids) => [...ids, id]);
                 onChange({
                   ...value,
-                  workflows: [...(value.workflows ?? []), { id, name: '', steps: [{ name: 'Design' }, { name: 'Approval' }] }],
+                  workflows: [
+                    ...(value.workflows ?? []),
+                    { id, name: '', steps: [{ name: 'Design' }, { name: 'Approval' }] },
+                  ],
                 });
               }}
             >

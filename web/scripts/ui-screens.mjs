@@ -378,9 +378,15 @@ try {
       await page.getByLabel('Logo: Design time', { exact: true }).fill('5');
       await page.getByLabel('Logo: Design unit', { exact: true }).selectOption('d');
       await page.locator('details.workflow-row').first().scrollIntoViewIfNeeded();
-      await page.locator('fieldset.stage-hours').last().screenshot({ path: `${out}/${mode}-88-workflow-open.png` });
+      await page
+        .locator('fieldset.stage-hours')
+        .last()
+        .screenshot({ path: `${out}/${mode}-88-workflow-open.png` });
       await page.locator('details.workflow-row > summary').first().click();
-      await page.locator('fieldset.stage-hours').last().screenshot({ path: `${out}/${mode}-88-workflow-closed.png` });
+      await page
+        .locator('fieldset.stage-hours')
+        .last()
+        .screenshot({ path: `${out}/${mode}-88-workflow-closed.png` });
       await nav('Point of Service');
       await page.getByRole('button', { name: 'Add job', exact: true }).first().click();
       const c = page.getByRole('dialog').first();
