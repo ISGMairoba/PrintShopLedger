@@ -79,3 +79,30 @@ test('money in and out: loans owed until repaid, owner money and other income mo
     ],
   );
 });
+
+test('correcting an entry changes it in place and keeps what it was', () => {
+  let l = base();
+  l = move(l, 'm1', 'loan_in', 5000000, { lenderId: 'lender' });
+  const fix = (data) => applyOperation(l, ev('account.entry_corrected', { baseVersion: 1, correctionReason: 'Typo', ...data }));
+  const fixed = fix({ id: 'm1', amount: 500000 });
+  const e = fixed.accountEntries.find((x) => x.id === 'm1');
+  assert.equal(e.amount, 500000);
+  assert.equal(e.version, 2);
+  assert.equal(e.corrections[0].before.amount, 5000000);
+  assert.equal(e.corrections[0].reason, 'Typo');
+  assert.equal(accountBalance(fixed, 'bank', '2026-11-08').balance, 500000);
+  assert.deepEqual(lenderBalances(fixed), { lender: 500000 });
+  assert.throws(() => applyOperation(fixed, ev('account.entry_corrected', { id: 'm1', baseVersion: 1, correctionReason: 'x', amount: 1 })), /changed elsewhere/);
+  assert.throws(() => fix({ id: 'm1', amount: 1, correctionReason: '' }), /valid text/);
+  // A loan can't be corrected below what has been repaid.
+  const repaid = move(fixed, 'm2', 'loan_repayment', 400000, { lenderId: 'lender' });
+  assert.throws(
+    () => applyOperation(repaid, ev('account.entry_corrected', { id: 'm1', baseVersion: 2, correctionReason: 'x', amount: 300000 })),
+    /repaid more than was lent/,
+  );
+  // Cancelling sets it to nothing.
+  const gone = applyOperation(repaid, ev('account.entry_corrected', { id: 'm2', baseVersion: 1, correctionReason: 'Not ours', cancel: true }));
+  assert.equal(gone.accountEntries.find((x) => x.id === 'm2').amount, 0);
+  assert.equal(gone.accountEntries.find((x) => x.id === 'm2').cancelled, true);
+  assert.deepEqual(lenderBalances(gone), { lender: 500000 });
+});

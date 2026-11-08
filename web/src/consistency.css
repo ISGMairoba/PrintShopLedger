@@ -2223,3 +2223,23 @@ details.workflow-row[open] {
 .panel:not(.editor) > :is(.notice, .notice-warning) {
   margin: 12px 20px;
 }
+/* Account entries with their corrections (Accounts → Transactions). */
+.account-entry {
+  display: grid;
+  gap: 4px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.account-entry > p {
+  margin: 0;
+}
+.account-entry > .text-button {
+  justify-self: start;
+}
+.entry-correction {
+  color: var(--subtle, inherit);
+}
+.cancelled-entry > p {
+  text-decoration: line-through;
+  opacity: 0.7;
+}

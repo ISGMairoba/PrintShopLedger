@@ -383,6 +383,7 @@ export default function ConflictInbox({
                 'account.assigned',
                 'account.transferred',
                 'account.money_moved',
+                'account.entry_corrected',
               ].includes(review.conflict.source.kind) && (
                 <p>
                   Keep the business version, then reopen Accounts to review the current balance before
@@ -401,6 +402,7 @@ export default function ConflictInbox({
                     'account.assigned',
                     'account.transferred',
                     'account.money_moved',
+                    'account.entry_corrected',
                   ].includes(review.conflict.source.kind)
                 }
                 onClick={async () => {

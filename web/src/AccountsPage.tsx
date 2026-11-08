@@ -1,3 +1,4 @@
+import Icon from './Icon';
 import AccountMethodsEditor from './AccountMethodsEditor';
 import { accountMethodDetails, prepareAccountMethods, routingLabels, typeName } from './account-methods.mjs';
 import { useState } from 'react';
@@ -44,6 +45,7 @@ export default function AccountsPage({
     [action, setAction] = useState<'transfer' | 'reconcile' | 'assign' | 'money' | null>(null),
     [moneyType, setMoneyType] = useState<keyof typeof MONEY_TYPES>('loan_in'),
     [lender, setLender] = useState(''),
+    [fixing, setFixing] = useState<Record<string, any> | null>(null),
     [selected, setSelected] = useState(''),
     [on, setOn] = useState(today()),
     [error, setError] = useState('');
@@ -835,7 +837,8 @@ export default function AccountsPage({
             {accountBalance(ledger, detail.id)
               .entries.filter((e: Record<string, any>) => e.action !== 'assignment')
               .map((e: Record<string, any>) => (
-                <p key={e.id}>
+                <div key={e.id} className={`account-entry${e.cancelled ? ' cancelled-entry' : ''}`}>
+                  <p>
                   {e.paidOn} ·{' '}
                   {e.action === 'money'
                     ? `${MONEY_TYPES[e.moneyType as keyof typeof MONEY_TYPES]?.label ?? 'Money'}${
@@ -848,8 +851,36 @@ export default function AccountsPage({
                     : ''}
                   <br />
                   {e.reason} · {e.modifiedByLabel}
-                </p>
+                  {e.cancelled ? ' · Cancelled' : ''}
+                  </p>
+                  {(e.corrections ?? []).map((c: Record<string, any>, i: number) => (
+                    <small key={i} className="entry-correction">
+                      {c.cancelled ? 'Cancelled' : 'Corrected'} by {c.correctedByLabel} on{' '}
+                      {new Date(c.correctedAt).toLocaleString('en-NG')}: was{' '}
+                      {currency(c.before.actualBalance ?? c.before.amount)}
+                      {c.before.paidOn && c.before.paidOn !== e.paidOn ? ` on ${c.before.paidOn}` : ''} · {c.reason}
+                    </small>
+                  ))}
+                  {!e.cancelled && (
+                    <button type="button" className="text-button" disabled={busy} onClick={() => setFixing(e)}>
+                      <Icon name="edit" /> Correct
+                    </button>
+                  )}
+                </div>
               ))}
+            {fixing && (
+              <CorrectEntry
+                entry={fixing}
+                accounts={active}
+                payees={payees}
+                busy={busy}
+                onClose={() => setFixing(null)}
+                onSave={async (data) => {
+                  if (await save('account.entry_corrected', data)) setFixing(null);
+                }}
+                error={error}
+              />
+            )}
             <details>
               <summary>Audit history</summary>
               {(ledger.operationHistory ?? [])
@@ -864,5 +895,158 @@ export default function AccountsPage({
         )}
       </section>
     </>
+  );
+}
+
+/** Correct a transfer, reconciliation or money in / out entry, keeping what it was before. */
+function CorrectEntry({
+  entry,
+  accounts,
+  payees,
+  busy,
+  error,
+  onClose,
+  onSave,
+}: {
+  entry: Record<string, any>;
+  accounts: MoneyAccount[];
+  payees: { id: string; name: string; archived?: boolean }[];
+  busy: boolean;
+  error: string;
+  onClose: () => void;
+  onSave: (data: Record<string, any>) => Promise<void>;
+}) {
+  const [cancel, setCancel] = useState(false);
+  const [problem, setProblem] = useState('');
+  const recon = entry.action === 'reconciliation';
+  const kind =
+    entry.action === 'money'
+      ? (MONEY_TYPES[entry.moneyType as keyof typeof MONEY_TYPES]?.label ?? 'Money in / out')
+      : recon
+        ? 'Reconciliation'
+        : 'Transfer';
+  const shown = recon ? entry.actualBalance : entry.amount;
+  return (
+    <Modal title={`Correct entry · ${kind}`} busy={busy} onClose={onClose}>
+      {(problem || error) && (
+        <p role="alert" className="notice">
+          {problem || error}
+        </p>
+      )}
+      <p className="muted">
+        Now: {currency(shown)} on {entry.paidOn}. The entry keeps what it was before, who corrected it and
+        why.
+      </p>
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault();
+          setProblem('');
+          const f = new FormData(e.currentTarget);
+          try {
+            const data: Record<string, any> = {
+              id: entry.id,
+              baseVersion: entry.version ?? 1,
+              correctionReason: String(f.get('why') ?? ''),
+              reason: String(f.get('note') ?? entry.reason),
+            };
+            if (cancel) data.cancel = true;
+            else if (recon)
+              data.actualBalance = money(String(f.get('amount'))) * (f.get('sign') === 'negative' ? -1 : 1);
+            else {
+              data.amount = money(String(f.get('amount')));
+              data.paidOn = String(f.get('paidOn'));
+              data.accountId = String(f.get('account'));
+              if (entry.action === 'transfer') data.toAccountId = String(f.get('to'));
+              if (entry.lenderId) data.lenderId = String(f.get('lender'));
+            }
+            await onSave(data);
+          } catch (cause) {
+            setProblem(cause instanceof Error ? cause.message : String(cause));
+          }
+        }}
+      >
+        <fieldset disabled={busy}>
+          <label className="check-label">
+            <input type="checkbox" checked={cancel} onChange={(e) => setCancel(e.target.checked)} />
+            Cancel this entry (it was not meant to be recorded)
+          </label>
+          {!cancel && (
+            <>
+              <label>
+                {recon ? 'Counted balance (₦)' : 'Amount (₦)'}
+                <CurrencyInput name="amount" required defaultValue={(Math.abs(shown) / 100).toFixed(2)} />
+              </label>
+              {recon ? (
+                <label>
+                  Balance type
+                  <select aria-label="Balance type" name="sign" defaultValue={shown < 0 ? 'negative' : 'positive'}>
+                    <option value="positive">Positive / zero</option>
+                    <option value="negative">Overdrawn / negative</option>
+                  </select>
+                </label>
+              ) : (
+                <>
+                  <label>
+                    Date
+                    <input type="date" name="paidOn" required defaultValue={entry.paidOn} />
+                  </label>
+                  <label>
+                    {entry.action === 'transfer' ? 'From account' : 'Account'}
+                    <select aria-label="Entry account" name="account" defaultValue={entry.accountId}>
+                      {accounts.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {entry.action === 'transfer' && (
+                    <label>
+                      To account
+                      <select aria-label="Entry destination account" name="to" defaultValue={entry.toAccountId}>
+                        {accounts.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  {entry.lenderId && (
+                    <label>
+                      Lender
+                      <select aria-label="Entry lender" name="lender" defaultValue={entry.lenderId}>
+                        {payees
+                          .filter((p) => !p.archived || p.id === entry.lenderId)
+                          .map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                  )}
+                </>
+              )}
+              <label>
+                Note
+                <textarea aria-label="Entry note" name="note" required maxLength={500} defaultValue={entry.reason} />
+              </label>
+            </>
+          )}
+          <label>
+            Why are you correcting it?
+            <textarea
+              aria-label="Correction reason"
+              name="why"
+              required
+              maxLength={500}
+              placeholder="e.g. Typed ₦50,000 instead of ₦5,000"
+            />
+          </label>
+          <button type="submit">{cancel ? 'Cancel entry' : 'Save correction'}</button>
+        </fieldset>
+      </form>
+    </Modal>
   );
 }
