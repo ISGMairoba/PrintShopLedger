@@ -1,4 +1,5 @@
 import { moneyMoveTotals } from './money-moves.mjs';
+import { lenderSummary } from './lenders.mjs';
 import { customerBalanceFast, jobBalanceFast } from './balances.mjs';
 import { walletBalance } from './checkout.mjs';
 import { businessDay, validRange, dashboardSummary } from './dashboard.mjs';
@@ -1134,6 +1135,11 @@ export function payeeStatement(ledger, payeeId, from, to, now = new Date().toISO
     expenses,
     earlierOwing,
     payments,
+    // A lender: what was borrowed and repaid in the period, and what is still owed.
+    ...(() => {
+      const loans = lenderSummary(ledger, payeeId, from, to);
+      return loans.borrowed ? { loans: { ...loans, repaymentDue: payee.repaymentDue ?? '' } } : {};
+    })(),
     totals: {
       incurred: expenses.reduce((n, r) => n + r.amount, 0),
       paid: payments.reduce((n, p) => n + p.amount, 0),
@@ -1187,8 +1193,29 @@ export function payeeStatementSections(statement, { money = naira, unit = ' (NGN
         [`Expenses in period${unit}`, money(t.incurred)],
         [`Paid in period${unit}`, money(t.paid)],
         [`Owed to payee now${unit}`, money(t.owedNow)],
+        ...(statement.loans
+          ? [
+              [`Borrowed in period${unit}`, money(statement.loans.borrowedInPeriod)],
+              [`Repaid in period${unit}`, money(statement.loans.repaidInPeriod)],
+              [`Loan still owed${unit}`, money(statement.loans.owed)],
+              ...(statement.loans.repaymentDue && statement.loans.owed > 0
+                ? [['Next repayment due', statement.loans.repaymentDue]]
+                : []),
+            ]
+          : []),
       ],
     },
+    ...(statement.loans?.entries.length
+      ? [
+          {
+            title: 'Loans in this period',
+            columns: ['Date', 'Borrowed / repaid', 'Note', `Amount${unit}`],
+            widths: [10, 12, 40, 12],
+            numeric: [3],
+            rows: statement.loans.entries.map((e) => [e.date, e.kind, e.note, money(e.amount)]),
+          },
+        ]
+      : []),
     {
       title: 'Expenses in this period',
       columns: expenseColumns,

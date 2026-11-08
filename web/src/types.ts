@@ -945,6 +945,8 @@ export interface MaterialWaste {
 
 export interface Payee extends Omit<Customer, 'creditLimit'> {
   note: string;
+  /** A lender's next repayment date ('' or missing: none). */
+  repaymentDue?: string;
 }
 export interface AccountPaymentMethod {
   id: string;
