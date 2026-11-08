@@ -6,8 +6,22 @@ import { accountSummary } from '../src/account-summary.mjs';
 const ledger = () => ({
   ...emptyLedger(),
   moneyAccounts: [
-    { id: 'till', name: 'Till', accountType: 'cash', openingBalance: 5000, openingDate: '2026-10-01', methods: ['Cash'] },
-    { id: 'bank', name: 'Bank', accountType: 'bank', openingBalance: 100000, openingDate: '2026-10-01', methods: ['Transfer'] },
+    {
+      id: 'till',
+      name: 'Till',
+      accountType: 'cash',
+      openingBalance: 5000,
+      openingDate: '2026-10-01',
+      methods: ['Cash'],
+    },
+    {
+      id: 'bank',
+      name: 'Bank',
+      accountType: 'bank',
+      openingBalance: 100000,
+      openingDate: '2026-10-01',
+      methods: ['Transfer'],
+    },
   ],
   payments: [
     { id: 'p1', amount: 20000, paidOn: '2026-11-03T10:00:00Z', method: 'Cash', accountId: 'till' },
@@ -15,10 +29,21 @@ const ledger = () => ({
     { id: 'p3', amount: 1500, paidOn: '2026-11-04T10:00:00Z', method: 'POS' },
   ],
   expenses: [
-    { id: 'e', description: 'Paper', payments: [{ id: 'x', amount: 3000, paidOn: '2026-11-05T10:00:00Z', accountId: 'bank' }] },
+    {
+      id: 'e',
+      description: 'Paper',
+      payments: [{ id: 'x', amount: 3000, paidOn: '2026-11-05T10:00:00Z', accountId: 'bank' }],
+    },
   ],
   accountEntries: [
-    { id: 't', action: 'transfer', accountId: 'till', toAccountId: 'bank', amount: 10000, paidOn: '2026-11-06' },
+    {
+      id: 't',
+      action: 'transfer',
+      accountId: 'till',
+      toAccountId: 'bank',
+      amount: 10000,
+      paidOn: '2026-11-06',
+    },
     { id: 'r', action: 'reconciliation', accountId: 'till', amount: -500, paidOn: '2026-11-07' },
   ],
 });
