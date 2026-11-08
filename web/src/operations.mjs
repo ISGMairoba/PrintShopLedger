@@ -355,7 +355,8 @@ export const defaultMoneyAccount = (ledger, method) => {
 export function correctEntry(ledger, d, audit) {
   const entries = ledger.accountEntries ?? [];
   const old = entries.find((e) => e.id === d.id);
-  if (!old || !['transfer', 'reconciliation', 'money'].includes(old.action)) throw Error('Choose an entry to correct.');
+  if (!old || !['transfer', 'reconciliation', 'money'].includes(old.action))
+    throw Error('Choose an entry to correct.');
   if ((old.version ?? 1) !== d.baseVersion) throw Error('This entry changed elsewhere. Reopen it.');
   const why = text(d.correctionReason, 500, true);
   const accounts = ledger.moneyAccounts ?? [];

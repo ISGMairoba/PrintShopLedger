@@ -839,30 +839,36 @@ export default function AccountsPage({
               .map((e: Record<string, any>) => (
                 <div key={e.id} className={`account-entry${e.cancelled ? ' cancelled-entry' : ''}`}>
                   <p>
-                  {e.paidOn} ·{' '}
-                  {e.action === 'money'
-                    ? `${MONEY_TYPES[e.moneyType as keyof typeof MONEY_TYPES]?.label ?? 'Money'}${
-                        e.lenderId ? ` · ${payees.find((p) => p.id === e.lenderId)?.name ?? 'Lender'}` : ''
-                      } · ${e.direction < 0 ? '−' : '+'}`
-                    : `${e.action} · `}
-                  {currency(e.amount)}
-                  {e.action === 'transfer'
-                    ? ` · ${accounts.find((a) => a.id === e.accountId)?.name} → ${accounts.find((a) => a.id === e.toAccountId)?.name}`
-                    : ''}
-                  <br />
-                  {e.reason} · {e.modifiedByLabel}
-                  {e.cancelled ? ' · Cancelled' : ''}
+                    {e.paidOn} ·{' '}
+                    {e.action === 'money'
+                      ? `${MONEY_TYPES[e.moneyType as keyof typeof MONEY_TYPES]?.label ?? 'Money'}${
+                          e.lenderId ? ` · ${payees.find((p) => p.id === e.lenderId)?.name ?? 'Lender'}` : ''
+                        } · ${e.direction < 0 ? '−' : '+'}`
+                      : `${e.action} · `}
+                    {currency(e.amount)}
+                    {e.action === 'transfer'
+                      ? ` · ${accounts.find((a) => a.id === e.accountId)?.name} → ${accounts.find((a) => a.id === e.toAccountId)?.name}`
+                      : ''}
+                    <br />
+                    {e.reason} · {e.modifiedByLabel}
+                    {e.cancelled ? ' · Cancelled' : ''}
                   </p>
                   {(e.corrections ?? []).map((c: Record<string, any>, i: number) => (
                     <small key={i} className="entry-correction">
                       {c.cancelled ? 'Cancelled' : 'Corrected'} by {c.correctedByLabel} on{' '}
                       {new Date(c.correctedAt).toLocaleString('en-NG')}: was{' '}
                       {currency(c.before.actualBalance ?? c.before.amount)}
-                      {c.before.paidOn && c.before.paidOn !== e.paidOn ? ` on ${c.before.paidOn}` : ''} · {c.reason}
+                      {c.before.paidOn && c.before.paidOn !== e.paidOn ? ` on ${c.before.paidOn}` : ''} ·{' '}
+                      {c.reason}
                     </small>
                   ))}
                   {!e.cancelled && (
-                    <button type="button" className="text-button" disabled={busy} onClick={() => setFixing(e)}>
+                    <button
+                      type="button"
+                      className="text-button"
+                      disabled={busy}
+                      onClick={() => setFixing(e)}
+                    >
                       <Icon name="edit" /> Correct
                     </button>
                   )}
@@ -979,7 +985,11 @@ function CorrectEntry({
               {recon ? (
                 <label>
                   Balance type
-                  <select aria-label="Balance type" name="sign" defaultValue={shown < 0 ? 'negative' : 'positive'}>
+                  <select
+                    aria-label="Balance type"
+                    name="sign"
+                    defaultValue={shown < 0 ? 'negative' : 'positive'}
+                  >
                     <option value="positive">Positive / zero</option>
                     <option value="negative">Overdrawn / negative</option>
                   </select>
@@ -1003,7 +1013,11 @@ function CorrectEntry({
                   {entry.action === 'transfer' && (
                     <label>
                       To account
-                      <select aria-label="Entry destination account" name="to" defaultValue={entry.toAccountId}>
+                      <select
+                        aria-label="Entry destination account"
+                        name="to"
+                        defaultValue={entry.toAccountId}
+                      >
                         {accounts.map((a) => (
                           <option key={a.id} value={a.id}>
                             {a.name}
@@ -1030,7 +1044,13 @@ function CorrectEntry({
               )}
               <label>
                 Note
-                <textarea aria-label="Entry note" name="note" required maxLength={500} defaultValue={entry.reason} />
+                <textarea
+                  aria-label="Entry note"
+                  name="note"
+                  required
+                  maxLength={500}
+                  defaultValue={entry.reason}
+                />
               </label>
             </>
           )}
