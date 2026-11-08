@@ -948,7 +948,7 @@ export default function BusinessSettingsPage({
                       />
                     </label>
                   ))}
-                  {(['Added', 'Completed', 'Collected'] as const).map((stage) => (
+                  {(['Added', 'Processing', 'Completed', 'Collected'] as const).map((stage) => (
                     <label key={stage}>
                       Stage “{stage}”
                       <input
