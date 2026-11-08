@@ -2183,7 +2183,7 @@ details.workflow-row > summary::-webkit-details-marker {
   display: none;
 }
 details.workflow-row > summary::before {
-  content: '▸';
+  content: "▸";
   display: inline-block;
   width: 1.2em;
   color: var(--subtle, inherit);
