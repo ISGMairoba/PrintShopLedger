@@ -11,6 +11,8 @@ export const formulaFunctions = {
   MIN: [2, 10],
   MAX: [2, 10],
   IF: [3, 3],
+  // PRICE(item, count): the selling price of that many of an item, with its packs or quantity ranges.
+  PRICE: [2, 2],
 };
 const comparisons = ['==', '!=', '>', '<', '>=', '<='];
 const priority = { '==': 1, '!=': 1, '>': 1, '<': 1, '>=': 1, '<=': 1, '+': 2, '-': 2, '*': 3, '/': 3 };
@@ -63,6 +65,14 @@ export function parseFormula(source) {
         const [lo, hi] = formulaFunctions[name];
         if (args.length < lo || args.length > hi)
           throw Error(`${name} takes ${lo === hi ? lo : `${lo} to ${hi}`} value${hi === 1 ? '' : 's'}.`);
+        if (name === 'PRICE') {
+          // The item is named by its formula name (or its _price name); it is kept as <name>_price.
+          const item = args[0];
+          if (item.op !== 'name') throw Error('PRICE: start with the item\'s formula name, e.g. PRICE(envelope, quantity).');
+          const key = item.args[0].endsWith('_price') ? item.args[0] : item.args[0] + '_price';
+          if (!keyPattern.test(key)) throw Error(`PRICE: ${item.args[0]} is too long a name.`);
+          args[0] = node('name', [key]);
+        }
         n = node(name, args);
       } else {
         if (!keyPattern.test(t)) throw Error(`Use lowercase letters, numbers and _ in names: ${t}`);
@@ -90,6 +100,38 @@ export function formulaNames(tree, out = []) {
     if (!out.includes(tree.args[0])) out.push(tree.args[0]);
   } else if (tree.op !== 'number') for (const a of tree.args) formulaNames(a, out);
   return out;
+}
+/** Item prices a formula counts with PRICE(item, count): their <name>_price names. */
+export function pricedNames(tree, out = []) {
+  if (tree.op === 'PRICE' && !out.includes(tree.args[0].args[0])) out.push(tree.args[0].args[0]);
+  if (tree.op !== 'name' && tree.op !== 'number') for (const a of tree.args) pricedNames(a, out);
+  return out;
+}
+/**
+ * The selling price (naira) of `count` of an item, as a sale charges it: the biggest packs first,
+ * then single pieces; or the single price of the quantity range the count falls in.
+ * @param {{ amount: number, packPrices?: { quantity: number, price: number }[], priceTiers?: { from: number, price: number }[] }} item prices in kobo
+ */
+export function itemTotal(item, count) {
+  const c = decimal(count);
+  if (c.n < 0n) throw Error('PRICE: the count cannot be negative.');
+  let kobo = ZERO;
+  let left = c;
+  if (item.packPrices?.length) {
+    for (const pack of [...item.packPrices].sort((a, b) => b.quantity - a.quantity)) {
+      const size = decimal(pack.quantity);
+      const k = floorFrac(div(left, size));
+      kobo = add(kobo, mul(k, decimal(pack.price)));
+      left = sub(left, mul(k, size));
+    }
+    kobo = add(kobo, mul(left, decimal(item.amount)));
+  } else {
+    let unit = item.amount;
+    for (const tier of [...(item.priceTiers ?? [])].sort((a, b) => a.from - b.from))
+      if (cmp(c, decimal(tier.from)) >= 0) unit = tier.price;
+    kobo = mul(c, decimal(unit));
+  }
+  return div(kobo, HUNDRED);
 }
 /** Formula text from a tree (used to compare a generated formula with its method). */
 export function formulaText(n) {
@@ -177,6 +219,11 @@ export function evaluate(tree, resolve, depth = 0) {
   const ev = (n) => evaluate(n, resolve, depth + 1);
   let r;
   if (op === 'IF') return ev(args[isZero(ev(args[0])) ? 2 : 1]);
+  if (op === 'PRICE') {
+    const item = resolve.priceOf?.(args[0].args[0]);
+    if (!item) throw Error(`Unknown value "${args[0].args[0]}".`);
+    return inRange(round12(itemTotal(item, ev(args[1]))));
+  }
   const v = args.map(ev);
   switch (op) {
     case '+':

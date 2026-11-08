@@ -5,6 +5,7 @@ import {
   formulaFunctions,
   parseFormula,
   formulaNames,
+  pricedNames,
   formulaText,
   decimal,
   canonical,
@@ -580,8 +581,22 @@ export function priceTemplate(ledger, template, supplied, quantity, stockIds = {
       });
     return used.get(service.costing.key);
   };
-  // A service's selling price in a formula: <formula name>_price, per unit (naira).
+  // Prices counted with PRICE(item, count) also keep the item's packs or quantity ranges.
+  const counted = new Set(
+    [...template.computed, ...template.expenses].flatMap((f) => pricedNames(f.expression)),
+  );
+  // A service's selling price in a formula: <formula name>_price, per unit (naira). Items without a
+  // fixed selling price are refused rather than counted as ₦0.
   const priceReference = (service, name) => {
+    const key = name.slice(0, -6);
+    if (service.private)
+      throw Error(`${service.description} is private (not sold), so it has no selling price. Use its cost: ${key}.`);
+    if (service.customPrice)
+      throw Error(
+        `${service.description} is priced at the sale, so it has no fixed selling price. Give it a template cost and use ${key}.`,
+      );
+    if (!(service.price > 0))
+      throw Error(`${service.description} has no selling price. Set its price, or give it a template cost and use ${key}.`);
     if (!used.has(name))
       used.set(name, {
         serviceId: service.id,
@@ -593,6 +608,8 @@ export function priceTemplate(ledger, template, supplied, quantity, stockIds = {
         unit: consumptionUnit(service, ledger.materials),
         rate: canonical(div({ n: BigInt(service.price), d: 1n }, HUNDRED)),
         kind: 'price',
+        ...(counted.has(name) && service.packPrices?.length ? { packPrices: service.packPrices } : {}),
+        ...(counted.has(name) && service.priceTiers?.length ? { priceTiers: service.priceTiers } : {}),
       });
     return used.get(name);
   };
@@ -631,6 +648,7 @@ export function priceTemplate(ledger, template, supplied, quantity, stockIds = {
       values.set(name, decimal(priceReference(priced, name).rate));
     }
   const active = new Set();
+  /** @type {((name: string) => any) & { priceOf?: (name: string) => any }} */
   const resolve = (name) => {
     if (values.has(name)) return values.get(name);
     const f = formulas.get(name);
@@ -644,6 +662,7 @@ export function priceTemplate(ledger, template, supplied, quantity, stockIds = {
     }
     throw Error(`Unknown value "${name}".`);
   };
+  resolve.priceOf = (name) => (used.get(name)?.kind === 'price' ? used.get(name) : undefined);
   const outputs = template.computed.map((c) => {
     const x = resolve(c.key);
     if (x.n < 0n) throw Error(c.label + ' cannot be negative.');
