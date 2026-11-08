@@ -1,8 +1,8 @@
 // Business words. A shop can call jobs "orders", services "products" and materials "stock items",
-// and rename the three fixed job stages (Added, Completed, Collected). Only what is shown changes:
+// and rename the fixed job stages (Added, Completed, Collected) and the default step, Processing. Only what is shown changes:
 // stored records, events and the server keep the original names, so switching back is safe.
 
-const fixedStages = ['Added', 'Completed', 'Collected'];
+const fixedStages = ['Added', 'Processing', 'Completed', 'Collected'];
 
 export const termPresets = {
   print: {
@@ -13,7 +13,7 @@ export const termPresets = {
     services: 'services',
     material: 'material',
     materials: 'materials',
-    stages: { Added: 'Added', Completed: 'Completed', Collected: 'Collected' },
+    stages: { Added: 'Added', Processing: 'Processing', Completed: 'Completed', Collected: 'Collected' },
   },
   retail: {
     label: 'Retail shop',
@@ -23,7 +23,7 @@ export const termPresets = {
     services: 'products',
     material: 'stock item',
     materials: 'stock items',
-    stages: { Added: 'Order placed', Completed: 'Ready', Collected: 'Collected' },
+    stages: { Added: 'Order placed', Processing: 'Preparing', Completed: 'Ready', Collected: 'Collected' },
   },
   mixed: {
     label: 'Print and retail',
@@ -33,7 +33,7 @@ export const termPresets = {
     services: 'items',
     material: 'stock item',
     materials: 'stock items',
-    stages: { Added: 'Order placed', Completed: 'Ready', Collected: 'Collected' },
+    stages: { Added: 'Order placed', Processing: 'Preparing', Completed: 'Ready', Collected: 'Collected' },
   },
 };
 

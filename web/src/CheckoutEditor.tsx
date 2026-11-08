@@ -10,7 +10,8 @@ import { lineWithDescription, nextDescription } from './job-batches.mjs';
 import SearchSelect from './SearchSelect';
 import { useFeedbackMessage } from './Feedback';
 import { useBusinessOptions } from './BusinessOptionsContext';
-import { workflowFor } from './business-options.mjs';
+import { StepBuilder } from './StepBuilder';
+import { itemSteps, stagesToSteps, stepsWorkflow, validSteps } from './workflow-steps.mjs';
 import CurrencyInput from './CurrencyInput';
 import { useEffect, useId, useState } from 'react';
 import Modal from './Modal';
@@ -29,7 +30,7 @@ import {
 import { applyCustomerEvent } from './customers.mjs';
 import { money, jobBalance, customerBalance } from './domain.mjs';
 import { currency } from './receipts.mjs';
-import type { Ledger, CustomerEvent, CheckoutEvent, CheckoutRecord } from './types';
+import type { Ledger, CustomerEvent, CheckoutEvent, CheckoutRecord, Step } from './types';
 import { defaultDueAt, durationLabel, fromLocalInput, toLocalInput } from './job-deadlines.mjs';
 import { jobSettingsDefaults } from './business-branding.mjs';
 import { applyOrderDiscount } from './discounts.mjs';
@@ -200,10 +201,12 @@ type CartLine = {
   /** Deadline as an ISO time, or '' for none. */
   dueAt?: string;
   workflow?: string[];
-  /** The workflow it follows (its item's, or one an Admin chose): its id, name and hours. */
+  /** Older: the saved workflow it followed. */
   workflowId?: string;
   workflowName?: string;
   stageHours?: Record<string, number>;
+  /** Steps an Admin is changing for this job (sent as workflow and stageHours). */
+  steps?: Step[];
   /** This job's own discount, as typed. */
   discountDraft?: DiscountDraft;
   /** A custom-price service: the price per item as typed (₦). */
@@ -217,7 +220,20 @@ const typedPrice = (text: string) => {
     return Number.NaN;
   }
 };
-const toLine = ({ discountDraft: draft, priceText, ...item }: CartLine) => {
+const stepsOrTyped = (steps: Step[]) => {
+  try {
+    return validSteps(steps, 'Job steps');
+  } catch {
+    return steps.map((s) => ({ ...s, name: s.name.trim() }));
+  }
+};
+const toLine = ({ discountDraft: draft, priceText, steps, ...line }: CartLine) => {
+  // Steps an Admin changed: the job's stages and their hours (while being typed, the sale's own
+  // check reports a step left without a name).
+  const flow = steps ? stepsWorkflow(stepsOrTyped(steps)) : null;
+  const item = flow
+    ? { ...line, workflow: flow.stages, stageHours: Object.keys(flow.hours).length ? flow.hours : undefined }
+    : line;
   const discount = draft ? discountSpec(draft) : null;
   const priced = priceText === undefined ? item : { ...item, unitPrice: typedPrice(priceText) };
   return discount ? { ...priced, discount } : priced;
@@ -262,19 +278,21 @@ export default function CheckoutEditor({
   const options = useBusinessOptions(),
     jobSources = options.jobSources;
   const { w, stage } = useWords();
-  // A job's stages and hours: its item's workflow (or one an Admin chose), else the standard one.
-  const workflowLine = (id: string | null | undefined) => {
-    const wf = workflowFor(options, id);
+  // A job's stages and hours: its item's own steps, else the business's usual ones.
+  const workflowLine = (id: string): Partial<CartLine> => {
+    const production =
+      working.pricing?.templates.find((t) => t.id === id)?.production ??
+      working.services.find((s) => s.id === id)?.production;
+    const flow = stepsWorkflow(itemSteps(options, production));
     return {
-      workflow: [...wf.stages],
-      workflowId: wf.id ?? undefined,
-      workflowName: wf.id ? wf.name : undefined,
-      stageHours: wf.id ? wf.hours : undefined,
+      workflow: flow.stages,
+      workflowId: undefined,
+      workflowName: undefined,
+      stageHours: Object.keys(flow.hours).length ? flow.hours : undefined,
+      steps: undefined,
     };
   };
-  const itemWorkflowId = (id: string) =>
-    working.pricing?.templates.find((t) => t.id === id)?.production?.workflowId ??
-    working.services.find((s) => s.id === id)?.production?.workflowId;
+  const [stepsFor, setStepsFor] = useState<string | null>(null);
   const newLine = () => ({
     ...line(),
     source: jobSources[0],
@@ -791,7 +809,7 @@ export default function CheckoutEditor({
                                     ? {
                                         ...line,
                                         serviceId: next,
-                                        ...workflowLine(itemWorkflowId(next)),
+                                        ...workflowLine(next),
                                         templateSnapshot: undefined,
                                         templateInputs: chosenTemplate
                                           ? templateDefaults(chosenTemplate)
@@ -930,31 +948,6 @@ export default function CheckoutEditor({
                             onChange={(e) => editLine(item.id, 'sourceNote', e.target.value)}
                           />
                         </label>
-                        {!service?.shelfItem && (options.workflows?.length ?? 0) > 0 && (
-                          <label>
-                            {w('Workflow')}
-                            <select
-                              aria-label={w('Job workflow')}
-                              value={item.workflowId ?? ''}
-                              disabled={!canChooseWorkflow}
-                              title={canChooseWorkflow ? undefined : 'Admins can choose another workflow'}
-                              onChange={(e) =>
-                                setLines((items) =>
-                                  items.map((l) =>
-                                    l.id === item.id ? { ...l, ...workflowLine(e.target.value || null) } : l,
-                                  ),
-                                )
-                              }
-                            >
-                              <option value="">Standard</option>
-                              {options.workflows.map((wf) => (
-                                <option key={wf.id} value={wf.id}>
-                                  {wf.name}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                        )}
                         {!service?.shelfItem && (
                           <label>
                             Deadline
@@ -971,6 +964,56 @@ export default function CheckoutEditor({
                           </label>
                         )}
                       </div>
+                      {!service?.shelfItem && (
+                        <div className="job-steps">
+                          <span>
+                            {w('Steps')}:{' '}
+                            {(item.steps
+                              ? stepsWorkflow(item.steps).stages
+                              : (item.workflow ?? options.jobStages)
+                            )
+                              .map((s) => stage(s))
+                              .join(' → ')}
+                          </span>
+                          {canChooseWorkflow && (
+                            <button
+                              type="button"
+                              className="text-button"
+                              aria-expanded={stepsFor === item.id}
+                              onClick={() => {
+                                setStepsFor(stepsFor === item.id ? null : item.id);
+                                if (!item.steps)
+                                  setLines((items) =>
+                                    items.map((l) =>
+                                      l.id === item.id
+                                        ? {
+                                            ...l,
+                                            steps: stagesToSteps(
+                                              l.workflow ?? options.jobStages,
+                                              l.stageHours,
+                                            ),
+                                          }
+                                        : l,
+                                    ),
+                                  );
+                              }}
+                            >
+                              {stepsFor === item.id ? 'Done' : 'Edit steps'}
+                            </button>
+                          )}
+                          {canChooseWorkflow && stepsFor === item.id && item.steps && (
+                            <StepBuilder
+                              steps={item.steps}
+                              label={`${w('Job')} ${index + 1} steps`}
+                              onChange={(steps) =>
+                                setLines((items) =>
+                                  items.map((l) => (l.id === item.id ? { ...l, steps } : l)),
+                                )
+                              }
+                            />
+                          )}
+                        </div>
+                      )}
                       {(discountPolicy.maxPercent > 0 || item.discountDraft?.kind) && (
                         <DiscountFields
                           label={w('Job discount')}

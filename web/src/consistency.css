@@ -2028,3 +2028,91 @@ label small > .field-error {
     color: #c6d8f5;
   }
 }
+/* Workflow steps: boxes stacked top to bottom, joined by a line; the first and last are locked. */
+.step-builder {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.step-builder > li {
+  position: relative;
+}
+.step-builder > li + li::before {
+  content: "";
+  position: absolute;
+  left: 22px;
+  top: -11px;
+  height: 10px;
+  border-left: 2px solid var(--line);
+}
+.step-box {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface, transparent);
+  min-width: 0;
+}
+.step-fixed {
+  justify-content: space-between;
+  border-style: dashed;
+}
+.step-fixed .step-name {
+  font-weight: 600;
+}
+.step-box input.step-name {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+.step-time {
+  display: flex;
+  gap: 6px;
+  flex: 0 1 200px;
+  min-width: 0;
+}
+.step-time input {
+  width: 80px;
+  min-width: 0;
+}
+.step-time select {
+  min-width: 0;
+}
+.step-actions {
+  display: flex;
+  gap: 4px;
+}
+.step-button {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: inherit;
+}
+.step-button:disabled {
+  opacity: 0.4;
+}
+.step-add {
+  padding-left: 8px;
+}
+.job-steps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 8px 0;
+  min-width: 0;
+}
+.job-steps > span {
+  overflow-wrap: anywhere;
+}
+.job-steps > .step-builder {
+  flex: 1 1 100%;
+}

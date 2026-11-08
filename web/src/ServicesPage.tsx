@@ -21,7 +21,9 @@ import { emptyLedger, money } from './domain.mjs';
 import { materialCode } from './material-display.mjs';
 import { serviceCode, serviceMatches, servicePrice } from './services.mjs';
 import { canonical, consumptionUnit, costRate, hasCost, suggestCostKey } from './pricing-templates.mjs';
-import type { Material, MaterialEvent, Service, ServiceEvent } from './types';
+import type { Material, MaterialEvent, Service, ServiceEvent, Step } from './types';
+import { ItemSteps } from './StepBuilder';
+import { stepsWorkflow } from './workflow-steps.mjs';
 import { useWords } from './Words';
 import { useBusinessOptions } from './BusinessOptionsContext';
 type Props = {
@@ -94,10 +96,10 @@ export default function ServicesPage({
   const [extraMaterials, setExtraMaterials] = useState(false);
   const [costCovered, setCostCovered] = useState(false);
   const [perItemText, setPerItemText] = useState('1');
-  const [workflowId, setWorkflowId] = useState('');
-  const { jobStages, workflows } = useBusinessOptions();
+  const [steps, setSteps] = useState<Step[] | undefined>(undefined);
+  const { jobStages } = useBusinessOptions();
   const { stage } = useWords();
-  const confirmStages = jobStages.filter((s) => s !== 'Collected');
+  const confirmStages = (steps ? stepsWorkflow(steps).stages : jobStages).filter((s) => s !== 'Collected');
   const defaultConfirmStage = confirmStages.includes('Printing')
     ? 'Printing'
     : (confirmStages[confirmStages.length - 2] ?? confirmStages[0] ?? 'Printing');
@@ -143,7 +145,7 @@ export default function ServicesPage({
     setExtraMaterials(!!s?.production?.extraMaterials);
     setCostCovered(!!s?.production?.costCovered);
     setPerItemText(String(s?.production?.perItem ?? 1));
-    setWorkflowId(s?.production?.workflowId ?? '');
+    setSteps(s?.production?.steps);
     setStockDraft(null);
     setEditor(target);
   };
@@ -266,7 +268,7 @@ export default function ServicesPage({
           ...(materialValue && !privateItem && Number(perItemText) !== 1
             ? { perItem: Number(perItemText) }
             : {}),
-          ...(!privateItem && workflowId ? { workflowId } : {}),
+          ...(!privateItem && steps ? { steps } : {}),
         },
       };
       const event: ServiceEvent = {
@@ -1015,26 +1017,7 @@ export default function ServicesPage({
                   </small>
                 </label>
               )}
-              {!privateItem && (workflows?.length ?? 0) > 0 && (
-                <label>
-                  {w('Workflow')}
-                  <select
-                    aria-label="Item workflow"
-                    value={workflowId}
-                    onChange={(e) => setWorkflowId(e.target.value)}
-                  >
-                    <option value="">Standard</option>
-                    {workflows.map((wf) => (
-                      <option key={wf.id} value={wf.id}>
-                        {wf.name}
-                      </option>
-                    ))}
-                  </select>
-                  <small>
-                    {w('The stages its jobs go through (Business Settings → Dropdowns & workflow).')}
-                  </small>
-                </label>
-              )}
+              {!privateItem && <ItemSteps value={steps} onChange={setSteps} />}
               {!privateItem && (
                 <fieldset className="choice-materials">
                   <legend>{w('Materials added in production')}</legend>
