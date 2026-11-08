@@ -2004,9 +2004,27 @@ label small > .field-error {
   display: grid;
   gap: 8px;
 }
-.workflow-row:first-of-type {
+div.workflow-row:first-of-type {
   border-top: 0;
   padding-top: 0;
+}
+details.workflow-row {
+  display: block;
+}
+.workflow-body {
+  display: grid;
+  gap: 8px;
+}
+details.workflow-row > summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+details.workflow-row[open] > summary {
+  margin-bottom: 4px;
 }
 /* Jobs on hold (waiting for approval, a balance, materials…). */
 .job-held {
@@ -2073,11 +2091,11 @@ label small > .field-error {
 .step-time {
   display: flex;
   gap: 6px;
-  flex: 0 1 200px;
+  flex: 0 1 240px;
   min-width: 0;
 }
 .step-time input {
-  width: 80px;
+  width: 112px;
   min-width: 0;
 }
 .step-time select {
@@ -2115,4 +2133,82 @@ label small > .field-error {
 }
 .job-steps > .step-builder {
   flex: 1 1 100%;
+}
+
+/* Breathing room: buttons and grouped boxes never sit flush against the block next to them. */
+.choice-materials {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  margin: 16px 0;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.choice-materials > legend {
+  padding: 0 4px;
+}
+.choice-materials small {
+  margin: 0;
+}
+.modal-body .stage-hours {
+  margin: 16px 0;
+}
+.modal-body details:not(.workflow-row):not(.record-details) {
+  margin-block: 12px;
+}
+.modal-body details:not(.workflow-row):not(.record-details)[open] > summary {
+  margin-bottom: 10px;
+}
+.spaced-action {
+  margin-block: 6px 16px;
+}
+.template-card .material-actions {
+  margin-top: 12px;
+}
+/* A link-style button under a field ("New payee") keeps a little gap from the box above. */
+.form-grid > div > label + .text-button,
+.form-grid > label + .text-button {
+  margin-top: 8px;
+  justify-self: start;
+}
+.job-steps {
+  margin: 14px 0 18px;
+}
+/* Saved workflows open and close like the other expandable sections. */
+details.workflow-row > summary {
+  list-style: none;
+}
+details.workflow-row > summary::-webkit-details-marker {
+  display: none;
+}
+details.workflow-row > summary::before {
+  content: "▸";
+  display: inline-block;
+  width: 1.2em;
+  color: var(--subtle, inherit);
+  transition: transform 0.15s;
+}
+details.workflow-row[open] > summary::before {
+  transform: rotate(90deg);
+}
+details.workflow-row {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 4px 14px;
+}
+details.workflow-row + details.workflow-row {
+  margin-top: 0;
+}
+details.workflow-row[open] {
+  padding-bottom: 14px;
+}
+.workflow-body > .text-button.danger-text {
+  justify-self: start;
+  margin-top: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  details.workflow-row > summary::before {
+    transition: none;
+  }
 }

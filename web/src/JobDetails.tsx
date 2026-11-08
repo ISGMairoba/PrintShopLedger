@@ -118,7 +118,7 @@ export default function JobDetails({
       )}
       <DeadlineProgress job={job} />
       {onDue && !['Completed', 'Collected', 'Cancelled'].includes(job.productionStatus ?? '') && (
-        <button className="secondary" disabled={busy} onClick={() => onDue([job])}>
+        <button className="secondary spaced-action" disabled={busy} onClick={() => onDue([job])}>
           Change due date
         </button>
       )}
