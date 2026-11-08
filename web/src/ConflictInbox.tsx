@@ -378,7 +378,7 @@ export default function ConflictInbox({
             </div>
           ) : (
             <div className="material-actions">
-              {['account.reconciled', 'account.assigned', 'account.transferred'].includes(
+              {['account.reconciled', 'account.assigned', 'account.transferred', 'account.money_moved'].includes(
                 review.conflict.source.kind,
               ) && (
                 <p>
@@ -393,7 +393,7 @@ export default function ConflictInbox({
                   !reason.trim() ||
                   (!canConfigureAccounts &&
                     ['account.created', 'account.updated'].includes(review.conflict.source.kind)) ||
-                  ['account.reconciled', 'account.assigned', 'account.transferred'].includes(
+                  ['account.reconciled', 'account.assigned', 'account.transferred', 'account.money_moved'].includes(
                     review.conflict.source.kind,
                   )
                 }

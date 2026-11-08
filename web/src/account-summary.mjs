@@ -1,6 +1,7 @@
 // Accounts page summary: what the business holds now and what moved this month. Transfers between
 // accounts move money without adding or removing any, so they are left out of money in and out.
 import { accountBalance, moneyTransactions } from './operations.mjs';
+import { lenderBalances, moneyMoves } from './money-moves.mjs';
 
 /**
  * @param {import('./types').Ledger} ledger
@@ -33,6 +34,15 @@ export function accountSummary(ledger, accounts, today) {
     if (t.direction > 0) moneyIn += t.amount;
     else moneyOut += t.amount;
   }
+  // Loans, owner money and other income (Money in / out).
+  let otherIn = 0,
+    otherOut = 0;
+  for (const e of moneyMoves(ledger, `${month}-01`, today))
+    if (ids.has(e.accountId)) {
+      if (e.direction > 0) otherIn += e.amount;
+      else otherOut += e.amount;
+    }
+  const owed = Object.values(lenderBalances(ledger));
   const reconciliations = (ledger.accountEntries ?? []).filter(
     (e) => e.action === 'reconciliation' && ids.has(e.accountId),
   );
@@ -45,8 +55,12 @@ export function accountSummary(ledger, accounts, today) {
     cash,
     other: total - cash,
     accounts: accounts.length,
-    moneyIn,
-    moneyOut,
+    moneyIn: moneyIn + otherIn,
+    moneyOut: moneyOut + otherOut,
+    otherIn,
+    otherOut,
+    owedToLenders: owed.reduce((n, x) => n + x, 0),
+    lenders: owed.length,
     unassignedCount,
     unassignedNet,
     lastReconciled,

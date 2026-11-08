@@ -984,7 +984,8 @@ export type OperationsEvent = {
     | 'account.restored'
     | 'account.transferred'
     | 'account.reconciled'
-    | 'account.assigned';
+    | 'account.assigned'
+    | 'account.money_moved';
   data: Record<string, any> & { id: string; modifiedBy: string; modifiedByLabel: string; modifiedAt: string };
 };
 

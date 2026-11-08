@@ -1,3 +1,4 @@
+import { moneyMoveTotals } from './money-moves.mjs';
 import { customerBalanceFast, jobBalanceFast } from './balances.mjs';
 import { walletBalance } from './checkout.mjs';
 import { businessDay, validRange, dashboardSummary } from './dashboard.mjs';
@@ -694,6 +695,19 @@ export function summaryReport(
     );
     add('refunded', 'Refunds paid', base.refunded, 'Money returned to customers', prev?.refunded);
     add('netCollected', 'Net collected', base.netCollected, 'Received minus refunds', prev?.netCollected);
+  }
+    if (access.payments) {
+    // Money that is not a sale or an expense (Accounts → Money in / out), shown when there is any.
+    const moves = moneyMoveTotals(ledger, from, to),
+      before = prev ? moneyMoveTotals(ledger, base.previous.from, base.previous.to) : null;
+    for (const [key, label, note] of [
+      ['other_income', 'Other income', 'Gifts, grants and other money that is not a sale'],
+      ['loan_in', 'Loans received', 'Owed to lenders until repaid; not income'],
+      ['loan_repayment', 'Loan repayments', 'Interest is recorded as an expense'],
+      ['owner_in', 'Owner money in', "The owner's own money; not income"],
+      ['owner_out', 'Owner money out', 'Taken for personal use; not an expense'],
+    ])
+      if (moves[key] || before?.[key]) add(key, label, moves[key], note, before?.[key]);
   }
   if (access.expenses) {
     add(
