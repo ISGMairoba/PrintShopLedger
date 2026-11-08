@@ -1573,7 +1573,8 @@ export default function App() {
                     )}
                     {dueRepeatCount > 0 && page !== 'Expenses' && (
                       <div className="notice">
-                        {dueRepeatCount} repeating expense{dueRepeatCount === 1 ? ' is' : 's are'} due to record.{' '}
+                        {dueRepeatCount} repeating expense{dueRepeatCount === 1 ? ' is' : 's are'} due to
+                        record.{' '}
                         <button className="secondary" onClick={() => setPage('Expenses')}>
                           <Icon name="expenses" /> Review
                         </button>{' '}
