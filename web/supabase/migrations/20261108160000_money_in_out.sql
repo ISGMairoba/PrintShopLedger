@@ -36,13 +36,13 @@ do $patch$
 declare d text; pat text;
 begin
   d := pg_get_functiondef('private.apply_operations_event(uuid,jsonb)'::regprocedure);
-  pat := $$elsif k in ('account.transferred','account.reconciled','account.assigned') then$$;
+  pat := $$('account.transferred','account.reconciled','account.assigned')$$;
   if (length(d) - length(replace(d, pat, ''))) / length(pat) <> 1 then raise exception 'apply_operations_event kinds pattern not found'; end if;
-  d := replace(d, pat, $$elsif k in ('account.transferred','account.reconciled','account.assigned','account.money_moved') then$$);
-  pat := $$  else
-   select value into t from jsonb_array_elements(private.operations_transactions(p_shop))$$;
-  if (length(d) - length(replace(d, pat, ''))) / length(pat) <> 1 then raise exception 'apply_operations_event assignment pattern not found'; end if;
-  execute replace(d, pat, $$  elsif k='account.money_moved' then
+  d := replace(d, pat, $$('account.transferred','account.reconciled','account.assigned','account.money_moved')$$);
+  -- Matched with any spacing, so editors that re-indent pasted text don't break it.
+  pat := 'else\s+select value into t from jsonb_array_elements\(private\.operations_transactions\(p_shop\)\)';
+  if regexp_count(d, pat) <> 1 then raise exception 'apply_operations_event assignment pattern not found'; end if;
+  execute regexp_replace(d, pat, $$elsif k='account.money_moved' then
    v:=(d->>'amount')::numeric;
    if coalesce(d->>'moneyType','') not in ('loan_in','loan_repayment','owner_in','owner_out','other_income') then raise exception 'Choose what kind of money this is';end if;
    if v is null or v<=0 or v>100000000000 or v<>trunc(v) then raise exception 'Enter an amount greater than zero';end if;
@@ -53,7 +53,8 @@ begin
     if d->>'moneyType'='loan_repayment' and v>private.lender_owed(p_shop,(dest->>'id')::uuid) then raise exception 'That is more than is still owed to %',dest->>'name' using errcode='PT409';end if;
     nxt:=nxt||jsonb_build_object('lenderId',dest->>'id');
    end if;
-$$ || pat);
+  else
+   select value into t from jsonb_array_elements(private.operations_transactions(p_shop))$$);
 
   d := pg_get_functiondef('private.submit_sync_conflict(uuid,jsonb,text)'::regprocedure);
   pat := $$'account.assigned','checkout.completed'$$;
