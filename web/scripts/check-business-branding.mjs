@@ -273,7 +273,8 @@ try {
     await page.getByRole('button', { name: 'Next: Approval', exact: true }).waitFor();
     await nav('Business Settings');
     await settingsSection(page, /Dropdowns & workflow/);
-    await page.getByLabel('Job stages', { exact: true }).fill('Added\nPrinting\nCompleted\nCollected');
+    // Changing the usual steps leaves jobs already sold on theirs.
+    await page.getByLabel('Usual steps', { exact: true }).selectOption('');
     await page.getByRole('button', { name: 'Save business settings', exact: true }).click();
     await page.getByText('Business settings saved.', { exact: true }).waitFor();
     await nav('Point of Service');
