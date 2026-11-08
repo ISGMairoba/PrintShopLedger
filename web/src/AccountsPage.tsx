@@ -8,6 +8,7 @@ import { currency } from './receipts.mjs';
 import { businessDay } from './dashboard.mjs';
 import { accountBalance, accountBranch, moneyTransactions, operationEvent } from './operations.mjs';
 import { useBusinessOptions } from './BusinessOptionsContext';
+import { accountSummary } from './account-summary.mjs';
 import type { Ledger, MoneyAccount, OperationsEvent, AccountPaymentMethod } from './types';
 const today = () => businessDay(new Date().toISOString());
 export default function AccountsPage({
@@ -87,7 +88,69 @@ export default function AccountsPage({
       {a.name}
     </option>
   ));
+  // Shared accounts hold other branches' money too: only those who see every branch count them.
+  const summary = accountSummary(
+    ledger,
+    active.filter((a) => !(branches && accountBranch(a) === '*' && !seesAll)),
+    today(),
+  );
+  const leftOut = active.length - summary.accounts;
   return (
+    <>
+      {!configurationOnly && (
+        <section className="stats" aria-label="Accounts summary">
+          <article>
+            <span>Current balance</span>
+            <strong>{currency(summary.total)}</strong>
+            <small>
+              {summary.accounts === 1 ? '1 account' : `${summary.accounts} accounts`}
+              {summary.cash !== 0 && summary.other !== 0
+                ? ` · Cash ${currency(summary.cash)} · Bank and others ${currency(summary.other)}`
+                : ''}
+              {leftOut > 0 ? ` · ${leftOut} shared not counted` : ''}
+            </small>
+          </article>
+          <article>
+            <span>Money in this month</span>
+            <strong>{currency(summary.moneyIn)}</strong>
+            <small>Customer payments into these accounts</small>
+          </article>
+          <article>
+            <span>Money out this month</span>
+            <strong>{currency(summary.moneyOut)}</strong>
+            <small>Expenses paid and refunds</small>
+          </article>
+          <article>
+            <span>Last reconciled</span>
+            <strong>
+              {summary.lastReconciled
+                ? new Date(`${summary.lastReconciled}T12:00:00`).toLocaleDateString('en-GB', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                  })
+                : 'Never'}
+            </strong>
+            <small>
+              {summary.differenceMonth !== 0
+                ? `Differences this month ${summary.differenceMonth > 0 ? '+' : '−'}${currency(Math.abs(summary.differenceMonth))}`
+                : summary.neverReconciled > 0
+                  ? `${summary.neverReconciled} account${summary.neverReconciled === 1 ? '' : 's'} never reconciled`
+                  : 'No differences this month'}
+            </small>
+          </article>
+          {summary.unassignedCount > 0 && (
+            <article>
+              <span>Not in an account</span>
+              <strong>{summary.unassignedCount}</strong>
+              <small>
+                Payments worth {summary.unassignedNet < 0 ? '−' : ''}
+                {currency(Math.abs(summary.unassignedNet))} not counted above
+              </small>
+            </article>
+          )}
+        </section>
+      )}
     <section
       className={configurationOnly ? 'panel account-settings' : 'panel'}
       aria-label={configurationOnly ? 'Account settings' : 'Accounts'}
@@ -640,5 +703,6 @@ export default function AccountsPage({
         </Modal>
       )}
     </section>
+    </>
   );
 }
