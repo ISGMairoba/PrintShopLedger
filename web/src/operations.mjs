@@ -190,6 +190,10 @@ export function applyOperation(ledger, event) {
     )
       throw Error('Each payment method can have only one default account in a branch.');
     next[collection] = old ? rows.map((r) => (r.id === old.id ? after : r)) : [...rows, after];
+  } else if (kind === 'account.entry_corrected') {
+    after = correctEntry(ledger, d, audit);
+    before = (ledger.accountEntries ?? []).find((e) => e.id === d.id) ?? null;
+    next.accountEntries = (ledger.accountEntries ?? []).map((e) => (e.id === d.id ? after : e));
   } else {
     const accounts = ledger.moneyAccounts ?? [],
       entries = ledger.accountEntries ?? [];
@@ -342,3 +346,80 @@ export const defaultMoneyAccount = (ledger, method) => {
   );
   return (fits.find((a) => accountBranch(a) !== '*') ?? fits[0])?.id ?? '';
 };
+
+/**
+ * Correct a transfer, reconciliation or money in / out entry: its amount (a reconciliation's counted
+ * balance), date, note, accounts or lender; or cancel it (amount 0). The entry keeps every earlier
+ * version with who changed it, when and why. The server applies the same rules.
+ */
+export function correctEntry(ledger, d, audit) {
+  const entries = ledger.accountEntries ?? [];
+  const old = entries.find((e) => e.id === d.id);
+  if (!old || !['transfer', 'reconciliation', 'money'].includes(old.action))
+    throw Error('Choose an entry to correct.');
+  if ((old.version ?? 1) !== d.baseVersion) throw Error('This entry changed elsewhere. Reopen it.');
+  const why = text(d.correctionReason, 500, true);
+  const accounts = ledger.moneyAccounts ?? [];
+  const cancel = d.cancel === true;
+  const next = { ...old };
+  const active = (id) => accounts.find((a) => a.id === id && !a.archived);
+  if (d.reason !== undefined) next.reason = text(d.reason, 500, true);
+  if (old.action === 'reconciliation') {
+    // The counted balance changes; the date stays (the expected balance belongs to that day).
+    next.actualBalance = cancel ? old.expectedBalance : amount(d.actualBalance ?? old.actualBalance, true);
+    next.amount = next.actualBalance - old.expectedBalance;
+  } else {
+    if (d.paidOn !== undefined) next.paidOn = day(d.paidOn);
+    if (d.accountId !== undefined) next.accountId = d.accountId;
+    next.amount = cancel ? 0 : amount(d.amount ?? old.amount);
+    if (!cancel && next.amount <= 0) throw Error('Enter an amount greater than zero, or cancel the entry.');
+    const from = active(next.accountId);
+    if (!from || next.paidOn < from.openingDate) throw Error('Choose an active account opened by that date.');
+    if (old.action === 'transfer') {
+      if (d.toAccountId !== undefined) next.toAccountId = d.toAccountId;
+      const to = active(next.toAccountId);
+      if (!to || to.id === from.id || next.paidOn < to.openingDate)
+        throw Error('Choose a different active destination account opened by that date.');
+    }
+    if (old.action === 'money' && old.lenderId) {
+      if (d.lenderId !== undefined) next.lenderId = d.lenderId;
+      if (!(ledger.payees ?? []).some((p) => p.id === next.lenderId)) throw Error('Choose the lender.');
+      // No lender may end up repaid more than was lent.
+      const owed = {};
+      for (const e of entries.map((e) => (e.id === old.id ? next : e)))
+        if (e.action === 'money' && e.lenderId)
+          owed[e.lenderId] = (owed[e.lenderId] ?? 0) + (e.moneyType === 'loan_in' ? e.amount : -e.amount);
+      for (const id of new Set([old.lenderId, next.lenderId]))
+        if ((owed[id] ?? 0) < 0)
+          throw Error(
+            `${(ledger.payees ?? []).find((p) => p.id === id)?.name ?? 'The lender'} would be repaid more than was lent.`,
+          );
+    }
+  }
+  const pick = ({ amount, paidOn, reason, accountId, toAccountId, lenderId, actualBalance }) =>
+    Object.fromEntries(
+      Object.entries({ amount, paidOn, reason, accountId, toAccountId, lenderId, actualBalance }).filter(
+        ([, v]) => v !== undefined,
+      ),
+    );
+  return {
+    ...next,
+    ...(cancel ? { cancelled: true } : {}),
+    version: (old.version ?? 1) + 1,
+    corrections: [
+      ...(old.corrections ?? []),
+      {
+        before: pick(old),
+        reason: why,
+        cancelled: cancel,
+        correctedBy: audit.modifiedBy,
+        correctedByLabel: audit.modifiedByLabel,
+        correctedAt: audit.modifiedAt,
+      },
+    ],
+    modifiedBy: audit.modifiedBy,
+    modifiedByLabel: audit.modifiedByLabel,
+    modifiedAt: audit.modifiedAt,
+    lastEventId: audit.lastEventId,
+  };
+}
