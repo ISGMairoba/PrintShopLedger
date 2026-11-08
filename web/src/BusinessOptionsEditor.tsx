@@ -21,7 +21,9 @@ export default function BusinessOptionsEditor({
   const { w, stage } = useWords();
   const [error, setError] = useFeedbackMessage('error'),
     [payment, setPayment] = useState(''),
-    [kind, setKind] = useState('Transfer');
+    [kind, setKind] = useState('Transfer'),
+    // Saved workflows start collapsed; one just added opens.
+    [openFlows, setOpenFlows] = useState<string[]>([]);
   function update(key: keyof Options, next: unknown) {
     onChange({ ...value, [key]: next });
     setError('');
@@ -223,8 +225,27 @@ export default function BusinessOptionsEditor({
                   ...value,
                   workflows: value.workflows.map((x, j) => (j === i ? { ...x, ...patch } : x)),
                 });
+              const open = openFlows.includes(wf.id);
               return (
-                <div key={wf.id} className="workflow-row">
+                <details
+                  key={wf.id}
+                  className="workflow-row"
+                  open={open}
+                  onToggle={(e) => {
+                    const now = e.currentTarget.open;
+                    if (now !== open)
+                      setOpenFlows((ids) => (now ? [...ids, wf.id] : ids.filter((x) => x !== wf.id)));
+                  }}
+                >
+                  <summary>
+                    <strong>{wf.name || `Workflow ${i + 1}`}</strong>
+                    <span className="muted">
+                      {' '}
+                      · {wf.steps.length} {wf.steps.length === 1 ? 'step' : 'steps'}
+                      {value.defaultWorkflowId === wf.id ? ' · usual steps' : ''}
+                    </span>
+                  </summary>
+                  <div className="workflow-body">
                   <label>
                     {w('Workflow name')}
                     <input
@@ -252,22 +273,22 @@ export default function BusinessOptionsEditor({
                   >
                     Remove workflow
                   </button>
-                </div>
+                  </div>
+                </details>
               );
             })}
             <button
               type="button"
               className="secondary"
               disabled={(value.workflows?.length ?? 0) >= 30}
-              onClick={() =>
+              onClick={() => {
+                const id = crypto.randomUUID();
+                setOpenFlows((ids) => [...ids, id]);
                 onChange({
                   ...value,
-                  workflows: [
-                    ...(value.workflows ?? []),
-                    { id: crypto.randomUUID(), name: '', steps: [{ name: 'Design' }, { name: 'Approval' }] },
-                  ],
-                })
-              }
+                  workflows: [...(value.workflows ?? []), { id, name: '', steps: [{ name: 'Design' }, { name: 'Approval' }] }],
+                });
+              }}
             >
               <Icon name="add" /> {w('Add workflow')}
             </button>

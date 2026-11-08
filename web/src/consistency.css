@@ -2008,6 +2008,24 @@ label small > .field-error {
   border-top: 0;
   padding-top: 0;
 }
+details.workflow-row {
+  display: block;
+}
+.workflow-body {
+  display: grid;
+  gap: 8px;
+}
+details.workflow-row > summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+details.workflow-row[open] > summary {
+  margin-bottom: 4px;
+}
 /* Jobs on hold (waiting for approval, a balance, materials…). */
 .job-held {
   display: inline-block;
@@ -2073,11 +2091,11 @@ label small > .field-error {
 .step-time {
   display: flex;
   gap: 6px;
-  flex: 0 1 200px;
+  flex: 0 1 240px;
   min-width: 0;
 }
 .step-time input {
-  width: 80px;
+  width: 112px;
   min-width: 0;
 }
 .step-time select {
