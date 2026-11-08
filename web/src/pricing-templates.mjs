@@ -590,13 +590,17 @@ export function priceTemplate(ledger, template, supplied, quantity, stockIds = {
   const priceReference = (service, name) => {
     const key = name.slice(0, -6);
     if (service.private)
-      throw Error(`${service.description} is private (not sold), so it has no selling price. Use its cost: ${key}.`);
+      throw Error(
+        `${service.description} is private (not sold), so it has no selling price. Use its cost: ${key}.`,
+      );
     if (service.customPrice)
       throw Error(
         `${service.description} is priced at the sale, so it has no fixed selling price. Give it a template cost and use ${key}.`,
       );
     if (!(service.price > 0))
-      throw Error(`${service.description} has no selling price. Set its price, or give it a template cost and use ${key}.`);
+      throw Error(
+        `${service.description} has no selling price. Set its price, or give it a template cost and use ${key}.`,
+      );
     if (!used.has(name))
       used.set(name, {
         serviceId: service.id,

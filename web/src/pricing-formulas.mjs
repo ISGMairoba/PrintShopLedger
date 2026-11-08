@@ -68,7 +68,8 @@ export function parseFormula(source) {
         if (name === 'PRICE') {
           // The item is named by its formula name (or its _price name); it is kept as <name>_price.
           const item = args[0];
-          if (item.op !== 'name') throw Error('PRICE: start with the item\'s formula name, e.g. PRICE(envelope, quantity).');
+          if (item.op !== 'name')
+            throw Error("PRICE: start with the item's formula name, e.g. PRICE(envelope, quantity).");
           const key = item.args[0].endsWith('_price') ? item.args[0] : item.args[0] + '_price';
           if (!keyPattern.test(key)) throw Error(`PRICE: ${item.args[0]} is too long a name.`);
           args[0] = node('name', [key]);

@@ -127,9 +127,8 @@ function FormulaEditor({
   ];
   // PRICE(item, count) starts with an item that has packs or ranges, else any item that is sold.
   const sold = costs.filter((s) => !s.private && !s.customPrice && s.price > 0);
-  const packedItem = (
-    sold.find((s) => s.packPrices?.length || s.priceTiers?.length) ?? sold[0]
-  )?.costing?.key ?? 'item';
+  const packedItem =
+    (sold.find((s) => s.packPrices?.length || s.priceTiers?.length) ?? sold[0])?.costing?.key ?? 'item';
   const rateSource = rates.find(([key]) => key === c.rate.trim())?.[0] ?? '';
   let syntax = '';
   try {

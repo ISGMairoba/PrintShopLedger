@@ -22,7 +22,12 @@ const priceOf = (formula, quantity, extra = []) => {
   ledger.services.push(bag, ...extra);
   const t = structuredClone(ledger.pricing.templates[0]);
   t.expenses.push({ key: 'bags', label: 'Bags', formula });
-  return priceTemplate(ledger, validateTemplate(t), { sheets_per_book: 25, inner_paper: 1, cover_card: 1 }, quantity);
+  return priceTemplate(
+    ledger,
+    validateTemplate(t),
+    { sheets_per_book: 25, inner_paper: 1, cover_card: 1 },
+    quantity,
+  );
 };
 
 test('PRICE(item, count) charges packs first, then single pieces', () => {
@@ -32,7 +37,18 @@ test('PRICE(item, count) charges packs first, then single pieces', () => {
   assert.equal(canonical(itemTotal({ amount: bag.price, packPrices: bag.packPrices }, 50)), '6000');
   assert.equal(canonical(itemTotal({ amount: bag.price, packPrices: bag.packPrices }, 49)), '6370');
   assert.equal(
-    canonical(itemTotal({ amount: 1000, priceTiers: [{ from: 10, price: 800 }, { from: 50, price: 600 }] }, 60)),
+    canonical(
+      itemTotal(
+        {
+          amount: 1000,
+          priceTiers: [
+            { from: 10, price: 800 },
+            { from: 50, price: 600 },
+          ],
+        },
+        60,
+      ),
+    ),
     '360',
   );
   const s = priceOf('PRICE(nylon_bag, quantity)', 130);
@@ -45,8 +61,18 @@ test('PRICE(item, count) charges packs first, then single pieces', () => {
 });
 
 test('items without a fixed selling price are refused, not counted as ₦0', () => {
-  const svc = (patch) => ({ ...bag, id: id(62), description: 'Design', costing: { key: 'design' }, packPrices: [], ...patch });
-  assert.throws(() => priceOf('design_price', 1, [svc({ private: true, price: 0 })]), /private \(not sold\).*Use its cost: design/);
+  const svc = (patch) => ({
+    ...bag,
+    id: id(62),
+    description: 'Design',
+    costing: { key: 'design' },
+    packPrices: [],
+    ...patch,
+  });
+  assert.throws(
+    () => priceOf('design_price', 1, [svc({ private: true, price: 0 })]),
+    /private \(not sold\).*Use its cost: design/,
+  );
   assert.throws(() => priceOf('design_price', 1, [svc({ customPrice: true })]), /priced at the sale/);
   assert.throws(() => priceOf('PRICE(design, 2)', 1, [svc({ price: 0 })]), /has no selling price/);
 });
