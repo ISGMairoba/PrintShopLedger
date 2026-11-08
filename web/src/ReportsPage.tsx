@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { profitReport, profitSections } from './profit.mjs';
+import { profitLoss, profitLossSections } from './profit-loss.mjs';
 import ResponsiveTable from './ResponsiveTable';
 import { validRange } from './dashboard.mjs';
 import PeriodFilter, { usePeriod } from './PeriodFilter';
@@ -58,7 +59,13 @@ type Props = {
   /** The owner's choice of branch (All branches or one). */
   branchControl?: ReactNode;
 };
-type Tab = 'Customer statement' | 'Payee statement' | 'Transactions' | 'Summary' | 'Profit';
+type Tab =
+  | 'Customer statement'
+  | 'Payee statement'
+  | 'Transactions'
+  | 'Summary'
+  | 'Profit'
+  | 'Profit & loss';
 type StatementJob = {
   id: string;
   ref: string;
@@ -282,12 +289,13 @@ export default function ReportsPage({
     void import('./share-pdf');
   }, []);
   const tabs = (
-    ['Customer statement', 'Payee statement', 'Transactions', 'Summary', 'Profit'] as Tab[]
+    ['Customer statement', 'Payee statement', 'Transactions', 'Summary', 'Profit', 'Profit & loss'] as Tab[]
   ).filter(
     (t) =>
       (t !== 'Customer statement' || (access.customers && access.jobs && access.payments)) &&
       (t !== 'Payee statement' || access.expenses) &&
-      (t !== 'Profit' || (!!access.costs && access.jobs)),
+      (t !== 'Profit' || (!!access.costs && access.jobs)) &&
+      (t !== 'Profit & loss' || (!!access.costs && access.jobs && access.expenses)),
   );
   const [tab, setTab] = useState<Tab>(
     payeeId && tabs.includes('Payee statement') ? 'Payee statement' : tabs[0],
@@ -416,6 +424,8 @@ export default function ReportsPage({
         <StatementTab {...shared} customerId={customerId} onCustomerChange={onCustomerChange} />
       ) : tab === 'Profit' ? (
         <ProfitTab {...shared} />
+      ) : tab === 'Profit & loss' ? (
+        <ProfitLossTab {...shared} />
       ) : tab === 'Payee statement' ? (
         <PayeeStatementTab {...shared} payeeId={payeeId} onPayeeChange={onPayeeChange} />
       ) : tab === 'Transactions' ? (
@@ -1401,6 +1411,168 @@ function ProfitTab({ ledger, freshness, busy, error, pdf, csv }: TabProps) {
               )}
             </section>
           )}
+        </>
+      )}
+    </>
+  );
+}
+type ProfitLoss = {
+  from: string;
+  to: string;
+  sales: number;
+  jobCost: number;
+  grossProfit: number;
+  expenses: { category: string; amount: number }[];
+  operating: number;
+  otherIncome: number;
+  net: number;
+  stockPurchases: number;
+  unknownJobs: number;
+  unknownSales: number;
+};
+function ProfitLossTab({ ledger, freshness, busy, error, pdf, csv }: TabProps) {
+  const { range, valid, controls } = useRange();
+  const report = useMemo(
+    () =>
+      valid ? (profitLoss(ledger, range.from, range.to) as ProfitLoss & { previous: ProfitLoss }) : null,
+    [ledger, range.from, range.to, valid],
+  );
+  const title = 'Profit & loss';
+  const subtitle = report
+    ? [
+        `Period: ${report.from} to ${report.to}, compared with ${report.previous.from} to ${report.previous.to}`,
+        'Job costs are estimates from Pricing Templates; materials bought into stock are counted through the jobs that use them.',
+      ]
+    : [];
+  const file = report ? reportFileName('Profit and loss', `${report.from} to ${report.to}`) : '';
+  const change = (now: number, before: number) => {
+    const d = now - before;
+    return d === 0 ? 'Same as the period before' : `${d > 0 ? '+' : '−'}${currency(Math.abs(d))} on the period before`;
+  };
+  const line = (label: string, now: number, before: number, opts: { strong?: boolean; minus?: boolean } = {}) => (
+    <tr className={opts.strong ? 'report-total' : undefined}>
+      <td>{opts.strong ? <strong>{label}</strong> : label}</td>
+      <td className={now < 0 && !opts.minus ? 'danger-text' : undefined}>
+        {opts.minus && now ? '−' : ''}
+        {opts.strong ? <strong>{currency(now)}</strong> : currency(now)}
+      </td>
+      <td>
+        {opts.minus && before ? '−' : ''}
+        {currency(before)}
+      </td>
+    </tr>
+  );
+  return (
+    <>
+      <section className="panel dashboard-filters report-filters">
+        {controls}
+        <small>Dates use Africa/Lagos. Jobs count on the day they were sold; expenses on their date.</small>
+      </section>
+      {freshness}
+      {!valid || !report ? (
+        <div className="dashboard-warning" role="alert">
+          Choose valid From and To dates, in order, spanning no more than ten years.
+        </div>
+      ) : (
+        <>
+          <section className="panel report-header">
+            <div>
+              <h2>
+                {report.from} to {report.to}
+              </h2>
+              <small>
+                Compared with {report.previous.from} to {report.previous.to}. Loans and owner money are not
+                income or expenses; loan interest is an expense.
+              </small>
+            </div>
+            <Exports
+              busy={busy}
+              onCsv={() =>
+                csv(file, title, subtitle, profitLossSections(report, { money: (k: number) => (k / 100).toFixed(2) }))
+              }
+              onPdf={() =>
+                void pdf(file, title, subtitle, profitLossSections(report, { money: currency, unit: '' }))
+              }
+            />
+          </section>
+          {error && (
+            <p role="alert" className="dashboard-warning">
+              {error}
+            </p>
+          )}
+          <section className="stats dashboard-stats" aria-label="Profit and loss summary">
+            <article>
+              <span>Net profit</span>
+              <strong className={report.net < 0 ? 'danger-text' : undefined}>{currency(report.net)}</strong>
+              <small>{change(report.net, report.previous.net)}</small>
+            </article>
+            <article>
+              <span>Gross profit</span>
+              <strong>{currency(report.grossProfit)}</strong>
+              <small>
+                Sales {currency(report.sales)} less estimated job costs {currency(report.jobCost)}
+              </small>
+            </article>
+            <article>
+              <span>Expenses</span>
+              <strong>{currency(report.operating)}</strong>
+              <small>{change(report.operating, report.previous.operating)}</small>
+            </article>
+            {(report.otherIncome > 0 || report.previous.otherIncome > 0) && (
+              <article>
+                <span>Other income</span>
+                <strong>{currency(report.otherIncome)}</strong>
+                <small>Gifts, grants and other money that is not a sale</small>
+              </article>
+            )}
+          </section>
+          <section className="panel">
+            <h2>Statement</h2>
+            <div className="table-wrap">
+              <table aria-label="Profit and loss statement">
+                <thead>
+                  <tr>
+                    <th />
+                    <th>This period</th>
+                    <th>Period before</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {line('Sales (after discounts)', report.sales, report.previous.sales)}
+                  {line('Estimated cost of jobs', report.jobCost, report.previous.jobCost, { minus: true })}
+                  {line('Gross profit', report.grossProfit, report.previous.grossProfit, { strong: true })}
+                  {[...new Set([...report.expenses, ...report.previous.expenses].map((x) => x.category))].map(
+                    (c) => (
+                      <Fragment key={c}>
+                        {line(
+                          c,
+                          report.expenses.find((x) => x.category === c)?.amount ?? 0,
+                          report.previous.expenses.find((x) => x.category === c)?.amount ?? 0,
+                          { minus: true },
+                        )}
+                      </Fragment>
+                    ),
+                  )}
+                  {line('Total expenses', report.operating, report.previous.operating, { minus: true })}
+                  {line('Other income', report.otherIncome, report.previous.otherIncome)}
+                  {line('Net profit', report.net, report.previous.net, { strong: true })}
+                </tbody>
+              </table>
+            </div>
+            {report.stockPurchases > 0 && (
+              <p className="muted">
+                {currency(report.stockPurchases)} of materials bought into stock in this period is not listed
+                as an expense: its cost is counted in the jobs that use the materials.
+              </p>
+            )}
+            {report.unknownJobs > 0 && (
+              <p className="notice notice-warning">
+                {report.unknownJobs} job{report.unknownJobs === 1 ? ' has' : 's have'} no cost set, so{' '}
+                {currency(report.unknownSales)} of sales is counted with no cost. Give those items a cost in
+                Pricing Templates → Costs for a truer profit.
+              </p>
+            )}
+          </section>
         </>
       )}
     </>
