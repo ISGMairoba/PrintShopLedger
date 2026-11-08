@@ -63,13 +63,15 @@ import { isTransientSyncError } from './auto-sync.mjs';
 import Sidebar from './Sidebar';
 import Icon from './Icon';
 import PrintSettingsPage from './PrintSettingsPage';
-import { Fragment, lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { Fragment, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import JobsPaymentsPage from './JobsPaymentsPage';
 import JobDetails from './JobDetails';
 import { discountPolicy } from './discounts.mjs';
 import { PeriodDefaultsContext } from './PeriodFilter';
 import { TermsProvider } from './Words';
+import { ReadyMessageContext } from './ReadyMessage';
+import { readyMessage } from './ready-message.mjs';
 import { TemplateAuditContext, TemplateDocumentContext, type TemplateStart } from './TemplateFields';
 import { canSeeTemplateCosts } from './pricing-templates.mjs';
 import { pageName, renameTerms } from './terms.mjs';
@@ -1164,6 +1166,16 @@ export default function App() {
     },
   });
 
+  // "Tell customer": the ready message for a job, with the business's wording.
+  const tellCustomer = useCallback(
+    (job: Job) =>
+      readyMessage(ledger, job, {
+        business: businessName,
+        template: branding.settings.jobs.readyMessage,
+        terms: branding.settings.terms,
+      }),
+    [ledger, businessName, branding.settings.jobs.readyMessage, branding.settings.terms],
+  );
   if (validActivationToken(activationToken))
     return <DeveloperActivation key={activationToken} token={activationToken} online={online} />;
   const feedback = { message, tone: messageTone };
@@ -1294,6 +1306,7 @@ export default function App() {
       </main>
     );
 
+  
   return (
     <BusinessOptionsContext.Provider
       value={{
@@ -1302,6 +1315,7 @@ export default function App() {
       }}
     >
       <TermsProvider value={branding.settings.terms}>
+        <ReadyMessageContext.Provider value={tellCustomer}>
         <TemplateAuditContext.Provider
           value={demo || canSeeTemplateCosts(branding.settings.pricing, shop?.accessLevel ?? 0)}
         >
@@ -2790,6 +2804,7 @@ export default function App() {
             </PeriodDefaultsContext.Provider>
           </TemplateDocumentContext.Provider>
         </TemplateAuditContext.Provider>
+      </ReadyMessageContext.Provider>
       </TermsProvider>
     </BusinessOptionsContext.Provider>
   );

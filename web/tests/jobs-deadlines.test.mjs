@@ -41,6 +41,7 @@ test('job settings default for older saved settings and are validated', () => {
     paymentPrefill: 'suggested',
     descriptionMode: 'required',
     stockBelowZero: 'allow',
+    readyMessage: '',
   });
   assert.equal(loaded.receipt.showBusinessName, true);
   assert.throws(() => validateJobSettings({ stockBelowZero: 'sometimes' }), /below zero/);

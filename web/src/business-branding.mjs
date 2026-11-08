@@ -51,7 +51,9 @@ export const jobSettingsDefaults = () => ({
   paymentPrefill: 'suggested',
   descriptionMode: 'required',
   // 'allow': stock may go below zero (with a warning); 'block': nothing takes more than is in stock.
-  stockBelowZero: 'allow',
+    stockBelowZero: 'allow',
+  /** "Ready for collection" WhatsApp wording; '' uses the app's own (ready-message.mjs). */
+  readyMessage: '',
 });
 // The period each page opens with. 'all' is offered only where a page can list everything.
 export const defaultPeriods = () => ({
@@ -439,9 +441,16 @@ export function validateJobSettings(input) {
     throw Error('Choose how the payment amount is filled in.');
   if (!['required', 'optional', 'hidden'].includes(value.descriptionMode))
     throw Error('Choose whether job descriptions are required, optional or hidden.');
-  if (!['allow', 'block'].includes(value.stockBelowZero))
+    if (!['allow', 'block'].includes(value.stockBelowZero))
     throw Error('Choose whether stock may go below zero.');
+  if (
+    typeof value.readyMessage !== 'string' ||
+    value.readyMessage.length > 600 ||
+    /[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(value.readyMessage)
+  )
+    throw Error('Keep the ready message to 600 characters.');
   return {
+    readyMessage: value.readyMessage.trim(),
     stockBelowZero: value.stockBelowZero,
     descriptionMode: value.descriptionMode,
     defaultDuration: { value: duration.value, unit: duration.unit },

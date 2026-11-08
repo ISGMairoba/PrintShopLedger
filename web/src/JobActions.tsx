@@ -5,6 +5,7 @@ import Modal from './Modal';
 import { HOLD_REASONS } from './job-hold.mjs';
 import type { Job } from './types';
 import { useWords } from './Words';
+import { TellCustomer } from './ReadyMessage';
 export type ProgressMode = 'next' | 'set' | 'complete';
 export type HoldChange = { reason: string; note: string } | null;
 export default function JobActions({
@@ -65,6 +66,7 @@ export default function JobActions({
         <Icon name="complete" />{' '}
         {stage('Completed') === 'Completed' ? 'Mark as Complete' : `Mark as ${stage('Completed')}`}
       </button>
+      <TellCustomer job={job} busy={busy} />
       {onHold && held && (
         <button className="text-button" disabled={busy} onClick={() => void run(null)}>
           <Icon name="next" /> Resume
