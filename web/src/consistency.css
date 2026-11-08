@@ -2243,3 +2243,39 @@ details.workflow-row[open] {
   text-decoration: line-through;
   opacity: 0.7;
 }
+/* Repeating expenses: what is due to record, and the full list. */
+.due-repeats,
+.repeat-list {
+  padding: 16px 20px;
+}
+.due-repeats h2 {
+  margin: 0 0 4px;
+}
+.panel.due-repeats > p {
+  margin-inline: 0;
+}
+.repeat-list > summary {
+  cursor: pointer;
+  font-weight: 600;
+  min-height: 32px;
+}
+.due-repeat-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+}
+.due-repeat-list > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.due-repeat-list > li > span:first-child {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}

@@ -153,7 +153,8 @@ async function synchronize(scope: string, shopId: string) {
       .rpc(
         event.kind === 'job.due_changed' ||
           event.kind.startsWith('payee.') ||
-          event.kind.startsWith('account.')
+          event.kind.startsWith('account.') ||
+          event.kind.startsWith('repeat.')
           ? 'apply_operations_event'
           : event.kind.startsWith('expense.')
             ? 'apply_expense_event'

@@ -8,6 +8,7 @@ export function eventResources(event, ledger) {
     };
   const family = event.kind.split('.')[0];
   if (family === 'payee') add('payee', d.id);
+  else if (family === 'repeat') add('repeat', d.id);
   else if (family === 'account') {
     add('account', d.accountId ?? d.id);
     add('account', d.toAccountId);

@@ -663,6 +663,8 @@ export interface Ledger {
   payees?: Payee[];
   moneyAccounts?: MoneyAccount[];
   accountEntries?: Record<string, any>[];
+  /** Repeating expenses waiting to be recorded (Expenses → Repeating). */
+  repeatingExpenses?: RepeatingExpense[];
   operationHistory?: Record<string, any>[];
   pricing?: PricingSettings;
   /** A device keeping recent history only: counts and daily totals of the records it dropped. */
@@ -986,7 +988,10 @@ export type OperationsEvent = {
     | 'account.reconciled'
     | 'account.assigned'
     | 'account.money_moved'
-    | 'account.entry_corrected';
+    | 'account.entry_corrected'
+    | 'repeat.created'
+    | 'repeat.updated'
+    | 'repeat.done';
   data: Record<string, any> & { id: string; modifiedBy: string; modifiedByLabel: string; modifiedAt: string };
 };
 
@@ -1006,4 +1011,30 @@ export interface StockRequest {
   requestedAt: string;
   handledByLabel: string | null;
   handledAt: string | null;
+}
+
+export interface RepeatingExpense {
+  id: string;
+  description: string;
+  category: string;
+  payeeId: string;
+  payee: string;
+  note: string;
+  /** The last amount recorded (a guide: it is checked each time). */
+  amount: number;
+  every: 'week' | 'month' | 'year';
+  nextDue: string;
+  anchor: number;
+  status: 'active' | 'paused' | 'stopped';
+  history: {
+    dueOn: string;
+    action: 'recorded' | 'skipped';
+    expenseId?: string;
+    by: string;
+    byLabel: string;
+    at: string;
+  }[];
+  version: number;
+  modifiedByLabel: string;
+  modifiedAt: string;
 }

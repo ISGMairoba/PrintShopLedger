@@ -3,6 +3,7 @@ import { validDueAt } from './job-deadlines.mjs';
 import { businessDay } from './dashboard.mjs';
 import { localBranchId } from './branches.mjs';
 import { MONEY_TYPES, lenderBalances } from './money-moves.mjs';
+import { applyRepeat } from './repeating-expenses.mjs';
 
 // Money accounts belong to a branch ('main' when not set) or are shared by all branches ('*').
 export const accountBranch = (a) => a?.branch || 'main';
@@ -102,6 +103,11 @@ export function applyOperation(ledger, event) {
     });
     if (ids.some((id) => !ledger.jobs.some((j) => j.id === id))) throw Error('Job not found.');
     next.jobs = jobs;
+  } else if (kind.startsWith('repeat.')) {
+    const r = applyRepeat(ledger, event, audit);
+    before = r.before;
+    after = r.after;
+    next.repeatingExpenses = r.repeatingExpenses;
   } else if (
     kind.startsWith('payee.') ||
     ['account.created', 'account.updated', 'account.archived', 'account.restored'].includes(kind)

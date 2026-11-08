@@ -82,6 +82,7 @@ import { PeriodDefaultsContext } from './PeriodFilter';
 import { TermsProvider } from './Words';
 import { ReadyMessageContext } from './ReadyMessage';
 import { readyMessage } from './ready-message.mjs';
+import { dueRepeats } from './repeating-expenses.mjs';
 import { TemplateAuditContext, TemplateDocumentContext, type TemplateStart } from './TemplateFields';
 import { canSeeTemplateCosts } from './pricing-templates.mjs';
 import { pageName, renameTerms } from './terms.mjs';
@@ -390,6 +391,15 @@ export default function App() {
     ).length;
   }, [demo, multiBranch, activeBranch, scope, lowStockSeen, shop?.accessLevel, state.ledger, openBranches]);
   // Admin and higher: once a day, jobs that have been at a stage too long.
+  // Admin and higher: repeating expenses due to record (until dismissed for this session).
+  const [repeatsSeen, setRepeatsSeen] = useState(false);
+  const dueRepeatCount = useMemo(
+    () =>
+      repeatsSeen || (!demo && (shop?.accessLevel ?? 0) < 2)
+        ? 0
+        : dueRepeats(state.ledger, businessDay(new Date().toISOString())).length,
+    [repeatsSeen, demo, shop?.accessLevel, state.ledger],
+  );
   const [lateSeen, setLateSeen] = useState(false);
   const lateJobs = useMemo(() => {
     if (demo || !scope || lateSeen || (shop?.accessLevel ?? 0) < 2) return 0;
@@ -1558,6 +1568,17 @@ export default function App() {
                         continue.{' '}
                         <button className="secondary" onClick={() => setPage('Conflict Inbox')}>
                           <Icon name="inbox" /> Open conflict inbox
+                        </button>
+                      </div>
+                    )}
+                    {dueRepeatCount > 0 && page !== 'Expenses' && (
+                      <div className="notice">
+                        {dueRepeatCount} repeating expense{dueRepeatCount === 1 ? ' is' : 's are'} due to record.{' '}
+                        <button className="secondary" onClick={() => setPage('Expenses')}>
+                          <Icon name="expenses" /> Review
+                        </button>{' '}
+                        <button className="text-button" onClick={() => setRepeatsSeen(true)}>
+                          Not now
                         </button>
                       </div>
                     )}

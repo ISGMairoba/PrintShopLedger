@@ -18,6 +18,7 @@ export const emptyLedger = () => ({
   payees: [],
   moneyAccounts: [],
   accountEntries: [],
+  repeatingExpenses: [],
   operationHistory: [],
   saleAdjustments: [],
   materialWaste: [],
@@ -87,7 +88,8 @@ function applyEventCore(ledger, event) {
   if (
     event.kind === 'job.due_changed' ||
     event.kind.startsWith('payee.') ||
-    event.kind.startsWith('account.')
+    event.kind.startsWith('account.') ||
+    event.kind.startsWith('repeat.')
   )
     return applyOperation(ledger, event);
   if (event.kind.startsWith('sale.') || event.kind === 'payment.corrected')

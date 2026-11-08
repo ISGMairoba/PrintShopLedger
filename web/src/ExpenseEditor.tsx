@@ -39,7 +39,16 @@ type Props = {
   /** Saves a new payee and returns its id (Payee → New payee). */
   onCreatePayee?: (payee: { name: string; phone: string }) => Promise<string>;
   /** A new purchase started elsewhere (the reorder list): description, category and stock lines. */
-  prefill?: { description: string; category?: string; materials: ExpenseMaterial[] };
+  prefill?: {
+    description: string;
+    category?: string;
+    materials: ExpenseMaterial[];
+    amount?: number;
+    payeeId?: string;
+    note?: string;
+  };
+  /** Called with the new expense's id once it is saved (e.g. to mark a repeating expense recorded). */
+  onSaved?: (id: string) => Promise<void>;
   onSave: (event: ExpenseEvent) => Promise<void>;
   onClose: () => void;
 };
@@ -56,10 +65,11 @@ export default function ExpenseEditor({
   onCreatePayee,
   prefill,
   onSave,
+  onSaved,
   onClose,
 }: Props) {
   const formId = useId();
-  const [payeeId, setPayeeId] = useState(expense?.payeeId ?? '');
+  const [payeeId, setPayeeId] = useState(expense?.payeeId ?? prefill?.payeeId ?? '');
   const [newPayee, setNewPayee] = useState<{ name: string; phone: string } | null>(null);
   const { w } = useWords();
   const options = useBusinessOptions(),
@@ -129,7 +139,9 @@ export default function ExpenseEditor({
   const [stock, setStock] = useState(!!(expense?.materials.length || prefill?.materials.length));
   const [lines, setLines] = useState<ExpenseMaterial[]>(expense?.materials ?? prefill?.materials ?? []);
   const [recordPayment, setRecordPayment] = useState(!expense);
-  const [total, setTotal] = useState(expense ? (expense.amount / 100).toFixed(2) : '');
+  const [total, setTotal] = useState(
+    expense ? (expense.amount / 100).toFixed(2) : prefill?.amount ? (prefill.amount / 100).toFixed(2) : '',
+  );
   const [paidOverride, setPaidOverride] = useState<string | null>(null);
   const recommendedPaid =
     correctOnly && correcting
@@ -211,14 +223,14 @@ export default function ExpenseEditor({
             materials: stock ? lines : [],
             ...(payment ? { payment } : {}),
           };
-      await onSave(
-        makeExpenseEvent(
-          paymentOnly ? 'expense.payment_recorded' : expense ? 'expense.updated' : 'expense.created',
-          data,
-          expense,
-          actor,
-        ) as ExpenseEvent,
-      );
+      const event = makeExpenseEvent(
+        paymentOnly ? 'expense.payment_recorded' : expense ? 'expense.updated' : 'expense.created',
+        data,
+        expense,
+        actor,
+      ) as ExpenseEvent;
+      await onSave(event);
+      if (onSaved && !expense) await onSaved(event.data.id);
       onClose();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not save expense.');
@@ -348,7 +360,7 @@ export default function ExpenseEditor({
               </div>
               <label>
                 Notes
-                <textarea name="note" maxLength={1000} defaultValue={expense?.note ?? ''} />
+                <textarea name="note" maxLength={1000} defaultValue={expense?.note ?? prefill?.note ?? ''} />
               </label>
               <section className="expense-stock">
                 <label className="check-label">

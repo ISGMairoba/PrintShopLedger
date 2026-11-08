@@ -20,7 +20,16 @@ import {
   paymentWhen,
 } from './expenses.mjs';
 import { operationEvent } from './operations.mjs';
-import type { Expense, ExpenseEvent, ExpensePayment, Ledger, LedgerEvent, OperationsEvent } from './types';
+import { DueRepeats, RepeatEditor, RepeatList } from './RepeatingExpenses';
+import type {
+  Expense,
+  ExpenseEvent,
+  ExpensePayment,
+  Ledger,
+  LedgerEvent,
+  OperationsEvent,
+  RepeatingExpense,
+} from './types';
 import { useWords } from './Words';
 import { renameActive as wt } from './Words';
 import { alphabetical } from './alphabetical.mjs';
@@ -75,6 +84,8 @@ export default function ExpensesPage({
     [detail, setDetail] = useState<Expense | null>(null),
     [voiding, setVoiding] = useState<Expense | null>(null),
     [reason, setReason] = useState(''),
+    [recording, setRecording] = useState<RepeatingExpense | null>(null),
+    [repeating, setRepeating] = useState<{ repeat?: RepeatingExpense; from?: Expense } | null>(null),
     [error, setError] = useFeedbackMessage('error');
   const sorting = useTableSort<Expense>('date', 'desc');
   const summary = expenseSummary(ledger, from, to);
@@ -125,6 +136,21 @@ export default function ExpensesPage({
       modifiedAt: (item) => Date.parse(item.modifiedAt),
     },
   );
+  const saveRepeat = async (data: Record<string, unknown>, kind: string) => {
+    setError('');
+    try {
+      await onSave(operationEvent(kind, data, actor) as OperationsEvent);
+      return true;
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+      return false;
+    }
+  };
+  const repeatDone = (r: RepeatingExpense, action: 'recorded' | 'skipped', expenseId?: string) =>
+    saveRepeat(
+      { id: r.id, baseVersion: r.version, dueOn: r.nextDue, action, ...(expenseId ? { expenseId } : {}) },
+      'repeat.done',
+    );
   const createPayee = async (payee: { name: string; phone: string }) => {
     const id = crypto.randomUUID();
     await onSave(
@@ -173,6 +199,12 @@ export default function ExpensesPage({
           </small>
         </article>
       </section>
+      <DueRepeats
+        ledger={ledger}
+        busy={busy || !ready}
+        onRecord={setRecording}
+        onSkip={(r) => void repeatDone(r, 'skipped')}
+      />
       <p className="footnote">
         {from || to ? `${from ? day(from) : 'Beginning'} – ${to ? day(to) : 'Present'}` : 'All dates'} · Sales
         less expenses counts purchases when incurred, including unused stock. It is an estimate of the
@@ -353,6 +385,14 @@ export default function ExpensesPage({
                                 </button>
                               )}
                               <button
+                                className="text-button"
+                                disabled={busy}
+                                onClick={() => setRepeating({ from: item })}
+                              >
+                                <Icon name="sync" />
+                                Repeat
+                              </button>
+                              <button
                                 className="text-button danger-text"
                                 disabled={busy}
                                 onClick={() => {
@@ -376,6 +416,41 @@ export default function ExpensesPage({
           </div>
         )}
       </section>
+      <RepeatList ledger={ledger} busy={busy} onEdit={(r) => setRepeating({ repeat: r })} />
+      {repeating && (
+        <RepeatEditor
+          repeat={repeating.repeat}
+          from={repeating.from}
+          busy={busy}
+          onSave={saveRepeat}
+          onClose={() => setRepeating(null)}
+        />
+      )}
+      {recording && (
+        <ExpenseEditor
+          key={'repeat:' + recording.id + ':' + recording.version}
+          prefill={{
+            description: recording.description,
+            category: recording.category,
+            materials: [],
+            amount: recording.amount,
+            payeeId: recording.payeeId,
+            note: recording.note,
+          }}
+          expenses={ledger.expenses}
+          payees={ledger.payees}
+          accounts={ledger.moneyAccounts}
+          materials={ledger.materials}
+          actor={actor}
+          busy={busy}
+          onSave={onSave}
+          onSaved={async (id) => {
+            await repeatDone(recording, 'recorded', id);
+          }}
+          onCreatePayee={createPayee}
+          onClose={() => setRecording(null)}
+        />
+      )}
       {editor && (
         <ExpenseEditor
           key={editor === 'new' ? 'new' : editor.id + ':' + editor.version}
