@@ -6,6 +6,7 @@ import { expensePaid, expenseDay } from './expenses.mjs';
 import { payeeListSections } from './reports.mjs';
 import { downloadCsv } from './export-csv';
 import { currency } from './receipts.mjs';
+import { lenderIds, lenderSummary } from './lenders.mjs';
 import type { Ledger, Payee, OperationsEvent } from './types';
 import { SortHeader, useTableSort } from './TableSort';
 export default function PayeesPage({
@@ -29,10 +30,12 @@ export default function PayeesPage({
 }) {
   const [query, setQuery] = useState(''),
     [archived, setArchived] = useState(false),
+    [kind, setKind] = useState<'all' | 'suppliers' | 'lenders'>('all'),
     [editing, setEditing] = useState<Payee | 'new' | null>(null),
     [view, setView] = useState<Payee | null>(null),
     [error, setError] = useState('');
   const sorting = useTableSort<Payee>('name');
+  const lenders = lenderIds(ledger);
   const expenses = (id: string) => ledger.expenses.filter((e) => e.payeeId === id);
   const totals = (id: string) => {
     const rows = expenses(id);
@@ -45,6 +48,7 @@ export default function PayeesPage({
     (ledger.payees ?? []).filter(
       (p) =>
         (archived || !p.archived) &&
+        (kind === 'all' || (kind === 'lenders') === lenders.has(p.id)) &&
         [p.name, p.phone, p.address, p.note, p.id].join(' ').toLowerCase().includes(query.toLowerCase()),
     ),
     { name: (p) => p.name, owed: (p) => totals(p.id).owed },
@@ -134,6 +138,17 @@ export default function PayeesPage({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
+          {lenders.size > 0 && (
+            <select
+              aria-label="Payee kind"
+              value={kind}
+              onChange={(e) => setKind(e.target.value as typeof kind)}
+            >
+              <option value="all">All payees</option>
+              <option value="suppliers">Suppliers</option>
+              <option value="lenders">Lenders</option>
+            </select>
+          )}
           <label className="check-label">
             <input type="checkbox" checked={archived} onChange={(e) => setArchived(e.target.checked)} />
             Show archived
@@ -173,11 +188,27 @@ export default function PayeesPage({
                       <small>{p.phone}</small>
                       <small>{p.address}</small>
                       {p.archived && <small>Archived</small>}
+                      {lenders.has(p.id) && <span className="badge">Lender</span>}
                     </td>
                     <td>
                       <strong>Outstanding {currency(t.owed)}</strong>
                       <small>Incurred {currency(t.incurred)}</small>
                       <small>Paid {currency(t.paid)}</small>
+                      {lenders.has(p.id) &&
+                        (() => {
+                          const loan = lenderSummary(ledger, p.id);
+                          return (
+                            <>
+                              <small>
+                                <strong>Loan owed {currency(loan.owed)}</strong> · borrowed{' '}
+                                {currency(loan.borrowed)} · repaid {currency(loan.repaid)}
+                              </small>
+                              {loan.owed > 0 && p.repaymentDue && (
+                                <small>Next repayment due {p.repaymentDue}</small>
+                              )}
+                            </>
+                          );
+                        })()}
                       {branches &&
                         branches.length > 1 &&
                         branches.map((b) => {
@@ -248,6 +279,9 @@ export default function PayeesPage({
                     phone: String(f.get('phone')),
                     address: String(f.get('address')),
                     note: String(f.get('note')),
+                    ...(editing !== 'new' && lenders.has(editing.id)
+                      ? { repaymentDue: String(f.get('repaymentDue') ?? '') }
+                      : {}),
                   })
                 )
                   setEditing(null);
@@ -284,6 +318,15 @@ export default function PayeesPage({
                     defaultValue={editing === 'new' ? '' : editing.note}
                   />
                 </label>
+                {editing !== 'new' && lenders.has(editing.id) && (
+                  <label>
+                    Next loan repayment due
+                    <input type="date" name="repaymentDue" defaultValue={editing.repaymentDue ?? ''} />
+                    <small>
+                      Optional. Admins get a reminder three days before. Clear it when there is none.
+                    </small>
+                  </label>
+                )}
                 <button type="submit">Save payee</button>
               </fieldset>
             </form>

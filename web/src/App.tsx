@@ -83,6 +83,7 @@ import { TermsProvider } from './Words';
 import { ReadyMessageContext } from './ReadyMessage';
 import { readyMessage } from './ready-message.mjs';
 import { dueRepeats } from './repeating-expenses.mjs';
+import { repaymentsDue } from './lenders.mjs';
 import { TemplateAuditContext, TemplateDocumentContext, type TemplateStart } from './TemplateFields';
 import { canSeeTemplateCosts } from './pricing-templates.mjs';
 import { pageName, renameTerms } from './terms.mjs';
@@ -399,6 +400,15 @@ export default function App() {
         ? 0
         : dueRepeats(state.ledger, businessDay(new Date().toISOString())).length,
     [repeatsSeen, demo, shop?.accessLevel, state.ledger],
+  );
+  // Admin and higher: loan repayments due within three days (or overdue).
+  const [loansSeen, setLoansSeen] = useState(false);
+  const loansDue = useMemo(
+    () =>
+      loansSeen || (!demo && (shop?.accessLevel ?? 0) < 2)
+        ? []
+        : repaymentsDue(state.ledger, businessDay(new Date().toISOString())),
+    [loansSeen, demo, shop?.accessLevel, state.ledger],
   );
   const [lateSeen, setLateSeen] = useState(false);
   const lateJobs = useMemo(() => {
@@ -1568,6 +1578,24 @@ export default function App() {
                         continue.{' '}
                         <button className="secondary" onClick={() => setPage('Conflict Inbox')}>
                           <Icon name="inbox" /> Open conflict inbox
+                        </button>
+                      </div>
+                    )}
+                    {loansDue.length > 0 && page !== 'Accounts' && (
+                      <div className="notice">
+                        Loan repayment{loansDue.length === 1 ? '' : 's'}{' '}
+                        {loansDue
+                          .map(
+                            (l) =>
+                              `${l.name} (${l.overdue ? 'overdue since' : 'due'} ${l.due}, owed ${currency(l.owed)})`,
+                          )
+                          .join(', ')}
+                        .{' '}
+                        <button className="secondary" onClick={() => setPage('Accounts')}>
+                          <Icon name="payments" /> Accounts
+                        </button>{' '}
+                        <button className="text-button" onClick={() => setLoansSeen(true)}>
+                          Not now
                         </button>
                       </div>
                     )}

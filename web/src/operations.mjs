@@ -138,13 +138,18 @@ export function applyOperation(ledger, event) {
         createdAt: old?.createdAt ?? d.modifiedAt,
         ...audit,
       };
-      if (payee)
+      if (payee) {
         Object.assign(after, {
           phone: text(d.phone ?? '', 40),
           address: text(d.address ?? '', 500),
           note: text(d.note ?? '', 1000),
         });
-      else {
+        // A lender's next repayment date ('' clears it); left out, it stays as it was.
+        if (d.repaymentDue !== undefined) {
+          if (d.repaymentDue !== '') day(d.repaymentDue);
+          after.repaymentDue = d.repaymentDue;
+        }
+      } else {
         if (!['cash', 'bank', 'pos', 'other'].includes(d.accountType)) throw Error('Choose an account type.');
         const branch = d.branch || old?.branch || (old ? 'main' : localBranchId());
         if (!/^(main|b-[a-z0-9]{6,20}|\*)$/.test(branch)) throw Error('Choose a valid branch.');

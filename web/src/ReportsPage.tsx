@@ -478,6 +478,13 @@ type PayeeStatement = {
   earlierOwing: PayeeExpenseRow[];
   payments: PayeePaymentRow[];
   totals: { incurred: number; paid: number; owedNow: number; lastPaid: string };
+  loans?: {
+    owed: number;
+    borrowedInPeriod: number;
+    repaidInPeriod: number;
+    repaymentDue: string;
+    entries: { id: string; date: string; kind: string; amount: number; note: string }[];
+  };
 };
 function PayeeStatementTab({
   ledger,
@@ -632,7 +639,48 @@ function PayeeStatementTab({
               <span>Last paid</span>
               <strong>{t.lastPaid || '—'}</strong>
             </article>
+            {statement.loans && (
+              <article>
+                <span>Loan still owed</span>
+                <strong>{currency(statement.loans.owed)}</strong>
+                <small>
+                  Borrowed {currency(statement.loans.borrowedInPeriod)} · repaid{' '}
+                  {currency(statement.loans.repaidInPeriod)} in period
+                  {statement.loans.repaymentDue && statement.loans.owed > 0
+                    ? ` · next due ${statement.loans.repaymentDue}`
+                    : ''}
+                </small>
+              </article>
+            )}
           </section>
+          {!!statement.loans?.entries.length && (
+            <section className="panel">
+              <h2>Loans in this period</h2>
+              <div className="table-wrap">
+                <table aria-label="Loans in this period">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Borrowed / repaid</th>
+                      <th>Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {statement.loans.entries.map((e) => (
+                      <tr key={e.id}>
+                        <td>
+                          {e.date}
+                          <small>{e.note}</small>
+                        </td>
+                        <td>{e.kind}</td>
+                        <td>{currency(e.amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
           <section className="panel">
             <h2>Expenses in this period</h2>
             {expenseTable(statement.expenses, 'Expenses in this period')}

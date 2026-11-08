@@ -266,7 +266,10 @@ export default function AccountsPage({
           <p className="panel-note">
             <strong>Loans still owed:</strong>{' '}
             {Object.entries(owedTo)
-              .map(([id, n]) => `${payees.find((p) => p.id === id)?.name ?? 'Lender'} ${currency(n)}`)
+              .map(([id, n]) => {
+                const p = payees.find((x) => x.id === id);
+                return `${p?.name ?? 'Lender'} ${currency(n)}${p?.repaymentDue ? ` (next due ${p.repaymentDue})` : ''}`;
+              })
               .join(' · ')}
           </p>
         )}
