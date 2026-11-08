@@ -2214,10 +2214,10 @@ details.workflow-row[open] {
 }
 /* Text and notices placed straight in a list panel keep the panel's side padding (the panel itself
    has none, so tables can run edge to edge). */
-.panel:not(.editor) > :is(p, h2, h3):not(.panel-note):not(.toolbar + p) {
+.panel:not(.editor) > p:not(.panel-note):not(.report-none):not(.drawer-info):not(.toolbar + p) {
   margin-inline: 20px;
 }
-.panel:not(.editor) > :is(p, h2, h3):not(.panel-note):not(.toolbar + p):first-child {
+.panel:not(.editor) > p:not(.panel-note):not(.report-none):not(.drawer-info):not(.toolbar + p):first-child {
   margin-top: 20px;
 }
 .panel:not(.editor) > :is(.notice, .notice-warning) {

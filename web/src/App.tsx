@@ -1976,7 +1976,7 @@ export default function App() {
                           </>
                         ) : page === 'Conflict Inbox' ? (
                           demo ? (
-                            <section className="panel">
+                            <section className="panel editor">
                               <h2>Conflict inbox</h2>
                               <p>Remote reviews are available in a connected business workspace.</p>
                             </section>
