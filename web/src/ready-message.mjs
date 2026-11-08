@@ -15,7 +15,10 @@ export const DEFAULT_READY_MESSAGE =
 export function readyJobs(ledger, job) {
   if (!job.checkoutId) return [job];
   const same = ledger.jobs.filter(
-    (j) => j.checkoutId === job.checkoutId && j.customerId === job.customerId && j.productionStatus === 'Completed',
+    (j) =>
+      j.checkoutId === job.checkoutId &&
+      j.customerId === job.customerId &&
+      j.productionStatus === 'Completed',
   );
   return same.some((j) => j.id === job.id) ? same : [job, ...same];
 }
@@ -34,7 +37,10 @@ export function readyMessage(ledger, job, { business, template, terms }) {
   const jobs = readyJobs(ledger, job);
   const customer = ledger.customers.find((c) => c.id === job.customerId);
   const owed = jobs.reduce((n, j) => n + jobBalanceFast(ledger, j).outstanding, 0);
-  const first = String(customer?.name ?? '').trim().split(/\s+/)[0] || 'there';
+  const first =
+    String(customer?.name ?? '')
+      .trim()
+      .split(/\s+/)[0] || 'there';
   const word = jobs.length > 1 ? (terms?.jobs ?? 'jobs') : (terms?.job ?? 'job');
   const values = {
     customer: first,
