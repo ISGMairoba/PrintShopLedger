@@ -26,6 +26,7 @@ export function normalizeLedger(ledger) {
     payees: ledger.payees ?? [],
     moneyAccounts: ledger.moneyAccounts ?? [],
     accountEntries: ledger.accountEntries ?? [],
+    repeatingExpenses: ledger.repeatingExpenses ?? [],
     operationHistory: ledger.operationHistory ?? [],
     saleAdjustments: ledger.saleAdjustments ?? [],
     materialWaste: ledger.materialWaste ?? [],

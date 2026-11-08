@@ -397,6 +397,22 @@ try {
       failures.push(`${mode} workflows: ${e.message.split('\n')[0]}`);
       await closeDialogs();
     }
+    // Repeating expenses: making one repeat.
+    try {
+      await nav('Expenses');
+      const repeat = page.getByRole('button', { name: 'Repeat', exact: true }).first();
+      if (await repeat.count()) {
+        await repeat.click();
+        await page
+          .getByRole('dialog')
+          .first()
+          .screenshot({ path: `${out}/${mode}-87-repeat-expense.png` });
+        await closeDialogs();
+      }
+    } catch (e) {
+      failures.push(`${mode} repeating: ${e.message.split('\n')[0]}`);
+      await closeDialogs();
+    }
     await context.close();
   }
 } finally {
