@@ -1585,7 +1585,10 @@ export default function App() {
                       <div className="notice">
                         Loan repayment{loansDue.length === 1 ? '' : 's'}{' '}
                         {loansDue
-                          .map((l) => `${l.name} (${l.overdue ? 'overdue since' : 'due'} ${l.due}, owed ${currency(l.owed)})`)
+                          .map(
+                            (l) =>
+                              `${l.name} (${l.overdue ? 'overdue since' : 'due'} ${l.due}, owed ${currency(l.owed)})`,
+                          )
                           .join(', ')}
                         .{' '}
                         <button className="secondary" onClick={() => setPage('Accounts')}>
