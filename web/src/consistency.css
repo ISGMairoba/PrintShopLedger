@@ -2102,3 +2102,17 @@ label small > .field-error {
 .step-add {
   padding-left: 8px;
 }
+.job-steps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 8px 0;
+  min-width: 0;
+}
+.job-steps > span {
+  overflow-wrap: anywhere;
+}
+.job-steps > .step-builder {
+  flex: 1 1 100%;
+}

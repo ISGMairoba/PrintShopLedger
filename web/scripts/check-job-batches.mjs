@@ -2,6 +2,7 @@ import { settingsSection } from './settings-navigation.mjs';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
+import { useUsualSteps } from './usual-steps.mjs';
 import { chromium, webkit } from 'playwright';
 import { pick } from './pick.mjs';
 const openMore = async (scope) => {
@@ -51,6 +52,7 @@ try {
       }
       await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name, exact: true }).click();
     };
+    await useUsualSteps(page, nav);
     await nav('Services');
     for (const [name, price] of [
       ['Pressing', '1000'],

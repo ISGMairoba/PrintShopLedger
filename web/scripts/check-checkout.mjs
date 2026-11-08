@@ -5,6 +5,7 @@ import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from 'playwright';
 import { pick, pickedValue, pickOptions } from './pick.mjs';
+import { useUsualSteps } from './usual-steps.mjs';
 const server = spawn(
   process.execPath,
   ['node_modules/vite/bin/vite.js', 'preview', '--host', '127.0.0.1', '--port', '4175', '--strictPort'],
@@ -29,6 +30,7 @@ try {
   await page.getByRole('button', { name: 'Try locally on this device' }).click();
   const nav = (name) =>
     page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name, exact: true }).click();
+  await useUsualSteps(page, nav);
   await nav('Materials');
   await page.getByRole('button', { name: 'Add material', exact: true }).click();
   let d = page.getByRole('dialog');

@@ -949,56 +949,6 @@ export default function CheckoutEditor({
                           />
                         </label>
                         {!service?.shelfItem && (
-                          <div className="job-steps">
-                            <span>
-                              {w('Steps')}:{' '}
-                              {(item.steps
-                                ? stepsWorkflow(item.steps).stages
-                                : (item.workflow ?? options.jobStages)
-                              )
-                                .map((s) => stage(s))
-                                .join(' → ')}
-                            </span>
-                            {canChooseWorkflow && (
-                              <button
-                                type="button"
-                                className="text-button"
-                                aria-expanded={stepsFor === item.id}
-                                onClick={() => {
-                                  setStepsFor(stepsFor === item.id ? null : item.id);
-                                  if (!item.steps)
-                                    setLines((items) =>
-                                      items.map((l) =>
-                                        l.id === item.id
-                                          ? {
-                                              ...l,
-                                              steps: stagesToSteps(
-                                                l.workflow ?? options.jobStages,
-                                                l.stageHours,
-                                              ),
-                                            }
-                                          : l,
-                                      ),
-                                    );
-                                }}
-                              >
-                                {stepsFor === item.id ? 'Done' : 'Edit steps'}
-                              </button>
-                            )}
-                            {canChooseWorkflow && stepsFor === item.id && item.steps && (
-                              <StepBuilder
-                                steps={item.steps}
-                                label={`${w('Job')} ${index + 1} steps`}
-                                onChange={(steps) =>
-                                  setLines((items) =>
-                                    items.map((l) => (l.id === item.id ? { ...l, steps } : l)),
-                                  )
-                                }
-                              />
-                            )}
-                          </div>
-                        )}
-                        {!service?.shelfItem && (
                           <label>
                             Deadline
                             <input
@@ -1014,6 +964,56 @@ export default function CheckoutEditor({
                           </label>
                         )}
                       </div>
+                      {!service?.shelfItem && (
+                        <div className="job-steps">
+                          <span>
+                            {w('Steps')}:{' '}
+                            {(item.steps
+                              ? stepsWorkflow(item.steps).stages
+                              : (item.workflow ?? options.jobStages)
+                            )
+                              .map((s) => stage(s))
+                              .join(' → ')}
+                          </span>
+                          {canChooseWorkflow && (
+                            <button
+                              type="button"
+                              className="text-button"
+                              aria-expanded={stepsFor === item.id}
+                              onClick={() => {
+                                setStepsFor(stepsFor === item.id ? null : item.id);
+                                if (!item.steps)
+                                  setLines((items) =>
+                                    items.map((l) =>
+                                      l.id === item.id
+                                        ? {
+                                            ...l,
+                                            steps: stagesToSteps(
+                                              l.workflow ?? options.jobStages,
+                                              l.stageHours,
+                                            ),
+                                          }
+                                        : l,
+                                    ),
+                                  );
+                              }}
+                            >
+                              {stepsFor === item.id ? 'Done' : 'Edit steps'}
+                            </button>
+                          )}
+                          {canChooseWorkflow && stepsFor === item.id && item.steps && (
+                            <StepBuilder
+                              steps={item.steps}
+                              label={`${w('Job')} ${index + 1} steps`}
+                              onChange={(steps) =>
+                                setLines((items) =>
+                                  items.map((l) => (l.id === item.id ? { ...l, steps } : l)),
+                                )
+                              }
+                            />
+                          )}
+                        </div>
+                      )}
                       {(discountPolicy.maxPercent > 0 || item.discountDraft?.kind) && (
                         <DiscountFields
                           label={w('Job discount')}

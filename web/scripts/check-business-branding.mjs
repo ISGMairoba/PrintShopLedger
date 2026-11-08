@@ -115,9 +115,14 @@ try {
     await page.getByLabel('Job sources', { exact: true }).fill('Instagram DM\nWhatsApp');
     await page.getByLabel('Stock reasons', { exact: true }).fill('Weekly restock\nStock Count Correction');
     await page.getByLabel('Material units', { exact: true }).fill('sheet\nbox');
-    await page
-      .getByLabel('Job stages', { exact: true })
-      .fill('Added\nDesign\nApproval\nFinishing\nCompleted\nCollected');
+    // A saved workflow: Design and Approval to start with, then Finishing; items follow it.
+    await page.getByRole('button', { name: 'Add workflow', exact: true }).click();
+    await page.getByLabel('Workflow 1 name', { exact: true }).fill('Studio');
+    await page.getByRole('button', { name: 'Add step', exact: true }).click();
+    await page.getByLabel('Studio: step 3 name', { exact: true }).fill('Finishing');
+    await page.getByLabel('Studio: Finishing time', { exact: true }).fill('30');
+    await page.getByLabel('Studio: Finishing unit', { exact: true }).selectOption('m');
+    await page.getByLabel('Usual steps', { exact: true }).selectOption({ label: 'Studio' });
     await settingsSection(page, /Profile & logo/);
     await page.getByLabel('Email', { exact: true }).fill('invalid');
     await page.getByRole('button', { name: 'Save logo', exact: true }).click();
