@@ -14,6 +14,9 @@ import { customerStatement, summaryReport, transactionRegister } from './reports
 import { drawerSnapshot } from './my-sales.mjs';
 import { owingCustomers } from './reminders.mjs';
 import { expenseSummary } from './expenses.mjs';
+import { accountBalance, moneyTransactions } from './operations.mjs';
+import { accountSummary } from './account-summary.mjs';
+import { profitLoss } from './profit-loss.mjs';
 
 const CLOSED = new Set(['Collected', 'Cancelled']);
 const before = (value, cutoff) => !!value && businessDay(value) < cutoff;
@@ -52,9 +55,18 @@ export function trimHistory(ledger, cutoff) {
       )
       .map((j) => j.id),
   );
+  // Money not yet put in an account (Accounts → Unassigned) is still to do, so it stays.
+  const unassigned = new Set(
+    moneyTransactions(ledger)
+      .filter((t) => !t.accountId && !t.personal)
+      .map((t) => t.id),
+  );
   const payments = new Set(
     ledger.payments
-      .filter((p) => before(p.paidOn || p.createdAt, cutoff) && before(p.createdAt, cutoff))
+      .filter(
+        (p) =>
+          before(p.paidOn || p.createdAt, cutoff) && before(p.createdAt, cutoff) && !unassigned.has('payment:' + p.id),
+      )
       .map((p) => p.id),
   );
   const checkouts = new Set(
@@ -67,6 +79,7 @@ export function trimHistory(ledger, cutoff) {
       .filter(
         (a) =>
           before(a.changedAt, cutoff) &&
+          !unassigned.has('refund:' + a.id) &&
           (!['sale.refunded', 'payment.corrected'].includes(a.action) ||
             a.drawerClosingId ||
             closedRefunds.has(a.id)),
@@ -138,7 +151,7 @@ export function trimHistory(ledger, cutoff) {
           before(e.incurredOn, cutoff) &&
           before(e.modifiedAt || e.createdAt, cutoff) &&
           (e.voided || owed(e) <= 0) &&
-          (e.payments ?? []).every((p) => before(p.paidOn, cutoff)),
+          (e.payments ?? []).every((p) => before(p.paidOn, cutoff) && !unassigned.has('expense:' + p.id)),
       )
       .map((e) => e.id),
   );
@@ -239,6 +252,47 @@ export function trimHistory(ledger, cutoff) {
       (r) => keptReminders.has(r.id) || !before(r.remindedAt, cutoff),
     ),
   };
+  // What the dropped payments, expense payments and refunds did to each money account, carried
+  // forward by account and month (money in and money out apart), so balances and this month's
+  // figures stay the same.
+  const flows = (l) => {
+    const sums = new Map();
+    const opened = new Map((ledger.moneyAccounts ?? []).map((a) => [a.id, a.openingDate]));
+    for (const t of moneyTransactions(l)) {
+      if (!t.accountId || !opened.has(t.accountId) || t.paidOn < opened.get(t.accountId)) continue;
+      const key = `${t.accountId}|${t.paidOn.slice(0, 7)}`;
+      const sum = sums.get(key) ?? { received: 0, paid: 0 };
+      if (t.direction > 0) sum.received += t.amount;
+      else sum.paid += t.amount;
+      sums.set(key, sum);
+    }
+    return sums;
+  };
+  const kept = flows(next);
+  const carriedAccounts = [];
+  for (const [key, all] of flows(ledger)) {
+    const left = kept.get(key) ?? { received: 0, paid: 0 };
+    const received = all.received - left.received,
+      paid = all.paid - left.paid;
+    if (!received && !paid) continue;
+    const [accountId, month] = key.split('|');
+    const monthEnd = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0))
+      .toISOString()
+      .slice(0, 10);
+    carriedAccounts.push({
+      id: `carry-forward:${accountId}:${month}`,
+      action: 'carried',
+      accountId,
+      amount: received - paid,
+      received,
+      paid,
+      paidOn: monthEnd < day ? monthEnd : day,
+      reason: `Older records carried forward (${month})`,
+      modifiedByLabel: 'This device',
+      carryForward: true,
+    });
+  }
+  next.accountEntries = [...(ledger.accountEntries ?? []), ...carriedAccounts];
   const count = (key) => (ledger[key] ?? []).length - (next[key] ?? []).length;
   return {
     ledger: next,
@@ -349,6 +403,18 @@ export function historyCheck(ledger, { now = new Date().toISOString(), cutoff } 
     ...(ledger.drawerClosings ?? []).flatMap((d) => [d.fromUserId, d.toUserId]),
   ]);
   for (const user of users) same(`Cash drawer of ${user}`, (l) => drawerSnapshot(l, user));
+  for (const a of ledger.moneyAccounts ?? []) {
+    same(`Balance of ${a.name}`, (l) => {
+      const { balance, received, paid } = accountBalance(l, a.id, today);
+      return { balance, received, paid };
+    });
+  }
+  same('Accounts summary', (l) => accountSummary(l, (l.moneyAccounts ?? []).filter((a) => !a.archived), today));
+  for (const [a, b] of periods)
+    same(`Profit and loss ${a} to ${b}`, (l) => {
+      const { previous: _previous, ...r } = profitLoss(l, a, b);
+      return r;
+    });
   same('Stock levels', (l) => l.materials.map((m) => [m.id, m.available]));
   same('Latest stock counts', (l) =>
     l.materials.map((m) => {

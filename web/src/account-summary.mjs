@@ -34,6 +34,12 @@ export function accountSummary(ledger, accounts, today) {
     if (t.direction > 0) moneyIn += t.amount;
     else moneyOut += t.amount;
   }
+  // Money in and out from old records a device no longer keeps, carried forward by month.
+  for (const e of ledger.accountEntries ?? [])
+    if (e.action === 'carried' && ids.has(e.accountId) && e.paidOn.slice(0, 7) === month && e.paidOn <= today) {
+      moneyIn += e.received;
+      moneyOut += e.paid;
+    }
   // Loans, owner money and other income (Money in / out).
   let otherIn = 0,
     otherOut = 0;

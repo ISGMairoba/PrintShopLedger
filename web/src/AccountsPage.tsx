@@ -843,7 +843,9 @@ export default function AccountsPage({
                 <div key={e.id} className={`account-entry${e.cancelled ? ' cancelled-entry' : ''}`}>
                   <p>
                     {e.paidOn} ·{' '}
-                    {e.action === 'money'
+                    {e.action === 'carried'
+                      ? `Carried forward · in ${currency(e.received)}, out ${currency(e.paid)} · net `
+                      : e.action === 'money'
                       ? `${MONEY_TYPES[e.moneyType as keyof typeof MONEY_TYPES]?.label ?? 'Money'}${
                           e.lenderId ? ` · ${payees.find((p) => p.id === e.lenderId)?.name ?? 'Lender'}` : ''
                         } · ${e.direction < 0 ? '−' : '+'}`
@@ -865,7 +867,7 @@ export default function AccountsPage({
                       {c.reason}
                     </small>
                   ))}
-                  {!e.cancelled && (
+                  {!e.cancelled && !e.carryForward && (
                     <button
                       type="button"
                       className="text-button"
