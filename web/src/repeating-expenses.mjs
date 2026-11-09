@@ -32,6 +32,21 @@ export function nextDate(on, every, anchor = Number(on.slice(8, 10))) {
 }
 
 /** Active repeats due on or before `today`, oldest first. */
+/**
+ * The id the expense for one due date of a repeating expense always gets: the same on every
+ * device, so if two devices record the same rent the business refuses the second one
+ * ("Expense ID already exists") instead of keeping two.
+ * @returns {Promise<string>}
+ */
+export async function repeatExpenseId(repeatId, dueOn) {
+  const bytes = new Uint8Array(
+    await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`repeat-expense:${repeatId}:${dueOn}`)),
+  ).slice(0, 16);
+  bytes[6] = (bytes[6] & 0x0f) | 0x80; // UUID version 8 (custom)
+  bytes[8] = (bytes[8] & 0x3f) | 0x80; // RFC 4122 variant
+  const hex = [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
 export const dueRepeats = (ledger, today) =>
   (ledger.repeatingExpenses ?? [])
     .filter((r) => r.status === 'active' && r.nextDue <= today)

@@ -89,3 +89,12 @@ test('repeating expenses wait to be recorded or skipped, then move to the next d
     /Description/,
   );
 });
+
+test('repeating expenses: the expense for a due date gets the same id on every device', async () => {
+  const { repeatExpenseId } = await import('../src/repeating-expenses.mjs');
+  const a = await repeatExpenseId('r1', '2026-12-01');
+  assert.equal(a, await repeatExpenseId('r1', '2026-12-01'));
+  assert.notEqual(a, await repeatExpenseId('r1', '2027-01-01'));
+  assert.notEqual(a, await repeatExpenseId('r2', '2026-12-01'));
+  assert.match(a, /^[0-9a-f]{8}-[0-9a-f]{4}-8[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+});

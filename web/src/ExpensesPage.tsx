@@ -33,6 +33,7 @@ import type {
 import { useWords } from './Words';
 import { renameActive as wt } from './Words';
 import { alphabetical } from './alphabetical.mjs';
+import { repeatExpenseId } from './repeating-expenses.mjs';
 const currency = (value: number) =>
   new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(value / 100);
 const timestamp = (value: string) => new Date(value).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' });
@@ -84,7 +85,7 @@ export default function ExpensesPage({
     [detail, setDetail] = useState<Expense | null>(null),
     [voiding, setVoiding] = useState<Expense | null>(null),
     [reason, setReason] = useState(''),
-    [recording, setRecording] = useState<RepeatingExpense | null>(null),
+    [recording, setRecording] = useState<{ repeat: RepeatingExpense; expenseId: string } | null>(null),
     [repeating, setRepeating] = useState<{ repeat?: RepeatingExpense; from?: Expense } | null>(null),
     [error, setError] = useFeedbackMessage('error');
   const sorting = useTableSort<Expense>('date', 'desc');
@@ -202,7 +203,14 @@ export default function ExpensesPage({
       <DueRepeats
         ledger={ledger}
         busy={busy || !ready}
-        onRecord={setRecording}
+        onRecord={(r) =>
+          void (async () => {
+            const expenseId = await repeatExpenseId(r.id, r.nextDue);
+            // Already saved (here, or on another device that has synced): only mark it recorded.
+            if (ledger.expenses.some((e) => e.id === expenseId)) await repeatDone(r, 'recorded', expenseId);
+            else setRecording({ repeat: r, expenseId });
+          })()
+        }
         onSkip={(r) => void repeatDone(r, 'skipped')}
       />
       <p className="footnote">
@@ -428,14 +436,15 @@ export default function ExpensesPage({
       )}
       {recording && (
         <ExpenseEditor
-          key={'repeat:' + recording.id + ':' + recording.version}
+          key={'repeat:' + recording.repeat.id + ':' + recording.repeat.version}
+          newId={recording.expenseId}
           prefill={{
-            description: recording.description,
-            category: recording.category,
+            description: recording.repeat.description,
+            category: recording.repeat.category,
             materials: [],
-            amount: recording.amount,
-            payeeId: recording.payeeId,
-            note: recording.note,
+            amount: recording.repeat.amount,
+            payeeId: recording.repeat.payeeId,
+            note: recording.repeat.note,
           }}
           expenses={ledger.expenses}
           payees={ledger.payees}
@@ -445,7 +454,7 @@ export default function ExpensesPage({
           busy={busy}
           onSave={onSave}
           onSaved={async (id) => {
-            await repeatDone(recording, 'recorded', id);
+            await repeatDone(recording.repeat, 'recorded', id);
           }}
           onCreatePayee={createPayee}
           onClose={() => setRecording(null)}
