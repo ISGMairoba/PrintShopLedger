@@ -165,7 +165,10 @@ test('a trimmed copy keeps account balances and money not yet put in an account'
   assert.deepEqual([left.balance, left.received, left.paid], [full.balance, full.received, full.paid]);
   assert.ok(trimmed.accountEntries.some((e) => e.action === 'carried'));
   // An old payment with no account is still to do (Accounts → Unassigned), so it stays.
-  const loose = { ...ledger, checkouts: ledger.checkouts.map((c, i) => (i === 0 ? { ...c, accountId: '' } : c)) };
+  const loose = {
+    ...ledger,
+    checkouts: ledger.checkouts.map((c, i) => (i === 0 ? { ...c, accountId: '' } : c)),
+  };
   const first = loose.checkouts[0];
   const kept = trimHistory(loose, '2026-09-01').ledger;
   assert.ok(kept.payments.some((p) => (p.checkoutId || p.id) === first.id));

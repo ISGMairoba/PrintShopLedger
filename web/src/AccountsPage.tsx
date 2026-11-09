@@ -846,10 +846,12 @@ export default function AccountsPage({
                     {e.action === 'carried'
                       ? `Carried forward · in ${currency(e.received)}, out ${currency(e.paid)} · net `
                       : e.action === 'money'
-                      ? `${MONEY_TYPES[e.moneyType as keyof typeof MONEY_TYPES]?.label ?? 'Money'}${
-                          e.lenderId ? ` · ${payees.find((p) => p.id === e.lenderId)?.name ?? 'Lender'}` : ''
-                        } · ${e.direction < 0 ? '−' : '+'}`
-                      : `${e.action} · `}
+                        ? `${MONEY_TYPES[e.moneyType as keyof typeof MONEY_TYPES]?.label ?? 'Money'}${
+                            e.lenderId
+                              ? ` · ${payees.find((p) => p.id === e.lenderId)?.name ?? 'Lender'}`
+                              : ''
+                          } · ${e.direction < 0 ? '−' : '+'}`
+                        : `${e.action} · `}
                     {currency(e.amount)}
                     {e.action === 'transfer'
                       ? ` · ${accounts.find((a) => a.id === e.accountId)?.name} → ${accounts.find((a) => a.id === e.toAccountId)?.name}`

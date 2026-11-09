@@ -65,7 +65,9 @@ export function trimHistory(ledger, cutoff) {
     ledger.payments
       .filter(
         (p) =>
-          before(p.paidOn || p.createdAt, cutoff) && before(p.createdAt, cutoff) && !unassigned.has('payment:' + p.id),
+          before(p.paidOn || p.createdAt, cutoff) &&
+          before(p.createdAt, cutoff) &&
+          !unassigned.has('payment:' + p.id),
       )
       .map((p) => p.id),
   );
@@ -409,7 +411,13 @@ export function historyCheck(ledger, { now = new Date().toISOString(), cutoff } 
       return { balance, received, paid };
     });
   }
-  same('Accounts summary', (l) => accountSummary(l, (l.moneyAccounts ?? []).filter((a) => !a.archived), today));
+  same('Accounts summary', (l) =>
+    accountSummary(
+      l,
+      (l.moneyAccounts ?? []).filter((a) => !a.archived),
+      today,
+    ),
+  );
   for (const [a, b] of periods)
     same(`Profit and loss ${a} to ${b}`, (l) => {
       const { previous: _previous, ...r } = profitLoss(l, a, b);
