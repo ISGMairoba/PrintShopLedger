@@ -21,6 +21,18 @@ function business() {
   let ledger = {
     ...emptyLedger(),
     customers: [customer(1, 'Ada'), customer(2, 'Bayo'), customer(3, 'Chi')],
+    moneyAccounts: [
+      {
+        id: ids(30),
+        name: 'Cash',
+        accountType: 'cash',
+        methods: ['Cash'],
+        openingDate: '2026-07-01',
+        openingBalance: 100000,
+        archived: false,
+        version: 1,
+      },
+    ],
     materials: [
       {
         id: ids(10),
@@ -54,6 +66,7 @@ function business() {
         cashReceived: cash,
         useWallet,
         method: 'Cash',
+        accountId: ids(30),
         paidOn: day,
         reference: '',
       },
@@ -140,6 +153,25 @@ test('a trimmed copy drops old closed records and carries the wallet forward', (
   assert.equal(customerBalance(trimmed, ids(2)), customerBalance(ledger, ids(2)));
   assert.ok(trimmed.drawerClosings.length >= 1, 'the latest drawer closing stays');
   assert.ok(trimmed.checkouts.length < ledger.checkouts.length);
+});
+
+test('a trimmed copy keeps account balances and money not yet put in an account', async () => {
+  const { accountBalance } = await import('../src/operations.mjs');
+  const ledger = business();
+  const full = accountBalance(ledger, ids(30), '2026-10-23');
+  const { ledger: trimmed } = trimHistory(ledger, '2026-09-01');
+  assert.ok(trimmed.payments.length < ledger.payments.length, 'old payments go');
+  const left = accountBalance(trimmed, ids(30), '2026-10-23');
+  assert.deepEqual([left.balance, left.received, left.paid], [full.balance, full.received, full.paid]);
+  assert.ok(trimmed.accountEntries.some((e) => e.action === 'carried'));
+  // An old payment with no account is still to do (Accounts → Unassigned), so it stays.
+  const loose = {
+    ...ledger,
+    checkouts: ledger.checkouts.map((c, i) => (i === 0 ? { ...c, accountId: '' } : c)),
+  };
+  const first = loose.checkouts[0];
+  const kept = trimHistory(loose, '2026-09-01').ledger;
+  assert.ok(kept.payments.some((p) => (p.checkoutId || p.id) === first.id));
 });
 
 test('every checked figure is the same from the full and the trimmed copy', () => {

@@ -341,6 +341,12 @@ export function accountBalance(ledger, id, to = businessDay(new Date().toISOStri
       if (e.toAccountId === id) balance += e.amount;
     } else if (e.action === 'reconciliation' && e.accountId === id) balance += e.amount;
     else if (e.action === 'money' && e.accountId === id) balance += e.direction * e.amount;
+    else if (e.action === 'carried' && e.accountId === id) {
+      // Old records a device no longer keeps (My Account → This device → History kept).
+      balance += e.amount;
+      received += e.received;
+      paid += e.paid;
+    }
   }
   return {
     balance,
