@@ -114,6 +114,8 @@ export function profitReport(ledger, from, to) {
       margin: revenue ? Math.round((profit / revenue) * 1000) / 10 : null,
       unknownJobs: rows.length - knownRows.length,
       unknownRevenue: sum(rows, 'revenue') - revenue,
+      // The part of those jobs' cost that is known (a job can be partly costed).
+      partialCost: sum(rows, 'cost') - sum(knownRows, 'cost'),
       // Gifts, grants and other money that is not a sale (Accounts → Money in / out).
       otherIncome: moneyMoveTotals(ledger, from, to).other_income,
     },

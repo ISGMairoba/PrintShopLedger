@@ -93,6 +93,7 @@ test('profit report: period, cancelled left out, unknown jobs kept apart', () =>
     margin: 80,
     unknownJobs: 1,
     unknownRevenue: 30000,
+    partialCost: 0,
     otherIncome: 0,
   });
   assert.equal(r.byItem[0].item, 'Design');

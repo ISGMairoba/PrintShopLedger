@@ -116,3 +116,31 @@ test('profit and loss: gross profit, expenses by category (stock purchases apart
     ['Net profit', r.net / 100, r.previous.net / 100],
   );
 });
+
+test('profit and loss: a partly costed job counts its known cost and is still flagged', () => {
+  const l = {
+    ...emptyLedger(),
+    services: [
+      { id: 'paper', description: 'Paper', price: 100, archived: false, materialId: 'm1', costing: { key: 'paper', amount: 40000, per: 1 } },
+    ],
+    jobs: [
+      {
+        id: 'j',
+        serviceId: 'bag',
+        service: 'Bag',
+        description: 'Bag',
+        quantity: '1',
+        amount: 100000,
+        productionStatus: 'Completed',
+        createdAt: '2026-11-03T10:00:00Z',
+        materialChoice: { options: ['m1', 'm2'], work: 1 },
+        materialUsed: { usages: [{ materialId: 'm1', quantity: 1 }, { materialId: 'm2', quantity: 1 }] },
+      },
+    ],
+  };
+  const r = profitLoss(l, '2026-11-01', '2026-11-30');
+  assert.equal(r.sales, 100000);
+  assert.equal(r.jobCost, 40000);
+  assert.equal(r.grossProfit, 60000);
+  assert.equal(r.unknownJobs, 1);
+});
