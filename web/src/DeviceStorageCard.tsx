@@ -69,7 +69,9 @@ export default function DeviceStorageCard({
           {w(
             'The browser may clear the offline copy when the device runs low on space or the app is not opened for a while, and changes not yet synced would be lost.',
           )}{' '}
-          {w('Add the app to the home screen (or install it from the browser menu) so the browser keeps it, and sync before leaving it unused.')}
+          {w(
+            'Add the app to the home screen (or install it from the browser menu) so the browser keeps it, and sync before leaving it unused.',
+          )}
         </p>
       )}
       {onSyncAll && (
