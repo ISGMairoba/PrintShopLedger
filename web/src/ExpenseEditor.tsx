@@ -47,6 +47,8 @@ type Props = {
     payeeId?: string;
     note?: string;
   };
+  /** The id a new expense must get (a repeating expense's due date: the same on every device). */
+  newId?: string;
   /** Called with the new expense's id once it is saved (e.g. to mark a repeating expense recorded). */
   onSaved?: (id: string) => Promise<void>;
   onSave: (event: ExpenseEvent) => Promise<void>;
@@ -64,6 +66,7 @@ export default function ExpenseEditor({
   correcting,
   onCreatePayee,
   prefill,
+  newId,
   onSave,
   onSaved,
   onClose,
@@ -222,6 +225,7 @@ export default function ExpenseEditor({
             receiptReference: String(f.get('receiptReference')),
             materials: stock ? lines : [],
             ...(payment ? { payment } : {}),
+            ...(newId && !expense ? { id: newId } : {}),
           };
       const event = makeExpenseEvent(
         paymentOnly ? 'expense.payment_recorded' : expense ? 'expense.updated' : 'expense.created',
