@@ -121,7 +121,14 @@ test('profit and loss: a partly costed job counts its known cost and is still fl
   const l = {
     ...emptyLedger(),
     services: [
-      { id: 'paper', description: 'Paper', price: 100, archived: false, materialId: 'm1', costing: { key: 'paper', amount: 40000, per: 1 } },
+      {
+        id: 'paper',
+        description: 'Paper',
+        price: 100,
+        archived: false,
+        materialId: 'm1',
+        costing: { key: 'paper', amount: 40000, per: 1 },
+      },
     ],
     jobs: [
       {
@@ -134,7 +141,12 @@ test('profit and loss: a partly costed job counts its known cost and is still fl
         productionStatus: 'Completed',
         createdAt: '2026-11-03T10:00:00Z',
         materialChoice: { options: ['m1', 'm2'], work: 1 },
-        materialUsed: { usages: [{ materialId: 'm1', quantity: 1 }, { materialId: 'm2', quantity: 1 }] },
+        materialUsed: {
+          usages: [
+            { materialId: 'm1', quantity: 1 },
+            { materialId: 'm2', quantity: 1 },
+          ],
+        },
       },
     ],
   };
