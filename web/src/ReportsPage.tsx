@@ -1621,9 +1621,9 @@ function ProfitLossTab({ ledger, freshness, busy, error, pdf, csv }: TabProps) {
             )}
             {report.unknownJobs > 0 && (
               <p className="notice notice-warning">
-                {report.unknownJobs} job{report.unknownJobs === 1 ? ' has' : 's have'} no cost set, so{' '}
-                {currency(report.unknownSales)} of sales is counted with no cost. Give those items a cost in
-                Pricing Templates → Costs for a truer profit.
+                {report.unknownJobs} job{report.unknownJobs === 1 ? ' is' : 's are'} not fully costed, so{' '}
+                {currency(report.unknownSales)} of sales is counted with only the costs that are known. Give
+                those items (and their materials) a cost in Pricing Templates → Costs for a truer profit.
               </p>
             )}
           </section>

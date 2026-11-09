@@ -19,7 +19,8 @@ export function previousPeriod(from, to) {
 function period(ledger, from, to) {
   const jobs = profitReport(ledger, from, to);
   const sales = jobs.jobs.reduce((n, r) => n + r.revenue, 0);
-  const jobCost = jobs.totals.cost;
+  // Every known cost counts, including the known part of a job that is only partly costed.
+  const jobCost = jobs.totals.cost + jobs.totals.partialCost;
   const categories = new Map();
   let stockPurchases = 0;
   for (const e of ledger.expenses) {
@@ -87,7 +88,7 @@ export function profitLossSections(r, { money, unit = ' (NGN)' }) {
           money(r.stockPurchases),
           prevOf('stockPurchases'),
         ],
-        ['Jobs with no cost set (their sales are counted with no cost)', r.unknownJobs, p.unknownJobs],
+        ['Jobs not fully costed (only their known costs are counted)', r.unknownJobs, p.unknownJobs],
       ],
     },
   ];
