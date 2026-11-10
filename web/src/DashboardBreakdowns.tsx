@@ -31,6 +31,34 @@ function MetricSelect({
     </label>
   );
 }
+/** How many to show in a top list (1 to 20). */
+function CountInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (n: number) => void;
+}) {
+  return (
+    <label className="dashboard-metric dashboard-count">
+      {label}
+      <input
+        type="number"
+        min="1"
+        max="20"
+        step="1"
+        inputMode="numeric"
+        value={value}
+        onChange={(event) => {
+          const n = Math.round(Number(event.target.value));
+          if (n >= 1) onChange(Math.min(20, n));
+        }}
+      />
+    </label>
+  );
+}
 export default function DashboardBreakdowns({
   services,
   sources,
@@ -49,9 +77,11 @@ export default function DashboardBreakdowns({
   const { w } = useWords();
   const [serviceMetric, setServiceMetric] = useState<Metric>('sales'),
     [sourceMetric, setSourceMetric] = useState<Metric>('jobs'),
-    [customerMetric, setCustomerMetric] = useState<Metric>('sales');
-  const topServices: Row[] = rankDashboardRows(services, serviceMetric),
-    topCustomers: Row[] = rankDashboardRows(customers, customerMetric),
+    [customerMetric, setCustomerMetric] = useState<Metric>('sales'),
+    [serviceCount, setServiceCount] = useState(5),
+    [customerCount, setCustomerCount] = useState(5);
+  const topServices: Row[] = rankDashboardRows(services, serviceMetric, serviceCount),
+    topCustomers: Row[] = rankDashboardRows(customers, customerMetric, customerCount),
     sourceRows: Row[] = rankDashboardRows(sources, sourceMetric, sources.length);
   const quantityNote = (metric: Metric) =>
     metric === 'quantity' ? (
@@ -66,17 +96,39 @@ export default function DashboardBreakdowns({
   return (
     <>
       {access.sales && (
-        <section className="panel dashboard-panel" aria-label={w('Top 5 services')}>
-          <h2>{w('Top 5 services')}</h2>
-          <MetricSelect label={w('Rank services by')} value={serviceMetric} onChange={setServiceMetric} />
+        <section className="panel dashboard-panel" aria-label={w('Top services')}>
+          <h2>{w('Top services')}</h2>
+          <div className="dashboard-controls">
+            <MetricSelect label={w('Rank services by')} value={serviceMetric} onChange={setServiceMetric} />
+            <CountInput label="Show" value={serviceCount} onChange={setServiceCount} />
+          </div>
           {quantityNote(serviceMetric)}
           <InteractivePie
-            key={serviceMetric}
-            title={w(`Top five services by ${serviceMetric === 'sales' ? 'net amount' : 'net quantity'}`)}
+            key={`${serviceMetric}-${serviceCount}`}
+            title={w(
+              `Top ${serviceCount} services by ${serviceMetric === 'sales' ? 'net amount' : 'net quantity'}`,
+            )}
             rows={topServices.map((r) => ({ id: r.id, name: r.name, value: r[serviceMetric] }))}
             formatValue={format(serviceMetric)}
           />
-          <small>{w('Pie shares are among the displayed top five services.')}</small>
+          <small>{w(`Pie shares are among the ${topServices.length} services shown.`)}</small>
+        </section>
+      )}
+      {access.sales && access.customers && (
+        <section className="panel dashboard-panel" aria-label="Top customers">
+          <h2>Top customers</h2>
+          <div className="dashboard-controls">
+            <MetricSelect label="Rank customers by" value={customerMetric} onChange={setCustomerMetric} />
+            <CountInput label="Show" value={customerCount} onChange={setCustomerCount} />
+          </div>
+          {quantityNote(customerMetric)}
+          <InteractiveRanking
+            currency={customerMetric === 'sales'}
+            key={`${customerMetric}-${customerCount}`}
+            title={`Top ${customerCount} customers by ${customerMetric}`}
+            rows={topCustomers.map((row) => ({ id: row.id, name: row.name, value: row[customerMetric] }))}
+            formatValue={format(customerMetric)}
+          />
         </section>
       )}
       {access.payments && (
@@ -112,20 +164,6 @@ export default function DashboardBreakdowns({
             title={w(`Job sources by ${sourceMetric}`)}
             rows={sourceRows.map((row) => ({ id: row.id, name: row.name, value: row[sourceMetric] }))}
             formatValue={format(sourceMetric)}
-          />
-        </section>
-      )}
-      {access.sales && access.customers && (
-        <section className="panel dashboard-panel" aria-label="Top 5 customers">
-          <h2>Top 5 customers</h2>
-          <MetricSelect label="Rank customers by" value={customerMetric} onChange={setCustomerMetric} />
-          {quantityNote(customerMetric)}
-          <InteractiveRanking
-            currency={customerMetric === 'sales'}
-            key={customerMetric}
-            title={`Top five customers by ${customerMetric}`}
-            rows={topCustomers.map((row) => ({ id: row.id, name: row.name, value: row[customerMetric] }))}
-            formatValue={format(customerMetric)}
           />
         </section>
       )}
