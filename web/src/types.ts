@@ -168,6 +168,8 @@ export interface Job {
     changedAt: string;
   }[];
   templateInputs?: Record<string, number | string>;
+  /** Costs per unit when the job was sold (kobo), stamped by the business; see profit.mjs. */
+  costRates?: { service: number | null; materials: Record<string, number | null>; at?: string };
   templateSnapshot?: TemplateSnapshot;
   workflow?: string[];
   /** Sold off the shelf (from the service at checkout). */
