@@ -29,7 +29,8 @@ export function stockValue(ledger) {
       atCost += stock * rate;
     }
     const shelf = ledger.services.find(
-      (s) => s.shelfItem && !s.archived && !s.private && !s.customPrice && s.materialId === m.id && s.price > 0,
+      (s) =>
+        s.shelfItem && !s.archived && !s.private && !s.customPrice && s.materialId === m.id && s.price > 0,
     );
     if (!shelf || !stock) continue;
     shelfItems++;

@@ -80,7 +80,10 @@ export default function DashboardPage({
     () => (ready && access.materials && access.costs ? stockValue(ledger) : null),
     [ledger, ready, access.materials, access.costs],
   );
-  const recent = useMemo(() => (ready && access.sales ? recentSales(ledger, 10) : []), [ledger, ready, access.sales]);
+  const recent = useMemo(
+    () => (ready && access.sales ? recentSales(ledger, 10) : []),
+    [ledger, ready, access.sales],
+  );
   if (!ready)
     return (
       <section className="panel empty" role="status">

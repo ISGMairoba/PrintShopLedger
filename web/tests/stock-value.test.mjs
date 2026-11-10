@@ -12,10 +12,29 @@ test('stock value: at cost, missing costs apart, shelf stock at its selling pric
       { id: 'neg', name: 'Short', available: -3, archived: false },
     ],
     services: [
-      { id: 'pen-cost', materialId: 'pen', private: true, archived: false, costing: { amount: 5000, per: 1 } },
+      {
+        id: 'pen-cost',
+        materialId: 'pen',
+        private: true,
+        archived: false,
+        costing: { amount: 5000, per: 1 },
+      },
       { id: 'pen-sale', materialId: 'pen', shelfItem: true, archived: false, price: 20000 },
-      { id: 'film-cost', materialId: 'film', private: true, archived: false, costing: { amount: 100000, per: 50 } },
-      { id: 'card-sale', materialId: 'card', shelfItem: true, archived: false, price: 10000, production: { perItem: 5 } },
+      {
+        id: 'film-cost',
+        materialId: 'film',
+        private: true,
+        archived: false,
+        costing: { amount: 100000, per: 50 },
+      },
+      {
+        id: 'card-sale',
+        materialId: 'card',
+        shelfItem: true,
+        archived: false,
+        price: 10000,
+        production: { perItem: 5 },
+      },
       { id: 'neg-cost', materialId: 'neg', archived: false, costing: { amount: 100, per: 1 } },
     ],
   };
@@ -49,7 +68,10 @@ test('recent sales: newest sales first, payments without jobs left out', () => {
     ],
   };
   const r = recentSales(ledger, 10);
-  assert.deepEqual(r.map((x) => x.record.id), ['c', 'a']);
+  assert.deepEqual(
+    r.map((x) => x.record.id),
+    ['c', 'a'],
+  );
   assert.equal(r[0].customer, 'Bayo');
   assert.deepEqual(r[0].items, ['Pens', 'Card']);
   assert.equal(recentSales(ledger, 1).length, 1);
