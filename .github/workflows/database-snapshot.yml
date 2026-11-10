@@ -1,0 +1,50 @@
+name: Database snapshot
+# Writes the full current definition of the database (tables, functions, triggers, policies and
+# grants, not the data) to web/supabase/schema-snapshot.sql on the db-snapshot branch, weekly and on
+# demand. Many functions were changed step by step across migrations; this is the one place where
+# each is written out in full. Needs the SUPABASE_DB_URL secret (Supabase → Connect → Session
+# pooler connection string, with the database password).
+on:
+  schedule:
+    - cron: '17 2 * * 1'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: database-snapshot
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Install pg_dump 17 (the server's version)
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+      - name: Dump the structure
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          test -n "$DATABASE_URL" || { echo "Add the SUPABASE_DB_URL secret first."; exit 1; }
+          mkdir -p /tmp/out
+          /usr/lib/postgresql/17/bin/pg_dump "$DATABASE_URL" --schema-only --no-owner \
+            --schema=public --schema=private --file=/tmp/out/schema-snapshot.sql
+          # Drop the dump's header lines that change on every run.
+          sed -i -e '/^-- Dumped from/d' -e '/^-- Dumped by/d' -e '/^\\restrict /d' -e '/^\\unrestrict /d' /tmp/out/schema-snapshot.sql
+      - name: Save it on the db-snapshot branch
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@users.noreply.github.com
+          git fetch origin db-snapshot && git checkout db-snapshot || git checkout --orphan db-snapshot
+          git rm -rq --cached . 2>/dev/null || true
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          mkdir -p web/supabase && cp /tmp/out/schema-snapshot.sql web/supabase/schema-snapshot.sql
+          git add web/supabase/schema-snapshot.sql
+          git diff --cached --quiet && echo "No changes since the last snapshot." && exit 0
+          git commit -qm "Database snapshot $(date -u +%Y-%m-%d)"
+          git push origin db-snapshot
