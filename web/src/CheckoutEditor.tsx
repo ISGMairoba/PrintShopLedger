@@ -60,6 +60,29 @@ type Props = {
   fromQuotation?: QuotationStart;
   /** Start with one template line, priced on the Pricing Templates page. */
   startTemplate?: { templateId: string; inputs: Record<string, number | string>; quantity: string };
+  /** Resume a held sale (Hold sale). */
+  held?: HeldSale;
+  /** Put this cart aside on this device to serve someone else (Hold sale). */
+  onHold?: (sale: HeldSale) => void;
+};
+/** A sale put aside on this device (held-sales.mjs). */
+export type HeldSale = {
+  id: string;
+  kind: 'checkout' | 'quick';
+  heldAt: string;
+  heldBy: string;
+  customerName: string;
+  items: string[];
+  total: number | null;
+  data: Record<string, unknown>;
+};
+type HeldCheckout = {
+  lines: CartLine[];
+  customerId: string;
+  query: string;
+  newCustomer: CustomerEvent | null;
+  orderDiscount: DiscountDraft;
+  termsAndConditions: string;
 };
 export type QuotationStart = {
   reference: string;
@@ -270,9 +293,12 @@ export default function CheckoutEditor({
   canChooseWorkflow = false,
   fromQuotation,
   startTemplate,
+  held,
+  onHold,
 }: Props) {
+  const resumed = held?.kind === 'checkout' ? (held.data as HeldCheckout) : null;
   const [termsAndConditions, setTermsAndConditions] = useState(
-    initialCheckout ? (initialCheckout.termsAndConditions ?? '') : defaultTerms,
+    resumed ? resumed.termsAndConditions : initialCheckout ? (initialCheckout.termsAndConditions ?? '') : defaultTerms,
   );
   const formId = useId();
   const options = useBusinessOptions(),
@@ -300,7 +326,9 @@ export default function CheckoutEditor({
     dueAt: defaultDueAt(jobSettings.defaultDuration),
   });
   const [lines, setLines] = useState<CartLine[]>(() =>
-    initialCheckout
+    resumed
+      ? resumed.lines.map((l) => ({ ...l }))
+      : initialCheckout
       ? initialCheckout.jobs.map((j) => ({
           ...line(),
           ...j,
@@ -355,10 +383,12 @@ export default function CheckoutEditor({
   });
   const clash = offlineCustomer.clash;
   const [customerId, setCustomerId] = useState(
-    clash ? '' : (initialCheckout?.customerId ?? (initialCustomer || fromQuotation?.customerId || '')),
+    resumed ? resumed.customerId : clash ? '' : (initialCheckout?.customerId ?? (initialCustomer || fromQuotation?.customerId || '')),
   );
   const [query, setQuery] = useState(
-    clash
+    resumed
+      ? resumed.query
+      : clash
       ? ''
       : (ledger.customers.find(
           (c) => c.id === (initialCheckout?.customerId ?? (initialCustomer || fromQuotation?.customerId)),
@@ -370,7 +400,9 @@ export default function CheckoutEditor({
   const [suggest, setSuggest] = useState(false),
     [active, setActive] = useState(0),
     [addingCustomer, setAddingCustomer] = useState(false);
-  const [newCustomer, setNewCustomer] = useState<CustomerEvent | null>(clash ? null : offlineCustomer.event);
+  const [newCustomer, setNewCustomer] = useState<CustomerEvent | null>(
+    resumed ? resumed.newCustomer : clash ? null : offlineCustomer.event,
+  );
   const [cashOverride, setCashOverride] = useState<string | null>(
     initialCheckout ? (initialCheckout.cashReceived / 100).toFixed(2) : null,
   );
@@ -441,7 +473,7 @@ export default function CheckoutEditor({
   const editLine = (id: string, key: string, value: string) =>
     setLines((items) => items.map((item) => (item.id === id ? { ...item, [key]: value } : item)));
   const [orderDiscount, setOrderDiscount] = useState<DiscountDraft>(() =>
-    discountDraft(initialCheckout?.orderDiscount ?? fromQuotation?.orderDiscount),
+    resumed ? resumed.orderDiscount : discountDraft(initialCheckout?.orderDiscount ?? fromQuotation?.orderDiscount),
   );
   const cartLines = lines.map((line) =>
     lineWithDescription(
@@ -605,6 +637,40 @@ export default function CheckoutEditor({
             busy={busy}
             disabled={blockShort && short.length > 0}
             onCancel={onClose}
+            extra={
+              onHold &&
+              !initialCheckout &&
+              !paymentOnly &&
+              lines.some((l) => l.serviceId) && (
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={busy}
+                  onClick={() => {
+                    const data: HeldCheckout = {
+                      lines,
+                      customerId,
+                      query,
+                      newCustomer,
+                      orderDiscount,
+                      termsAndConditions,
+                    };
+                    onHold({
+                      id: held?.id ?? String(crypto.randomUUID()),
+                      kind: 'checkout',
+                      heldAt: new Date().toISOString(),
+                      heldBy: actor.label,
+                      customerName: query.trim(),
+                      items: lines.filter((l) => l.serviceId).map((l) => l.description || 'Item'),
+                      total: cartTotal,
+                      data,
+                    });
+                  }}
+                >
+                  <Icon name="pause" /> Hold sale
+                </button>
+              )
+            }
             summary={
               !paymentOnly && (
                 <>

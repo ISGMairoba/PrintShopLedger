@@ -41,6 +41,8 @@ import {
   faCircleUser,
   faInbox,
   faScaleBalanced,
+  faPause,
+  faBullhorn,
 } from '@fortawesome/free-solid-svg-icons';
 const icons = {
   import: faFileImport,
@@ -85,6 +87,8 @@ const icons = {
   account: faCircleUser,
   inbox: faInbox,
   adjustments: faScaleBalanced,
+  pause: faPause,
+  notice: faBullhorn,
 };
 export type IconName = keyof typeof icons;
 export default function Icon({ name }: { name: IconName }) {

@@ -8,6 +8,7 @@ export default function DialogActions({
   onCancel,
   children,
   summary,
+  extra,
   disabled = false,
 }: {
   form: string;
@@ -17,6 +18,8 @@ export default function DialogActions({
   onCancel: () => void;
   children: ReactNode;
   summary?: ReactNode;
+  /** Another action, shown between Cancel and the main button. */
+  extra?: ReactNode;
 }) {
   return (
     <>
@@ -25,6 +28,7 @@ export default function DialogActions({
         <button type="button" className="secondary" disabled={busy} onClick={onCancel}>
           <Icon name="close" /> Cancel
         </button>
+        {extra}
         <button type="submit" form={form} disabled={busy || disabled} aria-busy={busy}>
           <Icon name="save" /> {busy ? 'Saving…' : children}
         </button>

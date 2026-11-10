@@ -13,7 +13,7 @@ import { money } from './domain.mjs';
 import { prepareCheckout } from './checkout.mjs';
 import { packList, packSummary } from './pack-prices.mjs';
 import { countPrice, tierList, tierPrice } from './price-tiers.mjs';
-import { DiscountFields, discountSpec, noDiscount, type DiscountDraft } from './CheckoutEditor';
+import { DiscountFields, discountSpec, noDiscount, type DiscountDraft, type HeldSale } from './CheckoutEditor';
 import {
   WALK_IN_NAME,
   addToCart,
@@ -39,6 +39,8 @@ export default function QuickSale({
   onClose,
   onReceipt,
   discountPolicy = { maxPercent: 0, canFlat: false },
+  held,
+  onHold,
 }: {
   ledger: Ledger;
   actor: { id: string; label: string };
@@ -48,25 +50,35 @@ export default function QuickSale({
   onReceipt: (record: CheckoutRecord) => void;
   /** What this user may discount: the cap per item (%) and whether whole-sale/flat is allowed. */
   discountPolicy?: { maxPercent: number; canFlat: boolean };
+  /** Resume a held sale (Hold sale). */
+  held?: HeldSale;
+  /** Put this cart aside on this device to serve someone else. */
+  onHold?: (sale: HeldSale) => void;
 }) {
+  const resumed =
+    held?.kind === 'quick'
+      ? (held.data as { cart: { serviceId: string; quantity: number }[]; customerText: string; discount: DiscountDraft })
+      : null;
   const { w } = useWords();
   const options = useBusinessOptions();
   const methods = options.paymentMethods.filter((m) => m.enabled);
   const products = useMemo(() => shelfProducts(ledger), [ledger]);
   const [query, setQuery] = useState('');
-  const [cart, setCart] = useState<{ serviceId: string; quantity: number }[]>([]);
+  const [cart, setCart] = useState<{ serviceId: string; quantity: number }[]>(() =>
+    (resumed?.cart ?? []).filter((l) => products.some((p) => p.id === l.serviceId)),
+  );
   // When the business blocks stock below zero, a cart that needs more than is in stock cannot be sold.
   const blocked = stockBelowZeroBlocked();
   const anyShort = cart.some((line) => {
     const p = products.find((x) => x.id === line.serviceId);
     return p?.stock != null && line.quantity > p.stock;
   });
-  const [customerText, setCustomerText] = useState(WALK_IN_NAME);
+  const [customerText, setCustomerText] = useState(resumed?.customerText ?? WALK_IN_NAME);
   const [methodLabel, setMethodLabel] = useState(methods[0]?.label ?? 'Cash');
   const [received, setReceived] = useState<string | null>(null);
   // What is typed in each quantity box, so clearing a box to retype does not drop the item.
   const [typed, setTyped] = useState<Record<string, string>>({});
-  const [discount, setDiscount] = useState<DiscountDraft>(noDiscount());
+  const [discount, setDiscount] = useState<DiscountDraft>(resumed?.discount ?? noDiscount());
   const [error, setError] = useFeedbackMessage('error');
   const customers = ledger.customers.filter((c) => !c.archived && c.id !== walkInCustomer(ledger)?.id);
   const customer = customers.find((c) => label(c) === customerText) ?? null;
@@ -373,6 +385,30 @@ export default function QuickSale({
                 <small>{currency(total - tendered)} will be owed on the customer's account.</small>
               )}
             </div>
+            {onHold && cart.length > 0 && (
+              <button
+                type="button"
+                className="secondary"
+                disabled={busy}
+                onClick={() =>
+                  onHold({
+                    id: held?.id ?? String(crypto.randomUUID()),
+                    kind: 'quick',
+                    heldAt: new Date().toISOString(),
+                    heldBy: actor.label,
+                    customerName: customerText === WALK_IN_NAME ? '' : customerText,
+                    items: cart.map((l) => {
+                      const p = products.find((x) => x.id === l.serviceId);
+                      return `${l.quantity} × ${p?.name ?? 'Item'}`;
+                    }),
+                    total: priced ? total : null,
+                    data: { cart, customerText, discount },
+                  })
+                }
+              >
+                <Icon name="pause" /> Hold sale
+              </button>
+            )}
             <button
               type="button"
               disabled={busy || !cart.length || !priced || (blocked && anyShort)}

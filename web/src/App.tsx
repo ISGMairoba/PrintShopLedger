@@ -50,7 +50,7 @@ import JobProgressDialog from './JobProgressDialog';
 import { stageMoveEvents } from './material-choice.mjs';
 import MySalesPage from './MySalesPage';
 import PointOfServicePage from './PointOfServicePage';
-import CheckoutEditor from './CheckoutEditor';
+import CheckoutEditor, { type HeldSale } from './CheckoutEditor';
 import ReceiptView from './ReceiptView';
 import PaymentCorrectionDialog from './PaymentCorrectionDialog';
 import DeviceStorageCard, { LOW_SPACE } from './DeviceStorageCard';
@@ -130,6 +130,7 @@ import {
   rejectCorrectionRequest,
 } from './cloud';
 import { readState, saveEvent, saveEvents, mutateState, storageHealth } from './storage';
+import { holdSale, listHeld, removeHeld } from './held-sales.mjs';
 import MaterialsPage from './MaterialsPage';
 import CustomersPage from './CustomersPage';
 import UsersPage from './UsersPage';
@@ -164,6 +165,15 @@ const ReportsPage = lazy(() => import('./ReportsPage'));
 
 // The low-space check runs once per workspace per page load.
 const lowSpaceChecked = new Set<string>();
+/** This browser's storage, or null where it is blocked (private windows, some settings). */
+const deviceStorage = () => {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+};
+
 export default function App() {
   const [registering, setRegistering] = useState(false);
   const [activationToken, setActivationToken] = useState(
@@ -261,6 +271,29 @@ export default function App() {
   );
   const [branchChoice, setBranchChoice] = useState<string | null>(() => (scope ? storedBranch(scope) : null));
   useEffect(() => setBranchChoice(scope ? storedBranch(scope) : null), [scope]);
+  // Hold sale: carts put aside on this device (held-sales.mjs); `resuming` is the one reopened.
+  const [held, setHeld] = useState<HeldSale[]>(() => (scope ? listHeld(deviceStorage(), scope) : []));
+  useEffect(() => setHeld(scope ? listHeld(deviceStorage(), scope) : []), [scope]);
+  const [resuming, setResuming] = useState<HeldSale | null>(null);
+  const holdCurrentSale = (sale: HeldSale) => {
+    if (!scope) return;
+    try {
+      setHeld(holdSale(deviceStorage(), scope, sale));
+      setResuming(null);
+      setForm(null);
+      setQuickSale(false);
+      setMessage(`Sale held${sale.customerName ? ` for ${sale.customerName}` : ''}. Resume it from Point of Service.`, 'success');
+    } catch (cause) {
+      setMessage(cause instanceof Error ? cause.message : String(cause), 'error');
+    }
+  };
+  // Completing a resumed sale removes it from the held list.
+  const completeHeldCheckout = async (operation: CheckoutEvent) => {
+    const record = await completeCheckout(operation);
+    if (resuming && scope) setHeld(removeHeld(deviceStorage(), scope, resuming.id));
+    setResuming(null);
+    return record;
+  };
   const activeBranch =
     branchChoices.length === 1
       ? branchChoices[0]
@@ -2338,6 +2371,20 @@ export default function App() {
                             onBulkAction={(jobs, mode) => setBatchToAdvance({ jobs, mode })}
                             onDue={canChangeDue ? setDeadlineJobs : undefined}
                             onReceipt={setReceipt}
+                            held={held}
+                            onResumeHeld={(sale) => {
+                              setPaymentCustomer('');
+                              setCheckoutStart(null);
+                              setResuming(sale);
+                              if (sale.kind === 'quick') {
+                                setForm(null);
+                                setQuickSale(true);
+                              } else {
+                                setQuickSale(false);
+                                setForm('job');
+                              }
+                            }}
+                            onDiscardHeld={(sale) => scope && setHeld(removeHeld(deviceStorage(), scope, sale.id))}
                           />
                         ) : page === 'Users' ? (
                           <UsersPage
@@ -2603,14 +2650,20 @@ export default function App() {
                     )}
                     {form && form !== 'customer' && (
                       <CheckoutEditor
+                        key={form === 'job' && resuming?.kind === 'checkout' ? resuming.id : (form ?? '')}
                         ledger={ledger}
                         actor={salesActor}
                         busy={busy}
                         paymentOnly={form === 'payment'}
                         initialCustomer={form === 'payment' ? paymentCustomer : ''}
                         startTemplate={form === 'job' ? (checkoutStart ?? undefined) : undefined}
-                        onSave={completeCheckout}
-                        onClose={() => setForm(null)}
+                        held={form === 'job' && resuming?.kind === 'checkout' ? resuming : undefined}
+                        onHold={form === 'job' ? holdCurrentSale : undefined}
+                        onSave={completeHeldCheckout}
+                        onClose={() => {
+                          setForm(null);
+                          setResuming(null);
+                        }}
                         onReceipt={setReceipt}
                         jobSettings={branding.settings.jobs}
                         defaultTerms={branding.settings.documents.invoiceTerms}
@@ -2634,11 +2687,17 @@ export default function App() {
                     )}
                     {quickSale && (
                       <QuickSale
+                        key={resuming?.kind === 'quick' ? resuming.id : 'new'}
                         ledger={ledger}
                         actor={salesActor}
                         busy={busy}
-                        onSave={completeCheckout}
-                        onClose={() => setQuickSale(false)}
+                        held={resuming?.kind === 'quick' ? resuming : undefined}
+                        onHold={holdCurrentSale}
+                        onSave={completeHeldCheckout}
+                        onClose={() => {
+                          setQuickSale(false);
+                          setResuming(null);
+                        }}
                         onReceipt={setReceipt}
                         discountPolicy={discountPolicy(
                           branding.settings.discounts,
