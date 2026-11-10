@@ -190,9 +190,27 @@ export function SaleAdjustmentEditor({
   const formId = useId();
   const options = useBusinessOptions(),
     methods = options.paymentMethods.filter((m) => m.enabled);
-  const [action, setAction] = useState<SupervisedEvent['kind']>(
-    job.productionStatus === 'Cancelled' ? 'sale.refunded' : 'sale.corrected',
+  // A shelf item can be returned: some items (the quantity goes down and their stock goes back) or
+  // all of them (the sale is cancelled and its stock goes back). Paid money becomes customer
+  // credit, given back with "Refund customer credit".
+  const canReturn =
+    !!job.shelfItem &&
+    !!job.materialId &&
+    !job.templateSnapshot &&
+    !job.materialChoice &&
+    job.productionStatus !== 'Cancelled';
+  const [action, setAction] = useState<SupervisedEvent['kind'] | 'items.returned'>(
+    job.productionStatus === 'Cancelled' ? 'sale.refunded' : canReturn ? 'items.returned' : 'sale.corrected',
   );
+  const [returnCount, setReturnCount] = useState('1');
+  const soldCount = Number(job.quantity ?? 1),
+    backCount = Math.min(soldCount, Math.max(0, Math.floor(Number(returnCount)) || 0)),
+    isReturn = action === 'items.returned';
+  const effective: SupervisedEvent['kind'] = isReturn
+    ? backCount >= soldCount
+      ? 'sale.cancelled'
+      : 'sale.details_corrected'
+    : action;
   const [amount, setAmount] = useState(String(job.amount / 100)),
     [description, setDescription] = useState(job.description),
     [reason, setReason] = useState(''),
@@ -288,9 +306,10 @@ export function SaleAdjustmentEditor({
   function event(): SupervisedEvent {
     const chosen = methods.find((m) => m.label === (action === 'payment.corrected' ? paymentMethod : method)),
       now = new Date().toISOString();
+    if (isReturn && !(backCount > 0)) throw Error('Enter how many items came back.');
     return {
       id,
-      kind: action,
+      kind: effective,
       data: {
         jobId: job.id,
         baseVersion: job.version ?? 1,
@@ -299,52 +318,76 @@ export function SaleAdjustmentEditor({
         modifiedBy: actor.id,
         modifiedByLabel: actor.label,
         modifiedAt: now,
-        ...(['sale.details_corrected', 'sale.combined_corrected'].includes(action)
+        ...(isReturn && effective === 'sale.details_corrected'
           ? {
-              serviceId,
-              serviceVersion: serviceVersions[serviceId],
-              materialId: materialId || undefined,
-              unitPrice: money(unitPrice),
-              description,
-              quantity: Number(quantity),
-              width: Number(width),
-              height: Number(height),
-              stockMode,
+              serviceId: job.serviceId,
+              serviceVersion: serviceVersions[job.serviceId ?? ''],
+              materialId: job.materialId || undefined,
+              unitPrice:
+                job.unitPrice ??
+                Math.round(
+                  job.amount /
+                    ((job.quantity ?? 1) * (job.requireSize ? (job.width ?? 1) * (job.height ?? 1) : 1)),
+                ),
+              description: job.description,
+              quantity: soldCount - backCount,
+              width: Number(job.width ?? 1),
+              height: Number(job.height ?? 1),
+              stockMode: 'reconcile',
               stockIds,
               materialVersions,
-              ...(confirmedChoice && stockMode === 'reconcile' ? { choiceUsages: choiceUsages() } : {}),
-              ...(action === 'sale.combined_corrected'
-                ? {
-                    detailsId,
-                    paymentEdits: paymentEdits.map((p) => ({ ...p, paymentAmount: money(p.paymentAmount) })),
-                  }
-                : {}),
             }
-          : action === 'payment.corrected'
+          : ['sale.details_corrected', 'sale.combined_corrected'].includes(action)
             ? {
-                paymentId,
-                paymentAmount: money(paymentAmount),
-                expectedPayment: selectedPayment ? paymentCorrectionToken(selectedPayment) : undefined,
-                method: chosen?.kind ?? selectedPayment?.method,
-                methodLabel: chosen?.label ?? paymentMethod,
-                reference,
-                paidOn,
+                serviceId,
+                serviceVersion: serviceVersions[serviceId],
+                materialId: materialId || undefined,
+                unitPrice: money(unitPrice),
+                description,
+                quantity: Number(quantity),
+                width: Number(width),
+                height: Number(height),
+                stockMode,
+                stockIds,
+                materialVersions,
+                ...(confirmedChoice && stockMode === 'reconcile' ? { choiceUsages: choiceUsages() } : {}),
+                ...(action === 'sale.combined_corrected'
+                  ? {
+                      detailsId,
+                      paymentEdits: paymentEdits.map((p) => ({
+                        ...p,
+                        paymentAmount: money(p.paymentAmount),
+                      })),
+                    }
+                  : {}),
               }
-            : action === 'sale.corrected'
-              ? { amount: money(amount), description }
-              : action === 'sale.cancelled'
-                ? {
-                    returnQuantity: confirmedChoice ? 0 : Number(returned),
-                    materialVersion: materialVersions[job.materialId ?? ''],
-                    stockEventId: stockId,
-                    ...(confirmedChoice ? { choiceUsages: choiceUsages(), stockIds, materialVersions } : {}),
-                  }
-                : {
-                    refundAmount: money(refund),
-                    method: chosen?.kind,
-                    methodLabel: chosen?.label,
-                    paidOn: saleDay(now),
-                  }),
+            : action === 'payment.corrected'
+              ? {
+                  paymentId,
+                  paymentAmount: money(paymentAmount),
+                  expectedPayment: selectedPayment ? paymentCorrectionToken(selectedPayment) : undefined,
+                  method: chosen?.kind ?? selectedPayment?.method,
+                  methodLabel: chosen?.label ?? paymentMethod,
+                  reference,
+                  paidOn,
+                }
+              : action === 'sale.corrected'
+                ? { amount: money(amount), description }
+                : effective === 'sale.cancelled'
+                  ? {
+                      returnQuantity: confirmedChoice ? 0 : isReturn ? availableReturn : Number(returned),
+                      materialVersion: materialVersions[job.materialId ?? ''],
+                      stockEventId: stockId,
+                      ...(confirmedChoice
+                        ? { choiceUsages: choiceUsages(), stockIds, materialVersions }
+                        : {}),
+                    }
+                  : {
+                      refundAmount: money(refund),
+                      method: chosen?.kind,
+                      methodLabel: chosen?.label,
+                      paidOn: saleDay(now),
+                    }),
       },
     };
   }
@@ -357,10 +400,10 @@ export function SaleAdjustmentEditor({
     previewNotice = '';
   try {
     const command = event();
-    if (['sale.details_corrected', 'sale.combined_corrected'].includes(action))
+    if (['sale.details_corrected', 'sale.combined_corrected'].includes(effective))
       proposed = quoteCorrectedJob(ledger, job, command.data);
-    else if (action === 'sale.corrected') proposed = { ...job, description, amount: money(amount) };
-    else if (action === 'sale.cancelled') proposed = { ...job, amount: 0, productionStatus: 'Cancelled' };
+    else if (effective === 'sale.corrected') proposed = { ...job, description, amount: money(amount) };
+    else if (effective === 'sale.cancelled') proposed = { ...job, amount: 0, productionStatus: 'Cancelled' };
     try {
       next = applySaleAdjustment(ledger, {
         ...command,
@@ -559,9 +602,13 @@ export function SaleAdjustmentEditor({
         <fieldset disabled={busy || !!submitted}>
           <label>
             Adjustment type
-            <select value={action} onChange={(e) => setAction(e.target.value as SupervisedEvent['kind'])}>
+            <select
+              value={action}
+              onChange={(e) => setAction(e.target.value as SupervisedEvent['kind'] | 'items.returned')}
+            >
               {job.productionStatus !== 'Cancelled' && (
                 <>
+                  {canReturn && <option value="items.returned">{w('Return items to stock')}</option>}
                   {!job.templateSnapshot && (
                     <option value="sale.combined_corrected">{w('Correct job and payments together')}</option>
                   )}
@@ -578,6 +625,30 @@ export function SaleAdjustmentEditor({
               <option value="sale.refunded">Refund customer credit</option>
             </select>
           </label>
+          {isReturn && (
+            <>
+              <label>
+                {w('Items returned')} ({w('sold')}: {soldCount})
+                <input
+                  type="number"
+                  min="1"
+                  max={soldCount}
+                  step="1"
+                  value={returnCount}
+                  onChange={(e) => setReturnCount(e.target.value)}
+                  required
+                />
+              </label>
+              <p className="notice" role="status">
+                {backCount >= soldCount
+                  ? w('All of them: the sale is cancelled and its stock goes back.')
+                  : `${backCount} ${w('of')} ${soldCount}: ${w('the charge goes down and their stock goes back.')}`}{' '}
+                {w(
+                  'Money already paid for them becomes the customer’s credit. To give it back, use Refund customer credit after saving.',
+                )}
+              </p>
+            </>
+          )}
           {action === 'sale.corrected' && (
             <div className="form-grid">
               <label>
