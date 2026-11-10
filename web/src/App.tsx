@@ -282,7 +282,10 @@ export default function App() {
       setResuming(null);
       setForm(null);
       setQuickSale(false);
-      setMessage(`Sale held${sale.customerName ? ` for ${sale.customerName}` : ''}. Resume it from Point of Service.`, 'success');
+      setMessage(
+        `Sale held${sale.customerName ? ` for ${sale.customerName}` : ''}. Resume it from Point of Service.`,
+        'success',
+      );
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : String(cause), 'error');
     }
@@ -2384,7 +2387,9 @@ export default function App() {
                                 setForm('job');
                               }
                             }}
-                            onDiscardHeld={(sale) => scope && setHeld(removeHeld(deviceStorage(), scope, sale.id))}
+                            onDiscardHeld={(sale) =>
+                              scope && setHeld(removeHeld(deviceStorage(), scope, sale.id))
+                            }
                           />
                         ) : page === 'Users' ? (
                           <UsersPage

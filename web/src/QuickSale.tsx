@@ -13,7 +13,13 @@ import { money } from './domain.mjs';
 import { prepareCheckout } from './checkout.mjs';
 import { packList, packSummary } from './pack-prices.mjs';
 import { countPrice, tierList, tierPrice } from './price-tiers.mjs';
-import { DiscountFields, discountSpec, noDiscount, type DiscountDraft, type HeldSale } from './CheckoutEditor';
+import {
+  DiscountFields,
+  discountSpec,
+  noDiscount,
+  type DiscountDraft,
+  type HeldSale,
+} from './CheckoutEditor';
 import {
   WALK_IN_NAME,
   addToCart,
@@ -57,7 +63,11 @@ export default function QuickSale({
 }) {
   const resumed =
     held?.kind === 'quick'
-      ? (held.data as { cart: { serviceId: string; quantity: number }[]; customerText: string; discount: DiscountDraft })
+      ? (held.data as {
+          cart: { serviceId: string; quantity: number }[];
+          customerText: string;
+          discount: DiscountDraft;
+        })
       : null;
   const { w } = useWords();
   const options = useBusinessOptions();

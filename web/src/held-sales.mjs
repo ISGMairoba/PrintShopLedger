@@ -37,9 +37,11 @@ function write(storage, scope, list) {
  */
 export function holdSale(storage, scope, sale) {
   const others = listHeld(storage, scope).filter((h) => h.id !== sale.id);
-  if (others.length >= LIMIT) throw Error(`This device already holds ${LIMIT} sales. Finish or discard some first.`);
+  if (others.length >= LIMIT)
+    throw Error(`This device already holds ${LIMIT} sales. Finish or discard some first.`);
   const list = [sale, ...others];
-  if (!write(storage, scope, list)) throw Error('This device could not keep the sale. Complete it now instead.');
+  if (!write(storage, scope, list))
+    throw Error('This device could not keep the sale. Complete it now instead.');
   return list;
 }
 
@@ -57,6 +59,8 @@ export const isOld = (sale, now = Date.now()) =>
 export function heldLabel(sale) {
   const who = sale.note?.trim() || sale.customerName?.trim() || 'No customer yet';
   const items = (sale.items ?? []).filter(Boolean);
-  const what = items.length ? items.slice(0, 2).join(', ') + (items.length > 2 ? ` +${items.length - 2} more` : '') : 'No items';
+  const what = items.length
+    ? items.slice(0, 2).join(', ') + (items.length > 2 ? ` +${items.length - 2} more` : '')
+    : 'No items';
   return `${who} · ${what}`;
 }

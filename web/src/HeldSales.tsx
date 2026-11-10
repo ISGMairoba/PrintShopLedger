@@ -36,7 +36,8 @@ export default function HeldSales({
             <span>
               <strong>{heldLabel(h)}</strong>
               <small className="muted">
-                {h.kind === 'quick' ? 'Quick sale' : 'Checkout'} · {h.total === null ? '—' : currency(h.total)} · held{' '}
+                {h.kind === 'quick' ? 'Quick sale' : 'Checkout'} ·{' '}
+                {h.total === null ? '—' : currency(h.total)} · held{' '}
                 {new Date(h.heldAt).toLocaleString('en-NG', { dateStyle: 'medium', timeStyle: 'short' })} by{' '}
                 {h.heldBy}
               </small>

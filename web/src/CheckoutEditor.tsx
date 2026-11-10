@@ -298,7 +298,11 @@ export default function CheckoutEditor({
 }: Props) {
   const resumed = held?.kind === 'checkout' ? (held.data as HeldCheckout) : null;
   const [termsAndConditions, setTermsAndConditions] = useState(
-    resumed ? resumed.termsAndConditions : initialCheckout ? (initialCheckout.termsAndConditions ?? '') : defaultTerms,
+    resumed
+      ? resumed.termsAndConditions
+      : initialCheckout
+        ? (initialCheckout.termsAndConditions ?? '')
+        : defaultTerms,
   );
   const formId = useId();
   const options = useBusinessOptions(),
@@ -329,50 +333,50 @@ export default function CheckoutEditor({
     resumed
       ? resumed.lines.map((l) => ({ ...l }))
       : initialCheckout
-      ? initialCheckout.jobs.map((j) => ({
-          ...line(),
-          ...j,
-          ...(j.templateSnapshot ? { templateInputs: editableInputs(j.templateSnapshot) } : {}),
-          ...priceTextFor(ledger, j.serviceId, j.unitPrice),
-          quantity: String(j.quantity),
-          width: j.width == null ? '' : String(j.width),
-          height: j.height == null ? '' : String(j.height),
-          source: j.source ?? 'In shop / USB',
-          sourceNote: j.sourceNote ?? '',
-          dueAt: j.dueAt ?? '',
-          discountDraft: discountDraft(j.discount),
-        }))
-      : fromQuotation
-        ? fromQuotation.lines.map((q) => ({
-            ...newLine(),
-            serviceId: q.serviceId,
-            templateInputs: q.templateSnapshot ? editableInputs(q.templateSnapshot) : q.templateInputs,
-            ...priceTextFor(ledger, q.serviceId, q.unitPrice),
-            templateSnapshot: q.templateSnapshot,
-            templateStockIds: q.templateSnapshot
-              ? Object.fromEntries(q.templateSnapshot.stock.map((s) => [s.materialId, crypto.randomUUID()]))
-              : undefined,
-            description: q.description,
-            quantity: String(q.quantity),
-            width: q.width == null ? '' : String(q.width),
-            height: q.height == null ? '' : String(q.height),
-            discountDraft: discountDraft(q.discount),
+        ? initialCheckout.jobs.map((j) => ({
+            ...line(),
+            ...j,
+            ...(j.templateSnapshot ? { templateInputs: editableInputs(j.templateSnapshot) } : {}),
+            ...priceTextFor(ledger, j.serviceId, j.unitPrice),
+            quantity: String(j.quantity),
+            width: j.width == null ? '' : String(j.width),
+            height: j.height == null ? '' : String(j.height),
+            source: j.source ?? 'In shop / USB',
+            sourceNote: j.sourceNote ?? '',
+            dueAt: j.dueAt ?? '',
+            discountDraft: discountDraft(j.discount),
           }))
-        : paymentOnly
-          ? []
-          : startTemplate
-            ? [
-                {
-                  ...newLine(),
-                  serviceId: startTemplate.templateId,
-                  templateInputs: startTemplate.inputs,
-                  templateStockIds: {},
-                  description:
-                    ledger.pricing?.templates.find((t) => t.id === startTemplate.templateId)?.name ?? '',
-                  quantity: startTemplate.quantity,
-                },
-              ]
-            : [newLine()],
+        : fromQuotation
+          ? fromQuotation.lines.map((q) => ({
+              ...newLine(),
+              serviceId: q.serviceId,
+              templateInputs: q.templateSnapshot ? editableInputs(q.templateSnapshot) : q.templateInputs,
+              ...priceTextFor(ledger, q.serviceId, q.unitPrice),
+              templateSnapshot: q.templateSnapshot,
+              templateStockIds: q.templateSnapshot
+                ? Object.fromEntries(q.templateSnapshot.stock.map((s) => [s.materialId, crypto.randomUUID()]))
+                : undefined,
+              description: q.description,
+              quantity: String(q.quantity),
+              width: q.width == null ? '' : String(q.width),
+              height: q.height == null ? '' : String(q.height),
+              discountDraft: discountDraft(q.discount),
+            }))
+          : paymentOnly
+            ? []
+            : startTemplate
+              ? [
+                  {
+                    ...newLine(),
+                    serviceId: startTemplate.templateId,
+                    templateInputs: startTemplate.inputs,
+                    templateStockIds: {},
+                    description:
+                      ledger.pricing?.templates.find((t) => t.id === startTemplate.templateId)?.name ?? '',
+                    quantity: startTemplate.quantity,
+                  },
+                ]
+              : [newLine()],
   );
   // A customer added offline can clash with one created elsewhere in the meantime (for
   // example the same phone number). Detect it once so the reviewer picks a customer instead
@@ -383,16 +387,20 @@ export default function CheckoutEditor({
   });
   const clash = offlineCustomer.clash;
   const [customerId, setCustomerId] = useState(
-    resumed ? resumed.customerId : clash ? '' : (initialCheckout?.customerId ?? (initialCustomer || fromQuotation?.customerId || '')),
+    resumed
+      ? resumed.customerId
+      : clash
+        ? ''
+        : (initialCheckout?.customerId ?? (initialCustomer || fromQuotation?.customerId || '')),
   );
   const [query, setQuery] = useState(
     resumed
       ? resumed.query
       : clash
-      ? ''
-      : (ledger.customers.find(
-          (c) => c.id === (initialCheckout?.customerId ?? (initialCustomer || fromQuotation?.customerId)),
-        )?.name ??
+        ? ''
+        : (ledger.customers.find(
+            (c) => c.id === (initialCheckout?.customerId ?? (initialCustomer || fromQuotation?.customerId)),
+          )?.name ??
           offlineCustomer.event?.data.name ??
           fromQuotation?.customerName ??
           ''),
@@ -473,7 +481,9 @@ export default function CheckoutEditor({
   const editLine = (id: string, key: string, value: string) =>
     setLines((items) => items.map((item) => (item.id === id ? { ...item, [key]: value } : item)));
   const [orderDiscount, setOrderDiscount] = useState<DiscountDraft>(() =>
-    resumed ? resumed.orderDiscount : discountDraft(initialCheckout?.orderDiscount ?? fromQuotation?.orderDiscount),
+    resumed
+      ? resumed.orderDiscount
+      : discountDraft(initialCheckout?.orderDiscount ?? fromQuotation?.orderDiscount),
   );
   const cartLines = lines.map((line) =>
     lineWithDescription(
