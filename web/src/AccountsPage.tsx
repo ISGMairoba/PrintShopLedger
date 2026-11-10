@@ -20,6 +20,7 @@ export default function AccountsPage({
   actor,
   onSave,
   canConfigure = false,
+  canHide = false,
   configurationOnly = false,
   branches,
   seesAll = false,
@@ -34,12 +35,16 @@ export default function AccountsPage({
   ledger: Ledger;
   busy: boolean;
   canConfigure?: boolean;
+  /** General Managers and above: see, use and hide hidden (savings) accounts. */
+  canHide?: boolean;
   configurationOnly?: boolean;
   actor: { id: string; label: string };
   onSave: (event: OperationsEvent) => Promise<void>;
 }) {
   const [query, setQuery] = useState(''),
     [showArchived, setShowArchived] = useState(false),
+    [showHidden, setShowHidden] = useState(false),
+    [savingsShown, setSavingsShown] = useState(false),
     [editor, setEditor] = useState<MoneyAccount | 'new' | null>(null),
     [detail, setDetail] = useState<MoneyAccount | null>(null),
     [action, setAction] = useState<'transfer' | 'reconcile' | 'assign' | 'money' | null>(null),
@@ -69,7 +74,8 @@ export default function AccountsPage({
     setEditor(account);
   }
   const configure = configurationOnly && canConfigure;
-  const accounts = ledger.moneyAccounts ?? [],
+  // Hidden accounts (savings) exist only for General Managers and above.
+  const accounts = (ledger.moneyAccounts ?? []).filter((a) => canHide || !a.hidden),
     active = accounts.filter((a) => !a.archived),
     methods = useBusinessOptions().paymentMethods.filter((m) => m.enabled),
     unassigned = moneyTransactions(ledger).filter((t) => !t.accountId && !t.personal);
@@ -89,18 +95,26 @@ export default function AccountsPage({
     setAction(kind);
     setError('');
   };
-  const accountOptions = active.map((a) => (
-    <option key={a.id} value={a.id}>
-      {a.name}
-    </option>
-  ));
+  const accountOptions = active
+    // Payments can't be put in a hidden account; it takes transfers (and money in / out) only.
+    .filter((a) => !(action === 'assign' && a.hidden))
+    .map((a) => (
+      <option key={a.id} value={a.id}>
+        {a.name}
+        {a.hidden ? ' (hidden)' : ''}
+      </option>
+    ));
   // Shared accounts hold other branches' money too: only those who see every branch count them.
+  // Hidden accounts (savings) are left out of the totals and shown on their own.
+  const counted = active.filter((a) => !a.hidden);
   const summary = accountSummary(
     ledger,
-    active.filter((a) => !(branches && accountBranch(a) === '*' && !seesAll)),
+    counted.filter((a) => !(branches && accountBranch(a) === '*' && !seesAll)),
     today(),
   );
-  const leftOut = active.length - summary.accounts;
+  const leftOut = counted.length - summary.accounts;
+  const savings = active.filter((a) => a.hidden),
+    savingsTotal = savings.reduce((sum, a) => sum + accountBalance(ledger, a.id).balance, 0);
   const payees = ledger.payees ?? [],
     owedTo = lenderBalances(ledger);
   return (
@@ -155,6 +169,28 @@ export default function AccountsPage({
                   : 'No differences this month'}
             </small>
           </article>
+          {savings.length > 0 && (
+            <article>
+              <span className="savings-head">
+                Savings (hidden)
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-pressed={savingsShown}
+                  aria-label={savingsShown ? 'Hide the savings amount' : 'Show the savings amount'}
+                  title={savingsShown ? 'Hide amount' : 'Show amount'}
+                  onClick={() => setSavingsShown(!savingsShown)}
+                >
+                  <Icon name={savingsShown ? 'hide' : 'show'} />
+                </button>
+              </span>
+              <strong aria-live="polite">{savingsShown ? currency(savingsTotal) : '₦ ****'}</strong>
+              <small>
+                {savings.length === 1 ? savings[0].name : `${savings.length} hidden accounts`}, not counted in
+                the current balance
+              </small>
+            </article>
+          )}
           {summary.owedToLenders > 0 && (
             <article>
               <span>Owed to lenders</span>
@@ -200,6 +236,12 @@ export default function AccountsPage({
             />
             Show archived
           </label>
+          {canHide && !configurationOnly && (
+            <label className="check-label">
+              <input type="checkbox" checked={showHidden} onChange={(e) => setShowHidden(e.target.checked)} />
+              Show hidden
+            </label>
+          )}
           {configure && (
             <button
               disabled={busy}
@@ -285,7 +327,10 @@ export default function AccountsPage({
             <tbody>
               {accounts
                 .filter(
-                  (a) => (showArchived || !a.archived) && a.name.toLowerCase().includes(query.toLowerCase()),
+                  (a) =>
+                    (showArchived || !a.archived) &&
+                    (showHidden || !a.hidden) &&
+                    a.name.toLowerCase().includes(query.toLowerCase()),
                 )
                 .sort((a, b) => a.name.localeCompare(b.name))
                 .map((a) => {
@@ -299,6 +344,7 @@ export default function AccountsPage({
                         <small>
                           {a.accountType}
                           {a.archived ? ' · Archived' : ''}
+                          {a.hidden ? ' · Hidden (savings): transfers only, not in totals' : ''}
                         </small>
                         <small>
                           Payment methods:{' '}
@@ -367,6 +413,26 @@ export default function AccountsPage({
                               }}
                             >
                               Edit
+                            </button>
+                          )}
+                          {canHide && !configurationOnly && !a.archived && (
+                            <button
+                              className="text-button"
+                              disabled={busy || partial}
+                              title={
+                                a.hidden
+                                  ? 'Show it in lists and totals again'
+                                  : 'Hide it: no payments, transfers only, left out of totals. Its payment-method links are removed.'
+                              }
+                              onClick={() =>
+                                void save('account.visibility_changed', {
+                                  id: a.id,
+                                  baseVersion: a.version,
+                                  hidden: !a.hidden,
+                                })
+                              }
+                            >
+                              {a.hidden ? 'Unhide' : 'Hide'}
                             </button>
                           )}
                           <button
@@ -654,6 +720,7 @@ export default function AccountsPage({
                           .map((a) => (
                             <option value={a.id} key={a.id}>
                               {a.name}
+                              {a.hidden ? ' (hidden)' : ''}
                             </option>
                           ))}
                       </select>

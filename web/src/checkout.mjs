@@ -271,7 +271,7 @@ export function prepareCheckout(
   if (
     input.accountId &&
     !(ledger.moneyAccounts ?? []).some(
-      (a) => a.id === input.accountId && !a.archived && input.paidOn >= a.openingDate,
+      (a) => a.id === input.accountId && !a.archived && !a.hidden && input.paidOn >= a.openingDate,
     )
   )
     throw Error('Choose an active payment account with a valid opening date.');

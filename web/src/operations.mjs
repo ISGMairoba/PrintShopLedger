@@ -201,6 +201,22 @@ export function applyOperation(ledger, event) {
     )
       throw Error('Each payment method can have only one default account in a branch.');
     next[collection] = old ? rows.map((r) => (r.id === old.id ? after : r)) : [...rows, after];
+  } else if (kind === 'account.visibility_changed') {
+    // Hide an account (savings) or show it again. Hiding removes its payment-method links, so no
+    // payment can reach it; money moves in and out by transfer only.
+    const rows = ledger.moneyAccounts ?? [],
+      old = rows.find((r) => r.id === d.id);
+    if (!old || old.version !== d.baseVersion) throw Error('This record changed elsewhere. Reopen it.');
+    if (typeof d.hidden !== 'boolean') throw Error('Choose whether to hide the account.');
+    before = old;
+    after = {
+      ...old,
+      hidden: d.hidden,
+      ...(d.hidden ? { methods: [], ...(old.paymentMethods ? { paymentMethods: [] } : {}) } : {}),
+      version: old.version + 1,
+      ...audit,
+    };
+    next.moneyAccounts = rows.map((r) => (r.id === old.id ? after : r));
   } else if (kind === 'account.entry_corrected') {
     after = correctEntry(ledger, d, audit);
     before = (ledger.accountEntries ?? []).find((e) => e.id === d.id) ?? null;
@@ -359,7 +375,7 @@ export function accountBalance(ledger, id, to = businessDay(new Date().toISOStri
 /** The account a payment method goes to in this device's branch: the branch's own first, then a shared one. */
 export const defaultMoneyAccount = (ledger, method) => {
   const fits = (ledger.moneyAccounts ?? []).filter(
-    (a) => !a.archived && a.methods?.includes(method) && usableInBranch(a),
+    (a) => !a.archived && !a.hidden && a.methods?.includes(method) && usableInBranch(a),
   );
   return (fits.find((a) => accountBranch(a) !== '*') ?? fits[0])?.id ?? '';
 };

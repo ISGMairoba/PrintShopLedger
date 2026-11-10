@@ -2312,6 +2312,7 @@ export default function App() {
                           />
                         ) : page === 'Accounts' ? (
                           <AccountsPage
+                            canHide={demo || (shop?.accessLevel ?? 0) >= 4}
                             ledger={
                               ownerView
                                 ? allBranchesLedger({ ...state.ledger, pricing: branding.settings.pricing })

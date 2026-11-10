@@ -971,6 +971,8 @@ export interface MoneyAccount {
   /** The branch the account belongs to ('main', 'b-…'), or '*' when shared by all branches. */
   branch?: string;
   archived: boolean;
+  /** Hidden (savings): left out of lists, payments and totals; only transfers, for General Managers and above. */
+  hidden?: boolean;
   version: number;
   createdAt: string;
   modifiedAt: string;
@@ -993,6 +995,7 @@ export type OperationsEvent = {
     | 'account.assigned'
     | 'account.money_moved'
     | 'account.entry_corrected'
+    | 'account.visibility_changed'
     | 'repeat.created'
     | 'repeat.updated'
     | 'repeat.done';
