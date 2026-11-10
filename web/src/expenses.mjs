@@ -154,7 +154,8 @@ export function applyExpenseEvent(input, event) {
   if (
     data.payment?.accountId &&
     !(ledger.moneyAccounts ?? []).some(
-      (a) => a.id === data.payment.accountId && !a.archived && data.payment.paidOn >= a.openingDate,
+      (a) =>
+        a.id === data.payment.accountId && !a.archived && !a.hidden && data.payment.paidOn >= a.openingDate,
     )
   )
     throw Error('Choose an active payment account with a valid opening date.');

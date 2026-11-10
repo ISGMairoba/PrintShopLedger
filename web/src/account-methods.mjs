@@ -69,7 +69,7 @@ export function accountPaymentOptions(ledger, legacy = []) {
   // No accounts set up yet (every new business): the business's own methods, as before.
   if (!accounts.length) return legacy;
   return accounts
-    .filter((a) => !a.archived && usableInBranch(a))
+    .filter((a) => !a.archived && !a.hidden && usableInBranch(a))
     .flatMap((a) => {
       const methods = accountMethodDetails(a, legacy).filter((m) => m.enabled);
       return methods.map((m) => ({
@@ -87,6 +87,7 @@ export function resolveAccountPayment(ledger, label, kind, accountId, personal =
   const matches = (ledger.moneyAccounts ?? []).filter(
     (a) =>
       !a.archived &&
+      !a.hidden &&
       usableInBranch(a) &&
       accountMethodDetails(a).some(
         (m) => m.enabled && m.kind === kind && (m.label === label || m.aliases?.includes(label)),
