@@ -39,8 +39,8 @@ export function jobCost(ledger, job) {
       rates?.service != null
         ? rates.service
         : service?.costing?.amount != null
-        ? service.costing.amount / (service.costing.per || 1)
-        : null;
+          ? service.costing.amount / (service.costing.per || 1)
+          : null;
     if (serviceRate != null) {
       kobo = used * serviceRate;
       basis = 'Service cost';

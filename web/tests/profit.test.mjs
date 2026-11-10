@@ -105,13 +105,33 @@ test('profit: a job keeps the costs it was sold with', async () => {
   const ledger = {
     services: [
       { id: 's', description: 'Flyer', price: 100, archived: false, costing: { amount: 8000, per: 1 } },
-      { id: 'p', description: 'Paper', price: 100, archived: false, materialId: 'm', costing: { amount: 3000, per: 1 } },
+      {
+        id: 'p',
+        description: 'Paper',
+        price: 100,
+        archived: false,
+        materialId: 'm',
+        costing: { amount: 3000, per: 1 },
+      },
     ],
   };
-  const sold = { id: 'j', serviceId: 's', quantity: '2', amount: 30000, costRates: { service: 5000, materials: {} } };
+  const sold = {
+    id: 'j',
+    serviceId: 's',
+    quantity: '2',
+    amount: 30000,
+    costRates: { service: 5000, materials: {} },
+  };
   assert.equal(jobCost(ledger, sold).kobo, 10000, 'the cost when sold, not today’s');
   assert.equal(jobCost(ledger, { ...sold, costRates: undefined }).kobo, 16000, 'older jobs use today’s cost');
-  const material = { id: 'k', serviceId: 'x', materialId: 'm', materialNeeded: 4, amount: 30000, costRates: { service: null, materials: { m: 2000 } } };
+  const material = {
+    id: 'k',
+    serviceId: 'x',
+    materialId: 'm',
+    materialNeeded: 4,
+    amount: 30000,
+    costRates: { service: null, materials: { m: 2000 } },
+  };
   assert.equal(jobCost(ledger, material).kobo, 8000);
   const noCostThen = { ...material, costRates: { service: null, materials: { m: null } } };
   assert.equal(jobCost(ledger, noCostThen).kobo, 12000, 'a cost set after the sale still counts');
