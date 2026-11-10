@@ -173,8 +173,8 @@ export default function AccountsPage({
               <span>Savings (hidden)</span>
               <strong>{currency(savingsTotal)}</strong>
               <small>
-                {savings.length === 1 ? savings[0].name : `${savings.length} hidden accounts`}, not counted in the
-                current balance
+                {savings.length === 1 ? savings[0].name : `${savings.length} hidden accounts`}, not counted in
+                the current balance
               </small>
             </article>
           )}

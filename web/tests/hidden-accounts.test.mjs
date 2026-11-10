@@ -7,7 +7,14 @@ import { accountPaymentOptions } from '../src/account-methods.mjs';
 const actor = { id: 'u', label: 'Owner' };
 const ev = (kind, data) => operationEvent(kind, data, actor, '2026-11-10T10:00:00Z');
 const account = (id, methods) =>
-  ev('account.created', { id, name: id, accountType: 'bank', openingBalance: 0, openingDate: '2026-11-01', methods });
+  ev('account.created', {
+    id,
+    name: id,
+    accountType: 'bank',
+    openingBalance: 0,
+    openingDate: '2026-11-01',
+    methods,
+  });
 
 test('hidden accounts: no payments reach them, transfers still do, unhiding brings them back', () => {
   let l = emptyLedger();
@@ -15,7 +22,10 @@ test('hidden accounts: no payments reach them, transfers still do, unhiding brin
   l = applyOperation(l, account('Savings', ['Transfer']));
   assert.equal(defaultMoneyAccount(l, 'Transfer'), 'Savings');
   const savings = () => l.moneyAccounts.find((a) => a.id === 'Savings');
-  l = applyOperation(l, ev('account.visibility_changed', { id: 'Savings', baseVersion: savings().version, hidden: true }));
+  l = applyOperation(
+    l,
+    ev('account.visibility_changed', { id: 'Savings', baseVersion: savings().version, hidden: true }),
+  );
   assert.equal(savings().hidden, true);
   assert.deepEqual(savings().methods, [], 'its payment-method links are removed');
   assert.equal(defaultMoneyAccount(l, 'Transfer'), '');
@@ -33,9 +43,13 @@ test('hidden accounts: no payments reach them, transfers still do, unhiding brin
   );
   assert.equal(accountBalance(l, 'Savings').balance, 50000);
   assert.throws(
-    () => applyOperation(l, ev('account.visibility_changed', { id: 'Savings', baseVersion: 1, hidden: false })),
+    () =>
+      applyOperation(l, ev('account.visibility_changed', { id: 'Savings', baseVersion: 1, hidden: false })),
     /changed elsewhere/,
   );
-  l = applyOperation(l, ev('account.visibility_changed', { id: 'Savings', baseVersion: savings().version, hidden: false }));
+  l = applyOperation(
+    l,
+    ev('account.visibility_changed', { id: 'Savings', baseVersion: savings().version, hidden: false }),
+  );
   assert.equal(savings().hidden, false);
 });
