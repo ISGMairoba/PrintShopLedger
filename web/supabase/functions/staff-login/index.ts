@@ -42,7 +42,10 @@ Deno.serve(async (request: Request) => {
       auth: { persistSession: false },
     });
     // Too many wrong passwords for this username lately: wait (staff_login_wait, 5 in 15 minutes).
-    const { data: wait } = await server.rpc('staff_login_wait', { p_shop: body.shopId, p_username: username });
+    const { data: wait } = await server.rpc('staff_login_wait', {
+      p_shop: body.shopId,
+      p_username: username,
+    });
     if (Number(wait) > 0)
       return reply(429, {
         error: `Too many wrong passwords. Try again in ${Math.ceil(Number(wait) / 60)} minute(s), or ask a manager to reset the password.`,
@@ -57,7 +60,8 @@ Deno.serve(async (request: Request) => {
       .eq('shop_id', body.shopId)
       .eq('username', username)
       .maybeSingle();
-    if (memberError) return reply(401, { error: 'Username or password incorrect, or access is unavailable.' });
+    if (memberError)
+      return reply(401, { error: 'Username or password incorrect, or access is unavailable.' });
     if (!member || member.archived || member.access_level === 0) return await failed();
     const { data: identity, error: identityError } = await server.auth.admin.getUserById(member.user_id);
     if (identityError || !identity.user.email)
