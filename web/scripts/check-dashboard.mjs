@@ -251,7 +251,7 @@ try {
       await values.getByText('Money In − Money Out', { exact: true }).waitFor();
       await values.getByText('₦40,000.00', { exact: true }).waitFor();
       assert.equal(await page.locator('.dashboard-pie').count(), 2);
-      const services = page.getByRole('region', { name: 'Top 5 services' });
+      const services = page.getByRole('region', { name: 'Top services' });
       await page.getByLabel('Rank services by', { exact: true }).selectOption('quantity');
       await services.locator('.dashboard-row').getByText('3', { exact: true }).waitFor();
       await page.getByLabel('Rank services by', { exact: true }).selectOption('sales');
@@ -262,7 +262,7 @@ try {
       await sources.locator('.dashboard-row').getByText('3', { exact: true }).waitFor();
       await page.getByLabel('Compare job sources by', { exact: true }).selectOption('sales');
       await sources.locator('.dashboard-row').getByText('₦45,000.00', { exact: true }).waitFor();
-      const customers = page.getByRole('region', { name: 'Top 5 customers' });
+      const customers = page.getByRole('region', { name: 'Top customers' });
       await customers.locator('.dashboard-row').filter({ hasText: 'Test customer' }).waitFor();
       await page.getByLabel('Rank customers by', { exact: true }).selectOption('quantity');
       await customers.locator('.dashboard-row').getByText('3', { exact: true }).waitFor();
@@ -382,9 +382,9 @@ try {
         };
         await page.reload();
         await page.getByRole('heading', { name: 'Dashboard', exact: true }).waitFor();
-        await page.getByRole('region', { name: 'Top 5 services' }).waitFor();
+        await page.getByRole('region', { name: 'Top services' }).waitFor();
         assert.equal(
-          await page.getByRole('region', { name: 'Top 5 customers' }).count(),
+          await page.getByRole('region', { name: 'Top customers' }).count(),
           0,
           'Hidden Customers page must also hide customer rankings',
         );

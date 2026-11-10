@@ -293,12 +293,12 @@ export default function DashboardPage({
           </section>
           <div className="dashboard-grid">
             {access.sales && (
-              <section className="panel dashboard-panel" aria-labelledby="recent-sales-title">
+              <section className="panel dashboard-panel dashboard-wide" aria-labelledby="recent-sales-title">
                 <h2 id="recent-sales-title">{w('Recent sales')}</h2>
                 <small>{w('The latest 10 sales, of any date')}</small>
                 {recent.length ? (
                   recent.map((r) => (
-                    <div className="dashboard-row" key={r.record.id}>
+                    <div className="dashboard-row recent-sale" key={r.record.id}>
                       <span>
                         {onReceipt ? (
                           <button type="button" className="text-button" onClick={() => onReceipt(r.record)}>

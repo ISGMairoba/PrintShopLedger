@@ -288,3 +288,34 @@
   width: auto;
   min-width: 180px;
 }
+
+/* Recent sales spans both columns on wide screens; the amount never wraps or leaves view. */
+.dashboard-wide {
+  grid-column: 1 / -1;
+}
+.recent-sale > span {
+  flex: 1 1 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 10px;
+  row-gap: 2px;
+}
+.recent-sale > span > button {
+  padding: 0;
+  text-align: left;
+}
+.recent-sale > strong {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+/* Top lists: the ranking choice and how many to show sit side by side. */
+.dashboard-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: end;
+}
+.dashboard-count input {
+  width: 5.5em;
+}

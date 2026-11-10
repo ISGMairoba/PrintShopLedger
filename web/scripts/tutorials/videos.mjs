@@ -746,7 +746,7 @@ export const videos = [
       },
       {
         say: 'The charts show top services, payment methods, top customers, and stock running low.',
-        do: async ({ page, show }) => show(page.getByRole('main').getByText('Top 5 services').first(), 2200),
+        do: async ({ page, show }) => show(page.getByRole('main').getByText('Top services').first(), 2200),
       },
     ],
   },
