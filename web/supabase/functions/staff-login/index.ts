@@ -41,14 +41,28 @@ Deno.serve(async (request: Request) => {
     const server = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
       auth: { persistSession: false },
     });
+    // Too many wrong passwords for this username lately: wait (staff_login_wait, 5 in 15 minutes).
+    const { data: wait } = await server.rpc('staff_login_wait', {
+      p_shop: body.shopId,
+      p_username: username,
+    });
+    if (Number(wait) > 0)
+      return reply(429, {
+        error: `Too many wrong passwords. Try again in ${Math.ceil(Number(wait) / 60)} minute(s), or ask a manager to reset the password.`,
+      });
+    const failed = async () => {
+      await server.rpc('staff_login_result', { p_shop: body.shopId, p_username: username, p_ok: false });
+      return reply(401, { error: 'Username or password incorrect, or access is unavailable.' });
+    };
     const { data: member, error: memberError } = await server
       .from('shop_members')
       .select('user_id,archived,access_level')
       .eq('shop_id', body.shopId)
       .eq('username', username)
       .maybeSingle();
-    if (memberError || !member || member.archived || member.access_level === 0)
+    if (memberError)
       return reply(401, { error: 'Username or password incorrect, or access is unavailable.' });
+    if (!member || member.archived || member.access_level === 0) return await failed();
     const { data: identity, error: identityError } = await server.auth.admin.getUserById(member.user_id);
     if (identityError || !identity.user.email)
       return reply(401, { error: 'Username or password incorrect, or access is unavailable.' });
@@ -57,8 +71,8 @@ Deno.serve(async (request: Request) => {
       email: identity.user.email,
       password: body.password,
     });
-    if (error || !data.session)
-      return reply(401, { error: 'Username or password incorrect, or access is unavailable.' });
+    if (error || !data.session) return await failed();
+    await server.rpc('staff_login_result', { p_shop: body.shopId, p_username: username, p_ok: true });
     // Access may have changed while password verification was running.
     const { data: current, error: currentError } = await server
       .from('shop_members')
