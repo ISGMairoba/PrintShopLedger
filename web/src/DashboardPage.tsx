@@ -5,7 +5,8 @@ import DashboardBreakdowns from './DashboardBreakdowns';
 import { InteractiveTrend } from './InteractiveCharts';
 import { dashboardSummary, validRange } from './dashboard.mjs';
 import { profitReport } from './profit.mjs';
-import type { Ledger, Material } from './types';
+import { recentSales, stockValue } from './stock-value.mjs';
+import type { CheckoutRecord, Ledger, Material } from './types';
 import './dashboard.css';
 import { useWords } from './Words';
 const money = (value: number) =>
@@ -34,6 +35,7 @@ export default function DashboardPage({
   access,
   branchControl,
   branches,
+  onReceipt,
 }: {
   ledger: Ledger;
   ready: boolean;
@@ -45,6 +47,8 @@ export default function DashboardPage({
   branchControl?: ReactNode;
   /** In the owner's All branches view: each branch's records, compared side by side. */
   branches?: { id: string; name: string; ledger: Ledger }[];
+  /** Open a sale's receipt (Recent sales). */
+  onReceipt?: (record: CheckoutRecord) => void;
 }) {
   const { w, stage } = useWords();
   const [period, setPeriod] = usePeriod('dashboard');
@@ -72,6 +76,11 @@ export default function DashboardPage({
         : null,
     [ledger, range.from, range.to, valid, ready, access.costs, access.sales],
   );
+  const stock = useMemo(
+    () => (ready && access.materials && access.costs ? stockValue(ledger) : null),
+    [ledger, ready, access.materials, access.costs],
+  );
+  const recent = useMemo(() => (ready && access.sales ? recentSales(ledger, 10) : []), [ledger, ready, access.sales]);
   if (!ready)
     return (
       <section className="panel empty" role="status">
@@ -259,8 +268,62 @@ export default function DashboardPage({
               )}
             {access.expenses &&
               card('Unpaid expenses', summary.expenseOutstanding, 'Current remaining expense balances')}
+            {stock &&
+              card(
+                'Stock value at cost',
+                stock.atCost,
+                stock.uncosted
+                  ? `${stock.costed} materials with a cost · ${stock.uncosted} without (not counted): ${stock.uncostedNames.slice(0, 3).join(', ')}${stock.uncosted > 3 ? '…' : ''}`
+                  : `All ${stock.costed} materials in stock, at their cost`,
+              )}
+            {stock &&
+              stock.shelfItems > 0 &&
+              card(
+                'Shelf stock at selling price',
+                stock.shelfAtPrice,
+                `${stock.shelfItems} shelf item${stock.shelfItems === 1 ? '' : 's'}, at the single-item price`,
+                undefined,
+                stock.shelfUncosted
+                  ? `${stock.shelfUncosted} without a cost, so the possible profit isn't shown`
+                  : `Possible profit ${money(stock.shelfAtPrice - stock.shelfAtCost)} (cost ${money(stock.shelfAtCost)})`,
+              )}
           </section>
           <div className="dashboard-grid">
+            {access.sales && (
+              <section className="panel dashboard-panel" aria-labelledby="recent-sales-title">
+                <h2 id="recent-sales-title">{w('Recent sales')}</h2>
+                <small>{w('The latest 10 sales, of any date')}</small>
+                {recent.length ? (
+                  recent.map((r) => (
+                    <div className="dashboard-row" key={r.record.id}>
+                      <span>
+                        {onReceipt ? (
+                          <button type="button" className="text-button" onClick={() => onReceipt(r.record)}>
+                            {r.customer}
+                          </button>
+                        ) : (
+                          r.customer
+                        )}
+                        <small>
+                          {r.items.slice(0, 2).join(', ')}
+                          {r.items.length > 2 ? ` +${r.items.length - 2} more` : ''} ·{' '}
+                          {new Date(r.at).toLocaleString('en-NG', {
+                            timeZone: 'Africa/Lagos',
+                            dateStyle: 'medium',
+                            timeStyle: 'short',
+                          })}{' '}
+                          · {r.by}
+                          {access.payments ? ` · paid ${money(r.paid)} (${r.method})` : ''}
+                        </small>
+                      </span>
+                      <strong>{money(r.total)}</strong>
+                    </div>
+                  ))
+                ) : (
+                  <p>{w('No sales yet.')}</p>
+                )}
+              </section>
+            )}
             <DashboardBreakdowns
               services={summary.services}
               sources={summary.sources}
