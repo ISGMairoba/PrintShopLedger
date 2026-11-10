@@ -28,6 +28,7 @@ import {
   faArrowsRotate,
   faFloppyDisk,
   faEye,
+  faEyeSlash,
   faSliders,
   faCopy,
   faChartPie,
@@ -87,6 +88,8 @@ const icons = {
   account: faCircleUser,
   inbox: faInbox,
   adjustments: faScaleBalanced,
+  show: faEye,
+  hide: faEyeSlash,
   pause: faPause,
   notice: faBullhorn,
 };

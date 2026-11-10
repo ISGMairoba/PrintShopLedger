@@ -44,6 +44,7 @@ export default function AccountsPage({
   const [query, setQuery] = useState(''),
     [showArchived, setShowArchived] = useState(false),
     [showHidden, setShowHidden] = useState(false),
+    [savingsShown, setSavingsShown] = useState(false),
     [editor, setEditor] = useState<MoneyAccount | 'new' | null>(null),
     [detail, setDetail] = useState<MoneyAccount | null>(null),
     [action, setAction] = useState<'transfer' | 'reconcile' | 'assign' | 'money' | null>(null),
@@ -170,8 +171,20 @@ export default function AccountsPage({
           </article>
           {savings.length > 0 && (
             <article>
-              <span>Savings (hidden)</span>
-              <strong>{currency(savingsTotal)}</strong>
+              <span className="savings-head">
+                Savings (hidden)
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-pressed={savingsShown}
+                  aria-label={savingsShown ? 'Hide the savings amount' : 'Show the savings amount'}
+                  title={savingsShown ? 'Hide amount' : 'Show amount'}
+                  onClick={() => setSavingsShown(!savingsShown)}
+                >
+                  <Icon name={savingsShown ? 'hide' : 'show'} />
+                </button>
+              </span>
+              <strong aria-live="polite">{savingsShown ? currency(savingsTotal) : '₦ ****'}</strong>
               <small>
                 {savings.length === 1 ? savings[0].name : `${savings.length} hidden accounts`}, not counted in
                 the current balance

@@ -2386,3 +2386,19 @@ details.workflow-row[open] {
   background: var(--accent, #b4532a);
   color: #fff;
 }
+
+/* Accounts → Savings card: the amount is hidden until the eye is tapped. */
+.savings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.savings-head .icon-button {
+  background: none;
+  border: 0;
+  padding: 4px;
+  min-height: 0;
+  color: inherit;
+  cursor: pointer;
+}
