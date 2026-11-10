@@ -2322,3 +2322,67 @@ details.workflow-row[open] {
   gap: 8px;
   align-items: center;
 }
+
+/* Header → Notices button, and the notice board. */
+.notice-button {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.notice-button .badge {
+  background: var(--accent, #b4532a);
+  color: #fff;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+.notice-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.notice-list > li {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 6px;
+}
+.notice-list > li.notice-unread {
+  border-left: 4px solid var(--accent, #b4532a);
+}
+.notice-list h3 {
+  margin: 0;
+  font-size: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.notice-body {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.notice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.notice-readers {
+  margin: 0;
+  padding-left: 18px;
+}
+.notice-editor {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.badge-new {
+  background: var(--accent, #b4532a);
+  color: #fff;
+}
