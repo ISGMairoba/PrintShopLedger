@@ -21,6 +21,10 @@ export function materialUnitCost(ledger, materialId) {
  * @returns {{ kobo: number, known: boolean, basis: string }}
  */
 export function jobCost(ledger, job) {
+  // Costs as they were when the job was sold (stamped by the business). Where none was set yet,
+  // or for older jobs, today's cost is used, so costs added later still count.
+  const rates = job.costRates;
+  const unitCost = (materialId) => rates?.materials?.[materialId] ?? materialUnitCost(ledger, materialId);
   let kobo = 0,
     known = true,
     basis;
@@ -31,11 +35,17 @@ export function jobCost(ledger, job) {
   } else {
     const service = ledger.services.find((s) => s.id === job.serviceId);
     const used = job.materialNeeded > 0 ? job.materialNeeded : (job.quantity ?? 1);
-    if (service?.costing?.amount != null) {
-      kobo = (used * service.costing.amount) / (service.costing.per || 1);
+    const serviceRate =
+      rates?.service != null
+        ? rates.service
+        : service?.costing?.amount != null
+        ? service.costing.amount / (service.costing.per || 1)
+        : null;
+    if (serviceRate != null) {
+      kobo = used * serviceRate;
       basis = 'Service cost';
     } else if (job.materialId) {
-      const rate = materialUnitCost(ledger, job.materialId);
+      const rate = unitCost(job.materialId);
       if (rate === null) known = false;
       else kobo = used * rate;
       basis = 'Material cost';
@@ -49,7 +59,7 @@ export function jobCost(ledger, job) {
             },
           ];
       for (const u of usages) {
-        const rate = materialUnitCost(ledger, u.materialId);
+        const rate = unitCost(u.materialId);
         if (rate === null) known = false;
         else kobo += u.quantity * rate;
       }
