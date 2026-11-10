@@ -1978,6 +1978,7 @@ export default function App() {
                             }
                           >
                             <DashboardPage
+                              onReceipt={setReceipt}
                               ledger={masterLedger}
                               branchControl={branchControl}
                               branches={masterBranches}
