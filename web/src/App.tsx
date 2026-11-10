@@ -131,6 +131,7 @@ import {
 } from './cloud';
 import { readState, saveEvent, saveEvents, mutateState, storageHealth } from './storage';
 import { holdSale, listHeld, removeHeld } from './held-sales.mjs';
+import NoticeBoard, { useNotices } from './NoticeBoard';
 import MaterialsPage from './MaterialsPage';
 import CustomersPage from './CustomersPage';
 import UsersPage from './UsersPage';
@@ -271,6 +272,9 @@ export default function App() {
   );
   const [branchChoice, setBranchChoice] = useState<string | null>(() => (scope ? storedBranch(scope) : null));
   useEffect(() => setBranchChoice(scope ? storedBranch(scope) : null), [scope]);
+  // Notice board (online only): unread count in the header, the board in a dialog.
+  const noticeBoard = useNotices(shop?.id, !demo && !!shop?.id && !!session && online);
+  const [noticesOpen, setNoticesOpen] = useState(false);
   // Hold sale: carts put aside on this device (held-sales.mjs); `resuming` is the one reopened.
   const [held, setHeld] = useState<HeldSale[]>(() => (scope ? listHeld(deviceStorage(), scope) : []));
   useEffect(() => setHeld(scope ? listHeld(deviceStorage(), scope) : []), [scope]);
@@ -1541,6 +1545,20 @@ export default function App() {
                         </div>
                         <p>{renameTerms(pageDescriptions[page], branding.settings.terms)}</p>
                       </div>
+                      {!demo && scope && shop?.id && (
+                        <button
+                          type="button"
+                          className={`secondary notice-button${noticeBoard.unread ? ' has-unread' : ''}`}
+                          aria-label={`Notice board${noticeBoard.unread ? `, ${noticeBoard.unread} unread` : ''}`}
+                          onClick={() => {
+                            void noticeBoard.refresh();
+                            setNoticesOpen(true);
+                          }}
+                        >
+                          <Icon name="notice" /> Notices
+                          {noticeBoard.unread > 0 && <span className="badge">{noticeBoard.unread}</span>}
+                        </button>
+                      )}
                       {!demo && scope && (
                         <span className="sync-status" role="status" aria-live="polite">
                           <Icon name="sync" /> {syncLabel}
@@ -1555,6 +1573,25 @@ export default function App() {
                       >
                         {subscriptionBanner.text}
                       </p>
+                    )}
+                    {noticesOpen && shop?.id && (
+                      <NoticeBoard
+                        shopId={shop.id}
+                        canPost={(shop.accessLevel ?? 0) >= 3}
+                        notices={noticeBoard.notices}
+                        online={online}
+                        onChanged={noticeBoard.refresh}
+                        onClose={() => setNoticesOpen(false)}
+                      />
+                    )}
+                    {!noticesOpen && noticeBoard.notices.some((n) => n.pinned && !n.readAt) && (
+                      <div className="notice" role="status">
+                        <Icon name="notice" /> New notice:{' '}
+                        <strong>{noticeBoard.notices.find((n) => n.pinned && !n.readAt)!.title}</strong>{' '}
+                        <button className="secondary" onClick={() => setNoticesOpen(true)}>
+                          Read it
+                        </button>
+                      </div>
                     )}
                     {helpFor !== undefined && (
                       <HelpPanel
