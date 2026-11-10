@@ -32,7 +32,15 @@ function MetricSelect({
   );
 }
 /** How many to show in a top list (1 to 20). */
-function CountInput({ label, value, onChange }: { label: string; value: number; onChange: (n: number) => void }) {
+function CountInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (n: number) => void;
+}) {
   return (
     <label className="dashboard-metric dashboard-count">
       {label}
@@ -97,7 +105,9 @@ export default function DashboardBreakdowns({
           {quantityNote(serviceMetric)}
           <InteractivePie
             key={`${serviceMetric}-${serviceCount}`}
-            title={w(`Top ${serviceCount} services by ${serviceMetric === 'sales' ? 'net amount' : 'net quantity'}`)}
+            title={w(
+              `Top ${serviceCount} services by ${serviceMetric === 'sales' ? 'net amount' : 'net quantity'}`,
+            )}
             rows={topServices.map((r) => ({ id: r.id, name: r.name, value: r[serviceMetric] }))}
             formatValue={format(serviceMetric)}
           />
