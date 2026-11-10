@@ -325,7 +325,10 @@ export function SaleAdjustmentEditor({
               materialId: job.materialId || undefined,
               unitPrice:
                 job.unitPrice ??
-                Math.round(job.amount / ((job.quantity ?? 1) * (job.requireSize ? (job.width ?? 1) * (job.height ?? 1) : 1))),
+                Math.round(
+                  job.amount /
+                    ((job.quantity ?? 1) * (job.requireSize ? (job.width ?? 1) * (job.height ?? 1) : 1)),
+                ),
               description: job.description,
               quantity: soldCount - backCount,
               width: Number(job.width ?? 1),
@@ -335,51 +338,56 @@ export function SaleAdjustmentEditor({
               materialVersions,
             }
           : ['sale.details_corrected', 'sale.combined_corrected'].includes(action)
-          ? {
-              serviceId,
-              serviceVersion: serviceVersions[serviceId],
-              materialId: materialId || undefined,
-              unitPrice: money(unitPrice),
-              description,
-              quantity: Number(quantity),
-              width: Number(width),
-              height: Number(height),
-              stockMode,
-              stockIds,
-              materialVersions,
-              ...(confirmedChoice && stockMode === 'reconcile' ? { choiceUsages: choiceUsages() } : {}),
-              ...(action === 'sale.combined_corrected'
-                ? {
-                    detailsId,
-                    paymentEdits: paymentEdits.map((p) => ({ ...p, paymentAmount: money(p.paymentAmount) })),
-                  }
-                : {}),
-            }
-          : action === 'payment.corrected'
             ? {
-                paymentId,
-                paymentAmount: money(paymentAmount),
-                expectedPayment: selectedPayment ? paymentCorrectionToken(selectedPayment) : undefined,
-                method: chosen?.kind ?? selectedPayment?.method,
-                methodLabel: chosen?.label ?? paymentMethod,
-                reference,
-                paidOn,
+                serviceId,
+                serviceVersion: serviceVersions[serviceId],
+                materialId: materialId || undefined,
+                unitPrice: money(unitPrice),
+                description,
+                quantity: Number(quantity),
+                width: Number(width),
+                height: Number(height),
+                stockMode,
+                stockIds,
+                materialVersions,
+                ...(confirmedChoice && stockMode === 'reconcile' ? { choiceUsages: choiceUsages() } : {}),
+                ...(action === 'sale.combined_corrected'
+                  ? {
+                      detailsId,
+                      paymentEdits: paymentEdits.map((p) => ({
+                        ...p,
+                        paymentAmount: money(p.paymentAmount),
+                      })),
+                    }
+                  : {}),
               }
-            : action === 'sale.corrected'
-              ? { amount: money(amount), description }
-              : effective === 'sale.cancelled'
-                ? {
-                    returnQuantity: confirmedChoice ? 0 : isReturn ? availableReturn : Number(returned),
-                    materialVersion: materialVersions[job.materialId ?? ''],
-                    stockEventId: stockId,
-                    ...(confirmedChoice ? { choiceUsages: choiceUsages(), stockIds, materialVersions } : {}),
-                  }
-                : {
-                    refundAmount: money(refund),
-                    method: chosen?.kind,
-                    methodLabel: chosen?.label,
-                    paidOn: saleDay(now),
-                  }),
+            : action === 'payment.corrected'
+              ? {
+                  paymentId,
+                  paymentAmount: money(paymentAmount),
+                  expectedPayment: selectedPayment ? paymentCorrectionToken(selectedPayment) : undefined,
+                  method: chosen?.kind ?? selectedPayment?.method,
+                  methodLabel: chosen?.label ?? paymentMethod,
+                  reference,
+                  paidOn,
+                }
+              : action === 'sale.corrected'
+                ? { amount: money(amount), description }
+                : effective === 'sale.cancelled'
+                  ? {
+                      returnQuantity: confirmedChoice ? 0 : isReturn ? availableReturn : Number(returned),
+                      materialVersion: materialVersions[job.materialId ?? ''],
+                      stockEventId: stockId,
+                      ...(confirmedChoice
+                        ? { choiceUsages: choiceUsages(), stockIds, materialVersions }
+                        : {}),
+                    }
+                  : {
+                      refundAmount: money(refund),
+                      method: chosen?.kind,
+                      methodLabel: chosen?.label,
+                      paidOn: saleDay(now),
+                    }),
       },
     };
   }
