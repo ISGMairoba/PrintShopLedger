@@ -12,6 +12,8 @@ import { useDateFilter } from './PeriodFilter';
 import { inPeriod } from './dashboard.mjs';
 import type { Ledger, Job, CheckoutRecord } from './types';
 import { useWords } from './Words';
+import HeldSales from './HeldSales';
+import type { HeldSale } from './CheckoutEditor';
 type Props = {
   ledger: Ledger;
   busy: boolean;
@@ -25,6 +27,10 @@ type Props = {
   onDue?: (jobs: Job[]) => void;
   onBulkAction: (jobs: Job[], mode: ProgressMode) => void;
   onReceipt: (record: CheckoutRecord) => void;
+  /** Sales put aside on this device (Hold sale). */
+  held?: HeldSale[];
+  onResumeHeld?: (sale: HeldSale) => void;
+  onDiscardHeld?: (sale: HeldSale) => void;
 };
 export default function PointOfServicePage({
   ledger,
@@ -38,6 +44,9 @@ export default function PointOfServicePage({
   onDue,
   onBulkAction,
   onReceipt,
+  held = [],
+  onResumeHeld,
+  onDiscardHeld,
 }: Props) {
   const { w } = useWords();
   const [grouped, setGrouped] = useState(false);
@@ -165,6 +174,9 @@ export default function PointOfServicePage({
         </ToolbarActions>
       </div>
       {dates.panel}
+      {ready && onResumeHeld && onDiscardHeld && (
+        <HeldSales held={held} busy={busy} onResume={onResumeHeld} onDiscard={onDiscardHeld} />
+      )}
       {!ready ? (
         <p>Loading workspace…</p>
       ) : receipts ? (

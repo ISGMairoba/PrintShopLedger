@@ -2279,3 +2279,46 @@ details.workflow-row[open] {
   gap: 2px;
   min-width: 0;
 }
+
+/* Point of Service → Held sales on this device. */
+.held-sales {
+  border: 1px solid var(--line, #dfe3de);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 8px 0 12px;
+  display: grid;
+  gap: 8px;
+}
+.held-sales h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.held-sales ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.held-sales li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.held-sales li > span:first-child {
+  display: grid;
+  min-width: 0;
+}
+.held-sales li.held-old strong {
+  color: var(--warning-text, #8a5a00);
+}
+.held-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
