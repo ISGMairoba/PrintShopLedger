@@ -345,8 +345,8 @@ try {
       await trend.locator('.recharts-tooltip-wrapper').getByText('Net sales', { exact: false }).waitFor();
       assert.equal(
         await page.locator('.recharts-responsive-container').count(),
-        5,
-        'Every current chart is interactive',
+        7,
+        'Every current chart is interactive (including Expenses by category and by payee)',
       );
       assert.ok(
         await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
