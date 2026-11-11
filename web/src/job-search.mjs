@@ -33,6 +33,7 @@ export function jobChoiceLabel(job) {
 /**
  * Return items: shelf items sold within the correction window that can still come back (not
  * cancelled, a material of their own, not templates or choice-of-materials jobs), newest first.
+ * @returns {import('./types').Job[]}
  */
 export function returnableJobs(ledger, query = '', days = 7, now = Date.now()) {
   const customers = new Map(ledger.customers.map((c) => [c.id, c.name]));

@@ -5,7 +5,6 @@ import DialogActions from './DialogActions';
 import Modal from './Modal';
 import JobCorrectionPicker from './JobCorrectionPicker';
 import { returnableJobs } from './job-search.mjs';
-import Modal from './Modal';
 import CurrencyInput from './CurrencyInput';
 import { useFeedbackMessage } from './Feedback';
 import { useBusinessOptions } from './BusinessOptionsContext';
