@@ -368,3 +368,37 @@ test('Combined corrections support multiple payment methods without mixing drawe
   assert.equal(drawerSnapshot(n, 'admin').expectedCash, 10000);
   assert.equal(n.saleAdjustments.at(-1).childIds.length, 3);
 });
+
+test('returnable jobs: shelf items in the correction window only', async () => {
+  const { returnableJobs } = await import('../src/job-search.mjs');
+  const now = Date.parse('2026-11-12T12:00:00Z');
+  const job = (id, extra) => ({
+    id,
+    description: 'Pen',
+    service: 'Pen',
+    customerId: 'c',
+    createdAt: '2026-11-11T10:00:00Z',
+    quantity: 3,
+    amount: 300,
+    shelfItem: true,
+    materialId: 'm',
+    productionStatus: 'Collected',
+    ...extra,
+  });
+  const ledger = {
+    customers: [{ id: 'c', name: 'Bayo' }],
+    jobs: [
+      job('a0000000-1'),
+      job('b0000000-1', { createdAt: '2026-10-01T10:00:00Z' }),
+      job('c0000000-1', { shelfItem: false }),
+      job('d0000000-1', { productionStatus: 'Cancelled' }),
+      job('e0000000-1', { templateSnapshot: {} }),
+    ],
+  };
+  assert.deepEqual(
+    returnableJobs(ledger, '', 7, now).map((j) => j.id),
+    ['a0000000-1'],
+  );
+  assert.equal(returnableJobs(ledger, 'bayo', 7, now).length, 1);
+  assert.equal(returnableJobs(ledger, 'nobody', 7, now).length, 0);
+});

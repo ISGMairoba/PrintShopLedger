@@ -4,6 +4,8 @@ import { useId, useState } from 'react';
 import DialogActions from './DialogActions';
 import Modal from './Modal';
 import JobCorrectionPicker from './JobCorrectionPicker';
+import { returnableJobs } from './job-search.mjs';
+import Modal from './Modal';
 import CurrencyInput from './CurrencyInput';
 import { useFeedbackMessage } from './Feedback';
 import { useBusinessOptions } from './BusinessOptionsContext';
@@ -113,7 +115,10 @@ export default function SaleAdjustmentsPage({
 }) {
   const { w } = useWords();
   const [query, setQuery] = useState(''),
-    [jobId, setJobId] = useState('');
+    [jobId, setJobId] = useState(''),
+    [returning, setReturning] = useState(false),
+    [returnQuery, setReturnQuery] = useState('');
+  const returnable = returning ? returnableJobs(ledger, returnQuery, recentDays) : [];
   const records = ledger.saleAdjustments.filter((r) =>
     [
       r.id,
@@ -148,7 +153,64 @@ export default function SaleAdjustmentsPage({
         >
           <Icon name="adjustments" /> Adjust selected sale
         </button>
+        <button
+          className="secondary"
+          disabled={!ready || busy || !canSave}
+          onClick={() => {
+            setReturnQuery('');
+            setReturning(true);
+          }}
+        >
+          <Icon name="restore" /> {w('Return items')}
+        </button>
       </div>
+      {returning && (
+        <Modal title={w('Return items')} onClose={() => setReturning(false)}>
+          <p className="muted">
+            {w('Shelf items sold in the last')} {recentDays} {recentDays === 1 ? 'day' : 'days'}{' '}
+            {w('(Business Settings → Corrections). Choose the sale the items came back from.')}
+          </p>
+          <input
+            aria-label={w('Search returnable items')}
+            placeholder={w('Search customer or item')}
+            value={returnQuery}
+            onChange={(e) => setReturnQuery(e.target.value)}
+          />
+          {returnable.length ? (
+            <ul className="return-list">
+              {returnable.slice(0, 100).map((j) => (
+                <li key={j.id}>
+                  <span>
+                    <strong>{j.description}</strong>
+                    <small className="muted">
+                      {ledger.customers.find((c) => c.id === j.customerId)?.name ?? 'Customer'} ·{' '}
+                      {j.quantity ?? 1} sold · {currency(j.amount)} ·{' '}
+                      {new Date(j.createdAt).toLocaleDateString('en-GB', {
+                        timeZone: 'Africa/Lagos',
+                        day: 'numeric',
+                        month: 'short',
+                      })}{' '}
+                      · #{j.id.slice(0, 8).toUpperCase()}
+                    </small>
+                  </span>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => {
+                      setReturning(false);
+                      onAdjust(j);
+                    }}
+                  >
+                    Return
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="empty">{w('No shelf items to return in this window.')}</p>
+          )}
+        </Modal>
+      )}
       <h3>Adjustment history</h3>
       <input
         aria-label="Search sale adjustments"
@@ -202,7 +264,11 @@ export function SaleAdjustmentEditor({
   const [action, setAction] = useState<SupervisedEvent['kind'] | 'items.returned'>(
     job.productionStatus === 'Cancelled' ? 'sale.refunded' : canReturn ? 'items.returned' : 'sale.corrected',
   );
-  const [returnCount, setReturnCount] = useState('1');
+  const [returnCount, setReturnCount] = useState('1'),
+    // Return items: keep the money as the customer's credit, or give it back now (a refund saved
+    // straight after the return). Requests for approval keep it as credit.
+    [giveBack, setGiveBack] = useState(false),
+    [refundId] = useState(() => crypto.randomUUID());
   const soldCount = Number(job.quantity ?? 1),
     backCount = Math.min(soldCount, Math.max(0, Math.floor(Number(returnCount)) || 0)),
     isReturn = action === 'items.returned';
@@ -303,6 +369,43 @@ export function SaleAdjustmentEditor({
   const mat = ledger.materials.find((m) => m.id === job.materialId),
     credit = walletBalance(ledger, job.customerId),
     availableReturn = returnableStock(ledger, job.id);
+  // The customer's credit once the return is saved, for "Give the money back now".
+  function returnCredit() {
+    if (!isReturn || !(backCount > 0)) return credit;
+    try {
+      return walletBalance(applySaleAdjustment(ledger, event()) as Ledger, job.customerId);
+    } catch {
+      return credit;
+    }
+  }
+  /** The refund saved straight after a return, from the records as the return leaves them. */
+  function refundAfter(returnEvent: SupervisedEvent): { refund: SupervisedEvent; after: Ledger } {
+    const after = applySaleAdjustment(ledger, returnEvent) as Ledger,
+      jobAfter = after.jobs.find((j) => j.id === job.id)!,
+      chosen = methods.find((m) => m.label === method),
+      now = new Date().toISOString();
+    if (!chosen) throw Error('Choose a refund payment method.');
+    return {
+      after,
+      refund: {
+        id: refundId,
+        kind: 'sale.refunded',
+        data: {
+          jobId: job.id,
+          baseVersion: jobAfter.version ?? 1,
+          expectedAccount: accountToken(after, job.customerId),
+          reason,
+          modifiedBy: actor.id,
+          modifiedByLabel: actor.label,
+          modifiedAt: now,
+          refundAmount: money(refund),
+          method: chosen.kind,
+          methodLabel: chosen.label,
+          paidOn: saleDay(now),
+        },
+      } as SupervisedEvent,
+    };
+  }
   function event(): SupervisedEvent {
     const chosen = methods.find((m) => m.label === (action === 'payment.corrected' ? paymentMethod : method)),
       now = new Date().toISOString();
@@ -391,6 +494,7 @@ export function SaleAdjustmentEditor({
       },
     };
   }
+  const creditAfterReturn = returnCredit();
   const comparison: { label: string; before: string; after: string }[] = [];
   const value = (n: unknown) => (n === null || n === undefined || n === '' ? '—' : String(n));
   const materialName = (id?: string | null) =>
@@ -591,8 +695,19 @@ export function SaleAdjustmentEditor({
           try {
             const command = submitted ?? event();
             applySaleAdjustment(ledger, command);
+            // Return and refund: check both before saving either.
+            const second = isReturn && giveBack && !request ? refundAfter(command) : null;
+            if (second) applySaleAdjustment(second.after, second.refund);
             setSubmitted(command);
             await onSave(command);
+            if (second)
+              try {
+                await onSave(second.refund);
+              } catch (cause) {
+                throw Error(
+                  `The return was saved, but the refund wasn't: ${cause instanceof Error ? cause.message : String(cause)} Give the money back with Refund customer credit.`,
+                );
+              }
             onClose();
           } catch (cause) {
             setError(cause instanceof Error ? cause.message : String(cause));
@@ -643,10 +758,62 @@ export function SaleAdjustmentEditor({
                 {backCount >= soldCount
                   ? w('All of them: the sale is cancelled and its stock goes back.')
                   : `${backCount} ${w('of')} ${soldCount}: ${w('the charge goes down and their stock goes back.')}`}{' '}
-                {w(
-                  'Money already paid for them becomes the customer’s credit. To give it back, use Refund customer credit after saving.',
-                )}
+                {w('Money already paid for them becomes the customer’s credit.')}
               </p>
+              {!request && (
+                <fieldset className="return-money">
+                  <legend>{w('The money for them')}</legend>
+                  <label className="check-label">
+                    <input type="radio" checked={!giveBack} onChange={() => setGiveBack(false)} />{' '}
+                    {w('Keep it as the customer’s credit')}
+                  </label>
+                  <label className="check-label">
+                    <input
+                      type="radio"
+                      checked={giveBack}
+                      onChange={() => {
+                        setGiveBack(true);
+                        if (!refund) setRefund(String(creditAfterReturn / 100));
+                      }}
+                    />{' '}
+                    {w('Give the money back now (full or part)')}
+                  </label>
+                  {giveBack && (
+                    <>
+                      <div className="form-grid">
+                        <label>
+                          Money returned (₦)
+                          <CurrencyInput
+                            value={refund}
+                            onValueChange={setRefund}
+                            max={creditAfterReturn / 100}
+                            required
+                          />
+                        </label>
+                        <label>
+                          Refund method
+                          <select value={method} onChange={(e) => setMethod(e.target.value)} required>
+                            {alphabetical(methods, (m) => m.label).map((m) => (
+                              <option key={m.label} value={m.label}>
+                                {m.displayLabel || m.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                      <p className="muted">
+                        Up to {currency(creditAfterReturn)} (the customer’s credit after the return). The rest
+                        stays as credit.
+                      </p>
+                    </>
+                  )}
+                </fieldset>
+              )}
+              {request && (
+                <p className="muted">
+                  {w('The money becomes the customer’s credit once approved; a refund is given after that.')}
+                </p>
+              )}
             </>
           )}
           {action === 'sale.corrected' && (
