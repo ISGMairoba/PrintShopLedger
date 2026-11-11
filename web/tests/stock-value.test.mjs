@@ -88,7 +88,16 @@ test('stock value: shelf stock is valued at the lowest price per item (biggest p
     ],
   };
   assert.equal(lowestUnitPrice(bags), 5500, '₦5,500 ÷ 100 = ₦55 each');
-  assert.equal(lowestUnitPrice({ price: 10000, priceTiers: [{ from: 10, price: 9000 }, { from: 50, price: 8000 }] }), 8000);
+  assert.equal(
+    lowestUnitPrice({
+      price: 10000,
+      priceTiers: [
+        { from: 10, price: 9000 },
+        { from: 50, price: 8000 },
+      ],
+    }),
+    8000,
+  );
   assert.equal(lowestUnitPrice({ price: 10000 }), 10000);
   const ledger = {
     materials: [{ id: 'bag', name: 'Bags', available: 5177, archived: false }],
@@ -99,7 +108,15 @@ test('stock value: shelf stock is valued at the lowest price per item (biggest p
 
 test('dashboard expenses: by category and by payee in the period, voided left out', async () => {
   const { expenseBreakdown } = await import('../src/expense-breakdown.mjs');
-  const e = (id, category, amount, incurredOn, extra = {}) => ({ id, category, amount, incurredOn, payee: '', voided: false, ...extra });
+  const e = (id, category, amount, incurredOn, extra = {}) => ({
+    id,
+    category,
+    amount,
+    incurredOn,
+    payee: '',
+    voided: false,
+    ...extra,
+  });
   const ledger = {
     payees: [{ id: 'p1', name: 'NEPA' }],
     expenses: [
@@ -111,7 +128,20 @@ test('dashboard expenses: by category and by payee in the period, voided left ou
     ],
   };
   const cats = expenseBreakdown(ledger, '2026-11-01', '2026-11-30', 'category');
-  assert.deepEqual(cats.map((c) => [c.name, c.amount]), [['Paper', 9000], ['Power', 8000]]);
+  assert.deepEqual(
+    cats.map((c) => [c.name, c.amount]),
+    [
+      ['Paper', 9000],
+      ['Power', 8000],
+    ],
+  );
   const payees = expenseBreakdown(ledger, '2026-11-01', '2026-11-30', 'payee');
-  assert.deepEqual(payees.map((c) => [c.name, c.amount]), [['Ade Stores', 9000], ['NEPA', 5000], ['NEPA office', 3000]]);
+  assert.deepEqual(
+    payees.map((c) => [c.name, c.amount]),
+    [
+      ['Ade Stores', 9000],
+      ['NEPA', 5000],
+      ['NEPA office', 3000],
+    ],
+  );
 });

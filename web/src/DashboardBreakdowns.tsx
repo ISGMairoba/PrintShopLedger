@@ -199,7 +199,10 @@ export function ExpenseBreakdown({
           />
           <small>
             {money(total)} of expenses in this period
-            {rows.length > top.length ? `; the ${top.length} shown make ${money(top.reduce((s, r) => s + r.amount, 0))}` : ''}.
+            {rows.length > top.length
+              ? `; the ${top.length} shown make ${money(top.reduce((s, r) => s + r.amount, 0))}`
+              : ''}
+            .
           </small>
         </>
       ) : (

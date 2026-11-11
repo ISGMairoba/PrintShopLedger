@@ -13,7 +13,9 @@ import { perItem } from './production-materials.mjs';
 export function lowestUnitPrice(service) {
   const prices = [
     service.price,
-    ...(service.packPrices ?? []).filter((p) => p.quantity > 0 && p.price > 0).map((p) => p.price / p.quantity),
+    ...(service.packPrices ?? [])
+      .filter((p) => p.quantity > 0 && p.price > 0)
+      .map((p) => p.price / p.quantity),
     ...(service.priceTiers ?? []).filter((t) => t.price > 0).map((t) => t.price),
   ].filter((p) => p > 0);
   return prices.length ? Math.min(...prices) : 0;
