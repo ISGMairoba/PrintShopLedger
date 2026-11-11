@@ -250,7 +250,10 @@ try {
       }
       await values.getByText('Money In − Money Out', { exact: true }).waitFor();
       await values.getByText('₦40,000.00', { exact: true }).waitFor();
-      assert.equal(await page.locator('.dashboard-panel:not([aria-label^="Expenses by"]) .dashboard-pie').count(), 2);
+      assert.equal(
+        await page.locator('.dashboard-panel:not([aria-label^="Expenses by"]) .dashboard-pie').count(),
+        2,
+      );
       // Expenses by category and by payee each have their own pie.
       for (const name of ['Expenses by category', 'Expenses by payee'])
         await page.getByRole('region', { name, exact: true }).waitFor();
