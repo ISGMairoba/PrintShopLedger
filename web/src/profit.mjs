@@ -36,7 +36,8 @@ export function linkedExpenseShares(ledger) {
     for (const j of linked)
       shares.set(
         j.id,
-        (shares.get(j.id) ?? 0) + (total > 0 ? (e.amount * Math.max(0, j.amount)) / total : e.amount / linked.length),
+        (shares.get(j.id) ?? 0) +
+          (total > 0 ? (e.amount * Math.max(0, j.amount)) / total : e.amount / linked.length),
       );
   }
   linkedCache.set(key, { jobs: ledger.jobs, shares });

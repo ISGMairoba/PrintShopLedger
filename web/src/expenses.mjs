@@ -100,8 +100,11 @@ export function expenseJobIds(ledger, ids, materials = []) {
     throw Error('Link the expense to up to 20 orders.');
   if (new Set(ids).size !== ids.length) throw Error('Link each order once.');
   if (ids.length && materials.length)
-    throw Error('A stock purchase reaches orders through the materials they use, so it is not linked to orders.');
-  for (const id of ids) if (!ledger.jobs.some((j) => j.id === id)) throw Error('A linked order was not found.');
+    throw Error(
+      'A stock purchase reaches orders through the materials they use, so it is not linked to orders.',
+    );
+  for (const id of ids)
+    if (!ledger.jobs.some((j) => j.id === id)) throw Error('A linked order was not found.');
   return ids;
 }
 export function makeExpenseEvent(kind, data, existing, actor, id = () => crypto.randomUUID()) {
@@ -222,7 +225,11 @@ export function applyExpenseEvent(input, event) {
       incurredAt: dayTime(data.incurredAt, data.incurredOn),
       amount: data.amount,
       payeeId: data.payeeId === undefined ? (existing?.payeeId ?? '') : data.payeeId,
-      jobIds: expenseJobIds(ledger, data.jobIds === undefined ? (existing?.jobIds ?? []) : data.jobIds, materials),
+      jobIds: expenseJobIds(
+        ledger,
+        data.jobIds === undefined ? (existing?.jobIds ?? []) : data.jobIds,
+        materials,
+      ),
       payee: text(data.payee, 'Paid to', 160),
       note: text(data.note, 'Note', 1000),
       receiptReference: text(data.receiptReference, 'Receipt reference', 160),

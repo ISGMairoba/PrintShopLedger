@@ -374,7 +374,9 @@ export default function ExpenseEditor({
                     label={wt('For orders (optional)')}
                     value=""
                     placeholder={wt('Search an order to link')}
-                    options={orders.filter((o) => !jobIds.includes(o.id)).map((o) => ({ value: o.id, label: o.label }))}
+                    options={orders
+                      .filter((o) => !jobIds.includes(o.id))
+                      .map((o) => ({ value: o.id, label: o.label }))}
                     disabled={jobIds.length >= 20}
                     onChange={(id) => id && setJobIds([...jobIds, id])}
                   />
@@ -382,7 +384,9 @@ export default function ExpenseEditor({
                     <ul className="expense-order-list">
                       {jobIds.map((id) => (
                         <li key={id}>
-                          <span>{orders.find((o) => o.id === id)?.label ?? `#${id.slice(0, 8).toUpperCase()}`}</span>
+                          <span>
+                            {orders.find((o) => o.id === id)?.label ?? `#${id.slice(0, 8).toUpperCase()}`}
+                          </span>
                           <button
                             type="button"
                             className="text-button danger-text"
@@ -396,7 +400,9 @@ export default function ExpenseEditor({
                     </ul>
                   )}
                   <small className="muted">
-                    {wt('Its cost counts in these orders’ profit (shared by order amount), not under expenses.')}
+                    {wt(
+                      'Its cost counts in these orders’ profit (shared by order amount), not under expenses.',
+                    )}
                   </small>
                 </div>
               )}

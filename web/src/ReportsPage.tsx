@@ -1623,8 +1623,8 @@ function ProfitLossTab({ ledger, freshness, busy, error, pdf, csv }: TabProps) {
             )}
             {report.linkedToOrders > 0 && (
               <p className="muted">
-                {currency(report.linkedToOrders)} of expenses in this period {w('is linked to orders')}, so it is
-                counted in those {w('jobs')}’ cost instead of under expenses.
+                {currency(report.linkedToOrders)} of expenses in this period {w('is linked to orders')}, so it
+                is counted in those {w('jobs')}’ cost instead of under expenses.
               </p>
             )}
             {report.unknownJobs > 0 && (

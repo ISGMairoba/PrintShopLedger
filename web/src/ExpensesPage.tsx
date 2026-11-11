@@ -74,7 +74,9 @@ export default function ExpensesPage({
     const linked = new Set((ledger.expenses ?? []).flatMap((e) => e.jobIds ?? []));
     const customers = new Map(ledger.customers.map((c) => [c.id, c.name]));
     return ledger.jobs
-      .filter((j) => j.productionStatus !== 'Cancelled' && (Date.parse(j.createdAt) >= since || linked.has(j.id)))
+      .filter(
+        (j) => j.productionStatus !== 'Cancelled' && (Date.parse(j.createdAt) >= since || linked.has(j.id)),
+      )
       .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
       .map((j) => ({
         id: j.id,
@@ -125,7 +127,7 @@ export default function ExpensesPage({
         ]
           .join(' ')
           .toLowerCase();
-  return (
+      return (
         text.includes(query.trim().toLowerCase()) &&
         (!category || item.category === category) &&
         (!staff || item.createdBy === staff) &&

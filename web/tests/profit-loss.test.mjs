@@ -172,10 +172,20 @@ test('expenses linked to orders count in their job cost, not under expenses', as
   });
   const l = {
     ...emptyLedger(),
-    services: [{ id: 'svc', description: 'Banner', price: 100, archived: false, costing: { amount: 10000, per: 1 } }],
+    services: [
+      { id: 'svc', description: 'Banner', price: 100, archived: false, costing: { amount: 10000, per: 1 } },
+    ],
     jobs: [job('a', 30000), job('b', 10000), { ...job('c', 50000), productionStatus: 'Cancelled' }],
     expenses: [
-      { id: 'x', category: 'Outsourcing', amount: 8000, incurredOn: '2026-11-04', voided: false, materials: [], jobIds: ['a', 'b', 'c'] },
+      {
+        id: 'x',
+        category: 'Outsourcing',
+        amount: 8000,
+        incurredOn: '2026-11-04',
+        voided: false,
+        materials: [],
+        jobIds: ['a', 'b', 'c'],
+      },
       { id: 'y', category: 'Power', amount: 5000, incurredOn: '2026-11-04', voided: false, materials: [] },
     ],
   };
