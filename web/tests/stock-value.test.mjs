@@ -76,3 +76,42 @@ test('recent sales: newest sales first, payments without jobs left out', () => {
   assert.deepEqual(r[0].items, ['Pens', 'Card']);
   assert.equal(recentSales(ledger, 1).length, 1);
 });
+
+test('stock value: shelf stock is valued at the lowest price per item (biggest pack or range)', async () => {
+  const { lowestUnitPrice } = await import('../src/stock-value.mjs');
+  const bags = {
+    price: 7000,
+    packPrices: [
+      { quantity: 25, price: 150000 },
+      { quantity: 50, price: 300000 },
+      { quantity: 100, price: 550000 },
+    ],
+  };
+  assert.equal(lowestUnitPrice(bags), 5500, '₦5,500 ÷ 100 = ₦55 each');
+  assert.equal(lowestUnitPrice({ price: 10000, priceTiers: [{ from: 10, price: 9000 }, { from: 50, price: 8000 }] }), 8000);
+  assert.equal(lowestUnitPrice({ price: 10000 }), 10000);
+  const ledger = {
+    materials: [{ id: 'bag', name: 'Bags', available: 5177, archived: false }],
+    services: [{ id: 'b', materialId: 'bag', shelfItem: true, archived: false, ...bags }],
+  };
+  assert.equal(stockValue(ledger).shelfAtPrice, 5177 * 5500);
+});
+
+test('dashboard expenses: by category and by payee in the period, voided left out', async () => {
+  const { expenseBreakdown } = await import('../src/expense-breakdown.mjs');
+  const e = (id, category, amount, incurredOn, extra = {}) => ({ id, category, amount, incurredOn, payee: '', voided: false, ...extra });
+  const ledger = {
+    payees: [{ id: 'p1', name: 'NEPA' }],
+    expenses: [
+      e('1', 'Power', 5000, '2026-11-02', { payeeId: 'p1' }),
+      e('2', 'power', 3000, '2026-11-03', { payee: 'NEPA office' }),
+      e('3', 'Paper', 9000, '2026-11-04', { payee: 'Ade Stores' }),
+      e('4', 'Paper', 1000, '2026-11-05', { voided: true }),
+      e('5', 'Paper', 2000, '2026-10-30'),
+    ],
+  };
+  const cats = expenseBreakdown(ledger, '2026-11-01', '2026-11-30', 'category');
+  assert.deepEqual(cats.map((c) => [c.name, c.amount]), [['Paper', 9000], ['Power', 8000]]);
+  const payees = expenseBreakdown(ledger, '2026-11-01', '2026-11-30', 'payee');
+  assert.deepEqual(payees.map((c) => [c.name, c.amount]), [['Ade Stores', 9000], ['NEPA', 5000], ['NEPA office', 3000]]);
+});
