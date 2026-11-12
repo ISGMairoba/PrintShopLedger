@@ -13,12 +13,15 @@ export default function JobActions({
   busy,
   onAction,
   onHold,
+  part = 'all',
 }: {
   job: Job;
   busy: boolean;
   onAction: (job: Job, mode: ProgressMode) => void;
   /** Put the job on hold (with a reason) or resume it (null). Left out: no hold buttons. */
   onHold?: (job: Job, hold: HoldChange) => Promise<void>;
+  /** "next": only the Next button (the main action); "rest": the others. Lists render both. */
+  part?: 'all' | 'next' | 'rest';
 }) {
   const { stage } = useWords();
   const jobStatuses = jobWorkflow(job);
@@ -40,15 +43,19 @@ export default function JobActions({
       setError(cause instanceof Error ? cause.message : String(cause));
     }
   };
+  const nextButton = (
+    <button
+      className="text-button"
+      disabled={busy || held || job.productionStatus === 'Cancelled' || !next}
+      onClick={() => onAction(job, 'next')}
+    >
+      <Icon name="next" /> {next ? `Next: ${stage(next)}` : 'Next action'}
+    </button>
+  );
+  if (part === 'next') return nextButton;
   return (
     <div className="job-actions">
-      <button
-        className="text-button"
-        disabled={busy || held || job.productionStatus === 'Cancelled' || !next}
-        onClick={() => onAction(job, 'next')}
-      >
-        <Icon name="next" /> {next ? `Next: ${stage(next)}` : 'Next action'}
-      </button>
+      {part === 'all' && nextButton}
       <button
         className="text-button"
         disabled={busy || held || job.productionStatus === 'Cancelled' || !next}
@@ -76,6 +83,7 @@ export default function JobActions({
         <button
           className="text-button"
           disabled={busy}
+          data-opens-dialog
           onClick={() => {
             setReason(HOLD_REASONS[0]);
             setNote('');

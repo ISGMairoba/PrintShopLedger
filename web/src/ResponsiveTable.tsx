@@ -59,8 +59,10 @@ function MobileActions({ children }: { children: ReactNode }) {
           <div
             className="mobile-action-menu"
             onClick={(event) => {
-              if (event.target instanceof Element && event.target.closest('button:not(:disabled)'))
-                setOpen(false);
+              // A button that opens its own dialog keeps the menu (and that dialog) mounted.
+              const button =
+                event.target instanceof Element ? event.target.closest('button:not(:disabled)') : null;
+              if (button && !button.hasAttribute('data-opens-dialog')) setOpen(false);
             }}
           >
             {buttons.slice(1)}
@@ -125,12 +127,16 @@ export default function ResponsiveTable({
     );
   };
   const auditing = headers.some((_, index) => isAudit(index));
+  // Dates (added, due, last payment, changed) sit at the bottom right of a card.
+  const isDate = (index: number) =>
+    isAudit(index) ||
+    /\b(date|dates|due|deadline|when|added|changed|recorded)\b/i.test(String(label(index) ?? ''));
   const shown = columns.slice(0, 3);
   const mainColumn = shown.find((column) => !column.actions);
   const mainDetails = (mainColumn?.details ?? []).map(resolve);
-  const auditIndexes = [...mainDetails, ...extra].filter(isAudit);
-  const plainDetails = mainDetails.filter((index) => !isAudit(index));
-  const plainExtra = extra.filter((index) => !isAudit(index));
+  const dateIndexes = [...mainDetails, ...(auditing ? extra : [])].filter(isDate);
+  const plainDetails = mainDetails.filter((index) => !isDate(index));
+  const plainExtra = extra.filter((index) => !auditing || !isDate(index));
   const hasDetails = plainDetails.length > 0 || plainExtra.length > 0;
   const actionsColumn = shown.find((column) => column.actions);
   // Short details share a line in pairs; long ones (notes, references) take the full width.
@@ -148,8 +154,14 @@ export default function ResponsiveTable({
     const value = cells[detail]?.props.children;
     const long = textOf(value).length + String(label(detail)).length > 26;
     return (
-      <div className={long ? 'mobile-meta mobile-meta-long' : 'mobile-meta'} key={detail}>
-        <span className="mobile-meta-label">{label(detail)}: </span>
+      <div
+        className={`mobile-meta${long ? ' mobile-meta-long' : ''}${isAudit(detail) ? ' mobile-meta-audit' : ''}`}
+        key={detail}
+      >
+        {/* A plain "Date" label adds nothing when the value says Added or Due itself. */}
+        {!/^dates?$/i.test(String(label(detail) ?? '')) && (
+          <span className="mobile-meta-label">{label(detail)}: </span>
+        )}
         {value}
       </div>
     );
@@ -203,7 +215,7 @@ export default function ResponsiveTable({
             <tbody>
               {rows.map((row) => {
                 const cells = elements(row.props.children);
-                const audit = auditIndexes.map((detail) => metadata(cells, detail));
+                const dates = dateIndexes.map((detail) => metadata(cells, detail));
                 return (
                   <tr key={row.key}>
                     {shown
@@ -226,8 +238,15 @@ export default function ResponsiveTable({
                             {position > 0 && details.map((detail) => metadata(cells, detail))}
                           </td>
                         );
-                        // The details follow the name in reading order; the amount is placed
-                        // beside the name by the card's grid.
+                        // Reading order: name, its details, amount, dates, actions. The card's grid
+                        // places the amount beside the name and the dates under the amount.
+                        if (position === 1 && dates.length > 0)
+                          return [
+                            cell,
+                            <td className="mobile-cell-dates" key="dates">
+                              {dates}
+                            </td>,
+                          ];
                         return position === 0 && hasDetails
                           ? [
                               cell,
@@ -248,12 +267,12 @@ export default function ResponsiveTable({
                             ]
                           : [cell];
                       })}
-                    {(actionsColumn || audit.length > 0) && (
+                    {dates.length > 0 && shown.filter((column) => !column.actions).length < 2 && (
+                      <td className="mobile-cell-dates">{dates}</td>
+                    )}
+                    {actionsColumn && (
                       <td className="mobile-cell-actions">
-                        {actionsColumn && (
-                          <MobileActions>{cells[resolve(actionsColumn.index)]?.props.children}</MobileActions>
-                        )}
-                        {audit.length > 0 && <div className="mobile-audit">{audit}</div>}
+                        <MobileActions>{cells[resolve(actionsColumn.index)]?.props.children}</MobileActions>
                       </td>
                     )}
                   </tr>
