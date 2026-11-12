@@ -1017,7 +1017,14 @@ export default function App() {
               : state.lastSynced
                 ? 'Saved'
                 : 'Connecting…';
-  const syncTone = !ready || syncStatus === 'syncing' ? 'busy' : hasConflict || !online || syncStatus === 'retrying' ? 'warn' : state.pending.length ? 'pending' : 'ok';
+  const syncTone =
+    !ready || syncStatus === 'syncing'
+      ? 'busy'
+      : hasConflict || !online || syncStatus === 'retrying'
+        ? 'warn'
+        : state.pending.length
+          ? 'pending'
+          : 'ok';
   const syncIndicator = !demo && scope && (
     <span className="sync-status" data-tone={syncTone} role="status" aria-live="polite" title={syncLabel}>
       <Icon name="sync" /> <span className="sync-label">{syncLabel}</span>
