@@ -2,10 +2,24 @@
 // * At cost: each active material's stock × its cost per unit (from Pricing Templates → Costs).
 //   Materials with no cost set are counted separately, so the total is never guessed.
 // * At selling price: only stock sold off the shelf has a selling price of its own — stock ÷ the
-//   material one item uses × the shelf item's price (single-item price, before packs and
-//   discounts). Its cost is shown beside it, so the gap is the possible profit on the shelf.
+//   material one item uses × the shelf item's lowest price per item: the cheapest of its single
+//   price, each pack's price ÷ its size, and each quantity range's price (before discounts). So
+//   the value is one the business is sure to reach, not a hopeful one. Its cost is shown beside
+//   it, so the gap is the possible profit on the shelf.
 import { materialUnitCost } from './profit.mjs';
 import { perItem } from './production-materials.mjs';
+
+/** The cheapest price per item a shelf item can sell at (single, pack ÷ size, quantity ranges). */
+export function lowestUnitPrice(service) {
+  const prices = [
+    service.price,
+    ...(service.packPrices ?? [])
+      .filter((p) => p.quantity > 0 && p.price > 0)
+      .map((p) => p.price / p.quantity),
+    ...(service.priceTiers ?? []).filter((t) => t.price > 0).map((t) => t.price),
+  ].filter((p) => p > 0);
+  return prices.length ? Math.min(...prices) : 0;
+}
 
 /**
  * @returns {{ atCost: number, costed: number, uncosted: number, uncostedNames: string[],
@@ -34,7 +48,7 @@ export function stockValue(ledger) {
     );
     if (!shelf || !stock) continue;
     shelfItems++;
-    shelfAtPrice += (stock / perItem(shelf)) * shelf.price;
+    shelfAtPrice += (stock / perItem(shelf)) * lowestUnitPrice(shelf);
     if (rate === null) shelfUncosted++;
     else shelfAtCost += stock * rate;
   }

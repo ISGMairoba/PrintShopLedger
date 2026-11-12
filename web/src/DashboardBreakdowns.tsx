@@ -170,3 +170,44 @@ export default function DashboardBreakdowns({
     </>
   );
 }
+
+/** Dashboard: expenses in the period by category or by payee, the top ones as a pie. */
+export function ExpenseBreakdown({
+  title,
+  rows,
+  total,
+}: {
+  title: string;
+  rows: { id: string; name: string; amount: number; count: number }[];
+  total: number;
+}) {
+  const [shown, setShown] = useState(5);
+  const top = rows.slice(0, shown);
+  return (
+    <section className="panel dashboard-panel" aria-label={title}>
+      <h2>{title}</h2>
+      <div className="dashboard-controls">
+        <CountInput label="Show" value={shown} onChange={setShown} />
+      </div>
+      {top.length ? (
+        <>
+          <InteractivePie
+            key={shown}
+            title={`Top ${shown} by amount`}
+            rows={top.map((r) => ({ id: r.id, name: r.name, value: r.amount }))}
+            formatValue={money}
+          />
+          <small>
+            {money(total)} of expenses in this period
+            {rows.length > top.length
+              ? `; the ${top.length} shown make ${money(top.reduce((s, r) => s + r.amount, 0))}`
+              : ''}
+            .
+          </small>
+        </>
+      ) : (
+        <p>No expenses in this period.</p>
+      )}
+    </section>
+  );
+}
