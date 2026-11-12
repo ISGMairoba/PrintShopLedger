@@ -2636,12 +2636,14 @@ label.checkbox,
   }
   .modal-footer {
     padding: 10px 16px;
+    flex-wrap: wrap;
+    gap: 8px 12px;
   }
   .modal-footer .dialog-action-buttons {
-    width: 100%;
+    flex: 1 1 auto;
   }
   .modal-footer .dialog-action-buttons > button {
-    flex: 1 1 0;
+    flex: 1 1 auto;
     min-width: 0;
   }
 }
@@ -2722,6 +2724,7 @@ h1 {
   .toolbar {
     padding: 12px;
     margin-top: 0;
+    gap: 10px;
   }
   .mobile-sort {
     padding: 10px 12px;
@@ -2779,6 +2782,9 @@ h1 {
 .mobile-details .mobile-meta small {
   display: inline;
 }
+.mobile-details .mobile-meta small:not(:empty)::before {
+  content: " · ";
+}
 .record-details > .mobile-details {
   margin-top: 4px;
 }
@@ -2799,8 +2805,8 @@ h1 {
   margin-left: 0;
 }
 .mobile-audit {
-  flex: 1 1 auto;
-  min-width: 0;
+  flex: 1 1 0;
+  min-width: 140px;
   display: grid;
   gap: 0;
   text-align: right;
@@ -2843,5 +2849,43 @@ h1 {
   }
   .dashboard-panel {
     padding: 14px;
+  }
+}
+
+/* Every tick box and radio button is the same 18px, whichever label style wraps it. */
+input[type="checkbox"],
+input[type="radio"],
+label.checkbox input[type="checkbox"],
+.material-checkbox input[type="checkbox"],
+.check-label input[type="checkbox"],
+.material-choice-list input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  flex: none;
+  accent-color: var(--brand-primary);
+}
+.form-grid > :is(.check-label, label.checkbox, .material-checkbox) > input[type="checkbox"] {
+  grid-row: auto;
+  width: 18px;
+}
+
+/* Jobs in a checkout or quotation: the job's title, then its fields, 12px apart. */
+.cart-line {
+  padding: 14px;
+  margin: 0 0 var(--gap-stack);
+}
+.cart-line-title {
+  margin-bottom: 10px;
+}
+.cart-line .form-grid {
+  margin: 0 0 4px;
+}
+@media (max-width: 740px) {
+  .cart-line {
+    padding: 12px;
   }
 }
