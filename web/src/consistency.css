@@ -2430,6 +2430,8 @@ details.workflow-row[open] {
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   padding: var(--space-3);
+}
+
 /* Expenses → For orders: the orders an expense is linked to. */
 .expense-orders {
   display: grid;
