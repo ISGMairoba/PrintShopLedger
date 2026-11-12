@@ -2489,6 +2489,8 @@ details.workflow-row[open] {
 .business-type-features {
   display: grid;
   gap: var(--space-1);
+}
+
 /* Materials → Split: one row per piece (material, how many, remove). */
 .split-piece {
   align-items: end;
