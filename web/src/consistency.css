@@ -3008,3 +3008,6 @@ label.checkbox input[type="checkbox"],
 .jobs-table td .badge {
   margin-top: 4px;
 }
+.mobile-details .mobile-meta > .mobile-meta-label + small::before {
+  content: none;
+}
