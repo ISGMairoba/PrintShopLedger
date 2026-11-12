@@ -5,6 +5,7 @@ import './styles.css';
 import './branding.css';
 import './feedback.css';
 import './consistency.css';
+import './tailwind.css';
 import { FeedbackProvider } from './Feedback';
 import { installInputGuard } from './input-guard.mjs';
 import { recordProblem } from './problem-log.mjs';

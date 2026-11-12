@@ -1,7 +1,8 @@
 import PeriodFilter, { usePeriod } from './PeriodFilter';
 import { stockLevel } from './material-display.mjs';
 import { useMemo, useState, type ReactNode } from 'react';
-import DashboardBreakdowns from './DashboardBreakdowns';
+import DashboardBreakdowns, { ExpenseBreakdown } from './DashboardBreakdowns';
+import { expenseBreakdown } from './expense-breakdown.mjs';
 import { InteractiveTrend } from './InteractiveCharts';
 import { dashboardSummary, validRange } from './dashboard.mjs';
 import { profitReport } from './profit.mjs';
@@ -79,6 +80,16 @@ export default function DashboardPage({
   const stock = useMemo(
     () => (ready && access.materials && access.costs ? stockValue(ledger) : null),
     [ledger, ready, access.materials, access.costs],
+  );
+  const expenses = useMemo(
+    () =>
+      valid && ready && access.expenses
+        ? {
+            category: expenseBreakdown(ledger, range.from, range.to, 'category'),
+            payee: expenseBreakdown(ledger, range.from, range.to, 'payee'),
+          }
+        : null,
+    [ledger, range.from, range.to, valid, ready, access.expenses],
   );
   const recent = useMemo(
     () => (ready && access.sales ? recentSales(ledger, 10) : []),
@@ -284,7 +295,7 @@ export default function DashboardPage({
               card(
                 'Shelf stock at selling price',
                 stock.shelfAtPrice,
-                `${stock.shelfItems} shelf item${stock.shelfItems === 1 ? '' : 's'}, at the single-item price`,
+                `${stock.shelfItems} shelf item${stock.shelfItems === 1 ? '' : 's'}, at each one's lowest price (biggest pack or quantity range)`,
                 undefined,
                 stock.shelfUncosted
                   ? `${stock.shelfUncosted} without a cost, so the possible profit isn't shown`
@@ -335,6 +346,20 @@ export default function DashboardPage({
               missingQuantity={summary.missingQuantity}
               access={access}
             />
+            {expenses && (
+              <>
+                <ExpenseBreakdown
+                  title="Expenses by category"
+                  rows={expenses.category}
+                  total={expenses.category.reduce((s, r) => s + r.amount, 0)}
+                />
+                <ExpenseBreakdown
+                  title="Expenses by payee"
+                  rows={expenses.payee}
+                  total={expenses.payee.reduce((s, r) => s + r.amount, 0)}
+                />
+              </>
+            )}
             {access.sales && (
               <section className="panel dashboard-panel">
                 <h2>{w('Job stages')}</h2>
