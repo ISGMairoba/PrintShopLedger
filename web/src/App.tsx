@@ -159,6 +159,7 @@ import type { Quotation, QuotationEvent, ReminderEvent } from './types';
 import QuickSale from './QuickSale';
 import ProductEditor from './ProductEditor';
 import EditProductsPage from './EditProductsPage';
+import { featureOn } from './business-type.mjs';
 import RemindersPage from './RemindersPage';
 
 const DashboardPage = lazy(() => import('./DashboardPage'));
@@ -328,6 +329,7 @@ export default function App() {
   const allowed = (item: Page) =>
     !(restriction === 'pages_off' && (subscription.pagesOff ?? []).includes(item)) &&
     (item !== 'Pricing Templates' || branding.settings.pricing.enabled) &&
+    featureOn(branding.settings, item) &&
     (item !== 'Edit Products' || demo || (!!shop && shop.role !== 'cashier' && shop.accessLevel >= 2)) &&
     (demo || canAccessPage(item, shop?.accessLevel ?? 0, branding.settings.pageAccess));
   // Stock and waste share one screen with two tabs when the user may see both.
@@ -2219,6 +2221,8 @@ export default function App() {
                             ready={ready}
                             busy={busy || hasConflict}
                             onEdit={(id) => setProductEdit(id)}
+                            actor={catalogueActor}
+                            onSaveMany={canEditCatalogue ? saveCatalogueMany : undefined}
                           />
                         ) : page === 'Pricing Templates' ? (
                           <PricingTemplatesPage
@@ -2399,10 +2403,14 @@ export default function App() {
                             ledger={ledger}
                             busy={busy || legacyConflict}
                             ready={ready}
-                            onCheckout={() => {
-                              setPaymentCustomer('');
-                              setForm('job');
-                            }}
+                            onCheckout={
+                              featureOn(branding.settings, 'Jobs')
+                                ? () => {
+                                    setPaymentCustomer('');
+                                    setForm('job');
+                                  }
+                                : undefined
+                            }
                             onPayment={() => openPayment()}
                             onQuickSale={() => {
                               setForm(null);

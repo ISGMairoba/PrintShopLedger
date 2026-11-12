@@ -18,7 +18,8 @@ type Props = {
   ledger: Ledger;
   busy: boolean;
   ready: boolean;
-  onCheckout: () => void;
+  /** Add job (left out when the business has Jobs turned off: Quick sale only). */
+  onCheckout?: () => void;
   onPayment: () => void;
   /** Sell shelf items quickly (shown when the business has shelf items). */
   onQuickSale?: () => void;
@@ -168,9 +169,11 @@ export default function PointOfServicePage({
               <Icon name="drawer" /> Quick sale
             </button>
           )}
-          <button disabled={busy || !ready} onClick={onCheckout}>
-            <Icon name="add" /> {w('Add job')}
-          </button>
+          {onCheckout && (
+            <button disabled={busy || !ready} onClick={onCheckout}>
+              <Icon name="add" /> {w('Add job')}
+            </button>
+          )}
         </ToolbarActions>
       </div>
       {dates.panel}

@@ -5,7 +5,8 @@ import { useWords } from './Words';
 import { currency } from './receipts.mjs';
 import { editableProducts } from './product-edit.mjs';
 import { variantGroups } from './variants.mjs';
-import type { Ledger } from './types';
+import AddProduct from './AddProduct';
+import type { Ledger, MaterialEvent, ServiceEvent } from './types';
 
 /** Every product and service, with its stock: pick one to change its name, price and stock together. */
 export default function EditProductsPage({
@@ -13,13 +14,19 @@ export default function EditProductsPage({
   ready,
   busy,
   onEdit,
+  actor,
+  onSaveMany,
 }: {
   ledger: Ledger;
   ready: boolean;
   busy: boolean;
   onEdit: (serviceId: string) => void;
+  actor?: { id: string; label: string };
+  /** Add product here too (so a shop without Services can add them). */
+  onSaveMany?: (events: (MaterialEvent | ServiceEvent)[]) => Promise<void>;
 }) {
   const { w } = useWords();
+  const [adding, setAdding] = useState(false);
   const [query, setQuery] = useState('');
   const [stockOnly, setStockOnly] = useState(true);
   const products = useMemo(() => editableProducts(ledger), [ledger]);
@@ -52,13 +59,28 @@ export default function EditProductsPage({
           <input type="checkbox" checked={stockOnly} onChange={(e) => setStockOnly(e.target.checked)} />
           {w('Only items with stock')}
         </label>
+        {onSaveMany && actor && (
+          <button type="button" disabled={!ready || busy} onClick={() => setAdding(true)}>
+            <Icon name="add" /> {w('Add product')}
+          </button>
+        )}
       </div>
+      {adding && onSaveMany && actor && (
+        <AddProduct
+          services={ledger.services}
+          materials={ledger.materials}
+          busy={busy}
+          actor={actor}
+          onSaveMany={onSaveMany}
+          onClose={() => setAdding(false)}
+        />
+      )}
       {!ready ? (
         <p className="empty">Loading…</p>
       ) : !shown.length ? (
         <div className="empty">
           <h2>{query ? w('No matching products') : w('No products yet')}</h2>
-          <p>{w('Add products on the Services page. They appear here for quick changes.')}</p>
+          <p>{w('Tap Add product to add one. Each keeps its own stock.')}</p>
         </div>
       ) : (
         <div className="table-wrap">
