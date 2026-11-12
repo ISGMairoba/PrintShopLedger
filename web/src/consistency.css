@@ -2491,12 +2491,409 @@ details.workflow-row[open] {
   gap: var(--space-1);
 }
 
-/* Materials → Split: one row per piece (material, how many, remove). */
+/* Materials → Split: one row per piece (material, how many, remove), on phones too. */
 .split-piece {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) auto;
+  gap: var(--space-2);
   align-items: end;
-  padding-bottom: var(--space-2);
-  border-bottom: 1px solid var(--border, rgba(0, 0, 0, 0.1));
 }
-.split-stock .muted {
+.split-piece > .icon-button {
+  width: var(--control-h);
+  padding: 0;
+}
+
+/* ---- Vertical rhythm ----
+   One scale for the space between things, so screens feel tidy and phones scroll less:
+   6px between a field's name and its box, and between the box and its hint;
+   12px between stacked fields, paragraphs and notices; 16px between sections and around
+   dialog bodies; 20px around page content. The same numbers apply in pop-ups and on pages. */
+:root {
+  --gap-field: 6px;
+  --gap-stack: 12px;
+  --gap-section: 16px;
+}
+small {
+  line-height: 1.5;
+}
+label {
+  gap: var(--gap-field);
+}
+label > small {
   margin: 0;
+}
+h3 {
+  margin: var(--gap-section) 0 8px;
+}
+h2 {
+  margin: 6px 0;
+}
+p {
+  margin: 0 0 var(--gap-stack);
+}
+.notice {
+  padding: 10px 14px;
+  margin: 0 0 var(--gap-stack);
+}
+.notice:last-child {
+  margin-bottom: 0;
+}
+
+/* Fields in a grid: name, box, hint; 16px to the next field (no empty hint row to pay for). */
+.form-grid,
+.form-grid.hint-grid {
+  gap: 0 var(--gap-section);
+  margin-bottom: 4px;
+}
+.form-grid > * {
+  margin-bottom: var(--gap-stack);
+}
+.form-grid > label:not(.check-label):not(.checkbox):not(.material-checkbox),
+.form-grid > .listed-combobox {
+  row-gap: var(--gap-field);
+}
+.form-grid > :is(.check-label, .checkbox, .material-checkbox),
+.form-grid > button {
+  margin-top: 22px;
+}
+@media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
+  .form-grid > :is(.check-label, .checkbox, .material-checkbox),
+  .form-grid > button {
+    margin-top: 0;
+  }
+}
+.form-grid > div > label + .text-button,
+.form-grid > label + .text-button {
+  margin-top: var(--gap-field);
+}
+
+/* A tick box and its words: 10px apart; a hint sits right under the words, not under the box. */
+.check-label,
+label.checkbox,
+.material-checkbox > span {
+  gap: 10px;
+  align-items: center;
+}
+.material-checkbox {
+  gap: 0;
+}
+.material-checkbox > small,
+.check-label > small {
+  margin: -8px 0 0 28px;
+}
+.business-settings .check-label {
+  margin: var(--gap-field) 0;
+}
+:where(.check-label, label.checkbox, .material-checkbox)
+  + :where(.check-label, label.checkbox, .material-checkbox) {
+  margin-top: 4px;
+}
+
+/* Pop-ups: a compact title bar, an even 20px (16px on phones) around the body, and a footer
+   the height of its buttons. Nothing in the body adds its own space at the top or bottom. */
+.modal-header {
+  padding: 12px 20px;
+  gap: 12px;
+}
+.modal-body {
+  padding: 20px;
+}
+.modal-body > :first-child,
+.modal-body > form > :first-child,
+.modal-body > form > fieldset > :first-child {
+  margin-top: 0;
+}
+.modal-body > :last-child,
+.modal-body > form:last-child > :last-child,
+.modal-body > form:last-child > fieldset:last-child > :last-child {
+  margin-bottom: 0;
+}
+.modal-body .form-grid {
+  margin-top: 0;
+}
+.modal-body h3 {
+  margin: var(--gap-section) 0 8px;
+}
+.modal-body h3:first-child {
+  margin-top: 0;
+}
+.modal-footer {
+  padding: 12px 20px;
+  gap: 12px;
+}
+.modal-body > .dialog-action-buttons,
+.modal-body form > .dialog-action-buttons,
+.modal-body fieldset > .dialog-action-buttons {
+  justify-content: flex-end;
+  margin-top: var(--gap-section);
+}
+@media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
+  .modal-header {
+    padding: 10px 12px 10px 16px;
+  }
+  .modal-body {
+    padding: 16px;
+  }
+  .modal-footer {
+    padding: 10px 16px;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+  }
+  .modal-footer .dialog-action-buttons {
+    flex: 1 1 auto;
+  }
+  .modal-footer .dialog-action-buttons > button {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+}
+
+/* Stacked blocks (fields, notes, buttons one under another) share one gap. */
+.stack {
+  display: grid;
+  gap: var(--gap-stack);
+  min-width: 0;
+}
+.stack > * {
+  margin: 0;
+}
+.stack > .form-grid {
+  margin-bottom: calc(var(--gap-stack) * -1);
+}
+.self-start {
+  justify-self: start;
+}
+.field-heading {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* Pages: title block, summary cards and list panels sit 16px apart; 20px inside a panel. */
+header {
+  margin-bottom: var(--gap-section);
+  gap: var(--gap-section);
+}
+h1 {
+  margin: 4px 0;
+}
+.stats {
+  gap: var(--gap-stack);
+  margin-bottom: var(--gap-section);
+}
+.stats article {
+  padding: 16px 18px;
+}
+.stats strong {
+  margin: 8px 0 4px;
+}
+.panel {
+  margin-bottom: var(--gap-section);
+}
+.toolbar {
+  padding: 14px 16px;
+  gap: 10px 12px;
+}
+.detail,
+.editor {
+  padding: 20px;
+}
+.detail > .toolbar,
+.editor > .toolbar {
+  padding: 0 0 14px;
+  margin-bottom: var(--gap-section);
+}
+.business-settings fieldset {
+  padding: 16px;
+  margin: var(--gap-section) 0;
+}
+.business-settings .settings-actions {
+  margin: var(--gap-section) 0;
+}
+.action-row {
+  margin: var(--gap-stack) 0;
+}
+.footnote {
+  margin: var(--gap-stack) 0;
+}
+@media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
+  main {
+    padding: 16px 12px 24px;
+  }
+  .toolbar {
+    padding: 12px;
+    margin-top: 0;
+    gap: 10px;
+  }
+  .mobile-sort {
+    padding: 10px 12px;
+  }
+  .stats article {
+    padding: 12px 14px;
+  }
+  .detail,
+  .editor {
+    padding: 16px;
+  }
+  .business-settings fieldset {
+    padding: 14px 12px;
+  }
+}
+
+/* Lists on phones: a card is 12px inside; its lines 4px apart; cards 8px apart. */
+.mobile-cards tbody {
+  gap: 8px;
+  padding: 10px;
+}
+.mobile-cards tr {
+  gap: 4px 12px;
+  padding: 12px 14px;
+}
+.mobile-cards td.mobile-cell-actions {
+  padding-top: 8px;
+  margin-top: 4px;
+}
+.responsive-records > .mobile-cards td.mobile-cell-actions {
+  padding-top: 8px;
+}
+.mobile-meta {
+  margin-top: 2px;
+}
+
+/* A card's details sit under the name and amount, across the whole card: short ones two to a
+   line, long ones (notes, references) on their own. Audit lines (who and when) sit at the bottom
+   right beside the actions, so the name column stays short. */
+.mobile-cards td.mobile-cell-details {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+.mobile-cards td.mobile-cell-main {
+  grid-row: 1;
+}
+.mobile-cards td.mobile-cell-third,
+.mobile-cards td.mobile-cell-actions {
+  grid-row: auto;
+}
+.mobile-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px 12px;
+}
+.mobile-details > .mobile-meta-long,
+.mobile-details > .mobile-meta:has(.record-id, .material-id, .badge, button) {
+  grid-column: 1 / -1;
+}
+.mobile-details .mobile-meta {
+  margin-top: 0;
+}
+.mobile-details .mobile-meta small {
+  display: inline;
+}
+.mobile-details .mobile-meta small:not(:empty)::before {
+  content: " · ";
+}
+.record-details > .mobile-details {
+  margin-top: 4px;
+}
+.mobile-cards td.mobile-cell-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 6px 12px;
+}
+.mobile-cards td.mobile-cell-actions > .mobile-actions {
+  flex: 1 1 auto;
+}
+.mobile-cards td.mobile-cell-actions:has(.mobile-audit) > .mobile-actions {
+  flex: 0 1 auto;
+}
+.mobile-cards td.mobile-cell-actions:has(.mobile-audit) .mobile-actions > .text-button:last-child {
+  margin-left: 0;
+}
+.mobile-audit {
+  flex: 1 1 0;
+  min-width: 140px;
+  display: grid;
+  gap: 0;
+  text-align: right;
+  font-size: 11px;
+  color: var(--subtle);
+}
+.mobile-audit .mobile-meta {
+  margin: 0;
+  text-align: right;
+  font-size: 11px;
+}
+.mobile-audit .mobile-meta small {
+  display: inline;
+  font-size: 11px;
+}
+.mobile-audit .mobile-meta small:not(:empty)::before {
+  content: " · ";
+}
+.mobile-cards .mobile-cell-main .record-id {
+  margin-top: 2px;
+  line-height: 1.4;
+}
+.dashboard-filters {
+  padding: 14px 16px;
+  gap: 12px;
+}
+.dashboard-grid {
+  gap: var(--gap-section);
+}
+.dashboard-panel {
+  padding: 16px 18px;
+}
+.dashboard-row {
+  padding: 10px 0;
+  gap: 12px;
+}
+@media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
+  .dashboard-filters {
+    padding: 12px;
+  }
+  .dashboard-panel {
+    padding: 14px;
+  }
+}
+
+/* Every tick box and radio button is the same 18px, whichever label style wraps it. */
+input[type="checkbox"],
+input[type="radio"],
+label.checkbox input[type="checkbox"],
+.material-checkbox input[type="checkbox"],
+.check-label input[type="checkbox"],
+.material-choice-list input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  flex: none;
+  accent-color: var(--brand-primary);
+}
+.form-grid > :is(.check-label, label.checkbox, .material-checkbox) > input[type="checkbox"] {
+  grid-row: auto;
+  width: 18px;
+}
+
+/* Jobs in a checkout or quotation: the job's title, then its fields, 12px apart. */
+.cart-line {
+  padding: 14px;
+  margin: 0 0 var(--gap-stack);
+}
+.cart-line-title {
+  margin-bottom: 10px;
+}
+.cart-line .form-grid {
+  margin: 0 0 4px;
+}
+@media (max-width: 740px) {
+  .cart-line {
+    padding: 12px;
+  }
 }

@@ -112,17 +112,48 @@ export default function ResponsiveTable({
   const sort = sortHeaders[0]?.props.sort;
   const label = (index: number) =>
     labels[index] ?? headers[index]?.props.label ?? headers[index]?.props.children ?? 'Details';
-  const auditing = headers.some(
-    (header) =>
-      ['createdBy', 'modifiedBy'].includes(header.props.column ?? '') ||
-      /\baudit-heading\b/.test(header.props.className ?? ''),
-  );
-  const metadata = (cells: Element[], detail: number) => (
-    <div className="mobile-meta" key={detail}>
-      <span className="mobile-meta-label">{label(detail)}: </span>
-      {cells[detail]?.props.children}
-    </div>
-  );
+  // Audit columns (who created or changed a record, and when) sit at the bottom right of a card,
+  // beside the actions, so the name column stays short.
+  const isAudit = (index: number) => {
+    const header = headers[index];
+    if (!header) return false;
+    const column = header.props.column ?? '';
+    return (
+      ['createdAt', 'modifiedAt', 'createdBy', 'modifiedBy'].includes(column) ||
+      /\baudit-heading\b/.test(header.props.className ?? '') ||
+      /^(Created|Modified|Changed|Recorded)$/.test(String(header.props.label ?? ''))
+    );
+  };
+  const auditing = headers.some((_, index) => isAudit(index));
+  const shown = columns.slice(0, 3);
+  const mainColumn = shown.find((column) => !column.actions);
+  const mainDetails = (mainColumn?.details ?? []).map(resolve);
+  const auditIndexes = [...mainDetails, ...extra].filter(isAudit);
+  const plainDetails = mainDetails.filter((index) => !isAudit(index));
+  const plainExtra = extra.filter((index) => !isAudit(index));
+  const hasDetails = plainDetails.length > 0 || plainExtra.length > 0;
+  const actionsColumn = shown.find((column) => column.actions);
+  // Short details share a line in pairs; long ones (notes, references) take the full width.
+  const textOf = (node: ReactNode): string =>
+    node == null || typeof node === 'boolean'
+      ? ''
+      : typeof node === 'string' || typeof node === 'number'
+        ? String(node)
+        : Array.isArray(node)
+          ? node.map(textOf).join('')
+          : isValidElement(node)
+            ? textOf((node as Element).props.children)
+            : '';
+  const metadata = (cells: Element[], detail: number) => {
+    const value = cells[detail]?.props.children;
+    const long = textOf(value).length + String(label(detail)).length > 26;
+    return (
+      <div className={long ? 'mobile-meta mobile-meta-long' : 'mobile-meta'} key={detail}>
+        <span className="mobile-meta-label">{label(detail)}: </span>
+        {value}
+      </div>
+    );
+  };
   return (
     <div className="responsive-records" ref={container}>
       {!mobile && !narrow ? (
@@ -162,7 +193,7 @@ export default function ResponsiveTable({
           <table className="mobile-list mobile-cards" aria-label={table.props['aria-label']}>
             <thead>
               <tr>
-                {columns.slice(0, 3).map((column) => (
+                {shown.map((column) => (
                   <th key={column.index} scope="col">
                     {column.label}
                   </th>
@@ -172,45 +203,59 @@ export default function ResponsiveTable({
             <tbody>
               {rows.map((row) => {
                 const cells = elements(row.props.children);
+                const audit = auditIndexes.map((detail) => metadata(cells, detail));
                 return (
                   <tr key={row.key}>
-                    {columns.slice(0, 3).map((column, position) => {
-                      const index = resolve(column.index);
-                      const details = (column.details ?? []).map(resolve);
-                      return (
-                        <td
-                          key={column.index}
-                          className={
-                            column.actions
-                              ? 'mobile-cell-actions'
-                              : position === 0
+                    {shown
+                      .filter((column) => !column.actions)
+                      .flatMap((column, position) => {
+                        const index = resolve(column.index);
+                        const details = (column.details ?? []).map(resolve);
+                        const cell = (
+                          <td
+                            key={column.index}
+                            className={
+                              position === 0
                                 ? 'mobile-cell-main'
                                 : position === 1
                                   ? 'mobile-cell-side'
                                   : 'mobile-cell-third'
-                          }
-                        >
-                          {column.actions ? (
-                            <MobileActions>{cells[index]?.props.children}</MobileActions>
-                          ) : (
-                            <>
-                              <div className="mobile-main-value">{cells[index]?.props.children}</div>
-                              {details.map((detail) => metadata(cells, detail))}
-                              {position === 0 &&
-                                extra.length > 0 &&
-                                (auditing ? (
-                                  extra.map((detail) => metadata(cells, detail))
-                                ) : (
+                            }
+                          >
+                            <div className="mobile-main-value">{cells[index]?.props.children}</div>
+                            {position > 0 && details.map((detail) => metadata(cells, detail))}
+                          </td>
+                        );
+                        // The details follow the name in reading order; the amount is placed
+                        // beside the name by the card's grid.
+                        return position === 0 && hasDetails
+                          ? [
+                              cell,
+                              <td className="mobile-cell-details" key="details">
+                                <div className="mobile-details">
+                                  {plainDetails.map((detail) => metadata(cells, detail))}
+                                  {auditing && plainExtra.map((detail) => metadata(cells, detail))}
+                                </div>
+                                {!auditing && plainExtra.length > 0 && (
                                   <details className="record-details">
                                     <summary>More details</summary>
-                                    {extra.map((detail) => metadata(cells, detail))}
+                                    <div className="mobile-details">
+                                      {plainExtra.map((detail) => metadata(cells, detail))}
+                                    </div>
                                   </details>
-                                ))}
-                            </>
-                          )}
-                        </td>
-                      );
-                    })}
+                                )}
+                              </td>,
+                            ]
+                          : [cell];
+                      })}
+                    {(actionsColumn || audit.length > 0) && (
+                      <td className="mobile-cell-actions">
+                        {actionsColumn && (
+                          <MobileActions>{cells[resolve(actionsColumn.index)]?.props.children}</MobileActions>
+                        )}
+                        {audit.length > 0 && <div className="mobile-audit">{audit}</div>}
+                      </td>
+                    )}
                   </tr>
                 );
               })}
