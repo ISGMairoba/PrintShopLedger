@@ -3045,3 +3045,22 @@ label.checkbox input[type="checkbox"],
   overscroll-behavior-x: contain;
   scrollbar-width: thin;
 }
+/* Chart series buttons: compact chips that sit several to a line on phones. */
+.dashboard-legend {
+  gap: 8px;
+  margin: 10px 0 12px;
+}
+.dashboard-legend button {
+  min-height: 34px;
+  padding: 4px 10px;
+  gap: 6px;
+  font-size: 12px;
+}
+/* A hidden series reads as switched off (faded, struck through) instead of a "Shown/Hidden" word. */
+.chart-toggle > small {
+  display: none;
+}
+.chart-toggle[aria-pressed="false"] {
+  opacity: 0.55;
+  text-decoration: line-through;
+}

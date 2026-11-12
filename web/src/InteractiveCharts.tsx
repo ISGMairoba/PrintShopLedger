@@ -422,6 +422,9 @@ export function InteractiveTrend({
                 <XAxis dataKey="label" minTickGap={16} tick={{ fill: 'var(--subtle)', fontSize: 11 }} />
                 <YAxis
                   width={62}
+                allowDecimals={false}
+                // At least ₦1,000 tall, so a quiet period never shows ₦0 on every line.
+                domain={[(min: number) => Math.min(0, min), (max: number) => Math.max(max, 100000)]}
                   tickFormatter={(value) => `₦${compact(Number(value) / 100)}`}
                   tick={{ fill: 'var(--subtle)', fontSize: 11 }}
                 />
