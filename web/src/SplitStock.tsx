@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
+import DialogActions from './DialogActions';
 import Modal from './Modal';
 import Icon from './Icon';
 import SearchSelect from './SearchSelect';
@@ -71,15 +72,26 @@ export default function SplitStock({
   const fromAfter = rows[0]?.plan?.from;
   const describe = () => rows.map((r) => `${r.plan?.change} ${r.to?.name}`).join(' + ');
   const unit = (m: Material) => m.measurementUnit;
+  const formId = useId();
   return (
-    <Modal title={`${join ? 'Put back together' : 'Split'}: ${material.name}`} busy={busy} onClose={onClose}>
+    <Modal
+      title={`${join ? 'Put back together' : 'Split'}: ${material.name}`}
+      busy={busy}
+      onClose={onClose}
+      footer={
+        <DialogActions form={formId} busy={busy} disabled={!ready} onCancel={onClose}>
+          {join ? 'Put back together' : 'Split stock'}
+        </DialogActions>
+      }
+    >
       {error && (
         <p className="notice notice-error" role="alert">
           {error}
         </p>
       )}
       <form
-        className="split-stock"
+        id={formId}
+        className="split-stock stack"
         onSubmit={async (e) => {
           e.preventDefault();
           if (busy || !ready) return;
@@ -117,7 +129,7 @@ export default function SplitStock({
           }
         }}
       >
-        <fieldset disabled={busy}>
+        <fieldset disabled={busy} className="stack">
           <div className="split-direction" role="radiogroup" aria-label="What to do">
             <label className="check-label">
               <input type="radio" checked={!join} onChange={() => setJoin(false)} /> Split into smaller{' '}
@@ -143,11 +155,11 @@ export default function SplitStock({
               <span>{unit(material)}</span>
             </span>
           </label>
-          <p className="muted">
+          <p className="field-heading">
             One {material.measurementUnit} of {material.name} makes:
           </p>
           {rows.map(({ piece, to }, i) => (
-            <div className="form-grid split-piece" key={piece.key}>
+            <div className="split-piece" key={piece.key}>
               <SearchSelect
                 label={join ? `${wt('Material')} it was split into` : `Piece ${i + 1}`}
                 value={piece.toId}
@@ -185,11 +197,12 @@ export default function SplitStock({
               {pieces.length > 1 && (
                 <button
                   type="button"
-                  className="secondary"
+                  className="secondary icon-button"
                   aria-label={`Remove piece ${i + 1}`}
+                  title="Remove"
                   onClick={() => setPieces((list) => list.filter((p) => p.key !== piece.key))}
                 >
-                  <Icon name="close" /> Remove
+                  <Icon name="close" />
                 </button>
               )}
             </div>
@@ -220,14 +233,6 @@ export default function SplitStock({
             Note (optional)
             <input maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} />
           </label>
-          <div className="dialog-action-buttons">
-            <button type="button" className="secondary" onClick={onClose}>
-              <Icon name="close" /> Cancel
-            </button>
-            <button type="submit" disabled={!ready}>
-              <Icon name="save" /> {join ? 'Put back together' : 'Split stock'}
-            </button>
-          </div>
         </fieldset>
       </form>
     </Modal>
