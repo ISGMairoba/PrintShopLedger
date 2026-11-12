@@ -81,7 +81,13 @@ export function splitPlan(from, to, quantity, made, join = false) {
     [quantity, 'how many to ' + (join ? 'put back together' : 'split')],
     [made, 'how many one item makes'],
   ])
-    if (typeof n !== 'number' || !Number.isFinite(n) || n <= 0 || n > 1000000000 || Math.abs(n * 1000 - Math.round(n * 1000)) > 0.001)
+    if (
+      typeof n !== 'number' ||
+      !Number.isFinite(n) ||
+      n <= 0 ||
+      n > 1000000000 ||
+      Math.abs(n * 1000 - Math.round(n * 1000)) > 0.001
+    )
       throw new Error(`Enter ${what}: greater than zero, at most three decimal places.`);
   const change = Math.round(quantity * made * 1000) / 1000;
   return {
@@ -95,7 +101,8 @@ function splitMaterial(ledger, event, existing, audit, record) {
   const to = ledger.materials.find((m) => m.id === d.toId);
   if (!to || to.id === existing.id) throw new Error('Choose the other material.');
   if (existing.archived || to.archived) throw new Error('Restore both materials before splitting stock.');
-  if (to.version !== d.toBaseVersion) throw new Error('This material changed elsewhere. Sync and reopen it before editing.');
+  if (to.version !== d.toBaseVersion)
+    throw new Error('This material changed elsewhere. Sync and reopen it before editing.');
   if (!d.toEventId || ledger.materialHistory.some((h) => h.id === d.toEventId))
     throw new Error('Material identity and audit information are required.');
   if (d.reason && (typeof d.reason !== 'string' || d.reason.length > 500))

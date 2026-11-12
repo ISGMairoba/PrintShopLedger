@@ -9,19 +9,33 @@ const ev = (kind, data, id = crypto.randomUUID()) => ({
   data: { modifiedBy: 'u', modifiedByLabel: 'Owner', modifiedAt: '2026-11-12T10:00:00Z', ...data },
 });
 const create = (l, id, name, available) =>
-  applyMaterialEvent(l, ev('material.created', { id, name, available, measurementUnit: 'sheets', requireSize: false }));
+  applyMaterialEvent(
+    l,
+    ev('material.created', { id, name, available, measurementUnit: 'sheets', requireSize: false }),
+  );
 
 test('split stock: A4 into A5, and back together to fix a mistake', () => {
   let l = create(create(emptyLedger(), 'a4', 'A4', 100), 'a5', 'A5', 4);
   const v = (id) => l.materials.find((m) => m.id === id);
   l = applyMaterialEvent(
     l,
-    ev('material.split', { id: 'a4', baseVersion: 1, toId: 'a5', toBaseVersion: 1, toEventId: 'h2', quantity: 10, yield: 2, reason: 'Cut' }),
+    ev('material.split', {
+      id: 'a4',
+      baseVersion: 1,
+      toId: 'a5',
+      toBaseVersion: 1,
+      toEventId: 'h2',
+      quantity: 10,
+      yield: 2,
+      reason: 'Cut',
+    }),
   );
   assert.equal(v('a4').available, 90);
   assert.equal(v('a5').available, 24);
   assert.deepEqual(
-    l.materialHistory.filter((h) => h.action === 'material.split').map((h) => [h.materialId, h.beforeAvailable, h.afterAvailable]),
+    l.materialHistory
+      .filter((h) => h.action === 'material.split')
+      .map((h) => [h.materialId, h.beforeAvailable, h.afterAvailable]),
     [
       ['a4', 100, 90],
       ['a5', 4, 24],
@@ -29,7 +43,16 @@ test('split stock: A4 into A5, and back together to fix a mistake', () => {
   );
   l = applyMaterialEvent(
     l,
-    ev('material.split', { id: 'a4', baseVersion: 2, toId: 'a5', toBaseVersion: 2, toEventId: 'h4', quantity: 3, yield: 2, join: true }),
+    ev('material.split', {
+      id: 'a4',
+      baseVersion: 2,
+      toId: 'a5',
+      toBaseVersion: 2,
+      toEventId: 'h4',
+      quantity: 3,
+      yield: 2,
+      join: true,
+    }),
   );
   assert.equal(v('a4').available, 93);
   assert.equal(v('a5').available, 18);
@@ -37,7 +60,15 @@ test('split stock: A4 into A5, and back together to fix a mistake', () => {
     () =>
       applyMaterialEvent(
         l,
-        ev('material.split', { id: 'a4', baseVersion: 1, toId: 'a5', toBaseVersion: 3, toEventId: 'h5', quantity: 1, yield: 2 }),
+        ev('material.split', {
+          id: 'a4',
+          baseVersion: 1,
+          toId: 'a5',
+          toBaseVersion: 3,
+          toEventId: 'h5',
+          quantity: 1,
+          yield: 2,
+        }),
       ),
     /changed elsewhere/,
   );
@@ -46,7 +77,15 @@ test('split stock: A4 into A5, and back together to fix a mistake', () => {
     () =>
       applyMaterialEvent(
         l,
-        ev('material.split', { id: 'a4', baseVersion: 3, toId: 'a4', toBaseVersion: 3, toEventId: 'h6', quantity: 1, yield: 2 }),
+        ev('material.split', {
+          id: 'a4',
+          baseVersion: 3,
+          toId: 'a4',
+          toBaseVersion: 3,
+          toEventId: 'h6',
+          quantity: 1,
+          yield: 2,
+        }),
       ),
     /other material/,
   );
