@@ -157,15 +157,16 @@ export default function PointOfServicePage({
             </>
           }
         >
+          {/* On phones: Quick sale sits beside the view buttons; Receive payment fills the next row. */}
           <button
-            className="secondary"
+            className="secondary fill-action"
             disabled={busy || !ready || !ledger.customers.length}
             onClick={onPayment}
           >
             <Icon name="payments" /> Receive payment
           </button>
           {onQuickSale && ledger.services.some((s) => s.shelfItem && !s.archived) && (
-            <button className="secondary" disabled={busy || !ready} onClick={onQuickSale}>
+            <button className="secondary compact-action" disabled={busy || !ready} onClick={onQuickSale}>
               <Icon name="drawer" /> Quick sale
             </button>
           )}
@@ -186,9 +187,9 @@ export default function PointOfServicePage({
         <div className="table-wrap">
           <ResponsiveTable
             columns={[
-              { index: 0, label: 'Receipt', details: [1, 4] },
+              { index: 1, label: 'Customer', details: [0, 4] },
               { index: 2, label: 'Amount', details: [3] },
-              { index: 5, label: 'Actions' },
+              { index: 5, label: 'Actions', actions: true },
             ]}
           >
             <table>
@@ -198,7 +199,7 @@ export default function PointOfServicePage({
                   <SortHeader column="customer" label="Customer" sort={receiptSorting} />
                   <SortHeader column="total" label={w('New jobs')} sort={receiptSorting} />
                   <SortHeader column="cash" label="Money received" sort={receiptSorting} />
-                  <SortHeader column="createdAt" label="Date" sort={receiptSorting} />
+                  <SortHeader column="createdAt" label="Issued" sort={receiptSorting} />
                   <th>Actions</th>
                 </tr>
               </thead>

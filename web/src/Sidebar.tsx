@@ -7,11 +7,14 @@ export default function Sidebar({
   header,
   children,
   footer,
+  trailing,
 }: {
   title: string;
   header: ReactNode;
   children: ReactNode;
   footer: ReactNode;
+  /** Shown at the right end of the phone title bar (the sync state). */
+  trailing?: ReactNode;
 }) {
   const mobile = useMobileLayout();
   const [open, setOpen] = useState(false);
@@ -68,6 +71,7 @@ export default function Sidebar({
           <span aria-hidden="true">☰</span> Menu
         </button>
         <strong>{title}</strong>
+        {trailing}
       </div>
       {open && (
         <Modal title="Navigation" closeLabel="Menu" className="sidebar-drawer" onClose={() => setOpen(false)}>

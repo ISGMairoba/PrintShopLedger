@@ -134,9 +134,11 @@ export default function ResponsiveTable({
   const shown = columns.slice(0, 3);
   const mainColumn = shown.find((column) => !column.actions);
   const mainDetails = (mainColumn?.details ?? []).map(resolve);
-  const dateIndexes = [...mainDetails, ...(auditing ? extra : [])].filter(isDate);
-  const plainDetails = mainDetails.filter((index) => !isDate(index));
-  const plainExtra = extra.filter((index) => !auditing || !isDate(index));
+  // In audit view the right column holds only the audit lines, so the card stays short.
+  const rightSide = (index: number) => (auditing ? isAudit(index) : isDate(index));
+  const dateIndexes = [...mainDetails, ...(auditing ? extra : [])].filter(rightSide);
+  const plainDetails = mainDetails.filter((index) => !rightSide(index));
+  const plainExtra = extra.filter((index) => !auditing || !isAudit(index));
   const hasDetails = plainDetails.length > 0 || plainExtra.length > 0;
   const actionsColumn = shown.find((column) => column.actions);
   // Short details share a line in pairs; long ones (notes, references) take the full width.
