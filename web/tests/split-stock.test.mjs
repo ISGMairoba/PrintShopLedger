@@ -137,3 +137,52 @@ test('split stock: only a material that can be split', () => {
     /Can be split/,
   );
 });
+
+test('split stock into several pieces: 1 A2 makes 1 A3 + 1 A4 + 2 A7, and offcuts are allowed', () => {
+  let l = create(create(create(create(emptyLedger(), 'a2', 'A2', 10), 'a3', 'A3', 0), 'a4', 'A4', 5), 'a7', 'A7', 0);
+  const v = (id) => l.materials.find((m) => m.id === id);
+  const pieces = [
+    { toId: 'a3', toBaseVersion: 1, toEventId: 'p1', yield: 1 },
+    { toId: 'a4', toBaseVersion: 1, toEventId: 'p2', yield: 1 },
+    { toId: 'a7', toBaseVersion: 1, toEventId: 'p3', yield: 2 },
+  ];
+  l = applyMaterialEvent(l, ev('material.split', { id: 'a2', baseVersion: 1, pieces, quantity: 3 }));
+  assert.deepEqual(
+    ['a2', 'a3', 'a4', 'a7'].map((id) => v(id).available),
+    [7, 3, 8, 6],
+  );
+  assert.equal(l.materialHistory.filter((h) => h.action === 'material.split').length, 4);
+  // Put back together reverses every piece.
+  l = applyMaterialEvent(
+    l,
+    ev('material.split', {
+      id: 'a2',
+      baseVersion: 2,
+      join: true,
+      quantity: 1,
+      pieces: pieces.map((p, i) => ({ ...p, toBaseVersion: 2, toEventId: `j${i}` })),
+    }),
+  );
+  assert.deepEqual(
+    ['a2', 'a3', 'a4', 'a7'].map((id) => v(id).available),
+    [8, 2, 7, 4],
+  );
+  // The same smaller material twice, or the material itself, is refused.
+  for (const bad of [
+    [pieces[0], { ...pieces[0], toEventId: 'x' }],
+    [{ ...pieces[0], toId: 'a2' }],
+  ])
+    assert.throws(
+      () =>
+        applyMaterialEvent(
+          l,
+          ev('material.split', {
+            id: 'a2',
+            baseVersion: 3,
+            quantity: 1,
+            pieces: bad.map((p, i) => ({ ...p, toBaseVersion: 3, toEventId: `b${i}` })),
+          }),
+        ),
+      /once|other material/,
+    );
+});

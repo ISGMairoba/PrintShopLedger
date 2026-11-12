@@ -307,6 +307,8 @@ export interface MaterialCommand {
   toBaseVersion?: number;
   yield?: number;
   toEventId?: string;
+  /** material.split into several smaller materials (replaces toId/toBaseVersion/yield/toEventId). */
+  pieces?: { toId: string; toBaseVersion: number; toEventId: string; yield: number }[];
   join?: boolean;
   modifiedBy: string;
   modifiedByLabel: string;
