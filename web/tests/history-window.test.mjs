@@ -200,3 +200,27 @@ test('the check tries short windows too, for a young business', () => {
   for (const r of results) assert.deepEqual(r.differences, [], r.label);
   assert.ok(results[0].dropped.jobs >= 3);
 });
+
+test('a trimmed copy keeps every expense, so This month expense totals match', () => {
+  const paid = (id, incurredOn) => ({
+    id,
+    description: 'Rent',
+    category: 'Rent',
+    incurredOn,
+    amount: 5000,
+    payee: '',
+    note: '',
+    receiptReference: '',
+    materials: [],
+    payments: [{ id: id + 'p', amount: 5000, paidOn: incurredOn, method: 'Cash', source: 'business', reference: '' }],
+    voided: false,
+    voidReason: '',
+    version: 1,
+    createdAt: incurredOn + 'T09:00:00Z',
+    modifiedAt: incurredOn + 'T09:00:00Z',
+  });
+  const ledger = { ...business(), expenses: [paid('e1', '2026-10-02'), paid('e2', '2026-10-25')] };
+  const { ledger: trimmed } = trimHistory(ledger, '2026-10-20');
+  assert.equal(trimmed.expenses.length, 2, 'an old paid expense is kept');
+  assert.equal(trimmed.expenseHistory.length, ledger.expenseHistory.length);
+});
