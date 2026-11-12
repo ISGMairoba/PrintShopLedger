@@ -449,7 +449,9 @@ export default function MaterialsPage({
                                 className="text-button"
                                 disabled={busy || !material.canSplit}
                                 title={
-                                  material.canSplit ? undefined : 'Turn on "Can be split" in Edit to split this stock'
+                                  material.canSplit
+                                    ? undefined
+                                    : 'Turn on "Can be split" in Edit to split this stock'
                                 }
                                 onClick={() => {
                                   setSplitting(material);
@@ -826,8 +828,8 @@ export default function MaterialsPage({
                 </label>
                 <label className="material-checkbox">
                   <span>
-                    <input name="canSplit" type="checkbox" defaultChecked={editing?.canSplit ?? false} /> Can be
-                    split
+                    <input name="canSplit" type="checkbox" defaultChecked={editing?.canSplit ?? false} /> Can
+                    be split
                   </span>
                   <small>
                     {wt(
