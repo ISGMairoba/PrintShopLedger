@@ -122,7 +122,7 @@ export default function AddProduct({
     }
   }
   return (
-<Modal title="Add product" busy={busy} onClose={onClose}>
+    <Modal title="Add product" busy={busy} onClose={onClose}>
       {error && (
         <div className="notice" role="alert">
           {error}
@@ -178,8 +178,8 @@ export default function AddProduct({
             <fieldset className="variant-rows">
               <legend>Variants</legend>
               <p className="muted">
-                Each variant keeps its own stock. They share the price and pack prices, and each is priced
-                on its own: pieces of different variants never make up a pack.
+                Each variant keeps its own stock. They share the price and pack prices, and each is priced on
+                its own: pieces of different variants never make up a pack.
               </p>
               {variantRows.map((row, index) => (
                 <div className="variant-row" key={index}>

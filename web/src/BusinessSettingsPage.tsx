@@ -1239,7 +1239,8 @@ export default function BusinessSettingsPage({
                         onChange={(e) => {
                           const features = { ...(draft.features ?? {}), [page]: e.target.checked };
                           // Keep only the parts that differ from the business type.
-                          if (typeFeatures(draft.businessType)[page] === e.target.checked) delete features[page];
+                          if (typeFeatures(draft.businessType)[page] === e.target.checked)
+                            delete features[page];
                           field('features', features);
                         }}
                       />
