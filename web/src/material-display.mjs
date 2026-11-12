@@ -28,6 +28,7 @@ export const materialActionLabels = {
   'material.updated': 'Material edited',
   'material.stock_added': 'Stock added',
   'material.stock_set': 'Quantity set',
+  'material.split': 'Split or put together',
   'material.archived': 'Material archived',
   'material.restored': 'Material restored',
   'material.transferred': 'Stock transferred',

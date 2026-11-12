@@ -298,6 +298,13 @@ export interface MaterialCommand {
   baseVersion?: number;
   quantity?: number;
   reason?: string;
+  /** material.split: the smaller material, its version, how many one item of this makes, the
+   * id of its history entry, and whether it is put back together (join) instead of split. */
+  toId?: string;
+  toBaseVersion?: number;
+  yield?: number;
+  toEventId?: string;
+  join?: boolean;
   modifiedBy: string;
   modifiedByLabel: string;
   modifiedAt: string;
@@ -310,7 +317,8 @@ export type MaterialEvent = {
     | 'material.archived'
     | 'material.restored'
     | 'material.stock_added'
-    | 'material.stock_set';
+    | 'material.stock_set'
+    | 'material.split';
   data: MaterialCommand;
 };
 export interface MaterialSnapshot {

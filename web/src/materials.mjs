@@ -71,6 +71,57 @@ export function validateMaterial(data) {
   )
     throw new Error('Available must be within the supported range, with at most three decimal places.');
 }
+/**
+ * Materials → Split: cut stock of one material into a smaller one (1 A4 makes 2 A5), or put it
+ * back together (join, to fix a split entered by mistake). Both stock levels change in one step,
+ * each with its own history entry.
+ */
+export function splitPlan(from, to, quantity, made, join = false) {
+  for (const [n, what] of [
+    [quantity, 'how many to ' + (join ? 'put back together' : 'split')],
+    [made, 'how many one item makes'],
+  ])
+    if (typeof n !== 'number' || !Number.isFinite(n) || n <= 0 || n > 1000000000 || Math.abs(n * 1000 - Math.round(n * 1000)) > 0.001)
+      throw new Error(`Enter ${what}: greater than zero, at most three decimal places.`);
+  const change = Math.round(quantity * made * 1000) / 1000;
+  return {
+    from: Math.round((from.available + (join ? quantity : -quantity)) * 1000) / 1000,
+    to: Math.round((to.available + (join ? -change : change)) * 1000) / 1000,
+    change,
+  };
+}
+function splitMaterial(ledger, event, existing, audit, record) {
+  const d = event.data;
+  const to = ledger.materials.find((m) => m.id === d.toId);
+  if (!to || to.id === existing.id) throw new Error('Choose the other material.');
+  if (existing.archived || to.archived) throw new Error('Restore both materials before splitting stock.');
+  if (to.version !== d.toBaseVersion) throw new Error('This material changed elsewhere. Sync and reopen it before editing.');
+  if (!d.toEventId || ledger.materialHistory.some((h) => h.id === d.toEventId))
+    throw new Error('Material identity and audit information are required.');
+  if (d.reason && (typeof d.reason !== 'string' || d.reason.length > 500))
+    throw new Error('Stock note must be up to 500 characters.');
+  const plan = splitPlan(existing, to, d.quantity, d.yield, !!d.join);
+  const fromNext = { ...existing, available: plan.from, ...audit, version: existing.version + 1 };
+  const toNext = { ...to, available: plan.to, ...audit, lastEventId: d.toEventId, version: to.version + 1 };
+  validateMaterial(fromNext);
+  validateMaterial(toNext);
+  const second = {
+    ...record(fromNext),
+    id: d.toEventId,
+    materialId: to.id,
+    materialName: to.name,
+    measurementUnit: to.measurementUnit,
+    beforeAvailable: to.available,
+    afterAvailable: toNext.available,
+    before: materialSnapshot(to),
+    after: materialSnapshot(toNext),
+  };
+  return {
+    ...ledger,
+    materials: ledger.materials.map((m) => (m.id === existing.id ? fromNext : m.id === to.id ? toNext : m)),
+    materialHistory: [...ledger.materialHistory, record(fromNext), second],
+  };
+}
 export function applyMaterialEvent(input, event) {
   const ledger = normalizeLedger(input);
   const data = event.data;
@@ -134,6 +185,7 @@ export function applyMaterialEvent(input, event) {
   if (!existing) throw new Error('Material not found.');
   if (data.baseVersion !== existing.version)
     throw new Error('This material changed elsewhere. Sync and reopen it before editing.');
+  if (event.kind === 'material.split') return splitMaterial(ledger, event, existing, audit, record);
   if (event.kind === 'material.updated') {
     if (existing.archived) throw new Error('Restore this material before editing it.');
     validateMaterial(data);

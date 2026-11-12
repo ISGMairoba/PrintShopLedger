@@ -13,6 +13,7 @@ import { materialCode, stockLevel } from './material-display.mjs';
 import type { Expense, ExpenseEvent, Material, MaterialEvent, MaterialHistoryEntry } from './types';
 import { useWords } from './Words';
 import ReorderList from './ReorderList';
+import SplitStock from './SplitStock';
 import { RequestStockModal, StockRequestsPanel } from './StockRequests';
 import { reorderList } from './reorder.mjs';
 import { renameActive as wt } from './Words';
@@ -95,6 +96,7 @@ export default function MaterialsPage({
   const [error, setError] = useFeedbackMessage('error');
   const [audit, setAudit] = useState(false);
   const [stock, setStock] = useState<{ material: Material; mode: 'add' | 'set' } | null>(null);
+  const [splitting, setSplitting] = useState<Material | null>(null);
   const [stockReason, setStockReason] = useState('');
   const noteSuggestions = [
     ...new Set([
@@ -442,6 +444,19 @@ export default function MaterialsPage({
                               >
                                 <Icon name="quantity" /> Set quantity
                               </button>
+                              <button
+                                className="text-button"
+                                disabled={busy}
+                                onClick={() => {
+                                  setSplitting(material);
+                                  setEditor(null);
+                                  setStock(null);
+                                  setConfirmation(null);
+                                  setError('');
+                                }}
+                              >
+                                <Icon name="copy" /> Split
+                              </button>
                               {locations && locations.list.length > 1 && (
                                 <button
                                   className="text-button"
@@ -499,6 +514,16 @@ export default function MaterialsPage({
           </div>
         )}
       </section>
+      {splitting && (
+        <SplitStock
+          material={materials.find((m) => m.id === splitting.id) ?? splitting}
+          materials={materials}
+          busy={busy}
+          actor={actor}
+          onSave={onSave}
+          onClose={() => setSplitting(null)}
+        />
+      )}
       {stock && (
         <Modal
           title={`${stock.mode === 'add' ? 'Add to stock' : 'Set quantity'}: ${stock.material.name}`}
