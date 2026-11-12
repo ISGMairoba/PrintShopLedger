@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { autoGrouping, groupTrend } from './trend-buckets.mjs';
+import { useMobileLayout } from './ResponsiveTable';
 import {
   Bar,
   BarChart,
@@ -351,12 +353,36 @@ export function InteractiveTrend({
     ...(expenses && sales ? [{ key: 'netIncome', name: 'Sales less expenses', color: chartColor(4) }] : []),
   ];
   const shown = series.filter((item) => !hidden.includes(item.key));
+  // Each date (or week, or month) needs room for its bars: 10px a bar plus a gap. "Automatic" groups
+  // the dates so they fit; a finer choice scrolls sideways, starting at the latest dates.
+  const mobile = useMobileLayout();
+  const [grouping, setGrouping] = useState<'auto' | 'day' | 'week' | 'month'>('auto');
+  const groupWidth = Math.max(28, Math.max(shown.length, 1) * 10 + 12);
+  const room = mobile ? 300 : 760;
+  const used = grouping === 'auto' ? autoGrouping(rows, Math.floor(room / groupWidth)) : grouping;
+  const data = groupTrend(rows, used);
+  const chartWidth = Math.max(room, data.length * groupWidth + 70);
+  const scroller = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const box = scroller.current;
+    if (box) box.scrollLeft = box.scrollWidth;
+  }, [chartWidth, used]);
+  const unit = used === 'day' ? 'date' : used;
   return (
     <>
       <small>
-        Hover or tap a date to see amounts. Use the buttons to show or hide a series. Arrow keys also move
-        between dates.
+        Hover or tap a {unit} to see amounts. Use the buttons to show or hide a series.
+        {chartWidth > room && ' Swipe the chart sideways for earlier dates.'}
       </small>
+      <label className="trend-grouping">
+        <span>Show by</span>
+        <select value={grouping} onChange={(e) => setGrouping(e.target.value as typeof grouping)}>
+          <option value="auto">Automatic ({used === 'day' ? 'day' : used})</option>
+          <option value="day">Day</option>
+          <option value="week">Week</option>
+          <option value="month">Month</option>
+        </select>
+      </label>
       <div className="dashboard-legend">
         {series.map((item) => (
           <Toggle
@@ -374,15 +400,25 @@ export function InteractiveTrend({
           />
         ))}
       </div>
-      <div className="dashboard-chart" aria-label="Sales, collections and expenses by date">
+      <div
+        className="dashboard-chart trend-scroll"
+        ref={scroller}
+        aria-label={`Sales, collections and expenses by ${unit}`}
+      >
         {shown.length ? (
+          <div style={{ width: chartWidth > room ? chartWidth : '100%' }}>
           <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={rows} accessibilityLayer margin={{ top: 10, right: 10, bottom: 10, left: 5 }}>
+            <BarChart
+              data={data}
+              accessibilityLayer
+              barGap={1}
+              barCategoryGap="18%"
+              margin={{ top: 10, right: 10, bottom: 10, left: 5 }}
+            >
               <CartesianGrid stroke="var(--line)" vertical={false} />
               <XAxis
-                dataKey="date"
-                tickFormatter={(date) => String(date).slice(5)}
-                minTickGap={25}
+                dataKey="label"
+                minTickGap={16}
                 tick={{ fill: 'var(--subtle)', fontSize: 11 }}
               />
               <YAxis
@@ -408,11 +444,14 @@ export function InteractiveTrend({
                   dataKey={item.key}
                   name={item.name}
                   fill={item.color}
+                  maxBarSize={18}
+                  radius={[2, 2, 0, 0]}
                   isAnimationActive={false}
                 />
               ))}
             </BarChart>
           </ResponsiveContainer>
+          </div>
         ) : (
           <p>All series are hidden. Show a series above.</p>
         )}
