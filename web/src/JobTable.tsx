@@ -284,11 +284,12 @@ export default function JobTable({
                   <div className="job-actions">
                     <JobActions job={job} busy={busy} onAction={onAction} part="next" />
                     <JobActions job={job} busy={busy} onAction={onAction} onHold={onHold} part="rest" />
-                    {onDue && !['Completed', 'Collected', 'Cancelled'].includes(job.productionStatus ?? '') && (
-                      <button className="text-button" disabled={busy} onClick={() => onDue([job])}>
-                        <Icon name="calendar" /> Change due date
-                      </button>
-                    )}
+                    {onDue &&
+                      !['Completed', 'Collected', 'Cancelled'].includes(job.productionStatus ?? '') && (
+                        <button className="text-button" disabled={busy} onClick={() => onDue([job])}>
+                          <Icon name="calendar" /> Change due date
+                        </button>
+                      )}
                   </div>
                 </td>
               </tr>
