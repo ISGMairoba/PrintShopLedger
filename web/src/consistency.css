@@ -2926,3 +2926,6 @@ label.checkbox input[type="checkbox"],
     min-width: 0;
   }
 }
+.mobile-cell-dates .job-date {
+  white-space: normal;
+}
