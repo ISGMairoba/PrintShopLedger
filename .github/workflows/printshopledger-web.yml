@@ -31,6 +31,7 @@ jobs:
       - run: node scripts/run-check.mjs npm run format:check
       - run: node scripts/run-check.mjs npm test
       - run: node scripts/run-check.mjs npm run build
+      - run: node scripts/check-tailwind.mjs
 
       - run: npm run check:backend
       - id: browser_dependencies

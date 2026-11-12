@@ -758,6 +758,8 @@ export interface ExpensePayment {
 }
 export interface Expense {
   payeeId?: string;
+  /** The orders (jobs) this expense was for: its cost counts in their profit (profit.mjs). */
+  jobIds?: string[];
   id: string;
   description: string;
   category: string;

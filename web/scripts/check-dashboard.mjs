@@ -250,7 +250,13 @@ try {
       }
       await values.getByText('Money In − Money Out', { exact: true }).waitFor();
       await values.getByText('₦40,000.00', { exact: true }).waitFor();
-      assert.equal(await page.locator('.dashboard-pie').count(), 2);
+      assert.equal(
+        await page.locator('.dashboard-panel:not([aria-label^="Expenses by"]) .dashboard-pie').count(),
+        2,
+      );
+      // Expenses by category and by payee each have their own pie.
+      for (const name of ['Expenses by category', 'Expenses by payee'])
+        await page.getByRole('region', { name, exact: true }).waitFor();
       const services = page.getByRole('region', { name: 'Top services' });
       await page.getByLabel('Rank services by', { exact: true }).selectOption('quantity');
       await services.locator('.dashboard-row').getByText('3', { exact: true }).waitFor();
@@ -339,8 +345,8 @@ try {
       await trend.locator('.recharts-tooltip-wrapper').getByText('Net sales', { exact: false }).waitFor();
       assert.equal(
         await page.locator('.recharts-responsive-container').count(),
-        5,
-        'Every current chart is interactive',
+        7,
+        'Every current chart is interactive (including Expenses by category and by payee)',
       );
       assert.ok(
         await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),

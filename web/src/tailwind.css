@@ -1,0 +1,12 @@
+/* Tailwind, added beside the app's own styles (Nov 2026) for small tweaks.
+   - No Tailwind reset ("preflight"): the app's base styles stay exactly as they are.
+   - Every Tailwind class starts with "tw:" (tw:flex, tw:mt-4, tw:md:hidden), so it can never clash
+     with the app's own classes (grid, badge, notice, panel...).
+   - Tailwind classes are "important", so one added to an element always takes effect over the
+     app's styles for that element. Nothing changes where no tw: class is used.
+   Not formatted by Biome (biome.json), which doesn't read Tailwind's syntax. */
+@layer theme, utilities;
+@import "tailwindcss/theme.css" layer(theme) prefix(tw);
+@import "tailwindcss/utilities.css" layer(utilities) prefix(tw) important;
+/* Kept in every build so the setup can be checked (scripts/check-tailwind.mjs). */
+@source inline("tw:hidden");
