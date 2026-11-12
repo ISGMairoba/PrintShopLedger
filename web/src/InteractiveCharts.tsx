@@ -407,50 +407,46 @@ export function InteractiveTrend({
       >
         {shown.length ? (
           <div style={{ width: chartWidth > room ? chartWidth : '100%' }}>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart
-              data={data}
-              accessibilityLayer
-              barGap={1}
-              barCategoryGap="18%"
-              margin={{ top: 10, right: 10, bottom: 10, left: 5 }}
-            >
-              <CartesianGrid stroke="var(--line)" vertical={false} />
-              <XAxis
-                dataKey="label"
-                minTickGap={16}
-                tick={{ fill: 'var(--subtle)', fontSize: 11 }}
-              />
-              <YAxis
-                width={62}
-                tickFormatter={(value) => `₦${compact(Number(value) / 100)}`}
-                tick={{ fill: 'var(--subtle)', fontSize: 11 }}
-              />
-              <ReferenceLine y={0} stroke="var(--subtle)" />
-              <Tooltip
-                trigger="hover"
-                formatter={(value) => formatValue(Number(value))}
-                contentStyle={{
-                  background: 'var(--surface)',
-                  borderColor: 'var(--line)',
-                  color: 'var(--ink)',
-                  borderRadius: 8,
-                }}
-                itemStyle={{ color: 'var(--ink)' }}
-              />
-              {shown.map((item) => (
-                <Bar
-                  key={item.key}
-                  dataKey={item.key}
-                  name={item.name}
-                  fill={item.color}
-                  maxBarSize={18}
-                  radius={[2, 2, 0, 0]}
-                  isAnimationActive={false}
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart
+                data={data}
+                accessibilityLayer
+                barGap={1}
+                barCategoryGap="18%"
+                margin={{ top: 10, right: 10, bottom: 10, left: 5 }}
+              >
+                <CartesianGrid stroke="var(--line)" vertical={false} />
+                <XAxis dataKey="label" minTickGap={16} tick={{ fill: 'var(--subtle)', fontSize: 11 }} />
+                <YAxis
+                  width={62}
+                  tickFormatter={(value) => `₦${compact(Number(value) / 100)}`}
+                  tick={{ fill: 'var(--subtle)', fontSize: 11 }}
                 />
-              ))}
-            </BarChart>
-          </ResponsiveContainer>
+                <ReferenceLine y={0} stroke="var(--subtle)" />
+                <Tooltip
+                  trigger="hover"
+                  formatter={(value) => formatValue(Number(value))}
+                  contentStyle={{
+                    background: 'var(--surface)',
+                    borderColor: 'var(--line)',
+                    color: 'var(--ink)',
+                    borderRadius: 8,
+                  }}
+                  itemStyle={{ color: 'var(--ink)' }}
+                />
+                {shown.map((item) => (
+                  <Bar
+                    key={item.key}
+                    dataKey={item.key}
+                    name={item.name}
+                    fill={item.color}
+                    maxBarSize={18}
+                    radius={[2, 2, 0, 0]}
+                    isAnimationActive={false}
+                  />
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         ) : (
           <p>All series are hidden. Show a series above.</p>

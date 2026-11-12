@@ -14,7 +14,10 @@ test('trend: days when they fit, else weeks, else months; groups add up', () => 
   assert.equal(autoGrouping(days(30), 10), 'week');
   assert.equal(autoGrouping(days(200), 10), 'month');
   const weeks = groupTrend(days(14), 'week');
-  assert.equal(weeks.reduce((t, w) => t + w.sales, 0), 1400);
+  assert.equal(
+    weeks.reduce((t, w) => t + w.sales, 0),
+    1400,
+  );
   assert.equal(weeks[0].date, '2026-09-28'); // Monday of the week 1 Oct falls in
   const months = groupTrend(days(61), 'month');
   assert.deepEqual(
