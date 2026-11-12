@@ -2457,3 +2457,26 @@ details.workflow-row[open] {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+/* Materials → Split: a number with its unit beside it. */
+.split-stock fieldset {
+  display: grid;
+  gap: var(--space-3);
+}
+.split-direction {
+  display: grid;
+  gap: var(--space-1);
+}
+.input-with-unit {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.input-with-unit input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.input-with-unit span {
+  flex: 0 0 auto;
+  color: var(--subtle);
+}

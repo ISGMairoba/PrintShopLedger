@@ -40,8 +40,10 @@ export function eventResources(event, ledger) {
     const job = ledger.jobs.find((j) => j.id === d.jobId);
     add('customer', job?.customerId);
     add('material', job?.materialId);
-  } else if (family === 'material') add('material', d.id);
-  else if (family === 'service') {
+  } else if (family === 'material') {
+    add('material', d.id);
+    add('material', d.toId);
+  } else if (family === 'service') {
     add('service', d.id);
     add('material', d.materialId);
     add('material', ledger.services.find((s) => s.id === d.id)?.materialId);
