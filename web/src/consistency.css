@@ -3064,3 +3064,6 @@ label.checkbox input[type="checkbox"],
   opacity: 0.55;
   text-decoration: line-through;
 }
+.dashboard-legend > button {
+  margin: 0;
+}
