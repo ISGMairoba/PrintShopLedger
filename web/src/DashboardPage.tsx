@@ -242,7 +242,9 @@ export default function DashboardPage({
           {(access.sales || access.payments || access.expenses) && (
             <section className="panel dashboard-panel">
               <div className="toolbar">
-                <h2>{trendShown === 'month' ? 'Monthly' : trendShown === 'week' ? 'Weekly' : 'Daily'} trend</h2>
+                <h2>
+                  {trendShown === 'month' ? 'Monthly' : trendShown === 'week' ? 'Weekly' : 'Daily'} trend
+                </h2>
                 <label>
                   Group trend by
                   <select
@@ -264,7 +266,13 @@ export default function DashboardPage({
                 expenses={access.expenses}
                 formatValue={money}
                 grouping={
-                  trendInterval === 'daily' ? 'day' : trendInterval === 'weekly' ? 'week' : trendInterval === 'monthly' ? 'month' : 'auto'
+                  trendInterval === 'daily'
+                    ? 'day'
+                    : trendInterval === 'weekly'
+                      ? 'week'
+                      : trendInterval === 'monthly'
+                        ? 'month'
+                        : 'auto'
                 }
                 onGrouping={setTrendShown}
               />

@@ -22,7 +22,10 @@ export function autoGrouping(rows, maxGroups) {
 export function groupTrend(rows, grouping) {
   if (grouping === 'day') return rows.map((r) => ({ ...r, label: r.date.slice(5) }));
   if (rows.length && rows[0].date.length === 7)
-    return rows.map((r) => ({ ...r, label: `${MONTHS[Number(r.date.slice(5, 7)) - 1]} ${r.date.slice(2, 4)}` }));
+    return rows.map((r) => ({
+      ...r,
+      label: `${MONTHS[Number(r.date.slice(5, 7)) - 1]} ${r.date.slice(2, 4)}`,
+    }));
   const groups = new Map();
   for (const row of rows) {
     const key = grouping === 'week' ? weekStart(row.date) : row.date.slice(0, 7);
