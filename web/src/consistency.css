@@ -2812,9 +2812,15 @@ h1 {
 .mobile-cell-dates .mobile-meta small {
   display: inline;
 }
-.mobile-details .mobile-meta small:not(:empty)::before,
-.mobile-cell-dates .mobile-meta small:not(:empty)::before {
+.mobile-details .mobile-meta small:not(:empty)::before {
   content: " · ";
+}
+/* Dates stack one under another in their narrow column. */
+.mobile-cell-dates .mobile-meta small:not(.job-date-label) {
+  display: block;
+}
+.mobile-cell-dates .mobile-meta + .mobile-meta {
+  margin-top: 4px;
 }
 .mobile-cell-dates .mobile-meta {
   text-align: right;
@@ -2917,7 +2923,4 @@ label.checkbox input[type="checkbox"],
     flex: 1 1 auto;
     min-width: 0;
   }
-}
-.mobile-cell-dates .mobile-meta small.job-date-label::before {
-  content: none;
 }

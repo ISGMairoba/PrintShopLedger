@@ -158,7 +158,10 @@ export default function ResponsiveTable({
         className={`mobile-meta${long ? ' mobile-meta-long' : ''}${isAudit(detail) ? ' mobile-meta-audit' : ''}`}
         key={detail}
       >
-        <span className="mobile-meta-label">{label(detail)}: </span>
+        {/* A plain "Date" label adds nothing when the value says Added or Due itself. */}
+        {!/^dates?$/i.test(String(label(detail) ?? '')) && (
+          <span className="mobile-meta-label">{label(detail)}: </span>
+        )}
         {value}
       </div>
     );
