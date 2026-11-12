@@ -232,13 +232,6 @@ export default function JobTable({
                     </small>
                   )}
                   {job.workflowName && <small>Workflow: {job.workflowName}</small>}
-                  {job.hold && (
-                    <small className="job-held">
-                      On hold: {job.hold.reason}
-                      {job.hold.note ? ` — ${job.hold.note}` : ''}
-                    </small>
-                  )}
-                  {job.workflowName && <small>Workflow: {job.workflowName}</small>}
                   {(() => {
                     const late = stageOverdue(job, stageHours);
                     return late ? (
@@ -287,13 +280,16 @@ export default function JobTable({
                   </>
                 )}
                 <td>
-                  {/* The next stage stays the first (main) action; on phones the rest go under More. */}
-                  <JobActions job={job} busy={busy} onAction={onAction} onHold={onHold} />
-                  {onDue && !['Completed', 'Collected', 'Cancelled'].includes(job.productionStatus ?? '') && (
-                    <button className="text-button" disabled={busy} onClick={() => onDue([job])}>
-                      <Icon name="calendar" /> Change due date
-                    </button>
-                  )}
+                  {/* The next stage is the main action; on phones the rest go under More. */}
+                  <div className="job-actions">
+                    <JobActions job={job} busy={busy} onAction={onAction} part="next" />
+                    <JobActions job={job} busy={busy} onAction={onAction} onHold={onHold} part="rest" />
+                    {onDue && !['Completed', 'Collected', 'Cancelled'].includes(job.productionStatus ?? '') && (
+                      <button className="text-button" disabled={busy} onClick={() => onDue([job])}>
+                        <Icon name="calendar" /> Change due date
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             );
