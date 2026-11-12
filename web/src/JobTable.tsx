@@ -205,19 +205,19 @@ export default function JobTable({
                 </td>
                 <td>
                   {customer?.name ?? 'Unknown customer'}
-                  <small>{customer?.phone ?? ''}</small>
+                  <small className="phone">{customer?.phone ?? ''}</small>
                 </td>
                 <td>
                   <strong>{currency(job.amount)}</strong>
                   <small>Paid: {currency(balance.paid)}</small>
                   <small>Outstanding: {currency(balance.outstanding)}</small>
-                </td>
-                <td>
                   <span
                     className={`badge ${balance.status === 'Fully paid' ? 'paid' : balance.status === 'Unpaid' ? 'unpaid' : 'partial'}`}
                   >
                     {balance.status}
                   </span>
+                </td>
+                <td>
                   <small>
                     Stage: {stageLabel(stage)}
                     {job.shelfItem ? ' · Shelf' : ''}

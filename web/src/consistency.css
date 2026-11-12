@@ -2929,3 +2929,85 @@ label.checkbox input[type="checkbox"],
 .mobile-cell-dates .job-date {
   white-space: normal;
 }
+
+/* ---- Phone feedback, 12 Nov ---- */
+/* A phone number never breaks in the middle: it moves whole to the next line. */
+.mobile-details small.phone {
+  display: inline-block;
+  white-space: nowrap;
+}
+/* The stage filter's words are for screen readers on phones; the box already says "All stages". */
+@media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
+  .list-filter-select .filter-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  /* Point of Service: Quick sale beside the view buttons; Receive payment fills the next row. */
+  .toolbar-actions > .toolbar-view-controls {
+    order: -2;
+  }
+  .toolbar-actions > .compact-action {
+    order: -1;
+    flex: 0 1 auto;
+  }
+  .toolbar-actions > .fill-action {
+    flex: 1 1 55%;
+  }
+  /* Sync state in the title bar: the icon and a count; the words stay for screen readers and long-press. */
+  .mobile-app-bar {
+    gap: 12px;
+  }
+  .mobile-app-bar > strong {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mobile-app-bar .sync-status {
+    flex: none;
+    gap: 4px;
+    font-size: 12px;
+  }
+  .mobile-app-bar .sync-status .sync-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .mobile-app-bar .sync-status[data-tone="warn"] {
+    color: var(--danger, #b42318);
+  }
+  .mobile-app-bar .sync-status[data-tone="pending"] {
+    color: var(--accent, #b4532a);
+  }
+  .mobile-app-bar .sync-status[data-tone="busy"] svg {
+    animation: sync-spin 1.2s linear infinite;
+  }
+  header .notice-button {
+    margin-left: 0;
+  }
+}
+@keyframes sync-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mobile-app-bar .sync-status[data-tone="busy"] svg {
+    animation: none;
+  }
+}
+/* Job lists: the payment badge sits with the amounts (between the amount and the dates on phones). */
+.jobs-table td .badge {
+  margin-top: 4px;
+}
+.mobile-details .mobile-meta > .mobile-meta-label + small::before {
+  content: none;
+}

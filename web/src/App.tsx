@@ -161,6 +161,7 @@ import ProductEditor from './ProductEditor';
 import EditProductsPage from './EditProductsPage';
 import { featureOn } from './business-type.mjs';
 import RemindersPage from './RemindersPage';
+import { useMobileLayout } from './ResponsiveTable';
 
 const DashboardPage = lazy(() => import('./DashboardPage'));
 const ReportsPage = lazy(() => import('./ReportsPage'));
@@ -177,6 +178,7 @@ const deviceStorage = () => {
 };
 
 export default function App() {
+  const mobileLayout = useMobileLayout();
   const [registering, setRegistering] = useState(false);
   const [activationToken, setActivationToken] = useState(
     () => new URLSearchParams(location.hash.slice(1)).get('developer_activation') ?? '',
@@ -1015,6 +1017,20 @@ export default function App() {
               : state.lastSynced
                 ? 'Saved'
                 : 'Connecting…';
+  const syncTone =
+    !ready || syncStatus === 'syncing'
+      ? 'busy'
+      : hasConflict || !online || syncStatus === 'retrying'
+        ? 'warn'
+        : state.pending.length
+          ? 'pending'
+          : 'ok';
+  const syncIndicator = !demo && scope && (
+    <span className="sync-status" data-tone={syncTone} role="status" aria-live="polite" title={syncLabel}>
+      <Icon name="sync" /> <span className="sync-label">{syncLabel}</span>
+      {state.pending.length > 0 && <span className="sync-count"> ({state.pending.length})</span>}
+    </span>
+  );
   function openPayment(customerId = '') {
     setSelectedJob(null);
     setPaymentCustomer(customerId);
@@ -1400,6 +1416,7 @@ export default function App() {
                 <div className="app">
                   <Sidebar
                     title={businessName}
+                    trailing={mobileLayout ? syncIndicator : null}
                     header={
                       <>
                         <div className="brand">
@@ -1561,12 +1578,8 @@ export default function App() {
                           {noticeBoard.unread > 0 && <span className="badge">{noticeBoard.unread}</span>}
                         </button>
                       )}
-                      {!demo && scope && (
-                        <span className="sync-status" role="status" aria-live="polite">
-                          <Icon name="sync" /> {syncLabel}
-                          {state.pending.length > 0 && ` (${state.pending.length})`}
-                        </span>
-                      )}
+                      {/* On phones the sync state sits in the title bar instead (Sidebar trailing). */}
+                      {!mobileLayout && syncIndicator}
                     </header>
                     {subscriptionBanner && (
                       <p

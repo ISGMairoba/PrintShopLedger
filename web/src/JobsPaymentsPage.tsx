@@ -208,7 +208,7 @@ export default function JobsPaymentsPage({
           {dates.button}
           {page === 'Jobs' && (
             <label className="list-sort-select list-filter-select">
-              {w('Job stage')}
+              <span className="filter-label">{w('Job stage')}</span>
               <select
                 aria-label={w('Filter jobs by stage')}
                 value={stageFilter}
