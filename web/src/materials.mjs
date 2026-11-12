@@ -101,6 +101,7 @@ function splitMaterial(ledger, event, existing, audit, record) {
   const to = ledger.materials.find((m) => m.id === d.toId);
   if (!to || to.id === existing.id) throw new Error('Choose the other material.');
   if (existing.archived || to.archived) throw new Error('Restore both materials before splitting stock.');
+  if (!existing.canSplit) throw new Error(`Turn on "Can be split" for ${existing.name} first.`);
   if (to.version !== d.toBaseVersion)
     throw new Error('This material changed elsewhere. Sync and reopen it before editing.');
   if (!d.toEventId || ledger.materialHistory.some((h) => h.id === d.toEventId))
@@ -176,6 +177,7 @@ export function applyMaterialEvent(input, event) {
       measurementUnit: data.measurementUnit.trim(),
       requireSize: data.requireSize,
       minimumStock: data.minimumStock ?? 0,
+      canSplit: data.canSplit ?? false,
       archived: false,
       version: 1,
       createdBy: data.modifiedBy,
@@ -203,6 +205,7 @@ export function applyMaterialEvent(input, event) {
       measurementUnit: data.measurementUnit.trim(),
       requireSize: data.requireSize,
       minimumStock: data.minimumStock ?? existing.minimumStock ?? 0,
+      canSplit: data.canSplit ?? existing.canSplit ?? false,
       ...audit,
       version: existing.version + 1,
     };

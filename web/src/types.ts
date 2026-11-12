@@ -278,6 +278,8 @@ export interface Material {
   available: number;
   measurementUnit: string;
   requireSize: boolean;
+  /** Its stock can be split into a smaller material (Materials → Split). */
+  canSplit?: boolean;
   archived: boolean;
   version: number;
   createdBy: string;
@@ -295,6 +297,7 @@ export interface MaterialCommand {
   available?: number;
   measurementUnit?: string;
   requireSize?: boolean;
+  canSplit?: boolean;
   baseVersion?: number;
   quantity?: number;
   reason?: string;

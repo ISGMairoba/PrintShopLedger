@@ -11,7 +11,7 @@ const ev = (kind, data, id = crypto.randomUUID()) => ({
 const create = (l, id, name, available) =>
   applyMaterialEvent(
     l,
-    ev('material.created', { id, name, available, measurementUnit: 'sheets', requireSize: false }),
+    ev('material.created', { id, name, available, measurementUnit: 'sheets', requireSize: false, canSplit: true }),
   );
 
 test('split stock: A4 into A5, and back together to fix a mistake', () => {
@@ -88,5 +88,25 @@ test('split stock: A4 into A5, and back together to fix a mistake', () => {
         }),
       ),
     /other material/,
+  );
+});
+
+test('split stock: only a material that can be split', () => {
+  let l = applyMaterialEvent(
+    emptyLedger(),
+    ev('material.created', { id: 'card', name: 'Card', available: 10, measurementUnit: 'sheets', requireSize: false }),
+  );
+  l = applyMaterialEvent(
+    l,
+    ev('material.created', { id: 'half', name: 'Half card', available: 0, measurementUnit: 'sheets', requireSize: false }),
+  );
+  assert.equal(l.materials[0].canSplit, false, 'off unless turned on');
+  assert.throws(
+    () =>
+      applyMaterialEvent(
+        l,
+        ev('material.split', { id: 'card', baseVersion: 1, toId: 'half', toBaseVersion: 1, toEventId: 'h', quantity: 1, yield: 2 }),
+      ),
+    /Can be split/,
   );
 });
