@@ -29,3 +29,32 @@ export function recentCorrectionJobs(ledger, query = '', days = 7, now = Date.no
 export function jobChoiceLabel(job) {
   return `${job.id.slice(0, 8).toUpperCase()} · ${job.description} · ${job.service}`;
 }
+
+/**
+ * Return items: shelf items sold within the correction window that can still come back (not
+ * cancelled, a material of their own, not templates or choice-of-materials jobs), newest first.
+ * @returns {import('./types').Job[]}
+ */
+export function returnableJobs(ledger, query = '', days = 7, now = Date.now()) {
+  const customers = new Map(ledger.customers.map((c) => [c.id, c.name]));
+  const term = query.trim().toLowerCase();
+  return recentCorrectionJobs(ledger, '', days, now)
+    .filter(
+      (j) =>
+        j.shelfItem &&
+        j.materialId &&
+        !j.templateSnapshot &&
+        !j.materialChoice &&
+        j.productionStatus !== 'Cancelled' &&
+        (j.quantity ?? 1) > 0,
+    )
+    .filter(
+      (j) =>
+        !term ||
+        [j.id.slice(0, 8), j.description, j.service, customers.get(j.customerId)]
+          .join(' ')
+          .toLowerCase()
+          .includes(term),
+    )
+    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+}
