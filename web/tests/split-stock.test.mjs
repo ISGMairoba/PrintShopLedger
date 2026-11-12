@@ -139,7 +139,12 @@ test('split stock: only a material that can be split', () => {
 });
 
 test('split stock into several pieces: 1 A2 makes 1 A3 + 1 A4 + 2 A7, and offcuts are allowed', () => {
-  let l = create(create(create(create(emptyLedger(), 'a2', 'A2', 10), 'a3', 'A3', 0), 'a4', 'A4', 5), 'a7', 'A7', 0);
+  let l = create(
+    create(create(create(emptyLedger(), 'a2', 'A2', 10), 'a3', 'A3', 0), 'a4', 'A4', 5),
+    'a7',
+    'A7',
+    0,
+  );
   const v = (id) => l.materials.find((m) => m.id === id);
   const pieces = [
     { toId: 'a3', toBaseVersion: 1, toEventId: 'p1', yield: 1 },
@@ -168,10 +173,7 @@ test('split stock into several pieces: 1 A2 makes 1 A3 + 1 A4 + 2 A7, and offcut
     [8, 2, 7, 4],
   );
   // The same smaller material twice, or the material itself, is refused.
-  for (const bad of [
-    [pieces[0], { ...pieces[0], toEventId: 'x' }],
-    [{ ...pieces[0], toId: 'a2' }],
-  ])
+  for (const bad of [[pieces[0], { ...pieces[0], toEventId: 'x' }], [{ ...pieces[0], toId: 'a2' }]])
     assert.throws(
       () =>
         applyMaterialEvent(

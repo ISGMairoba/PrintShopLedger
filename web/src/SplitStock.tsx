@@ -69,8 +69,7 @@ export default function SplitStock({
   const update = (key: string, change: Partial<Piece>) =>
     setPieces((list) => list.map((p) => (p.key === key ? { ...p, ...change } : p)));
   const fromAfter = rows[0]?.plan?.from;
-  const describe = () =>
-    rows.map((r) => `${r.plan?.change} ${r.to?.name}`).join(' + ');
+  const describe = () => rows.map((r) => `${r.plan?.change} ${r.to?.name}`).join(' + ');
   const unit = (m: Material) => m.measurementUnit;
   return (
     <Modal title={`${join ? 'Put back together' : 'Split'}: ${material.name}`} busy={busy} onClose={onClose}>
@@ -162,7 +161,10 @@ export default function SplitStock({
                   )
                   .map((m) => ({ value: m.id, label: `${m.name} (${materialCode(m.id, materials)})` }))}
                 onChange={(id) =>
-                  update(piece.key, { toId: id, made: id && !piece.made ? rememberedYield(material.id, id) : piece.made })
+                  update(piece.key, {
+                    toId: id,
+                    made: id && !piece.made ? rememberedYield(material.id, id) : piece.made,
+                  })
                 }
               />
               <label>
@@ -193,7 +195,11 @@ export default function SplitStock({
             </div>
           ))}
           {pieces.length < 20 && (
-            <button type="button" className="secondary" onClick={() => setPieces((list) => [...list, newPiece()])}>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => setPieces((list) => [...list, newPiece()])}
+            >
               <Icon name="add" /> Add another piece
             </button>
           )}

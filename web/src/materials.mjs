@@ -99,7 +99,9 @@ export function splitPlan(from, to, quantity, made, join = false) {
 /** The pieces of a split: the event's "pieces", or its single toId/yield (from an older app). */
 export function splitPieces(data) {
   if (Array.isArray(data.pieces)) return data.pieces;
-  return [{ toId: data.toId, toBaseVersion: data.toBaseVersion, toEventId: data.toEventId, yield: data.yield }];
+  return [
+    { toId: data.toId, toBaseVersion: data.toBaseVersion, toEventId: data.toEventId, yield: data.yield },
+  ];
 }
 function splitMaterial(ledger, event, existing, audit, record) {
   const d = event.data;
@@ -122,11 +124,21 @@ function splitMaterial(ledger, event, existing, audit, record) {
     if (to.archived) throw new Error('Restore both materials before splitting stock.');
     if (to.version !== piece.toBaseVersion)
       throw new Error('This material changed elsewhere. Sync and reopen it before editing.');
-    if (!piece.toEventId || events.has(piece.toEventId) || ledger.materialHistory.some((h) => h.id === piece.toEventId))
+    if (
+      !piece.toEventId ||
+      events.has(piece.toEventId) ||
+      ledger.materialHistory.some((h) => h.id === piece.toEventId)
+    )
       throw new Error('Material identity and audit information are required.');
     events.add(piece.toEventId);
     const plan = splitPlan({ available: fromAvailable }, to, d.quantity, piece.yield, !!d.join);
-    const toNext = { ...to, available: plan.to, ...audit, lastEventId: piece.toEventId, version: to.version + 1 };
+    const toNext = {
+      ...to,
+      available: plan.to,
+      ...audit,
+      lastEventId: piece.toEventId,
+      version: to.version + 1,
+    };
     validateMaterial(toNext);
     changed.set(to.id, toNext);
     history.push({ to, toNext, eventId: piece.toEventId });
