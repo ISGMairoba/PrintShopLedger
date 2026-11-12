@@ -1,7 +1,7 @@
 import { useFeedbackMessage } from './Feedback';
 import { paymentName } from './business-options.mjs';
 import { useBusinessOptions } from './BusinessOptionsContext';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import ExpenseEditor from './ExpenseEditor';
 import Modal from './Modal';
 import Icon from './Icon';
@@ -68,6 +68,21 @@ export default function ExpensesPage({
   pending: LedgerEvent[];
   onSave: (event: ExpenseEvent | OperationsEvent) => Promise<void>;
 }) {
+  // Orders an expense can be linked to: the last 120 days, plus any already linked.
+  const orders = useMemo(() => {
+    const since = Date.now() - 120 * 86400000;
+    const linked = new Set((ledger.expenses ?? []).flatMap((e) => e.jobIds ?? []));
+    const customers = new Map(ledger.customers.map((c) => [c.id, c.name]));
+    return ledger.jobs
+      .filter(
+        (j) => j.productionStatus !== 'Cancelled' && (Date.parse(j.createdAt) >= since || linked.has(j.id)),
+      )
+      .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+      .map((j) => ({
+        id: j.id,
+        label: `#${j.id.slice(0, 8).toUpperCase()} · ${customers.get(j.customerId) ?? 'Customer'} · ${j.description}`,
+      }));
+  }, [ledger.jobs, ledger.customers, ledger.expenses]);
   const { w } = useWords();
   const { expenseCategories } = useBusinessOptions();
   const [query, setQuery] = useState(''),
@@ -437,6 +452,7 @@ export default function ExpensesPage({
       {recording && (
         <ExpenseEditor
           key={'repeat:' + recording.repeat.id + ':' + recording.repeat.version}
+          orders={orders}
           newId={recording.expenseId}
           prefill={{
             description: recording.repeat.description,
@@ -464,6 +480,7 @@ export default function ExpensesPage({
         <ExpenseEditor
           key={editor === 'new' ? 'new' : editor.id + ':' + editor.version}
           expense={editor === 'new' ? undefined : editor}
+          orders={orders}
           expenses={ledger.expenses}
           payees={ledger.payees}
           accounts={ledger.moneyAccounts}

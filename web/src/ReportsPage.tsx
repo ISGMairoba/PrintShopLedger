@@ -1469,10 +1469,12 @@ type ProfitLoss = {
   otherIncome: number;
   net: number;
   stockPurchases: number;
+  linkedToOrders: number;
   unknownJobs: number;
   unknownSales: number;
 };
 function ProfitLossTab({ ledger, freshness, busy, error, pdf, csv }: TabProps) {
+  const { w } = useWords();
   const { range, valid, controls } = useRange();
   const report = useMemo(
     () =>
@@ -1617,6 +1619,12 @@ function ProfitLossTab({ ledger, freshness, busy, error, pdf, csv }: TabProps) {
               <p className="muted">
                 {currency(report.stockPurchases)} of materials bought into stock in this period is not listed
                 as an expense: its cost is counted in the jobs that use the materials.
+              </p>
+            )}
+            {report.linkedToOrders > 0 && (
+              <p className="muted">
+                {currency(report.linkedToOrders)} of expenses in this period {w('is linked to orders')}, so it
+                is counted in those {w('jobs')}’ cost instead of under expenses.
               </p>
             )}
             {report.unknownJobs > 0 && (

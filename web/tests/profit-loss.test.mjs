@@ -156,3 +156,46 @@ test('profit and loss: a partly costed job counts its known cost and is still fl
   assert.equal(r.grossProfit, 60000);
   assert.equal(r.unknownJobs, 1);
 });
+
+test('expenses linked to orders count in their job cost, not under expenses', async () => {
+  const { jobCost } = await import('../src/profit.mjs');
+  const { expenseJobIds } = await import('../src/expenses.mjs');
+  const job = (id, amount) => ({
+    id,
+    serviceId: 'svc',
+    service: 'Banner',
+    description: 'Banner',
+    quantity: '1',
+    amount,
+    productionStatus: 'Completed',
+    createdAt: '2026-11-03T10:00:00Z',
+  });
+  const l = {
+    ...emptyLedger(),
+    services: [
+      { id: 'svc', description: 'Banner', price: 100, archived: false, costing: { amount: 10000, per: 1 } },
+    ],
+    jobs: [job('a', 30000), job('b', 10000), { ...job('c', 50000), productionStatus: 'Cancelled' }],
+    expenses: [
+      {
+        id: 'x',
+        category: 'Outsourcing',
+        amount: 8000,
+        incurredOn: '2026-11-04',
+        voided: false,
+        materials: [],
+        jobIds: ['a', 'b', 'c'],
+      },
+      { id: 'y', category: 'Power', amount: 5000, incurredOn: '2026-11-04', voided: false, materials: [] },
+    ],
+  };
+  assert.equal(jobCost(l, l.jobs[0]).kobo, 10000 + 6000, 'shared by order amount: 3/4 of ₦80');
+  assert.equal(jobCost(l, l.jobs[1]).kobo, 10000 + 2000);
+  const r = profitLoss(l, '2026-11-01', '2026-11-30');
+  assert.equal(r.jobCost, 28000);
+  assert.deepEqual(r.expenses, [{ category: 'Power', amount: 5000 }]);
+  assert.equal(r.linkedToOrders, 8000);
+  assert.throws(() => expenseJobIds(l, ['a'], [{ materialId: 'm' }]), /stock purchase/);
+  assert.throws(() => expenseJobIds(l, ['nope']), /not found/);
+  assert.throws(() => expenseJobIds(l, ['a', 'a']), /once/);
+});

@@ -2431,3 +2431,29 @@ details.workflow-row[open] {
   border-radius: var(--radius-md);
   padding: var(--space-3);
 }
+
+/* Expenses → For orders: the orders an expense is linked to. */
+.expense-orders {
+  display: grid;
+  gap: var(--space-2);
+}
+.expense-order-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+.expense-order-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+}
+.expense-order-list li > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

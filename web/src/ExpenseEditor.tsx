@@ -47,6 +47,8 @@ type Props = {
     payeeId?: string;
     note?: string;
   };
+  /** Orders this expense can be linked to (For orders), newest first. */
+  orders?: { id: string; label: string }[];
   /** The id a new expense must get (a repeating expense's due date: the same on every device). */
   newId?: string;
   /** Called with the new expense's id once it is saved (e.g. to mark a repeating expense recorded). */
@@ -67,12 +69,15 @@ export default function ExpenseEditor({
   onCreatePayee,
   prefill,
   newId,
+  orders = [],
   onSave,
   onSaved,
   onClose,
 }: Props) {
   const formId = useId();
   const [payeeId, setPayeeId] = useState(expense?.payeeId ?? prefill?.payeeId ?? '');
+  // The orders this expense was for (its cost counts in their profit).
+  const [jobIds, setJobIds] = useState<string[]>(expense?.jobIds ?? []);
   const [newPayee, setNewPayee] = useState<{ name: string; phone: string } | null>(null);
   const { w } = useWords();
   const options = useBusinessOptions(),
@@ -223,6 +228,7 @@ export default function ExpenseEditor({
                 : '',
             note: String(f.get('note')),
             receiptReference: String(f.get('receiptReference')),
+            jobIds: stock ? [] : jobIds,
             materials: stock ? lines : [],
             ...(payment ? { payment } : {}),
             ...(newId && !expense ? { id: newId } : {}),
@@ -362,6 +368,44 @@ export default function ExpenseEditor({
                   />
                 </label>
               </div>
+              {!stock && orders.length > 0 && (
+                <div className="expense-orders">
+                  <SearchSelect
+                    label={wt('For orders (optional)')}
+                    value=""
+                    placeholder={wt('Search an order to link')}
+                    options={orders
+                      .filter((o) => !jobIds.includes(o.id))
+                      .map((o) => ({ value: o.id, label: o.label }))}
+                    disabled={jobIds.length >= 20}
+                    onChange={(id) => id && setJobIds([...jobIds, id])}
+                  />
+                  {jobIds.length > 0 && (
+                    <ul className="expense-order-list">
+                      {jobIds.map((id) => (
+                        <li key={id}>
+                          <span>
+                            {orders.find((o) => o.id === id)?.label ?? `#${id.slice(0, 8).toUpperCase()}`}
+                          </span>
+                          <button
+                            type="button"
+                            className="text-button danger-text"
+                            aria-label={`Unlink order ${id.slice(0, 8).toUpperCase()}`}
+                            onClick={() => setJobIds(jobIds.filter((x) => x !== id))}
+                          >
+                            <Icon name="close" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <small className="muted">
+                    {wt(
+                      'Its cost counts in these orders’ profit (shared by order amount), not under expenses.',
+                    )}
+                  </small>
+                </div>
+              )}
               <label>
                 Notes
                 <textarea name="note" maxLength={1000} defaultValue={expense?.note ?? prefill?.note ?? ''} />

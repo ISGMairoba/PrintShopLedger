@@ -16,11 +16,48 @@ export function materialUnitCost(ledger, materialId) {
   return costed ? costed.costing.amount / (costed.costing.per || 1) : null;
 }
 
+const linkedCache = new WeakMap();
 /**
- * The estimated cost of one job (kobo), and whether every part of it had a cost to go on.
+ * Expenses linked to orders (Expenses → For orders), shared among their orders by order amount
+ * (equally when none has an amount). Voided expenses and cancelled orders are left out.
+ * @returns {Map<string, number>} job id → kobo
+ */
+export function linkedExpenseShares(ledger) {
+  const key = ledger.expenses ?? [];
+  const cached = linkedCache.get(key);
+  if (cached && cached.jobs === ledger.jobs) return cached.shares;
+  const shares = new Map();
+  const jobs = new Map((ledger.jobs ?? []).map((j) => [j.id, j]));
+  for (const e of key) {
+    if (e.voided || !e.jobIds?.length) continue;
+    const linked = e.jobIds.map((id) => jobs.get(id)).filter((j) => j && j.productionStatus !== 'Cancelled');
+    if (!linked.length) continue;
+    const total = linked.reduce((n, j) => n + Math.max(0, j.amount), 0);
+    for (const j of linked)
+      shares.set(
+        j.id,
+        (shares.get(j.id) ?? 0) +
+          (total > 0 ? (e.amount * Math.max(0, j.amount)) / total : e.amount / linked.length),
+      );
+  }
+  linkedCache.set(key, { jobs: ledger.jobs, shares });
+  return shares;
+}
+
+/**
+ * The estimated cost of one job (kobo), including its share of expenses linked to it, and whether every part of it had a cost to go on.
  * @returns {{ kobo: number, known: boolean, basis: string }}
  */
 export function jobCost(ledger, job) {
+  const linked = linkedExpenseShares(ledger).get(job.id) ?? 0;
+  const own = ownJobCost(ledger, job);
+  return linked
+    ? { ...own, kobo: Math.round(own.kobo + linked), basis: `${own.basis} + linked expenses` }
+    : own;
+}
+
+/** @returns {{ kobo: number, known: boolean, basis: string }} */
+function ownJobCost(ledger, job) {
   // Costs as they were when the job was sold (stamped by the business). Where none was set yet,
   // or for older jobs, today's cost is used, so costs added later still count.
   const rates = job.costRates;

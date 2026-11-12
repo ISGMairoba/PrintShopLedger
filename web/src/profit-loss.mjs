@@ -22,13 +22,19 @@ function period(ledger, from, to) {
   // Every known cost counts, including the known part of a job that is only partly costed.
   const jobCost = jobs.totals.cost + jobs.totals.partialCost;
   const categories = new Map();
-  let stockPurchases = 0;
+  let stockPurchases = 0,
+    linkedToOrders = 0;
   for (const e of ledger.expenses) {
     if (e.voided) continue;
     const day = e.incurredOn;
     if (day < from || day > to) continue;
     if (e.materials?.length) {
       stockPurchases += e.amount;
+      continue;
+    }
+    // Linked to orders: counted in those orders' cost (job costs) instead.
+    if (e.jobIds?.some((id) => ledger.jobs.some((j) => j.id === id && j.productionStatus !== 'Cancelled'))) {
+      linkedToOrders += e.amount;
       continue;
     }
     categories.set(e.category, (categories.get(e.category) ?? 0) + e.amount);
@@ -48,6 +54,7 @@ function period(ledger, from, to) {
     otherIncome,
     net: sales - jobCost - operating + otherIncome,
     stockPurchases,
+    linkedToOrders,
     unknownJobs: jobs.totals.unknownJobs,
     unknownSales: jobs.totals.unknownRevenue,
   };
@@ -87,6 +94,11 @@ export function profitLossSections(r, { money, unit = ' (NGN)' }) {
           'For reference: materials bought into stock (not counted above)',
           money(r.stockPurchases),
           prevOf('stockPurchases'),
+        ],
+        [
+          'For reference: expenses linked to orders (counted in their job costs)',
+          money(r.linkedToOrders),
+          prevOf('linkedToOrders'),
         ],
         ['Jobs not fully costed (only their known costs are counted)', r.unknownJobs, p.unknownJobs],
       ],
