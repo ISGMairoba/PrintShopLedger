@@ -212,7 +212,9 @@ test('a trimmed copy keeps every expense, so This month expense totals match', (
     note: '',
     receiptReference: '',
     materials: [],
-    payments: [{ id: id + 'p', amount: 5000, paidOn: incurredOn, method: 'Cash', source: 'business', reference: '' }],
+    payments: [
+      { id: id + 'p', amount: 5000, paidOn: incurredOn, method: 'Cash', source: 'business', reference: '' },
+    ],
     voided: false,
     voidReason: '',
     version: 1,
