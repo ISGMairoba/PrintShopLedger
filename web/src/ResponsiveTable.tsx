@@ -121,9 +121,10 @@ export default function ResponsiveTable({
     if (!header) return false;
     const column = header.props.column ?? '';
     return (
-      ['createdAt', 'modifiedAt', 'createdBy', 'modifiedBy'].includes(column) ||
+      // Who did it (and when): a record's own date (Date, Issued) is not an audit line.
+      ['createdBy', 'modifiedBy'].includes(column) ||
       /\baudit-heading\b/.test(header.props.className ?? '') ||
-      /^(Created|Modified|Changed|Recorded)$/.test(String(header.props.label ?? ''))
+      /^(Created|Modified|Changed|Recorded|Added by|Last changed)$/.test(String(header.props.label ?? ''))
     );
   };
   const auditing = headers.some((_, index) => isAudit(index));

@@ -3011,3 +3011,29 @@ label.checkbox input[type="checkbox"],
 .mobile-details .mobile-meta > .mobile-meta-label + small::before {
   content: none;
 }
+
+/* Phone cards, 12 Nov (2): a phone number is its own piece after a separator, never glued to the
+   name; warnings (too long at a stage, on hold) take their own line, so their tint never breaks
+   across lines. */
+.mobile-details .mobile-meta small.phone::before {
+  content: "· ";
+}
+.mobile-details .mobile-meta small.phone {
+  margin-left: 4px;
+}
+.mobile-details .mobile-meta small:is(.stage-late, .job-held) {
+  display: table;
+  margin: 2px 0;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.mobile-details .mobile-meta small:is(.stage-late, .job-held)::before,
+.mobile-details .mobile-meta small:is(.stage-late, .job-held) + small::before {
+  content: none;
+}
+/* Point of Service on phones: Quick sale fills the rest of the view-buttons row. */
+@media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
+  .toolbar-actions > .compact-action {
+    flex: 1 1 auto;
+  }
+}
