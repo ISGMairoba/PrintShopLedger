@@ -2766,6 +2766,14 @@ h1 {
    right beside the actions, so the name column stays short. */
 .mobile-cards td.mobile-cell-details {
   grid-column: 1 / -1;
+  grid-row: 2;
+}
+.mobile-cards td.mobile-cell-main {
+  grid-row: 1;
+}
+.mobile-cards td.mobile-cell-third,
+.mobile-cards td.mobile-cell-actions {
+  grid-row: auto;
 }
 .mobile-details {
   display: grid;

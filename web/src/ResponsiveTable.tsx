@@ -193,17 +193,11 @@ export default function ResponsiveTable({
           <table className="mobile-list mobile-cards" aria-label={table.props['aria-label']}>
             <thead>
               <tr>
-                {shown
-                  .filter((column) => !column.actions)
-                  .map((column) => (
-                    <th key={column.index} scope="col">
-                      {column.label}
-                    </th>
-                  ))}
-                {hasDetails && <th scope="col">Details</th>}
-                {(actionsColumn || auditIndexes.length > 0) && (
-                  <th scope="col">{actionsColumn?.label ?? 'Record'}</th>
-                )}
+                {shown.map((column) => (
+                  <th key={column.index} scope="col">
+                    {column.label}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -214,10 +208,10 @@ export default function ResponsiveTable({
                   <tr key={row.key}>
                     {shown
                       .filter((column) => !column.actions)
-                      .map((column, position) => {
+                      .flatMap((column, position) => {
                         const index = resolve(column.index);
                         const details = (column.details ?? []).map(resolve);
-                        return (
+                        const cell = (
                           <td
                             key={column.index}
                             className={
@@ -232,23 +226,28 @@ export default function ResponsiveTable({
                             {position > 0 && details.map((detail) => metadata(cells, detail))}
                           </td>
                         );
+                        // The details follow the name in reading order; the amount is placed
+                        // beside the name by the card's grid.
+                        return position === 0 && hasDetails
+                          ? [
+                              cell,
+                              <td className="mobile-cell-details" key="details">
+                                <div className="mobile-details">
+                                  {plainDetails.map((detail) => metadata(cells, detail))}
+                                  {auditing && plainExtra.map((detail) => metadata(cells, detail))}
+                                </div>
+                                {!auditing && plainExtra.length > 0 && (
+                                  <details className="record-details">
+                                    <summary>More details</summary>
+                                    <div className="mobile-details">
+                                      {plainExtra.map((detail) => metadata(cells, detail))}
+                                    </div>
+                                  </details>
+                                )}
+                              </td>,
+                            ]
+                          : [cell];
                       })}
-                    {hasDetails && (
-                      <td className="mobile-cell-details">
-                        <div className="mobile-details">
-                          {plainDetails.map((detail) => metadata(cells, detail))}
-                          {auditing && plainExtra.map((detail) => metadata(cells, detail))}
-                        </div>
-                        {!auditing && plainExtra.length > 0 && (
-                          <details className="record-details">
-                            <summary>More details</summary>
-                            <div className="mobile-details">
-                              {plainExtra.map((detail) => metadata(cells, detail))}
-                            </div>
-                          </details>
-                        )}
-                      </td>
-                    )}
                     {(actionsColumn || audit.length > 0) && (
                       <td className="mobile-cell-actions">
                         {actionsColumn && (
