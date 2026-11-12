@@ -326,6 +326,8 @@ export function InteractiveTrend({
   payments,
   expenses = false,
   formatValue,
+  grouping = 'auto',
+  onGrouping,
 }: {
   rows: {
     date: string;
@@ -339,6 +341,10 @@ export function InteractiveTrend({
   payments: boolean;
   expenses?: boolean;
   formatValue: Format;
+  /** Dashboard → Group trend by. "auto" fits the dates to the room the chart has. */
+  grouping?: 'auto' | 'day' | 'week' | 'month';
+  /** Tells the page which grouping is shown (for the heading and the Auto label). */
+  onGrouping?: (used: 'day' | 'week' | 'month') => void;
 }) {
   const [hidden, setHidden] = useState<string[]>([]);
   const series = [
@@ -356,13 +362,19 @@ export function InteractiveTrend({
   // Each date (or week, or month) needs room for its bars: 10px a bar plus a gap. "Automatic" groups
   // the dates so they fit; a finer choice scrolls sideways, starting at the latest dates.
   const mobile = useMobileLayout();
-  const [grouping, setGrouping] = useState<'auto' | 'day' | 'week' | 'month'>('auto');
   const groupWidth = Math.max(28, Math.max(shown.length, 1) * 10 + 12);
   const room = mobile ? 300 : 760;
-  const used = grouping === 'auto' ? autoGrouping(rows, Math.floor(room / groupWidth)) : grouping;
+  // Rows already by month (the period is long) stay by month.
+  const monthly = rows.length > 0 && rows[0].date.length === 7;
+  const used = monthly
+    ? 'month'
+    : grouping === 'auto'
+      ? autoGrouping(rows, Math.floor(room / groupWidth))
+      : grouping;
   const data = groupTrend(rows, used);
   const chartWidth = Math.max(room, data.length * groupWidth + 70);
   const scroller = useRef<HTMLDivElement>(null);
+  useEffect(() => onGrouping?.(used), [used, onGrouping]);
   useEffect(() => {
     const box = scroller.current;
     if (box) box.scrollLeft = box.scrollWidth;
@@ -374,15 +386,6 @@ export function InteractiveTrend({
         Hover or tap a {unit} to see amounts. Use the buttons to show or hide a series.
         {chartWidth > room && ' Swipe the chart sideways for earlier dates.'}
       </small>
-      <label className="trend-grouping">
-        <span>Show by</span>
-        <select value={grouping} onChange={(e) => setGrouping(e.target.value as typeof grouping)}>
-          <option value="auto">Automatic ({used === 'day' ? 'day' : used})</option>
-          <option value="day">Day</option>
-          <option value="week">Week</option>
-          <option value="month">Month</option>
-        </select>
-      </label>
       <div className="dashboard-legend">
         {series.map((item) => (
           <Toggle

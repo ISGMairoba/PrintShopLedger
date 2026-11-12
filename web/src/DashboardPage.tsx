@@ -55,10 +55,14 @@ export default function DashboardPage({
   const [period, setPeriod] = usePeriod('dashboard');
   // Auto: daily for short ranges, monthly for ranges over two months.
   const [trendInterval, setTrendInterval] = useState('auto');
+  const [trendShown, setTrendShown] = useState<'day' | 'week' | 'month'>('day');
   const range = { from: period.from, to: period.to };
   const valid = validRange(range.from, range.to);
   const summary = useMemo(
-    () => (valid ? dashboardSummary(ledger, range.from, range.to, trendInterval) : null),
+    () =>
+      valid
+        ? dashboardSummary(ledger, range.from, range.to, trendInterval === 'weekly' ? 'daily' : trendInterval)
+        : null,
     [ledger, range.from, range.to, valid, trendInterval],
   );
   const branchSummaries = useMemo(
@@ -238,7 +242,7 @@ export default function DashboardPage({
           {(access.sales || access.payments || access.expenses) && (
             <section className="panel dashboard-panel">
               <div className="toolbar">
-                <h2>{summary.monthly ? 'Monthly' : 'Daily'} trend</h2>
+                <h2>{trendShown === 'month' ? 'Monthly' : trendShown === 'week' ? 'Weekly' : 'Daily'} trend</h2>
                 <label>
                   Group trend by
                   <select
@@ -246,8 +250,9 @@ export default function DashboardPage({
                     value={trendInterval}
                     onChange={(e) => setTrendInterval(e.target.value)}
                   >
-                    <option value="auto">Auto</option>
+                    <option value="auto">Auto ({trendShown})</option>
                     <option value="daily">Day</option>
+                    <option value="weekly">Week</option>
                     <option value="monthly">Month</option>
                   </select>
                 </label>
@@ -258,6 +263,10 @@ export default function DashboardPage({
                 payments={access.payments}
                 expenses={access.expenses}
                 formatValue={money}
+                grouping={
+                  trendInterval === 'daily' ? 'day' : trendInterval === 'weekly' ? 'week' : trendInterval === 'monthly' ? 'month' : 'auto'
+                }
+                onGrouping={setTrendShown}
               />
               <p className="muted">
                 Collections include customer wallet deposits and subtract customer refunds. Incurred expenses
