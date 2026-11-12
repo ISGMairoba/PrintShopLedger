@@ -29,6 +29,7 @@ import {
 } from './business-branding.mjs';
 import type { Branding } from './useBusinessBranding';
 import { termPresets } from './terms.mjs';
+import { businessTypes, featureOn, optionalFeatures, typeFeatures } from './business-type.mjs';
 import { useWords } from './Words';
 import { DEFAULT_READY_MESSAGE, READY_PLACEHOLDERS } from './ready-message.mjs';
 export default function BusinessSettingsPage({
@@ -1206,6 +1207,52 @@ export default function BusinessSettingsPage({
                   onPricing={(next) => field('branchPricing', next)}
                 />
                 {sectionSave('Branches', ['branches', 'branchAccess', 'branchPricing'])}
+              </fieldset>
+              <fieldset hidden={tab !== 'Page access'} disabled={busy || !ready} className="business-type">
+                <legend>Business type</legend>
+                <p>
+                  Choose what this business does. A retail shop sees only what it needs: products with their
+                  stock, Quick sale, customers, money and reports. Then turn any part on or off by hand.
+                </p>
+                <label>
+                  Business type
+                  <select
+                    value={draft.businessType ?? 'both'}
+                    onChange={(e) => {
+                      field('businessType', e.target.value);
+                      field('features', {});
+                    }}
+                  >
+                    {businessTypes.map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="business-type-features" role="group" aria-label="Parts of the app">
+                  {optionalFeatures.map(([page, label]) => (
+                    <label key={page} className="check-label">
+                      <input
+                        type="checkbox"
+                        checked={featureOn(draft, page)}
+                        onChange={(e) => {
+                          const features = { ...(draft.features ?? {}), [page]: e.target.checked };
+                          // Keep only the parts that differ from the business type.
+                          if (typeFeatures(draft.businessType)[page] === e.target.checked)
+                            delete features[page];
+                          field('features', features);
+                        }}
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+                <small>
+                  Turned-off parts are hidden from everyone, including you; nothing recorded is deleted, and
+                  turning a part back on shows it again.
+                </small>
+                {sectionSave('Business type', ['businessType', 'features'])}
               </fieldset>
               <fieldset hidden={tab !== 'Page access'} disabled={busy || !ready}>
                 <legend>Page access by rank</legend>

@@ -23,6 +23,7 @@ import { discountDefaults, validateDiscountSettings } from './discounts.mjs';
 import { termDefaults, validateTerms } from './terms.mjs';
 import { validateBranchAccess, validateBranches } from './branches.mjs';
 import { pricingDefaults, validatePricingSettings } from './pricing-templates.mjs';
+import { validateBusinessType } from './business-type.mjs';
 // What each business shows on its receipts. headline: the bold line for each job ('description' or 'service');
 // showSubline: print the other one beneath it. Older saved settings fill in these defaults.
 export const receiptContentDefaults = () => ({
@@ -177,6 +178,10 @@ export const defaultBranding = () => ({
   branchAccess: /** @type {Record<string, string[]>} */ ({}),
   /** 'shared': one price list; 'perBranch': each branch may set its own prices. */
   branchPricing: /** @type {'shared' | 'perBranch'} */ ('shared'),
+  /** Print shop, retail or both: which parts of the app show (business-type.mjs). Developer only. */
+  businessType: /** @type {'both' | 'print' | 'retail'} */ ('both'),
+  /** Parts turned on or off by hand, overriding the business type: { Services: true, … }. */
+  features: /** @type {Record<string, boolean>} */ ({}),
 });
 export function validLogo(value) {
   return (
@@ -254,6 +259,7 @@ export function validateBranding(input) {
   value.terms = validateTerms(value.terms);
   value.branches = validateBranches(value.branches);
   value.branchAccess = validateBranchAccess(value.branchAccess, value.branches);
+  Object.assign(value, validateBusinessType(value));
   value.branchPricing ??= 'shared';
   if (!['shared', 'perBranch'].includes(value.branchPricing)) throw Error('Choose how branches price items.');
   value.periods = { ...defaultPeriods(), ...value.periods };

@@ -2481,6 +2481,16 @@ details.workflow-row[open] {
   color: var(--subtle);
 }
 
+/* Business Settings → Page access → Business type: one tick box per part of the app. */
+.business-type {
+  display: grid;
+  gap: var(--space-2);
+}
+.business-type-features {
+  display: grid;
+  gap: var(--space-1);
+}
+
 /* Materials → Split: one row per piece (material, how many, remove). */
 .split-piece {
   align-items: end;
