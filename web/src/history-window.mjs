@@ -144,19 +144,10 @@ export function trimHistory(ledger, cutoff) {
     if (from) keptClosings.add(from.id);
     if (to) keptClosings.add(to.id);
   }
-  // Expenses: paid (or voided) ones from before the cutoff that nothing has touched since.
-  const owed = (e) => e.amount - (e.payments ?? []).reduce((n, p) => n + p.amount, 0);
-  const expenses = new Set(
-    (ledger.expenses ?? [])
-      .filter(
-        (e) =>
-          before(e.incurredOn, cutoff) &&
-          before(e.modifiedAt || e.createdAt, cutoff) &&
-          (e.voided || owed(e) <= 0) &&
-          (e.payments ?? []).every((p) => before(p.paidOn, cutoff) && !unassigned.has('expense:' + p.id)),
-      )
-      .map((e) => e.id),
-  );
+  // Expenses are always kept: they are few, and every expense total (Dashboard, Reports, Profit)
+  // for a period that starts before the cutoff (e.g. "This month") needs them. (Until 12 Nov, paid
+  // ones were left out, so those totals came out lower on a device keeping 7 days.)
+  const expenses = new Set();
 
   // Stock history: old entries go, except each material's latest stock count and anything about a
   // job or expense that is kept.
@@ -394,6 +385,14 @@ export function historyCheck(ledger, { now = new Date().toISOString(), cutoff } 
     [monthsBefore(today, 1) > from ? monthsBefore(today, 1) : from, today],
     [today, today],
   ];
+  // Expense totals for This month, which often starts before the cutoff: all expenses are kept, so
+  // they must match whatever the period.
+  const monthStart = today.slice(0, 8) + '01';
+  same(`Expenses ${monthStart} to ${today}`, (l) => expenseSummary(l, monthStart, today));
+  same(`Dashboard expenses ${monthStart} to ${today}`, (l) => {
+    const d = dashboardSummary(l, monthStart, today);
+    return [d.expenseIncurred, d.expensePaid, d.expenseOutstanding];
+  });
   for (const [a, b] of periods) {
     same(`Dashboard ${a} to ${b}`, (l) => dashboardSummary(l, a, b));
     same(`Summary report ${a} to ${b}`, (l) => summaryReport(l, a, b, undefined, { today }));

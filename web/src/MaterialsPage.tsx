@@ -162,6 +162,7 @@ export default function MaterialsPage({
       available: editing?.available ?? 0,
       measurementUnit: String(data.get('measurementUnit')).trim(),
       requireSize: data.get('requireSize') === 'on',
+      canSplit: data.get('canSplit') === 'on',
       modifiedBy: actor.id,
       modifiedByLabel: actor.label,
       modifiedAt: '',
@@ -446,7 +447,12 @@ export default function MaterialsPage({
                               </button>
                               <button
                                 className="text-button"
-                                disabled={busy}
+                                disabled={busy || !material.canSplit}
+                                title={
+                                  material.canSplit
+                                    ? undefined
+                                    : 'Turn on "Can be split" in Edit to split this stock'
+                                }
                                 onClick={() => {
                                   setSplitting(material);
                                   setEditor(null);
@@ -817,6 +823,17 @@ export default function MaterialsPage({
                   <small>
                     {wt(
                       'In this material’s measurement unit. Stock up to 20% above this level is near minimum.',
+                    )}
+                  </small>
+                </label>
+                <label className="material-checkbox">
+                  <span>
+                    <input name="canSplit" type="checkbox" defaultChecked={editing?.canSplit ?? false} /> Can
+                    be split
+                  </span>
+                  <small>
+                    {wt(
+                      'Turn on for stock that is cut into a smaller material (e.g. A4 into A5). Only then is Split offered for it.',
                     )}
                   </small>
                 </label>

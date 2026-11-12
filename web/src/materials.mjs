@@ -96,25 +96,60 @@ export function splitPlan(from, to, quantity, made, join = false) {
     change,
   };
 }
+/** The pieces of a split: the event's "pieces", or its single toId/yield (from an older app). */
+export function splitPieces(data) {
+  if (Array.isArray(data.pieces)) return data.pieces;
+  return [
+    { toId: data.toId, toBaseVersion: data.toBaseVersion, toEventId: data.toEventId, yield: data.yield },
+  ];
+}
 function splitMaterial(ledger, event, existing, audit, record) {
   const d = event.data;
-  const to = ledger.materials.find((m) => m.id === d.toId);
-  if (!to || to.id === existing.id) throw new Error('Choose the other material.');
-  if (existing.archived || to.archived) throw new Error('Restore both materials before splitting stock.');
-  if (to.version !== d.toBaseVersion)
-    throw new Error('This material changed elsewhere. Sync and reopen it before editing.');
-  if (!d.toEventId || ledger.materialHistory.some((h) => h.id === d.toEventId))
-    throw new Error('Material identity and audit information are required.');
+  if (existing.archived) throw new Error('Restore both materials before splitting stock.');
+  if (!existing.canSplit) throw new Error(`Turn on "Can be split" for ${existing.name} first.`);
   if (d.reason && (typeof d.reason !== 'string' || d.reason.length > 500))
     throw new Error('Stock note must be up to 500 characters.');
-  const plan = splitPlan(existing, to, d.quantity, d.yield, !!d.join);
-  const fromNext = { ...existing, available: plan.from, ...audit, version: existing.version + 1 };
-  const toNext = { ...to, available: plan.to, ...audit, lastEventId: d.toEventId, version: to.version + 1 };
+  const pieces = splitPieces(d);
+  if (pieces.length < 1 || pieces.length > 20) throw new Error('Add between 1 and 20 pieces.');
+  const seen = new Set([existing.id]);
+  const events = new Set([event.id]);
+  let fromAvailable = existing.available;
+  const changed = new Map();
+  const history = [];
+  for (const piece of pieces) {
+    const to = ledger.materials.find((m) => m.id === piece.toId);
+    if (!to || to.id === existing.id) throw new Error('Choose the other material.');
+    if (seen.has(to.id)) throw new Error('Choose each smaller material once, and not the one being split.');
+    seen.add(to.id);
+    if (to.archived) throw new Error('Restore both materials before splitting stock.');
+    if (to.version !== piece.toBaseVersion)
+      throw new Error('This material changed elsewhere. Sync and reopen it before editing.');
+    if (
+      !piece.toEventId ||
+      events.has(piece.toEventId) ||
+      ledger.materialHistory.some((h) => h.id === piece.toEventId)
+    )
+      throw new Error('Material identity and audit information are required.');
+    events.add(piece.toEventId);
+    const plan = splitPlan({ available: fromAvailable }, to, d.quantity, piece.yield, !!d.join);
+    const toNext = {
+      ...to,
+      available: plan.to,
+      ...audit,
+      lastEventId: piece.toEventId,
+      version: to.version + 1,
+    };
+    validateMaterial(toNext);
+    changed.set(to.id, toNext);
+    history.push({ to, toNext, eventId: piece.toEventId });
+  }
+  fromAvailable = splitPlan(existing, history[0].to, d.quantity, pieces[0].yield, !!d.join).from;
+  const fromNext = { ...existing, available: fromAvailable, ...audit, version: existing.version + 1 };
   validateMaterial(fromNext);
-  validateMaterial(toNext);
-  const second = {
-    ...record(fromNext),
-    id: d.toEventId,
+  const main = record(fromNext);
+  const seconds = history.map(({ to, toNext, eventId }) => ({
+    ...main,
+    id: eventId,
     materialId: to.id,
     materialName: to.name,
     measurementUnit: to.measurementUnit,
@@ -122,11 +157,11 @@ function splitMaterial(ledger, event, existing, audit, record) {
     afterAvailable: toNext.available,
     before: materialSnapshot(to),
     after: materialSnapshot(toNext),
-  };
+  }));
   return {
     ...ledger,
-    materials: ledger.materials.map((m) => (m.id === existing.id ? fromNext : m.id === to.id ? toNext : m)),
-    materialHistory: [...ledger.materialHistory, record(fromNext), second],
+    materials: ledger.materials.map((m) => (m.id === existing.id ? fromNext : (changed.get(m.id) ?? m))),
+    materialHistory: [...ledger.materialHistory, main, ...seconds],
   };
 }
 export function applyMaterialEvent(input, event) {
@@ -176,6 +211,7 @@ export function applyMaterialEvent(input, event) {
       measurementUnit: data.measurementUnit.trim(),
       requireSize: data.requireSize,
       minimumStock: data.minimumStock ?? 0,
+      canSplit: data.canSplit ?? false,
       archived: false,
       version: 1,
       createdBy: data.modifiedBy,
@@ -203,6 +239,7 @@ export function applyMaterialEvent(input, event) {
       measurementUnit: data.measurementUnit.trim(),
       requireSize: data.requireSize,
       minimumStock: data.minimumStock ?? existing.minimumStock ?? 0,
+      canSplit: data.canSplit ?? existing.canSplit ?? false,
       ...audit,
       version: existing.version + 1,
     };

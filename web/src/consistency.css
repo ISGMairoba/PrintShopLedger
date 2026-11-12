@@ -2489,4 +2489,12 @@ details.workflow-row[open] {
 .business-type-features {
   display: grid;
   gap: var(--space-1);
+/* Materials → Split: one row per piece (material, how many, remove). */
+.split-piece {
+  align-items: end;
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border, rgba(0, 0, 0, 0.1));
+}
+.split-stock .muted {
+  margin: 0;
 }
