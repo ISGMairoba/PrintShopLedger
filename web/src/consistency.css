@@ -2832,6 +2832,8 @@ h1 {
 .mobile-cell-dates .mobile-meta progress,
 .mobile-cell-dates .mobile-meta .due-progress {
   margin-left: auto;
+  min-width: 0;
+  max-width: 100%;
 }
 .mobile-cell-dates .mobile-meta-audit {
   font-size: 11px;
