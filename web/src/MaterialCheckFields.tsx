@@ -9,7 +9,11 @@ export const checkDraftFor = (ledger: Ledger, job: Job): CheckDraft => checkDraf
 
 /** The usages to save, or an error for the person to fix. */
 export function checkUsagesFrom(draft: CheckDraft) {
-  const usages = draft.map((row) => ({ line: row.line, materialId: row.materialId, quantity: Number(row.quantity) }));
+  const usages = draft.map((row) => ({
+    line: row.line,
+    materialId: row.materialId,
+    quantity: Number(row.quantity),
+  }));
   if (!usages.length || usages.some((u) => !u.materialId || !(u.quantity >= 0) || Number.isNaN(u.quantity)))
     throw Error('Enter how much of each material was used.');
   if (new Set(usages.map((u) => `${u.line}|${u.materialId}`)).size !== usages.length)
@@ -46,7 +50,9 @@ export default function MaterialCheckFields({
       <legend>{w('Materials used')}</legend>
       {!compact && (
         <p className="muted">
-          {w('Each line starts at the calculated amount. Confirm it, enter what was really used, or split it across materials.')}{' '}
+          {w(
+            'Each line starts at the calculated amount. Confirm it, enter what was really used, or split it across materials.',
+          )}{' '}
           {level >= 2
             ? w('Stock moves by the difference when you save.')
             : w('An Admin approves these amounts; stock moves then.')}

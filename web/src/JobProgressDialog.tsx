@@ -25,7 +25,10 @@ export default function JobProgressDialog({
   level: number;
   onClose: () => void;
   /** usages: the materials used, when this move passes the job's confirmation stage. */
-  onSave: (target: string, usages: { line: string; materialId: string; quantity: number }[] | null) => Promise<void>;
+  onSave: (
+    target: string,
+    usages: { line: string; materialId: string; quantity: number }[] | null,
+  ) => Promise<void>;
 }) {
   const { w, stage } = useWords();
   const stageName = stage;

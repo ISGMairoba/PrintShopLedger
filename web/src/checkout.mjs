@@ -303,20 +303,22 @@ export function prepareCheckout(
   if (!Array.isArray(input.lines) || input.lines.length > 50)
     throw Error('A checkout can contain at most 50 jobs.');
   const expectedAccount = accountToken(working, customer.id);
-  const quoted = input.lines.map((line, index) => withCheck({
-    ...quoteLine(working, line),
-    customerId: customer.id,
-    createdAt: now,
-    checkoutId: id,
-    checkoutPosition: index,
-    productionStatus: line.serviceId && quoteShelf(working, line.serviceId) ? 'Collected' : 'Added',
-    version: 1,
-    createdBy: actor.id,
-    createdByLabel: actor.label,
-    modifiedBy: actor.id,
-    modifiedByLabel: actor.label,
-    modifiedAt: now,
-  }));
+  const quoted = input.lines.map((line, index) =>
+    withCheck({
+      ...quoteLine(working, line),
+      customerId: customer.id,
+      createdAt: now,
+      checkoutId: id,
+      checkoutPosition: index,
+      productionStatus: line.serviceId && quoteShelf(working, line.serviceId) ? 'Collected' : 'Added',
+      version: 1,
+      createdBy: actor.id,
+      createdByLabel: actor.label,
+      modifiedBy: actor.id,
+      modifiedByLabel: actor.label,
+      modifiedAt: now,
+    }),
+  );
   // Order discount shared by price; with a policy, the giver's limits are checked here too.
   const discounts = applyOrderDiscount(quoted, input.orderDiscount, input.discountPolicy ?? null);
   const jobs = discounts.jobs;

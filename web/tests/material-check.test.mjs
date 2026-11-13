@@ -10,7 +10,16 @@ const create = (l, id, name, available, unit = 'sheets') =>
   applyMaterialEvent(l, {
     id: crypto.randomUUID(),
     kind: 'material.created',
-    data: { id, name, available, measurementUnit: unit, requireSize: false, modifiedBy: 'u', modifiedByLabel: 'Owner', modifiedAt: at },
+    data: {
+      id,
+      name,
+      available,
+      measurementUnit: unit,
+      requireSize: false,
+      modifiedBy: 'u',
+      modifiedByLabel: 'Owner',
+      modifiedAt: at,
+    },
   });
 
 /** A job that took 5 sheets of A at checkout, as the checkout leaves it. */
@@ -40,7 +49,15 @@ function setup() {
     jobs: [job],
     materialHistory: [
       ...l.materialHistory,
-      { id: 'j1', materialId: 'a', action: 'material.job_used', jobId: 'j1', beforeAvailable: 100, afterAvailable: 95, changedAt: at },
+      {
+        id: 'j1',
+        materialId: 'a',
+        action: 'material.job_used',
+        jobId: 'j1',
+        beforeAvailable: 100,
+        afterAvailable: 95,
+        changedAt: at,
+      },
     ],
   };
   return l;
@@ -75,10 +92,7 @@ test('a cashier sends it for approval: nothing moves, the job can move on; the G
   assert.deepEqual([stock(l, 'a'), stock(l, 'b')], [95, 50]);
   assert.equal(pendingChecks(l).length, 1);
   // A cashier cannot change a confirmed check later; the GM approves 4 Gloss + 3 Matte.
-  l = applyEvent(
-    l,
-    materialsCheckEvent(l, l.jobs[0], [usages[0], { ...usages[1], quantity: 3 }], admin),
-  );
+  l = applyEvent(l, materialsCheckEvent(l, l.jobs[0], [usages[0], { ...usages[1], quantity: 3 }], admin));
   const check = l.jobs[0].materialCheck;
   assert.equal(check.status, 'confirmed');
   assert.equal(check.requestedByLabel, 'Cashier');
@@ -87,15 +101,24 @@ test('a cashier sends it for approval: nothing moves, the job can move on; the G
   assert.equal(pendingChecks(l).length, 0);
   assert.throws(() => materialsCheckEvent(l, l.jobs[0], usages, cashier), /already confirmed/);
   // Correcting again moves only the difference: 5 Gloss, no Matte.
-  l = applyEvent(l, materialsCheckEvent(l, l.jobs[0], [{ line: 'm:a', materialId: 'a', quantity: 5 }], admin));
+  l = applyEvent(
+    l,
+    materialsCheckEvent(l, l.jobs[0], [{ line: 'm:a', materialId: 'a', quantity: 5 }], admin),
+  );
   assert.deepEqual([stock(l, 'a'), stock(l, 'b')], [95, 50]);
 });
 
 test('materials check refuses another unit, a missing line and duplicates', () => {
   const l = setup();
   const job = l.jobs[0];
-  assert.throws(() => materialsCheckEvent(l, job, [{ line: 'm:a', materialId: 'r', quantity: 1 }], admin), /measured in ft/);
-  assert.throws(() => materialsCheckEvent(l, job, [{ line: 'm:x', materialId: 'a', quantity: 1 }], admin), /materials used/);
+  assert.throws(
+    () => materialsCheckEvent(l, job, [{ line: 'm:a', materialId: 'r', quantity: 1 }], admin),
+    /measured in ft/,
+  );
+  assert.throws(
+    () => materialsCheckEvent(l, job, [{ line: 'm:x', materialId: 'a', quantity: 1 }], admin),
+    /materials used/,
+  );
   assert.throws(
     () =>
       materialsCheckEvent(

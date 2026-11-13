@@ -47,7 +47,8 @@ export function MaterialCheckDialog({
       </p>
       {pending && job.materialCheck?.requestedByLabel && (
         <p className="notice" role="status">
-          {w('Entered by')} {job.materialCheck.requestedByLabel}. {admin ? w('Change any amount before approving.') : ''}
+          {w('Entered by')} {job.materialCheck.requestedByLabel}.{' '}
+          {admin ? w('Change any amount before approving.') : ''}
         </p>
       )}
       {error && (
@@ -71,7 +72,13 @@ export function MaterialCheckDialog({
           }
         }}
       >
-        <MaterialCheckFields ledger={ledger} job={job} value={draft} onChange={setDraft} level={actor.level} />
+        <MaterialCheckFields
+          ledger={ledger}
+          job={job}
+          value={draft}
+          onChange={setDraft}
+          level={actor.level}
+        />
       </form>
     </Modal>
   );
@@ -173,7 +180,8 @@ export function PendingChecksBanner({
       <div className="notice notice-warning pending-checks" role="status">
         <span>
           <strong>{waiting.length}</strong>{' '}
-          {w(waiting.length === 1 ? 'job has materials' : 'jobs have materials')} {w('waiting for your approval')}.
+          {w(waiting.length === 1 ? 'job has materials' : 'jobs have materials')}{' '}
+          {w('waiting for your approval')}.
         </span>
         <button type="button" className="secondary" onClick={() => setList(true)}>
           {w('Review')}

@@ -134,7 +134,8 @@ function validUsages(ledger, job, usages) {
     if (!line) throw Error('Enter the materials used for this job.');
     if (!u.id) throw Error('Invalid material usage ID.');
     const key = `${u.line}|${u.materialId}`;
-    if (seen.has(key)) throw Error('Choose each material once per line. To use more of one, raise its amount.');
+    if (seen.has(key))
+      throw Error('Choose each material once per line. To use more of one, raise its amount.');
     seen.add(key);
     const quantity = Number(u.quantity);
     if (!(quantity >= 0) || quantity > 1000000000000 || round3(quantity) !== quantity)
@@ -142,7 +143,9 @@ function validUsages(ledger, job, usages) {
     const material = ledger.materials.find((m) => m.id === u.materialId);
     if (!material || material.archived) throw Error('Choose an active material for each line.');
     if (material.measurementUnit !== line.unit)
-      throw Error(`${material.name} is measured in ${material.measurementUnit}; this line is in ${line.unit}.`);
+      throw Error(
+        `${material.name} is measured in ${material.measurementUnit}; this line is in ${line.unit}.`,
+      );
   }
   for (const line of lines)
     if (!usages.some((u) => u.line === line.key)) throw Error(`Enter what was used for ${line.name}.`);
