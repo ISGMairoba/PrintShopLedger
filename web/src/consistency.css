@@ -3133,3 +3133,12 @@ label.checkbox input[type="checkbox"],
   display: block;
   color: var(--muted);
 }
+/* On phones: the material across the row, then the amount and remove under it. */
+@media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
+  .material-check-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .material-check-row > select {
+    grid-column: 1 / -1;
+  }
+}
