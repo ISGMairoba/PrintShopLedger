@@ -60,7 +60,11 @@ export function checkLines(ledger, job) {
   return lines;
 }
 
-/** The materials a line may be confirmed as: any active material measured in the same unit. */
+/**
+ * The materials a line may be confirmed as: any active material measured in the same unit.
+ * @param {import('./types').Ledger} ledger
+ * @returns {import('./types').Material[]}
+ */
 export function lineOptions(ledger, line) {
   const same = ledger.materials.filter((m) => !m.archived && m.measurementUnit === line.unit);
   // The line's own materials first, then the rest by name.
@@ -301,7 +305,11 @@ export function applyMaterialsCheck(ledger, event) {
   };
 }
 
-/** Jobs whose materials wait for an Admin's approval, oldest first. */
+/**
+ * Jobs whose materials wait for an Admin's approval, oldest first.
+ * @param {import('./types').Ledger} ledger
+ * @returns {import('./types').Job[]}
+ */
 export const pendingChecks = (ledger) =>
   ledger.jobs
     .filter((j) => j.materialCheck?.status === 'pending' && j.productionStatus !== 'Cancelled')
