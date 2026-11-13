@@ -3021,14 +3021,14 @@ label.checkbox input[type="checkbox"],
 .mobile-details .mobile-meta small.phone {
   margin-left: 4px;
 }
-.mobile-details .mobile-meta small:is(.stage-late, .job-held) {
+.mobile-details .mobile-meta small:is(.stage-late, .job-held, .material-pending) {
   display: table;
   margin: 2px 0;
   padding: 1px 6px;
   border-radius: 4px;
 }
-.mobile-details .mobile-meta small:is(.stage-late, .job-held)::before,
-.mobile-details .mobile-meta small:is(.stage-late, .job-held) + small::before {
+.mobile-details .mobile-meta small:is(.stage-late, .job-held, .material-pending)::before,
+.mobile-details .mobile-meta small:is(.stage-late, .job-held, .material-pending) + small::before {
   content: none;
 }
 /* Point of Service on phones: Quick sale fills the rest of the view-buttons row. */

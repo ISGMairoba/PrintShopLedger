@@ -292,7 +292,7 @@ try {
       const complete = page.getByRole('main').getByRole('button', { name: /Mark as Complete/ }).first();
       if (!(await complete.isVisible()))
         await page.getByRole('main').getByRole('button', { name: 'More', exact: true }).first().click();
-      await complete.click();
+      await page.locator('button:visible', { hasText: 'Mark as Complete' }).first().click();
       const m = page.getByRole('dialog').last();
       await m.getByRole('button', { name: /Split with another material/ }).click();
       await fieldHeights('Materials used');
