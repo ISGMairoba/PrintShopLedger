@@ -289,7 +289,10 @@ try {
       await nav('Jobs');
       await shot('89-jobs-material-to-confirm');
       // On phones the job's other actions sit under More.
-      const complete = page.getByRole('main').getByRole('button', { name: /Mark as Complete/ }).first();
+      const complete = page
+        .getByRole('main')
+        .getByRole('button', { name: /Mark as Complete/ })
+        .first();
       if (!(await complete.isVisible()))
         await page.getByRole('main').getByRole('button', { name: 'More', exact: true }).first().click();
       await page.locator('button:visible', { hasText: 'Mark as Complete' }).first().click();
