@@ -298,7 +298,11 @@ try {
   assert.equal(completedJob.productionStatus, 'Completed');
   // Its materials are confirmed on the way (the move passes its confirmation stage), then each step.
   assert.equal(completedJob.materialCheck?.status, 'confirmed', 'Completing confirms the materials used');
-  assert.equal(completedJob.version, 5, 'The materials check and each intervening step increment the version');
+  assert.equal(
+    completedJob.version,
+    5,
+    'The materials check and each intervening step increment the version',
+  );
   await nav('Customers');
   await page.getByRole('button', { name: 'Account records', exact: true }).click();
   d = page.getByRole('dialog');
