@@ -3067,3 +3067,69 @@ label.checkbox input[type="checkbox"],
 .dashboard-legend > button {
   margin: 0;
 }
+
+/* Materials used (production check): one block per line, each row material · amount · remove. */
+.material-check {
+  display: grid;
+  gap: var(--gap-stack);
+}
+.material-check-line {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.material-check-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin: 0;
+}
+.material-check-head > span {
+  color: var(--muted);
+  font-size: 13px;
+}
+.material-check-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  align-items: center;
+}
+.material-check-row > .icon-button {
+  width: var(--control-h);
+  padding: 0;
+}
+.material-check.compact .material-check-line {
+  padding: 8px 10px;
+}
+.pending-checks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+.pending-check-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.pending-check-list > li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.pending-check-list > li:first-child {
+  border-top: 0;
+}
+.pending-check-list small {
+  display: block;
+  color: var(--muted);
+}

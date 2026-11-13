@@ -4,7 +4,7 @@ import { jobWorkflow } from './business-options.mjs';
 import { useState } from 'react';
 import Modal from './Modal';
 import type { Job, Ledger } from './types';
-import MaterialUsedFields, { usageDraft, usagesFrom, type UsageDraft } from './MaterialUsedFields';
+import MaterialCheckFields, { checkDraftFor, checkUsagesFrom, type CheckDraft } from './MaterialCheckFields';
 import { materialConfirmDue } from './material-choice.mjs';
 import type { ProgressMode } from './JobActions';
 import { useWords } from './Words';
@@ -13,6 +13,7 @@ export default function JobProgressDialog({
   job,
   mode,
   busy,
+  level,
   onClose,
   onSave,
 }: {
@@ -20,9 +21,11 @@ export default function JobProgressDialog({
   job: Job;
   mode: ProgressMode;
   busy: boolean;
+  /** The person's access level: below Admin, the materials go for approval. */
+  level: number;
   onClose: () => void;
-  /** usages: the material(s) used, when this move confirms them (a choice-of-materials job). */
-  onSave: (target: string, usages: { materialId: string; quantity: number }[] | null) => Promise<void>;
+  /** usages: the materials used, when this move passes the job's confirmation stage. */
+  onSave: (target: string, usages: { line: string; materialId: string; quantity: number }[] | null) => Promise<void>;
 }) {
   const { w, stage } = useWords();
   const stageName = stage;
@@ -32,7 +35,7 @@ export default function JobProgressDialog({
     [error, setError] = useFeedbackMessage('error');
   const path = jobStatuses.slice(index + 1, jobStatuses.indexOf(target) + 1);
   const confirming = materialConfirmDue(job, target);
-  const [draft, setDraft] = useState<UsageDraft>(() => (job.materialChoice ? usageDraft(job) : []));
+  const [draft, setDraft] = useState<CheckDraft>(() => checkDraftFor(ledger, job));
   return (
     <Modal
       title={mode === 'set' ? w('Set job stage') : w(`Move job to ${stage(target)}?`)}
@@ -53,7 +56,7 @@ export default function JobProgressDialog({
           if (busy) return;
           setError('');
           try {
-            await onSave(target, confirming ? usagesFrom(draft) : null);
+            await onSave(target, confirming ? checkUsagesFrom(draft) : null);
           } catch (cause) {
             setError(cause instanceof Error ? cause.message : String(cause));
           }
@@ -71,7 +74,9 @@ export default function JobProgressDialog({
             </select>
           </label>
         )}
-        {confirming && <MaterialUsedFields ledger={ledger} job={job} value={draft} onChange={setDraft} />}
+        {confirming && (
+          <MaterialCheckFields ledger={ledger} job={job} value={draft} onChange={setDraft} level={level} />
+        )}
         <p>Proceed in order: {path.map(stage).join(' → ')}</p>
         <p className="muted">
           Each stage is recorded separately.{' '}

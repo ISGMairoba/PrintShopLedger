@@ -170,6 +170,8 @@ async function synchronize(scope: string, shopId: string) {
                       ? 'apply_job_material_event'
                       : event.kind === 'job.extra_materials_set'
                         ? 'apply_job_extra_materials_event'
+                        : event.kind === 'job.materials_checked'
+                        ? 'apply_job_check_event'
                         : event.kind === 'job.held' || event.kind === 'job.resumed'
                           ? 'apply_job_hold_event'
                           : event.kind.startsWith('customer.')

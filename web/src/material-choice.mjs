@@ -7,6 +7,7 @@
 import { jobWorkflow } from './business-options.mjs';
 import { materialSnapshot } from './material-display.mjs';
 import { progressEvents } from './job-progress.mjs';
+import { checksMaterials, materialsCheckEvent } from './material-check.mjs';
 
 const round3 = (n) => Math.round(n * 1000) / 1000;
 const DEFAULT_STAGE = 'Printing';
@@ -71,8 +72,12 @@ export function materialChoiceFor(service, work, planned) {
   };
 }
 
-/** Whether a choice job still needs its material confirmed. */
-export const materialPending = (job) => !!job?.materialChoice && !job.materialUsed;
+/**
+ * Whether a job still needs its materials confirmed: a choice job, or any job that takes stock
+ * (sold since materials are checked in production). A check sent for approval counts as done for
+ * moving on; the stock moves when an Admin confirms it.
+ */
+export const materialPending = (job) => checksMaterials(job) && !job.materialUsed && !job.materialCheck;
 
 /**
  * Whether moving the job to `next` needs its material confirmed first: `next` lies beyond the
@@ -82,7 +87,7 @@ export function materialConfirmDue(job, next) {
   if (!materialPending(job)) return false;
   const flow = jobWorkflow(job);
   const to = flow.indexOf(next);
-  let at = flow.indexOf(job.materialChoice.confirmStage);
+  let at = job.materialChoice ? flow.indexOf(job.materialChoice.confirmStage) : -1;
   if (at < 0) at = flow.indexOf('Completed') - 1;
   return to > at;
 }
@@ -228,17 +233,28 @@ export function applyJobMaterial(ledger, event) {
  * @param {any} ledger
  * @param {import('./types').Job} job
  * @param {string} target
- * @param {{ id: string, label: string }} actor
- * @param {{ materialId: string, quantity: number }[] | null} [usages]
+ * @param {{ id: string, label: string, level?: number }} actor
+ * @param {{ line: string, materialId: string, quantity: number }[] | null} [usages]
  * @param {string} [now]
  * @returns {any[]}
  */
 export function stageMoveEvents(ledger, job, target, actor, usages = null, now = new Date().toISOString()) {
   if (!materialConfirmDue(job, target)) return progressEvents(job, target, actor, now);
-  if (!usages?.length) throw Error('Confirm the material used for this job before moving it on.');
-  const confirm = materialUsedEvent(ledger, job, usages, actor, now);
-  const after = { ...job, version: (job.version ?? 1) + 1, materialUsed: { usages: confirm.data.usages } };
-  return [confirm, ...progressEvents(after, target, actor, now)];
+  if (!usages?.length) throw Error('Confirm the materials used for this job before moving it on.');
+  // Older callers name no lines: a choice job confirms its material as before.
+  if (job.materialChoice && usages.every((u) => u.line === undefined)) {
+    const confirm = materialUsedEvent(ledger, job, usages, actor, now);
+    const after = { ...job, version: (job.version ?? 1) + 1, materialUsed: { usages: confirm.data.usages } };
+    return [confirm, ...progressEvents(after, target, actor, now)];
+  }
+  // Every job now confirms through the materials check (lines: what it took, or is to take).
+  const check = materialsCheckEvent(ledger, job, usages, actor, now);
+  const after = {
+    ...job,
+    version: (job.version ?? 1) + 1,
+    materialCheck: { status: check.data.mode === 'confirm' ? 'confirmed' : 'pending' },
+  };
+  return [check, ...progressEvents(after, target, actor, now)];
 }
 
 // ---- Corrections after the material was confirmed --------------------------------------------

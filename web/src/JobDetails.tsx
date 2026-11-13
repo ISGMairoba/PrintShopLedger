@@ -1,5 +1,6 @@
 import { jobBalanceFast } from './balances.mjs';
 import ExtraMaterials from './ExtraMaterials';
+import MaterialCheckSection from './MaterialCheckSection';
 import DeadlineProgress from './DeadlineProgress';
 import Icon from './Icon';
 import { TemplateSummary } from './TemplateFields';
@@ -9,7 +10,7 @@ import JobActions, { type HoldChange, type ProgressMode } from './JobActions';
 import { AdjustmentHistory } from './SaleAdjustmentsPage';
 import { paymentName } from './business-options.mjs';
 import { currency, dateLabel, shortId } from './app/shared';
-import type { JobExtraMaterialsEvent, Job, Ledger } from './types';
+import type { JobExtraMaterialsEvent, JobMaterialsCheckEvent, Job, Ledger } from './types';
 import { useWords } from './Words';
 
 const lagosTime = (value: string) =>
@@ -44,6 +45,9 @@ type Props = {
   /** Who is signed in, and saving materials added in production (left out: not allowed). */
   actor?: { id: string; label: string };
   onExtraMaterials?: (event: JobExtraMaterialsEvent) => Promise<void>;
+  /** The materials check (confirm, approve, correct); level decides approval. */
+  checkActor?: { id: string; label: string; level: number };
+  onMaterialsCheck?: (event: JobMaterialsCheckEvent) => Promise<void>;
   onHold?: (job: Job, hold: HoldChange) => Promise<void>;
 };
 
@@ -64,6 +68,8 @@ export default function JobDetails({
   onPayment,
   actor,
   onExtraMaterials,
+  checkActor,
+  onMaterialsCheck,
   onHold,
 }: Props) {
   const { w } = useWords();
@@ -198,6 +204,13 @@ export default function JobDetails({
         </details>
       )}
       {job.workflowName && <p className="muted">Workflow: {job.workflowName}</p>}
+      <MaterialCheckSection
+        ledger={ledger}
+        job={job}
+        busy={busy || legacyConflict}
+        actor={checkActor}
+        onSave={onMaterialsCheck}
+      />
       {actor && (
         <ExtraMaterials
           job={job}

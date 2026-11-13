@@ -223,7 +223,10 @@ export default function JobTable({
                     {job.shelfItem ? ' · Shelf' : ''}
                   </small>
                   {materialPending(job) && stage !== 'Cancelled' && (
-                    <small className="material-pending">Material to confirm</small>
+                    <small className="material-pending">Materials to confirm</small>
+                  )}
+                  {job.materialCheck?.status === 'pending' && stage !== 'Cancelled' && (
+                    <small className="material-pending">Materials waiting for approval</small>
                   )}
                   {job.hold && (
                     <small className="job-held">

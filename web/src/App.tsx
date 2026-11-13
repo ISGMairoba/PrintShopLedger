@@ -162,6 +162,7 @@ import EditProductsPage from './EditProductsPage';
 import { featureOn } from './business-type.mjs';
 import RemindersPage from './RemindersPage';
 import { useMobileLayout } from './ResponsiveTable';
+import { PendingChecksBanner } from './MaterialCheckSection';
 
 const DashboardPage = lazy(() => import('./DashboardPage'));
 const ReportsPage = lazy(() => import('./ReportsPage'));
@@ -1230,6 +1231,8 @@ export default function App() {
       ? 'Local trial user'
       : shop?.staffName || session?.user.user_metadata.full_name || salesActor.label,
   };
+  // Materials checks: below Admin, the check goes for approval (material-check.mjs).
+  const checkActor = { ...catalogueActor, level: demo ? 5 : (shop?.accessLevel ?? 0) };
   const currentJob = ledger.jobs.find((job) => job.id === selectedJob);
   // Auto-lock (Business Settings → Security): sign the user out after the idle time. The business
   // stays signed in, so the staff sign-in appears with empty fields.
@@ -1607,6 +1610,16 @@ export default function App() {
                           Read it
                         </button>
                       </div>
+                    )}
+                    {(page === 'Point of Service' || page === 'Jobs') && (
+                      <PendingChecksBanner
+                        ledger={ledger}
+                        busy={busy || legacyConflict}
+                        actor={checkActor}
+                        onSave={async (event) => {
+                          await save(event);
+                        }}
+                      />
                     )}
                     {helpFor !== undefined && (
                       <HelpPanel
@@ -2694,6 +2707,10 @@ export default function App() {
                         onAction={(job, mode) => setJobToAdvance({ job, mode })}
                         onPayment={openPayment}
                         actor={catalogueActor}
+                        checkActor={checkActor}
+                        onMaterialsCheck={async (event) => {
+                          await save(event);
+                        }}
                         onHold={holdJob}
                         onExtraMaterials={
                           demo || (shop?.accessLevel ?? 0) >= extraMaterialsRank(branding.settings)
@@ -2907,6 +2924,7 @@ export default function App() {
                         jobs={batchToAdvance.jobs}
                         mode={batchToAdvance.mode}
                         busy={busy}
+                        level={demo ? 5 : (shop?.accessLevel ?? 0)}
                         onClose={() => setBatchToAdvance(null)}
                         onSave={async (targetStage, usages) => {
                           if (busy || !ready || !scope || legacyConflict)
@@ -2930,6 +2948,7 @@ export default function App() {
                               label: demo
                                 ? 'Local trial user'
                                 : shop?.staffName || session!.user.email || session!.user.id,
+                              level: demo ? 5 : (shop?.accessLevel ?? 0),
                             },
                             undefined,
                             { ledger: state.ledger, usages },
@@ -2958,6 +2977,7 @@ export default function App() {
                         job={jobToAdvance.job}
                         mode={jobToAdvance.mode}
                         busy={busy}
+                        level={demo ? 5 : (shop?.accessLevel ?? 0)}
                         onClose={() => setJobToAdvance(null)}
                         onSave={async (targetStage, usages) => {
                           if (busy || !ready || !scope || legacyConflict)
@@ -2975,6 +2995,7 @@ export default function App() {
                                 label: demo
                                   ? 'Local trial user'
                                   : shop?.staffName || session!.user.email || session!.user.id,
+                                level: demo ? 5 : (shop?.accessLevel ?? 0),
                               },
                               usages,
                             );

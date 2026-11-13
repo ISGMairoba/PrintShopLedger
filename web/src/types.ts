@@ -228,6 +228,19 @@ export interface Job {
     updatedByLabel: string;
     updatedAt: string;
   };
+  /** Takes stock: confirms its materials in production (material-check.mjs). */
+  checkMaterials?: boolean;
+  /** What production used: sent for approval (pending) or confirmed by an Admin or higher. */
+  materialCheck?: {
+    status: 'pending' | 'confirmed';
+    usages: { id: string; line: string; materialId: string; quantity: number }[];
+    requestedBy?: string;
+    requestedByLabel?: string;
+    requestedAt?: string;
+    confirmedBy?: string;
+    confirmedByLabel?: string;
+    confirmedAt?: string;
+  };
   /** The material(s) confirmed as used in production. */
   materialUsed?: {
     usages: { id?: string; materialId: string; quantity: number; group?: number }[];
@@ -420,6 +433,20 @@ export type JobExtraMaterialsEvent = {
     id: string;
     baseVersion: number;
     usages: { id: string; materialId: string; quantity: number }[];
+    modifiedBy: string;
+    modifiedByLabel: string;
+    modifiedAt: string;
+  };
+};
+export type JobMaterialsCheckEvent = {
+  id: string;
+  kind: 'job.materials_checked';
+  data: {
+    id: string;
+    baseVersion: number;
+    mode: 'confirm' | 'request';
+    usages: { id: string; line: string; materialId: string; quantity: number }[];
+    stockIds?: Record<string, string>;
     modifiedBy: string;
     modifiedByLabel: string;
     modifiedAt: string;
@@ -712,6 +739,7 @@ export type LedgerEvent =
   | JobStatusEvent
   | JobMaterialEvent
   | JobExtraMaterialsEvent
+  | JobMaterialsCheckEvent
   | JobHoldEvent
   | CustomerEvent
   | { id: string; kind: 'job.created'; data: Job }
