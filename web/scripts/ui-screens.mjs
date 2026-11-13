@@ -294,8 +294,8 @@ try {
         .first()
         .click();
       const m = page.getByRole('dialog').last();
-      await m.getByRole('button', { name: /Add another material/ }).click();
-      await fieldHeights('Material used');
+      await m.getByRole('button', { name: /Split with another material/ }).click();
+      await fieldHeights('Materials used');
       await m.screenshot({ path: `${out}/${mode}-89-material-used.png` });
       await closeDialogs();
     } catch (e) {
