@@ -11,7 +11,7 @@ import { setRequestBranch, storeBranch, storedBranch } from './device-branch';
 import PayeesPage from './PayeesPage';
 import AccountsPage from './AccountsPage';
 import { defaultMoneyAccount } from './operations.mjs';
-import type { OperationsEvent } from './types';
+import type { Ledger, OperationsEvent } from './types';
 import DueDateDialog from './DueDateDialog';
 import useSubscription, { subscriptionNotice } from './useSubscription';
 import { setWritesBlocked } from './subscription-rule.mjs';
@@ -128,6 +128,7 @@ import {
   submitCorrectionRequest,
   withdrawCorrectionRequest,
   rejectCorrectionRequest,
+  fetchFullLedger,
 } from './cloud';
 import { readState, saveEvent, saveEvents, mutateState, storageHealth } from './storage';
 import { holdSale, listHeld, removeHeld } from './held-sales.mjs';
@@ -474,6 +475,16 @@ export default function App() {
     const base = { ...state.ledger, pricing: branding.settings.pricing };
     return masterBranch === 'all' ? allBranchesLedger(base) : branchLedger(base, masterBranch);
   }, [ownerView, ledger, state.ledger, branding.settings.pricing, masterBranch]);
+  /** The same view of a downloaded whole history (Reports on a device keeping recent history). */
+  const viewOf = (raw: Ledger): Ledger => {
+    if (!ownerView)
+      return {
+        ...(multiBranch && activeBranch ? branchLedger(raw, activeBranch.id) : raw),
+        pricing: branding.settings.pricing,
+      };
+    const base = { ...raw, pricing: branding.settings.pricing };
+    return masterBranch === 'all' ? allBranchesLedger(base) : branchLedger(base, masterBranch);
+  };
   const masterBranches = useMemo(
     () =>
       ownerView && masterBranch === 'all'
@@ -1989,6 +2000,12 @@ export default function App() {
                           >
                             <ReportsPage
                               ledger={masterLedger}
+                              loadFullHistory={
+                                shop && !demo && state.ledger.historySummary?.cutoff
+                                  ? async () => viewOf(await fetchFullLedger(scope, shop.id))
+                                  : undefined
+                              }
+                              historyKey={`${scope}:${masterBranch}:${activeBranch?.id ?? ''}`}
                               branchControl={branchControl}
                               ready={ready}
                               online={online}

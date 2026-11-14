@@ -1,4 +1,13 @@
-import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  Fragment,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { profitReport, profitSections } from './profit.mjs';
 import { profitLoss, profitLossSections } from './profit-loss.mjs';
 import ResponsiveTable from './ResponsiveTable';
@@ -58,7 +67,15 @@ type Props = {
   access: ReportAccess;
   /** The owner's choice of branch (All branches or one). */
   branchControl?: ReactNode;
+  /**
+   * On a device keeping recent history only: download the whole history for a report that starts
+   * before it (held in memory, not saved). `historyKey` changes when a different copy is needed.
+   */
+  loadFullHistory?: () => Promise<Ledger>;
+  historyKey?: string;
 };
+/** Each report says the earliest day it needs (its period, and the period it compares with). */
+const ReportNeeds = createContext<(key: string, from: string) => void>(() => {});
 type Tab = 'Customer statement' | 'Payee statement' | 'Transactions' | 'Summary' | 'Profit' | 'Profit & loss';
 type StatementJob = {
   id: string;
@@ -129,7 +146,12 @@ function useRange() {
   const [period, setPeriod] = usePeriod('reports');
   const range = { from: period.from, to: period.to };
   const controls = <PeriodFilter value={period} onChange={setPeriod} />;
-  return { range, valid: validRange(range.from, range.to), controls };
+  const valid = validRange(range.from, range.to);
+  const need = useContext(ReportNeeds);
+  useEffect(() => {
+    need('range', valid ? range.from : '');
+  }, [need, valid, range.from]);
+  return { range, valid, controls };
 }
 
 function Select({
@@ -263,7 +285,7 @@ function JobTable({ jobs, label }: { jobs: StatementJob[]; label: string }) {
 }
 
 export default function ReportsPage({
-  ledger,
+  ledger: props,
   ready,
   online,
   pending,
@@ -276,7 +298,41 @@ export default function ReportsPage({
   onPayeeChange = () => {},
   access,
   branchControl,
+  loadFullHistory,
+  historyKey = '',
 }: Props) {
+  const trimmed = props.historySummary?.cutoff ?? '';
+  // The days the open report needs; when they start before this device's history, the whole
+  // history is downloaded for the report (online), or the report says what may be missing.
+  const [needs, setNeeds] = useState<Record<string, string>>({});
+  const need = useCallback(
+    (key: string, from: string) => setNeeds((n) => (n[key] === from ? n : { ...n, [key]: from })),
+    [],
+  );
+  const earliest = Object.values(needs).filter(Boolean).sort()[0];
+  const wanted = !!trimmed && !!earliest && earliest < trimmed;
+  const [full, setFull] = useState<{ key: string; ledger: Ledger; at: string } | null>(null);
+  const [fullState, setFullState] = useState<'' | 'loading' | 'failed'>('');
+  const [fullError, setFullError] = useState('');
+  const fullReady = full && full.key === historyKey ? full : null;
+  async function loadFull() {
+    if (!loadFullHistory) return;
+    setFullState('loading');
+    setFullError('');
+    try {
+      const loaded = await loadFullHistory();
+      setFull({ key: historyKey, ledger: loaded, at: new Date().toISOString() });
+      setFullState('');
+    } catch (cause) {
+      setFullState('failed');
+      setFullError(cause instanceof Error ? cause.message : String(cause));
+    }
+  }
+  useEffect(() => {
+    if (wanted && online && loadFullHistory && !fullReady && fullState === '') void loadFull();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wanted, online, !!fullReady, fullState, historyKey]);
+  const ledger = wanted && fullReady ? fullReady.ledger : props;
   // Load the PDF and share code now: phones only open the share sheet straight after the tap.
   useEffect(() => {
     void import('./report-pdf');
@@ -334,19 +390,49 @@ export default function ReportsPage({
         Loading report records…
       </section>
     );
-  const keptFrom = ledger.historySummary?.cutoff;
-  const kept = keptFrom ? (
+  const keptFrom = trimmed;
+  const day = (d: string) =>
+    new Date(d + 'T12:00:00+01:00').toLocaleDateString('en-NG', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  const kept = !keptFrom ? null : wanted && fullReady ? (
+    <p className="dashboard-freshness" role="status">
+      Includes records from before {day(keptFrom)}, downloaded for this report at{' '}
+      {new Date(fullReady.at).toLocaleTimeString('en-NG', { timeZone: 'Africa/Lagos', timeStyle: 'short' })}{' '}
+      (not kept on this device).{' '}
+      <button type="button" className="text-button" onClick={() => void loadFull()}>
+        Download again
+      </button>
+    </p>
+  ) : wanted ? (
     <div className="dashboard-warning" role="status">
-      This device keeps records from{' '}
-      {new Date(keptFrom + 'T12:00:00+01:00').toLocaleDateString('en-NG', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-      })}
-      . Balances and totals are complete; for the detail of earlier records, choose Everything in My Account →
-      This device, or use a device that keeps everything.
+      {fullState === 'loading' ? (
+        <>
+          This report starts before {day(keptFrom)}, the earliest record this device keeps. Downloading the
+          earlier records…
+        </>
+      ) : (
+        <>
+          This report starts before {day(keptFrom)}, the earliest record this device keeps, so its figures may
+          be incomplete.{' '}
+          {!online || !loadFullHistory
+            ? 'Connect to the internet to download the earlier records for this report.'
+            : `The earlier records could not be downloaded${fullError ? ` (${fullError})` : ''}.`}{' '}
+          {online && loadFullHistory && (
+            <button type="button" className="text-button" onClick={() => void loadFull()}>
+              Try again
+            </button>
+          )}
+        </>
+      )}
     </div>
-  ) : null;
+  ) : (
+    <p className="dashboard-freshness">
+      This device keeps records from {day(keptFrom)}; a report that starts earlier downloads them.
+    </p>
+  );
   const freshness0 =
     !online || pending > 0 ? (
       <div className="dashboard-warning" role="status">
@@ -398,36 +484,38 @@ export default function ReportsPage({
   }
   const shared = { ledger, freshness, busy, error, pdf, csv, share, company };
   return (
-    <div className="dashboard reports">
-      {branchControl && <section className="panel dashboard-filters">{branchControl}</section>}
-      <div className="settings-tabs" role="tablist" aria-label="Reports">
-        {tabs.map((item) => (
-          <button
-            key={item}
-            role="tab"
-            aria-selected={tab === item}
-            tabIndex={tab === item ? 0 : -1}
-            className={tab === item ? 'active' : 'secondary'}
-            onClick={() => setTab(item)}
-          >
-            {item}
-          </button>
-        ))}
+    <ReportNeeds.Provider value={need}>
+      <div className="dashboard reports">
+        {branchControl && <section className="panel dashboard-filters">{branchControl}</section>}
+        <div className="settings-tabs" role="tablist" aria-label="Reports">
+          {tabs.map((item) => (
+            <button
+              key={item}
+              role="tab"
+              aria-selected={tab === item}
+              tabIndex={tab === item ? 0 : -1}
+              className={tab === item ? 'active' : 'secondary'}
+              onClick={() => setTab(item)}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+        {tab === 'Customer statement' ? (
+          <StatementTab {...shared} customerId={customerId} onCustomerChange={onCustomerChange} />
+        ) : tab === 'Profit' ? (
+          <ProfitTab {...shared} />
+        ) : tab === 'Profit & loss' ? (
+          <ProfitLossTab {...shared} />
+        ) : tab === 'Payee statement' ? (
+          <PayeeStatementTab {...shared} payeeId={payeeId} onPayeeChange={onPayeeChange} />
+        ) : tab === 'Transactions' ? (
+          <TransactionsTab {...shared} access={access} />
+        ) : (
+          <SummaryTab {...shared} access={access} />
+        )}
       </div>
-      {tab === 'Customer statement' ? (
-        <StatementTab {...shared} customerId={customerId} onCustomerChange={onCustomerChange} />
-      ) : tab === 'Profit' ? (
-        <ProfitTab {...shared} />
-      ) : tab === 'Profit & loss' ? (
-        <ProfitLossTab {...shared} />
-      ) : tab === 'Payee statement' ? (
-        <PayeeStatementTab {...shared} payeeId={payeeId} onPayeeChange={onPayeeChange} />
-      ) : tab === 'Transactions' ? (
-        <TransactionsTab {...shared} access={access} />
-      ) : (
-        <SummaryTab {...shared} access={access} />
-      )}
-    </div>
+    </ReportNeeds.Provider>
   );
 }
 
@@ -1693,6 +1781,12 @@ function SummaryTab({
       access.customers,
     ],
   );
+  // Comparing needs the previous period's records too.
+  const need = useContext(ReportNeeds);
+  useEffect(() => {
+    need('compare', summary?.previous?.from ?? '');
+    return () => need('compare', '');
+  }, [need, summary?.previous?.from]);
   const title = 'Business summary';
   const subtitle = summary
     ? [
