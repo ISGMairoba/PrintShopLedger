@@ -3299,6 +3299,15 @@ label.checkbox input[type="checkbox"],
   .toolbar .job-filter-row > .job-filter-sort {
     display: none;
   }
+  /* Without a dates button (Templates), Filter shares its row with More and the main action. */
+  .job-list-toolbar:not(:has(> .date-filter-button)) > .job-filter-button {
+    flex: 1 1 0;
+  }
+  .job-list-toolbar:not(:has(> .date-filter-button)) > .toolbar-actions {
+    flex: 2.4 1 0;
+    min-width: 0;
+    flex-wrap: nowrap;
+  }
   /* Lists without their own Sort by bar keep sorting in the Filter row. */
   .toolbar .job-filter-row.keep-sort > .job-filter-sort {
     display: flex;
