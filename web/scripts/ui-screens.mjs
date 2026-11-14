@@ -375,6 +375,16 @@ try {
       await page.getByRole('tab', { name: 'Templates', exact: true }).click();
       await page.getByRole('button', { name: /^Filter/ }).click();
       await shot('96-templates-filter', false);
+      // Tags in the editor: add two, one through a different spelling of nothing yet used.
+      await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
+      const ed = page.getByRole('dialog').first();
+      const tagBox = ed.getByPlaceholder(/Add a tag/);
+      await tagBox.fill('Wedding');
+      await tagBox.press('Enter');
+      await tagBox.fill('Gift');
+      await ed.getByRole('button', { name: 'Add', exact: true }).click();
+      await ed.screenshot({ path: `${out}/${mode}-96-template-tags.png` });
+      await closeDialogs();
     } catch (e) {
       failures.push(`${mode} templates filter: ${e.message.split('\n')[0]}`);
     }

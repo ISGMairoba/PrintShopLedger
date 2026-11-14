@@ -18,6 +18,7 @@ import {
   roundingChoices,
   templateDefaults,
   validateTemplate,
+  knownSpelling,
   productName,
   variantMembers,
 } from './pricing-templates.mjs';
@@ -398,15 +399,88 @@ function KeyField({
   );
 }
 
+/** Tags: type one and press Enter or Add (existing tags are suggested); × removes one. */
+function TagsField({
+  value,
+  known,
+  onChange,
+}: {
+  value: string[];
+  known: string[];
+  onChange: (tags: string[]) => void;
+}) {
+  const [text, setText] = useState('');
+  const add = () => {
+    const tag = knownSpelling(text, [...value, ...known]);
+    if (!tag) return;
+    if (!value.some((t) => t.toLowerCase() === tag.toLowerCase()) && value.length < 10)
+      onChange([...value, tag.slice(0, 30)]);
+    setText('');
+  };
+  return (
+    <div className="template-tags-field">
+      <label>
+        Tags
+        <span className="template-tag-entry">
+          <input
+            value={text}
+            maxLength={30}
+            list="template-tags"
+            placeholder={value.length >= 10 ? 'Up to 10 tags' : 'Add a tag, e.g. Wedding'}
+            disabled={value.length >= 10}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ',') {
+                e.preventDefault();
+                add();
+              }
+            }}
+          />
+          <button type="button" className="secondary" disabled={!text.trim()} onClick={add}>
+            <Icon name="add" /> Add
+          </button>
+        </span>
+      </label>
+      <datalist id="template-tags">
+        {known
+          .filter((t) => !value.some((v) => v.toLowerCase() === t.toLowerCase()))
+          .map((t) => (
+            <option key={t} value={t} />
+          ))}
+      </datalist>
+      {value.length > 0 && (
+        <ul className="tag-chips" aria-label="Tags">
+          {value.map((t) => (
+            <li key={t}>
+              {t}
+              <button
+                type="button"
+                className="tag-remove"
+                aria-label={`Remove tag ${t}`}
+                onClick={() => onChange(value.filter((x) => x !== t))}
+              >
+                <Icon name="close" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export default function TemplateEditor({
   initial,
   ledger,
+  known = { categories: [], tags: [] },
   busy,
   onClose,
   onSave,
 }: {
   initial: PricingTemplate;
   ledger: Ledger;
+  /** Categories and tags other templates use, suggested so one word is not spelt two ways. */
+  known?: { categories: string[]; tags: string[] };
   busy: boolean;
   onClose: () => void;
   onSave: (template: PricingTemplate) => Promise<void>;
@@ -635,9 +709,21 @@ export default function TemplateEditor({
                 <input
                   value={d.category}
                   maxLength={50}
+                  list="template-categories"
+                  placeholder={known.categories.length ? 'Choose or type a category' : 'e.g. Bags'}
                   onChange={(e) => change({ category: e.target.value })}
+                  onBlur={() => {
+                    const spelt = knownSpelling(d.category, known.categories);
+                    if (spelt !== d.category) change({ category: spelt });
+                  }}
                 />
+                <datalist id="template-categories">
+                  {known.categories.map((c) => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
               </label>
+              <TagsField value={d.tags ?? []} known={known.tags} onChange={(tags) => change({ tags })} />
               <label>
                 Description
                 <input

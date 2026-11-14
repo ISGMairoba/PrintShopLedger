@@ -75,13 +75,14 @@ export default function PricingTemplatesPage({
   const [editingCost, setEditingCost] = useState<Service | null>(null);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('');
+  const [tag, setTag] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'category' | 'recent'>('name');
   const [costQuery, setCostQuery] = useState('');
   const [busy, setBusy] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   // Filter opens a second row: category, Show archived and Sort by.
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const activeFilters = (category ? 1 : 0) + (showArchived ? 1 : 0);
+  const activeFilters = (category ? 1 : 0) + (tag ? 1 : 0) + (showArchived ? 1 : 0);
   const [message, setMessage, tone] = useFeedbackMessage('success');
   const [costKey, setCostKey] = useState('');
   // Costs are shown to the ranks allowed to see template costs, and to template managers.
@@ -211,11 +212,20 @@ export default function PricingTemplatesPage({
   const categories = [...new Set(visible.map((t) => t.category || 'General'))].sort((a, b) =>
     a.localeCompare(b),
   );
+  const tags = [...new Set(visible.flatMap((t) => t.tags ?? []))].sort((a, b) => a.localeCompare(b));
+  // Every category and tag in use (archived too), suggested in the editor.
+  const known = {
+    categories: [...new Set(pricing.templates.map((t) => t.category).filter(Boolean))].sort((a, b) =>
+      a.localeCompare(b),
+    ),
+    tags: [...new Set(pricing.templates.flatMap((t) => t.tags ?? []))].sort((a, b) => a.localeCompare(b)),
+  };
   const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const shown = visible
     .filter((t) => !category || (t.category || 'General') === category)
+    .filter((t) => !tag || (t.tags ?? []).includes(tag))
     .filter((t) => {
-      const text = `${t.name} ${t.category} ${t.description}`.toLowerCase();
+      const text = `${t.name} ${t.category} ${(t.tags ?? []).join(' ')} ${t.description}`.toLowerCase();
       return words.every((word) => text.includes(word));
     })
     .sort((a, b) =>
@@ -382,6 +392,18 @@ export default function PricingTemplatesPage({
                     ))}
                   </select>
                 </label>
+                {tags.length > 0 && (
+                  <label className="job-filter-field">
+                    <select aria-label="Template tag" value={tag} onChange={(e) => setTag(e.target.value)}>
+                      <option value="">All tags</option>
+                      {tags.map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
                 <label className="check-label job-filter-check">
                   <input
                     type="checkbox"
@@ -429,6 +451,13 @@ export default function PricingTemplatesPage({
                     </div>
                     <h3>{t.name}</h3>
                     <p className="muted">{t.description || 'A reusable pricing template.'}</p>
+                    {(t.tags ?? []).length > 0 && (
+                      <ul className="tag-chips" aria-label="Tags">
+                        {t.tags!.map((x) => (
+                          <li key={x}>{x}</li>
+                        ))}
+                      </ul>
+                    )}
                     <small>
                       {t.variables.length} editable variables · {t.computed.length} computed variables ·{' '}
                       {t.expenses.length} expenses · {t.pricing.rate}% {t.pricing.method}
@@ -684,6 +713,7 @@ export default function PricingTemplatesPage({
           key={editing.id}
           initial={editing}
           ledger={ledger}
+          known={known}
           busy={busy}
           onClose={() => setEditing(null)}
           onSave={saveOne}
