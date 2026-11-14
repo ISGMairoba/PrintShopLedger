@@ -31,6 +31,9 @@
   display: inline;
   font-size: 13px;
 }
+/* Reports show every row. Doubled class: the Dashboard's height limit can load after this file
+   (each page's styles load when the page is first opened), and must not cut a report's lists. */
+.dashboard.reports .table-wrap,
 .reports .table-wrap {
   max-height: none;
 }

@@ -79,6 +79,9 @@ export default function PricingTemplatesPage({
   const [costQuery, setCostQuery] = useState('');
   const [busy, setBusy] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  // Filter opens a second row: category, Show archived and Sort by.
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const activeFilters = (category ? 1 : 0) + (showArchived ? 1 : 0);
   const [message, setMessage, tone] = useFeedbackMessage('success');
   const [costKey, setCostKey] = useState('');
   // Costs are shown to the ranks allowed to see template costs, and to template managers.
@@ -298,7 +301,7 @@ export default function PricingTemplatesPage({
               <small>Limit {pricing.maxTemplates ?? 100} (Business Settings)</small>
             </article>
           </section>
-          <div className="toolbar">
+          <div className="toolbar job-list-toolbar">
             <input
               type="search"
               aria-label="Search templates"
@@ -306,67 +309,50 @@ export default function PricingTemplatesPage({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
-            <select
-              aria-label="Template category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
+            <button
+              type="button"
+              className="secondary job-filter-button"
+              aria-expanded={filtersOpen}
+              aria-controls="template-filters"
+              onClick={() => setFiltersOpen((open) => !open)}
             >
-              <option value="">All categories</option>
-              {categories.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-            <select
-              aria-label="Sort templates"
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-            >
-              <option value="name">Sort: name</option>
-              <option value="category">Sort: category</option>
-              <option value="recent">Sort: most changed</option>
-            </select>
-            <label className="check-label">
-              <input
-                type="checkbox"
-                checked={showArchived}
-                onChange={(e) => setShowArchived(e.target.checked)}
-              />
-              Show archived
-            </label>
+              <Icon name="filter" /> Filter
+              {activeFilters > 0 && <span className="filter-count">{activeFilters}</span>}
+            </button>
             <ToolbarActions
               more={
-                <button
-                  type="button"
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() =>
-                    void onReload().catch((e) =>
-                      setMessage(e instanceof Error ? e.message : String(e), 'error'),
-                    )
-                  }
-                >
-                  <Icon name="sync" /> Reload saved templates
-                </button>
+                <>
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={!canSave}
+                    onClick={() => fileInput.current?.click()}
+                  >
+                    <Icon name="import" /> Import
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={busy || !visible.length}
+                    onClick={() => setExporting({ templates: visible, share: false })}
+                  >
+                    <Icon name="export" /> Export {showArchived ? 'all' : 'active'}
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={busy}
+                    onClick={() =>
+                      void onReload().catch((e) =>
+                        setMessage(e instanceof Error ? e.message : String(e), 'error'),
+                      )
+                    }
+                  >
+                    <Icon name="sync" /> Reload saved templates
+                  </button>
+                </>
               }
             >
-              <button
-                type="button"
-                className="secondary"
-                disabled={!canSave}
-                onClick={() => fileInput.current?.click()}
-              >
-                <Icon name="import" /> Import
-              </button>
-              <button
-                type="button"
-                className="secondary"
-                disabled={busy || !visible.length}
-                onClick={() => setExporting({ templates: visible, share: false })}
-              >
-                <Icon name="export" /> Export {showArchived ? 'all' : 'active'}
-              </button>
               <button
                 type="button"
                 disabled={!canSave}
@@ -375,6 +361,51 @@ export default function PricingTemplatesPage({
                 <Icon name="add" /> New template
               </button>
             </ToolbarActions>
+            {filtersOpen && (
+              <div
+                className="job-filter-row keep-sort"
+                id="template-filters"
+                role="group"
+                aria-label="Filter and sort"
+              >
+                <label className="job-filter-field">
+                  <select
+                    aria-label="Template category"
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                  >
+                    <option value="">All categories</option>
+                    {categories.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="check-label job-filter-check">
+                  <input
+                    type="checkbox"
+                    checked={showArchived}
+                    onChange={(e) => setShowArchived(e.target.checked)}
+                  />
+                  Show archived
+                </label>
+                <div className="job-filter-field job-filter-sort">
+                  <label>
+                    <span>Sort by:</span>
+                    <select
+                      aria-label="Sort templates"
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                    >
+                      <option value="name">Name</option>
+                      <option value="category">Category</option>
+                      <option value="recent">Most changed</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+            )}
           </div>
           {!visible.length ? (
             <div className="empty">

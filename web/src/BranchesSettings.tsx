@@ -115,27 +115,29 @@ export default function BranchesSettings({
           </div>
         ))}
       </div>
-      <button
-        type="button"
-        className="secondary"
-        onClick={() =>
-          onBranches([...list, { id: newBranchId(), name: '', address: '', phone: '', archived: false }])
-        }
-      >
-        <Icon name="add" /> Add branch
-      </button>{' '}
-      <button
-        type="button"
-        className="secondary"
-        onClick={() =>
-          onBranches([
-            ...list,
-            { id: newBranchId(), name: '', address: '', phone: '', archived: false, kind: 'store' },
-          ])
-        }
-      >
-        <Icon name="add" /> Add store
-      </button>
+      <div className="material-actions">
+        <button
+          type="button"
+          className="secondary"
+          onClick={() =>
+            onBranches([...list, { id: newBranchId(), name: '', address: '', phone: '', archived: false }])
+          }
+        >
+          <Icon name="add" /> Add branch
+        </button>
+        <button
+          type="button"
+          className="secondary"
+          onClick={() =>
+            onBranches([
+              ...list,
+              { id: newBranchId(), name: '', address: '', phone: '', archived: false, kind: 'store' },
+            ])
+          }
+        >
+          <Icon name="add" /> Add store
+        </button>
+      </div>
       {active.length > 1 && (
         <>
           <h3>Prices</h3>

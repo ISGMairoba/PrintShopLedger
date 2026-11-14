@@ -98,8 +98,15 @@
   cursor: pointer;
   padding: 12px 0;
 }
-.dashboard .table-wrap {
+.dashboard:not(.reports) .table-wrap {
   max-height: 350px;
+}
+/* Phones show lists as cards that do not scroll inside the panel, so a height limit would let
+   the rest spill over the next panel. The Show boxes keep lists short there. */
+@media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
+  .dashboard .table-wrap {
+    max-height: none;
+  }
 }
 .dashboard h2 {
   margin-top: 10px;
