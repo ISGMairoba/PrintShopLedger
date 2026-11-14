@@ -90,7 +90,8 @@ export default function StockHistoryPage({
     }
   }
   useEffect(() => {
-    if (wanted && online && loadOlder && !older && olderState === '') void fetchOlder();
+    // A chosen period downloads straight away; All dates waits for the button (it is the default).
+    if (wanted && from && online && loadOlder && !older && olderState === '') void fetchOlder();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wanted, online, !!older, olderState]);
   const history = wanted && older ? older.entries : kept;
@@ -108,6 +109,17 @@ export default function StockHistoryPage({
       <button type="button" className="text-button" onClick={() => void fetchOlder()}>
         Download again
       </button>
+    </p>
+  ) : wanted && !from && olderState === '' ? (
+    <p className="muted">
+      This device keeps entries from {day(cutoff)}.{' '}
+      {loadOlder && online ? (
+        <button type="button" className="text-button" onClick={() => void fetchOlder()}>
+          Load older entries
+        </button>
+      ) : (
+        'Connect to the internet to load older entries.'
+      )}
     </p>
   ) : wanted ? (
     <div className="notice notice-warning" role="status">
