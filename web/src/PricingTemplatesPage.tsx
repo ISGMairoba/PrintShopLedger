@@ -338,18 +338,18 @@ export default function PricingTemplatesPage({
                   >
                     <Icon name="export" /> Export {showArchived ? 'all' : 'active'}
                   </button>
-                <button
-                  type="button"
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() =>
-                    void onReload().catch((e) =>
-                      setMessage(e instanceof Error ? e.message : String(e), 'error'),
-                    )
-                  }
-                >
-                  <Icon name="sync" /> Reload saved templates
-                </button>
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={busy}
+                    onClick={() =>
+                      void onReload().catch((e) =>
+                        setMessage(e instanceof Error ? e.message : String(e), 'error'),
+                      )
+                    }
+                  >
+                    <Icon name="sync" /> Reload saved templates
+                  </button>
                 </>
               }
             >
