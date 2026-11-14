@@ -1,5 +1,5 @@
 import { ItemSteps } from './StepBuilder';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Modal from './Modal';
 import Icon from './Icon';
 import { TemplateAudit } from './TemplateFields';
@@ -412,7 +412,57 @@ export default function TemplateEditor({
   onSave: (template: PricingTemplate) => Promise<void>;
 }) {
   const { w } = useWords();
-  const [d, setD] = useState<Draft>(() => structuredClone(initial) as Draft);
+  const [d, setShown] = useState<Draft>(() => structuredClone(initial) as Draft);
+  // Undo and redo: every change keeps the draft before it. Typing in one field within a moment
+  // counts as one change, so Undo takes back a word or edit, not a letter.
+  const latest = useRef(d);
+  const history = useRef<{ past: Draft[]; future: Draft[]; at: number }>({ past: [], future: [], at: 0 });
+  const setD = (update: Draft | ((x: Draft) => Draft)) => {
+    const before = latest.current;
+    const next = typeof update === 'function' ? update(before) : update;
+    if (next === before) return;
+    const h = history.current;
+    const now = Date.now();
+    if (now - h.at > 800) h.past = [...h.past.slice(-99), before];
+    h.at = now;
+    h.future = [];
+    latest.current = next;
+    setShown(next);
+  };
+  const travel = (back: boolean) => {
+    const h = history.current;
+    const from = back ? h.past : h.future;
+    const to = back ? h.future : h.past;
+    const next = from.pop();
+    if (!next) return;
+    to.push(latest.current);
+    h.at = 0;
+    latest.current = next;
+    setShown(next);
+  };
+  const undo = () => travel(true);
+  const redo = () => travel(false);
+  const canUndo = history.current.past.length > 0;
+  const canRedo = history.current.future.length > 0;
+  const keys = useRef({ undo, redo, busy });
+  keys.current = { undo, redo, busy };
+  useEffect(() => {
+    // Ctrl+Z / Cmd+Z undo; Ctrl+Y, Ctrl+Shift+Z or Cmd+Shift+Z redo — anywhere in the editor.
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || keys.current.busy) return;
+      const k = e.key.toLowerCase();
+      // A confirmation open above the editor keeps its own keys.
+      if (document.querySelector('dialog[open].template-remove-confirm')) return;
+      if (k === 'z' && !e.shiftKey) keys.current.undo();
+      else if (k === 'y' || (k === 'z' && e.shiftKey)) keys.current.redo();
+      else return;
+      e.preventDefault();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+  /** "Remove …" asks first; the person confirms in a small dialog. */
+  const [removing, setRemoving] = useState<{ name: string; run: () => void } | null>(null);
   const [tab, setTab] = useState<(typeof tabs)[number]>(tabs[0]);
   const step = tabs.indexOf(tab);
   const actions = useRef<HTMLDivElement>(null);
@@ -514,6 +564,7 @@ export default function TemplateEditor({
     <Modal
       title={initial.name ? `Edit ${initial.name}` : 'New pricing template'}
       wide
+      className="template-editor"
       busy={busy}
       onClose={onClose}
     >
@@ -521,6 +572,7 @@ export default function TemplateEditor({
         Define editable and computed variables and expenses, then preview the price. Costs come from{' '}
         {w('services')} with a template cost.
       </p>
+      <div className="template-editor-bar">
       <div className="settings-tabs template-editor-tabs" role="tablist" aria-label="Template sections">
         {tabs.map((name) => (
           <button
@@ -539,6 +591,31 @@ export default function TemplateEditor({
                 : ''}
           </button>
         ))}
+      </div>
+        <div className="template-history" role="group" aria-label="Undo and redo">
+          <button
+            type="button"
+            className="secondary"
+            disabled={busy || !canUndo}
+            onClick={undo}
+            aria-label="Undo"
+            title="Undo (Ctrl+Z)"
+          >
+            <Icon name="undo" />
+            <span>Undo</span>
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            disabled={busy || !canRedo}
+            onClick={redo}
+            aria-label="Redo"
+            title="Redo (Ctrl+Y)"
+          >
+            <Icon name="redo" />
+            <span>Redo</span>
+          </button>
+        </div>
       </div>
       <fieldset disabled={busy}>
         {tab === 'Details & variables' && (
@@ -751,7 +828,12 @@ export default function TemplateEditor({
                           <button
                             type="button"
                             className="text-button danger-text"
-                            onClick={() => setVariable(i, { options: v.options!.filter((_, k) => k !== j) })}
+                            onClick={() =>
+                              setRemoving({
+                                name: `the option ${o.label || o.value || ''}`.trim(),
+                                run: () => setVariable(i, { options: v.options!.filter((_, k) => k !== j) }),
+                              })
+                            }
                           >
                             <Icon name="close" /> Remove option
                           </button>
@@ -858,7 +940,12 @@ export default function TemplateEditor({
                       <button
                         type="button"
                         className="text-button danger-text"
-                        onClick={() => change({ variables: d.variables.filter((_, j) => j !== i) })}
+                        onClick={() =>
+                          setRemoving({
+                            name: v.label || 'this variable',
+                            run: () => change({ variables: d.variables.filter((_, j) => j !== i) }),
+                          })
+                        }
                       >
                         <Icon name="close" /> Remove {v.label || 'variable'}
                       </button>
@@ -1010,7 +1097,12 @@ export default function TemplateEditor({
                 <button
                   type="button"
                   className="text-button danger-text"
-                  onClick={() => change({ computed: d.computed.filter((_, j) => j !== i) })}
+                  onClick={() =>
+                    setRemoving({
+                      name: c.label || 'this computed variable',
+                      run: () => change({ computed: d.computed.filter((_, j) => j !== i) }),
+                    })
+                  }
                 >
                   <Icon name="close" /> Remove {c.label || 'computed variable'}
                 </button>
@@ -1072,7 +1164,12 @@ export default function TemplateEditor({
                   <button
                     type="button"
                     className="text-button danger-text"
-                    onClick={() => change({ expenses: d.expenses.filter((_, j) => j !== i) })}
+                    onClick={() =>
+                      setRemoving({
+                        name: e.label || 'this expense',
+                        run: () => change({ expenses: d.expenses.filter((_, j) => j !== i) }),
+                      })
+                    }
                   >
                     <Icon name="close" /> Remove {e.label || 'expense'}
                   </button>
@@ -1261,6 +1358,30 @@ export default function TemplateEditor({
           <Icon name="close" /> Cancel
         </button>
       </div>
+      {removing && (
+        <Modal
+          title={`Remove ${removing.name}?`}
+          className="template-remove-confirm"
+          onClose={() => setRemoving(null)}
+        >
+          <p>You can bring it back with Undo until you close the template.</p>
+          <div className="material-actions">
+            <button
+              type="button"
+              className="danger-button"
+              onClick={() => {
+                removing.run();
+                setRemoving(null);
+              }}
+            >
+              <Icon name="close" /> Remove
+            </button>
+            <button type="button" className="secondary" onClick={() => setRemoving(null)}>
+              Keep it
+            </button>
+          </div>
+        </Modal>
+      )}
     </Modal>
   );
 }

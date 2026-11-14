@@ -254,6 +254,22 @@ try {
         await next.click();
         await delay(250);
       }
+      // Undo: change the name, undo it, and the old name is back.
+      await d.getByRole('tab', { name: /^Details/ }).click();
+      const name = d.getByLabel('Template name');
+      const before = await name.inputValue();
+      await name.fill(`${before} changed`);
+      await d.screenshot({ path: `${out}/${mode}-93-template-undo-ready.png` });
+      await d.getByRole('button', { name: 'Undo', exact: true }).click();
+      if ((await name.inputValue()) !== before) failures.push(`${mode} template undo did not restore the name`);
+      // Remove asks first.
+      const remove = d.getByRole('button', { name: /^Remove / }).first();
+      if (await remove.count()) {
+        await remove.click();
+        await delay(200);
+        await page.screenshot({ path: `${out}/${mode}-94-template-remove-confirm.png` });
+        await page.getByRole('button', { name: 'Keep it' }).click();
+      }
       await closeDialogs();
     } catch (e) {
       failures.push(`${mode} template editor: ${e.message.split('\n')[0]}`);
