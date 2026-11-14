@@ -149,12 +149,14 @@ try {
       assert.deepEqual(
         await nav.getByRole('button').allTextContents(),
         // Material Waste is a tab inside Materials when both are allowed.
-        navigationPages.filter(
-          (p) =>
-            p !== 'Pricing Templates' &&
-            canAccessPage(p, rank) &&
-            !(p === 'Material Waste' && canAccessPage('Materials', rank)),
-        ).map((p) => pageName(p)),
+        navigationPages
+          .filter(
+            (p) =>
+              p !== 'Pricing Templates' &&
+              canAccessPage(p, rank) &&
+              !(p === 'Material Waste' && canAccessPage('Materials', rank)),
+          )
+          .map((p) => pageName(p)),
       );
       await nav.getByRole('button', { name: 'My Account', exact: true }).click();
       await page.getByLabel('Username', { exact: true }).fill('bad name');
@@ -208,11 +210,13 @@ try {
       await open();
       assert.deepEqual(
         await nav.getByRole('button').allTextContents(),
-        navigationPages.filter(
-          (p) =>
-            canAccessPage(p, rank, customSettings.pageAccess) &&
-            !(p === 'Material Waste' && canAccessPage('Materials', rank, customSettings.pageAccess)),
-        ).map((p) => pageName(p)),
+        navigationPages
+          .filter(
+            (p) =>
+              canAccessPage(p, rank, customSettings.pageAccess) &&
+              !(p === 'Material Waste' && canAccessPage('Materials', rank, customSettings.pageAccess)),
+          )
+          .map((p) => pageName(p)),
       );
       assert.ok(
         await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
