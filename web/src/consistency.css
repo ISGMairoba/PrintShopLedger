@@ -3202,3 +3202,13 @@ label.checkbox input[type="checkbox"],
     min-width: 0;
   }
 }
+/* Jobs: the filter boxes name themselves ("All stages", "All payments"), so their field names
+   are for screen readers only, and the toolbar stays on one line on a computer. */
+.job-list-toolbar .list-filter-select .filter-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

@@ -325,12 +325,27 @@ try {
     // Jobs filters: a stage with its range, and payment.
     try {
       await nav('Jobs');
+      // Move one job on, so there are two stages to choose from.
+      const next = page.getByRole('main').getByRole('button', { name: /^Next: / }).first();
+      if (await next.isVisible()) {
+        await next.click();
+        await delay(300);
+        await closeDialogs();
+      }
+      const listed = async () =>
+        Number((await page.getByText(/\d+ jobs? in this list/).first().textContent()).match(/\d+/)[0]);
       const st = page.getByLabel('Filter jobs by stage');
       const values = await st.locator('option').evaluateAll((o) => o.map((x) => x.value));
       const chosen = values.find((v) => v && !v.startsWith('__') && v !== 'Added' && v !== 'Cancelled');
       if (chosen) {
         await st.selectOption(chosen);
+        const only = await listed();
+        await page.getByLabel('Which stages to show').selectOption('from');
+        const from = await listed();
         await page.getByLabel('Which stages to show').selectOption('upTo');
+        const upTo = await listed();
+        console.log(`${mode} jobs filter ${chosen}: only ${only}, from ${from}, up to ${upTo}`);
+        if (upTo < only || from < only) failures.push(`${mode} stage range counts look wrong`);
       }
       const pay = page.getByLabel('Filter jobs by payment');
       const pays = await pay.locator('option').evaluateAll((o) => o.map((x) => x.value));
