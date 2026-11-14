@@ -192,7 +192,9 @@ export function templateTags(value) {
  * word in other capitals, or the same word with or without a final "s" (Bag and Bags).
  */
 export function knownSpelling(text, known) {
-  const want = String(text ?? '').trim().replace(/\s+/g, ' ');
+  const want = String(text ?? '')
+    .trim()
+    .replace(/\s+/g, ' ');
   if (!want) return '';
   const base = (s) => s.toLowerCase().replace(/(?<=\w)s$/, '');
   return (

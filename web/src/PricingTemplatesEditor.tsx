@@ -723,11 +723,7 @@ export default function TemplateEditor({
                   ))}
                 </datalist>
               </label>
-              <TagsField
-                value={d.tags ?? []}
-                known={known.tags}
-                onChange={(tags) => change({ tags })}
-              />
+              <TagsField value={d.tags ?? []} known={known.tags} onChange={(tags) => change({ tags })} />
               <label>
                 Description
                 <input
