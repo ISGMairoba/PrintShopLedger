@@ -4,7 +4,7 @@ import { useWords } from './Words';
 import Icon from './Icon';
 import HistoryCheck from './HistoryCheck';
 import type { Ledger } from './types';
-import { KEEP_CHOICES, keepChoice } from './history-keep.mjs';
+import { KEEP_CHOICES, businessKeepChoice, deviceChoice } from './history-keep.mjs';
 
 const mb = (bytes: number | null) => (bytes === null ? '—' : `${Math.round(bytes / 1048576)} MB`);
 export const LOW_SPACE = 200 * 1048576;
@@ -36,7 +36,9 @@ export default function DeviceStorageCard({
     void storageHealth().then(setHealth);
   }, [pending, lastSynced]);
   const low = health?.free != null && health.free < LOW_SPACE;
-  const [keep, setKeep] = useState(() => (history ? keepChoice(history.scope) : 'all'));
+  const [keep, setKeep] = useState(() => (history ? deviceChoice(history.scope) : 'business'));
+  const businessLabel =
+    KEEP_CHOICES.find(([v]) => v === (history ? businessKeepChoice(history.scope) : 'all'))?.[1] ?? 'Everything';
   const [keepError, setKeepError] = useState('');
   const cutoff = history?.ledger.historySummary?.cutoff;
   return (
@@ -117,11 +119,12 @@ export default function DeviceStorageCard({
                 setKeepError('');
                 setKeep(next);
                 onKeepChange(next).catch((cause) => {
-                  setKeep(keepChoice(history.scope));
+                  setKeep(deviceChoice(history.scope));
                   setKeepError(cause instanceof Error ? cause.message : String(cause));
                 });
               }}
             >
+              <option value="business">Business default ({businessLabel})</option>
               {KEEP_CHOICES.map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}

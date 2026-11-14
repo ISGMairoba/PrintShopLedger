@@ -38,7 +38,7 @@ import AccountPage from './AccountPage';
 import { allowedSettingsTabs, canAccessPage, pageGroup, pages, navigationPages } from './page-access.mjs';
 import ExpensesPage from './ExpensesPage';
 import DrawerReviews from './DrawerReviews';
-import { setKeepChoice } from './history-keep.mjs';
+import { setBusinessKeep, setKeepChoice } from './history-keep.mjs';
 import { confirmMaterialsRank, extraMaterialsRank } from './production-materials.mjs';
 import { holdEvent } from './job-hold.mjs';
 import type { HoldChange } from './JobActions';
@@ -1019,6 +1019,20 @@ export default function App() {
       }
     },
   });
+  // Business Settings → Security → History kept on devices: a device following the business default
+  // downloads its copy again when the default changes.
+  const businessKeep = branding.settings.security.historyKeep ?? 'all';
+  const brandingReadyForKeep = branding.ready && branding.version > 0;
+  useEffect(() => {
+    if (demo || !scope || !brandingReadyForKeep) return;
+    if (!setBusinessKeep(scope, businessKeep)) return;
+    const target = scope;
+    void requestFullSync(target).then((next) => {
+      if (activeScope.current === target) setState(next);
+      syncNow();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scope, businessKeep, brandingReadyForKeep]);
   const syncLabel = !ready
     ? 'Loading'
     : hasConflict
