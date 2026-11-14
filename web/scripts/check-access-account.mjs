@@ -4,6 +4,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from 'playwright';
 import { defaultBranding } from '../src/business-branding.mjs';
 import { navigationPages, canAccessPage } from '../src/page-access.mjs';
+import { pageName } from '../src/terms.mjs';
 const server = spawn(
   process.execPath,
   ['node_modules/vite/bin/vite.js', 'preview', '--host', '127.0.0.1', '--port', '4178', '--strictPort'],
@@ -153,7 +154,7 @@ try {
             p !== 'Pricing Templates' &&
             canAccessPage(p, rank) &&
             !(p === 'Material Waste' && canAccessPage('Materials', rank)),
-        ),
+        ).map((p) => pageName(p)),
       );
       await nav.getByRole('button', { name: 'My Account', exact: true }).click();
       await page.getByLabel('Username', { exact: true }).fill('bad name');
@@ -211,7 +212,7 @@ try {
           (p) =>
             canAccessPage(p, rank, customSettings.pageAccess) &&
             !(p === 'Material Waste' && canAccessPage('Materials', rank, customSettings.pageAccess)),
-        ),
+        ).map((p) => pageName(p)),
       );
       assert.ok(
         await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
