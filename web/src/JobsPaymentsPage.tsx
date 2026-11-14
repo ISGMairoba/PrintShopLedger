@@ -16,9 +16,12 @@ import type { CheckoutRecord, Job, Ledger, Payment } from './types';
 import { useWords } from './Words';
 import { useBusinessOptions } from './BusinessOptionsContext';
 import { LATE_FILTER_KEY, stageOverdue } from './stage-time.mjs';
+import { inStageRange, payMatches, payState } from './job-filters.mjs';
 
 const LATE = '__late__';
 const HELD = '__held__';
+type StageRange = 'only' | 'upTo' | 'from';
+type PayFilter = '' | 'paid' | 'part' | 'unpaid' | 'owing';
 
 type Props = {
   page: 'Jobs' | 'Payments';
@@ -90,13 +93,31 @@ export default function JobsPaymentsPage({
   });
   const { jobStages, stageHours } = useBusinessOptions();
   const stageOf = (job: Job) => job.productionStatus ?? 'Added';
-  const inStage = (job: Job) =>
-    !stageFilter ||
-    (stageFilter === LATE
+  // With a stage chosen: only that stage, everything from the order up to it, or from it to Completed.
+  const [stageRange, setStageRange] = useState<StageRange>('only');
+  // Jobs → Payment: paid in full, part paid, unpaid, or still owing.
+  const [payFilter, setPayFilter] = useState<PayFilter>('');
+  // The usual steps, then any other step a job follows (items can have their own).
+  const stageOrder = useMemo(
+    () => [
+      ...new Set([
+        ...jobStages.slice(0, -2),
+        ...ledger.jobs.flatMap((job) => (job.workflow ?? []).slice(1, -2)),
+        ...jobStages.slice(-2),
+      ]),
+    ],
+    [jobStages, ledger.jobs],
+  );
+  const special = (s: string) => !s || s === LATE || s === HELD || s === 'Cancelled';
+  const matchesStage = (job: Job, s: string, range: StageRange) =>
+    !s ||
+    (s === LATE
       ? !!stageOverdue(job, stageHours)
-      : stageFilter === HELD
+      : s === HELD
         ? !!job.hold
-        : stageOf(job) === stageFilter);
+        : inStageRange(job, s, range, stageOrder, jobStages));
+  const matchesPay = (job: Job, f: PayFilter) => payMatches(payState(jobBalanceFast(ledger, job)), f);
+  const inStage = (job: Job) => matchesStage(job, stageFilter, stageRange) && matchesPay(job, payFilter);
   const matchingJobs = jobSorting.sortRows(
     ledger.jobs.filter(
       (job) =>
@@ -206,49 +227,87 @@ export default function JobsPaymentsPage({
             onChange={(e) => onQuery(e.target.value)}
           />
           {dates.button}
-          {page === 'Jobs' && (
-            <label className="list-sort-select list-filter-select">
-              <span className="filter-label">{w('Job stage')}</span>
-              <select
-                aria-label={w('Filter jobs by stage')}
-                value={stageFilter}
-                onChange={(e) => setStageFilter(e.target.value)}
-              >
-                <option value="">All stages</option>
-                <option value={HELD}>
-                  On hold ({ledger.jobs.filter((job) => inPeriod(job.createdAt, period) && job.hold).length})
-                </option>
-                <option value={LATE}>
-                  Too long at a stage (
-                  {
-                    ledger.jobs.filter(
-                      (job) => inPeriod(job.createdAt, period) && stageOverdue(job, stageHours),
-                    ).length
-                  }
-                  )
-                </option>
-                {[
-                  ...new Set([
-                    // The usual steps, then any other step a job follows (items can have their own).
-                    ...jobStages.slice(0, -2),
-                    ...ledger.jobs.flatMap((job) => (job.workflow ?? []).slice(1, -2)),
-                    ...jobStages.slice(-2),
-                    'Cancelled',
-                    ...(stageFilter && stageFilter !== LATE && stageFilter !== HELD ? [stageFilter] : []),
-                  ]),
-                ].map((s) => {
-                  const n = ledger.jobs.filter(
-                    (job) => stageOf(job) === s && inPeriod(job.createdAt, period),
-                  ).length;
-                  return (
-                    <option key={s} value={s}>
-                      {stage(s)} ({n})
-                    </option>
-                  );
-                })}
-              </select>
-            </label>
-          )}
+          {page === 'Jobs' &&
+            (() => {
+              // Counts follow the period and the other filter; a choice with no jobs is left out.
+              const inList = ledger.jobs.filter((job) => inPeriod(job.createdAt, period));
+              const forStage = inList.filter((job) => matchesPay(job, payFilter));
+              const forPay = inList.filter((job) => matchesStage(job, stageFilter, stageRange));
+              const count = (s: string) => forStage.filter((job) => matchesStage(job, s, 'only')).length;
+              const stageChoices = [
+                { value: HELD, label: 'On hold' },
+                { value: LATE, label: 'Too long at a stage' },
+                ...[...stageOrder, 'Cancelled'].map((s) => ({ value: s, label: stage(s) })),
+              ]
+                .map((c) => ({ ...c, n: count(c.value) }))
+                .filter((c) => c.n > 0 || c.value === stageFilter);
+              const payChoices = (
+                [
+                  ['paid', 'Paid in full'],
+                  ['part', 'Part paid'],
+                  ['unpaid', 'Unpaid'],
+                  ['owing', 'Still owing (part paid or unpaid)'],
+                ] as const
+              )
+                .map(([value, label]) => ({
+                  value,
+                  label,
+                  n: forPay.filter((job) => matchesPay(job, value)).length,
+                }))
+                .filter((c) => c.n > 0 || c.value === payFilter);
+              return (
+                <>
+                  <label className="list-sort-select list-filter-select job-filter-half">
+                    <span className="filter-label">{w('Job stage')}</span>
+                    <select
+                      aria-label={w('Filter jobs by stage')}
+                      value={stageFilter}
+                      onChange={(e) => setStageFilter(e.target.value)}
+                    >
+                      <option value="">All stages</option>
+                      {stageChoices.map((c) => (
+                        <option key={c.value} value={c.value}>
+                          {c.label} ({c.n})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {!special(stageFilter) && (
+                    <label className="list-sort-select list-filter-select">
+                      <span className="filter-label">{w('Stages shown')}</span>
+                      <select
+                        aria-label={w('Which stages to show')}
+                        value={stageRange}
+                        onChange={(e) => setStageRange(e.target.value as StageRange)}
+                      >
+                        <option value="only">Only {stage(stageFilter)}</option>
+                        <option value="upTo">
+                          {stage(stageOrder[0] ?? 'Added')} → {stage(stageFilter)}
+                        </option>
+                        <option value="from">
+                          {stage(stageFilter)} → {stage(jobStages[jobStages.length - 2] ?? 'Completed')}
+                        </option>
+                      </select>
+                    </label>
+                  )}
+                  <label className="list-sort-select list-filter-select job-filter-half">
+                    <span className="filter-label">{w('Payment')}</span>
+                    <select
+                      aria-label={w('Filter jobs by payment')}
+                      value={payFilter}
+                      onChange={(e) => setPayFilter(e.target.value as PayFilter)}
+                    >
+                      <option value="">All payments</option>
+                      {payChoices.map((c) => (
+                        <option key={c.value} value={c.value}>
+                          {c.label} ({c.n})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </>
+              );
+            })()}
           <label className="list-sort-select">
             Sort by
             <select

@@ -3194,3 +3194,21 @@ label.checkbox input[type="checkbox"],
 .job-steps-copy {
   max-width: 320px;
 }
+
+/* Jobs: on phones the stage and payment filters share a row; "Stages shown" takes its own. */
+@media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
+  .toolbar .list-sort-select.list-filter-select.job-filter-half {
+    flex: 1 1 calc(50% - 5px);
+    min-width: 0;
+  }
+}
+/* Jobs: the filter boxes name themselves ("All stages", "All payments"), so their field names
+   are for screen readers only, and the toolbar stays on one line on a computer. */
+.job-list-toolbar .list-filter-select .filter-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
