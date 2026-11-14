@@ -112,11 +112,14 @@ export default function StockHistoryPage({
   ) : wanted ? (
     <div className="notice notice-warning" role="status">
       {olderState === 'loading' ? (
-        <>These dates start before {day(cutoff)}, the earliest entry this device keeps. Downloading earlier entries…</>
+        <>
+          These dates start before {day(cutoff)}, the earliest entry this device keeps. Downloading earlier
+          entries…
+        </>
       ) : (
         <>
-          These dates start before {day(cutoff)}, the earliest entry this device keeps, so older entries may be
-          missing.{' '}
+          These dates start before {day(cutoff)}, the earliest entry this device keeps, so older entries may
+          be missing.{' '}
           {!online || !loadOlder
             ? 'Connect to the internet to download them.'
             : `They could not be downloaded${olderError ? ` (${olderError})` : ''}.`}{' '}
