@@ -185,7 +185,7 @@ export default function RemindersPage({
                         <small>{w(`${r.jobs} unpaid ${r.jobs === 1 ? 'job' : 'jobs'}`)}</small>
                       </td>
                       <td>
-                        {r.oldest}
+                        {r.oldest}{' '}
                         <small className={r.age > 30 ? 'danger-text' : ''}>
                           {r.age === 0 ? 'Today' : `${r.age} ${r.age === 1 ? 'day' : 'days'} ago`}
                         </small>
