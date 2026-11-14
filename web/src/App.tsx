@@ -1671,7 +1671,11 @@ export default function App() {
                       <div className="notice notice-warning" role="alert">
                         The app was updated while it was open. Reload to finish; saved work stays on this
                         device.{' '}
-                        <button className="secondary" disabled={busy} onClick={() => window.location.reload()}>
+                        <button
+                          className="secondary"
+                          disabled={busy}
+                          onClick={() => window.location.reload()}
+                        >
                           <Icon name="sync" /> Reload app
                         </button>
                       </div>
