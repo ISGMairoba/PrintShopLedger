@@ -2414,7 +2414,8 @@ export default function App() {
                             onSave={saveCatalogue}
                             onReceivePayment={(id) => openPayment(id)}
                             onOpenCustomer={
-                              demo || canAccessPage('Customers', shop?.accessLevel ?? 0, branding.settings.pageAccess)
+                              demo ||
+                              canAccessPage('Customers', shop?.accessLevel ?? 0, branding.settings.pageAccess)
                                 ? (id) => {
                                     setCustomerToOpen(id);
                                     setPage('Customers');
