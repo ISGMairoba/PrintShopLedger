@@ -25,6 +25,8 @@ type Props = {
   onStatement?: (id: string) => void;
   /** The owner's view: each branch's records (customer accounts in every branch). */
   branches?: { id: string; name: string; ledger: Ledger }[];
+  /** Open this customer's account records straight away (from Payment Reminders). */
+  initialAccountId?: string;
 };
 const date = (value: string) => new Date(value).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' });
 export default function CustomersPage({
@@ -36,12 +38,15 @@ export default function CustomersPage({
   onRecordPayment,
   onStatement,
   branches,
+  initialAccountId = '',
 }: Props) {
   const { w } = useWords();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('active');
   const [audit, setAudit] = useState(false);
-  const [account, setAccount] = useState<Customer | null>(null);
+  const [account, setAccount] = useState<Customer | null>(
+    () => ledger.customers.find((c) => c.id === initialAccountId) ?? null,
+  );
   const [editor, setEditor] = useState<Customer | 'new' | null>(null);
   const [confirmation, setConfirmation] = useState<Customer | null>(null);
   const [error, setError] = useFeedbackMessage('error');
