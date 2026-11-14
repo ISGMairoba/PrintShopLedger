@@ -170,15 +170,17 @@ async function synchronize(scope: string, shopId: string) {
                       ? 'apply_job_material_event'
                       : event.kind === 'job.extra_materials_set'
                         ? 'apply_job_extra_materials_event'
-                        : event.kind === 'job.held' || event.kind === 'job.resumed'
-                          ? 'apply_job_hold_event'
-                          : event.kind.startsWith('customer.')
-                            ? 'apply_customer_event'
-                            : event.kind.startsWith('material.')
-                              ? 'apply_material_event'
-                              : event.kind.startsWith('service.')
-                                ? 'apply_service_event'
-                                : 'apply_ledger_event',
+                        : event.kind === 'job.materials_checked'
+                          ? 'apply_job_check_event'
+                          : event.kind === 'job.held' || event.kind === 'job.resumed'
+                            ? 'apply_job_hold_event'
+                            : event.kind.startsWith('customer.')
+                              ? 'apply_customer_event'
+                              : event.kind.startsWith('material.')
+                                ? 'apply_material_event'
+                                : event.kind.startsWith('service.')
+                                  ? 'apply_service_event'
+                                  : 'apply_ledger_event',
         { p_shop: shopId, p_event: event },
       )
       .abortSignal(AbortSignal.timeout(30000));

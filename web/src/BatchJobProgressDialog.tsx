@@ -8,7 +8,7 @@ import { batchProgressPlan, collectionCheck } from './job-batches.mjs';
 import { currency } from './receipts.mjs';
 import type { Job, Ledger } from './types';
 import type { ProgressMode } from './JobActions';
-import MaterialUsedFields, { usageDraft, usagesFrom, type UsageDraft } from './MaterialUsedFields';
+import MaterialCheckFields, { checkDraftFor, checkUsagesFrom, type CheckDraft } from './MaterialCheckFields';
 import { materialConfirmDue } from './material-choice.mjs';
 
 export default function BatchJobProgressDialog({
@@ -16,6 +16,7 @@ export default function BatchJobProgressDialog({
   jobs,
   mode,
   busy,
+  level,
   onClose,
   onSave,
 }: {
@@ -23,11 +24,13 @@ export default function BatchJobProgressDialog({
   jobs: Job[];
   mode: ProgressMode;
   busy: boolean;
+  /** The person's access level: below Admin, the materials go for approval. */
+  level: number;
   onClose: () => void;
-  /** usages: for each job whose move confirms its material, what was used. */
+  /** usages: for each job whose move passes its confirmation stage, what was used. */
   onSave: (
     target: string,
-    usages: Record<string, { materialId: string; quantity: number }[]>,
+    usages: Record<string, { line: string; materialId: string; quantity: number }[]>,
   ) => Promise<void>;
 }) {
   const { w, stage } = useWords();
@@ -49,8 +52,8 @@ export default function BatchJobProgressDialog({
   const [unpaidConfirmed, setUnpaidConfirmed] = useState(false);
   // Jobs with a choice of materials that this move takes past their confirmation stage.
   const confirming = eligible.filter((row) => materialConfirmDue(row.job, row.target));
-  const [drafts, setDrafts] = useState<Record<string, UsageDraft>>({});
-  const draftFor = (job: Job) => drafts[job.id] ?? usageDraft(job);
+  const [drafts, setDrafts] = useState<Record<string, CheckDraft>>({});
+  const draftFor = (job: Job) => drafts[job.id] ?? checkDraftFor(ledger, job);
   return (
     <Modal title={w('Update selected jobs')} wide busy={busy} onClose={onClose}>
       <p>
@@ -72,7 +75,7 @@ export default function BatchJobProgressDialog({
           try {
             await onSave(
               target,
-              Object.fromEntries(confirming.map((row) => [row.job.id, usagesFrom(draftFor(row.job))])),
+              Object.fromEntries(confirming.map((row) => [row.job.id, checkUsagesFrom(draftFor(row.job))])),
             );
           } catch (cause) {
             setError(cause instanceof Error ? cause.message : String(cause));
@@ -101,8 +104,9 @@ export default function BatchJobProgressDialog({
                 {row.reason ? `Skipped: ${row.reason}` : row.path.map(stage).join(' → ')}
               </small>
               {!row.reason && materialConfirmDue(row.job, row.target) && (
-                <MaterialUsedFields
+                <MaterialCheckFields
                   compact
+                  level={level}
                   ledger={ledger}
                   job={row.job}
                   value={draftFor(row.job)}

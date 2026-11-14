@@ -53,6 +53,19 @@ export const stockCountEvent = (ledger, materialId) =>
     .filter((item) => item.materialId === materialId && item.action === 'material.stock_set')
     .sort((a, b) => Date.parse(b.changedAt) - Date.parse(a.changedAt) || b.id.localeCompare(a.id))[0]?.id ??
   null;
+/**
+ * A job that takes stock confirms its materials in production (material-check.mjs). The server
+ * sets the same flag from the same rule (apply_checkout_event).
+ */
+function withCheck(job) {
+  const takes =
+    !job.shelfItem &&
+    ((!!job.materialId && (job.materialNeeded ?? 0) > 0) ||
+      (job.templateSnapshot?.stock?.length ?? 0) > 0 ||
+      !!job.materialChoice);
+  const { checkMaterials: _c, ...rest } = job;
+  return takes ? { ...rest, checkMaterials: true } : rest;
+}
 const quoteShelf = (ledger, serviceId) => !!ledger.services.find((s) => s.id === serviceId)?.shelfItem;
 export function quoteLine(ledger, line) {
   if (line.templateSnapshot || ledger.pricing?.templates.some((t) => t.id === line.serviceId)) {
@@ -290,20 +303,22 @@ export function prepareCheckout(
   if (!Array.isArray(input.lines) || input.lines.length > 50)
     throw Error('A checkout can contain at most 50 jobs.');
   const expectedAccount = accountToken(working, customer.id);
-  const quoted = input.lines.map((line, index) => ({
-    ...quoteLine(working, line),
-    customerId: customer.id,
-    createdAt: now,
-    checkoutId: id,
-    checkoutPosition: index,
-    productionStatus: line.serviceId && quoteShelf(working, line.serviceId) ? 'Collected' : 'Added',
-    version: 1,
-    createdBy: actor.id,
-    createdByLabel: actor.label,
-    modifiedBy: actor.id,
-    modifiedByLabel: actor.label,
-    modifiedAt: now,
-  }));
+  const quoted = input.lines.map((line, index) =>
+    withCheck({
+      ...quoteLine(working, line),
+      customerId: customer.id,
+      createdAt: now,
+      checkoutId: id,
+      checkoutPosition: index,
+      productionStatus: line.serviceId && quoteShelf(working, line.serviceId) ? 'Collected' : 'Added',
+      version: 1,
+      createdBy: actor.id,
+      createdByLabel: actor.label,
+      modifiedBy: actor.id,
+      modifiedByLabel: actor.label,
+      modifiedAt: now,
+    }),
+  );
   // Order discount shared by price; with a policy, the giver's limits are checked here too.
   const discounts = applyOrderDiscount(quoted, input.orderDiscount, input.discountPolicy ?? null);
   const jobs = discounts.jobs;

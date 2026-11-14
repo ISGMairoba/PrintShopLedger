@@ -91,6 +91,8 @@ export default function ServicesPage({
   const [itemName, setItemName] = useState('');
   const [stockDraft, setStockDraft] = useState<StockDraft | null>(null);
   const [choiceIds, setChoiceIds] = useState<string[]>([]);
+  // The list stays open while ticking; it starts closed only when the item already has choices.
+  const [choicesOpen, setChoicesOpen] = useState(true);
   const [confirmStage, setConfirmStage] = useState('Printing');
   // Materials in production: added materials, their cost covered, material per item.
   const [extraMaterials, setExtraMaterials] = useState(false);
@@ -134,6 +136,7 @@ export default function ServicesPage({
     setCostKey(s?.costing?.key ?? '');
     setMaterialValue(s?.materialOptions?.length ? CHOICE : (s?.materialId ?? ''));
     setChoiceIds(s?.materialOptions ?? []);
+    setChoicesOpen(!s?.materialOptions?.length);
     setConfirmStage(s?.confirmStage ?? defaultConfirmStage);
     setExtraMaterials(!!s?.production?.extraMaterials);
     setCostCovered(!!s?.production?.costCovered);
@@ -868,7 +871,11 @@ export default function ServicesPage({
                       'Tick 2 to 10 materials with the same unit, for example 2 ft, 5 ft and 10 ft rolls. The price stays the same whichever is used. No stock is taken at the sale; staff confirm what was really used, and how much, when the job leaves the stage below.',
                     )}
                   </p>
-                  <details className="collapsible-list" open={!choiceIds.length}>
+                  <details
+                    className="collapsible-list"
+                    open={choicesOpen}
+                    onToggle={(e) => setChoicesOpen(e.currentTarget.open)}
+                  >
                     <summary>
                       {choiceIds.length
                         ? `${choiceIds.length} chosen: ${choiceIds

@@ -288,14 +288,17 @@ try {
       await page.getByRole('dialog').last().getByRole('button', { name: 'Close', exact: true }).click();
       await nav('Jobs');
       await shot('89-jobs-material-to-confirm');
-      await page
+      // On phones the job's other actions sit under More.
+      const complete = page
         .getByRole('main')
         .getByRole('button', { name: /Mark as Complete/ })
-        .first()
-        .click();
+        .first();
+      if (!(await complete.isVisible()))
+        await page.getByRole('main').getByRole('button', { name: 'More', exact: true }).first().click();
+      await page.locator('button:visible', { hasText: 'Mark as Complete' }).first().click();
       const m = page.getByRole('dialog').last();
-      await m.getByRole('button', { name: /Add another material/ }).click();
-      await fieldHeights('Material used');
+      await m.getByRole('button', { name: /Split with another material/ }).click();
+      await fieldHeights('Materials used');
       await m.screenshot({ path: `${out}/${mode}-89-material-used.png` });
       await closeDialogs();
     } catch (e) {
