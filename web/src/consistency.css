@@ -530,6 +530,7 @@ button:not(
     .formula-tokens button,
     nav button,
     .settings-tabs button,
+    .template-history button,
     .sidebar-bottom button,
     .detail > button
   ) {
