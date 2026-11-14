@@ -331,11 +331,22 @@ try {
       await page.getByRole('button', { name: /^Filter/ }).click();
       console.log(
         `${mode} filter field`,
-        await page.locator('.job-filter-field').first().evaluate((el) => {
-          const c = getComputedStyle(el);
-          const r = getComputedStyle(el.parentElement);
-          return JSON.stringify({ d: c.display, w: c.width, ml: c.marginLeft, js: c.justifySelf, pd: r.display, ji: r.justifyItems, cols: r.gridTemplateColumns });
-        }),
+        await page
+          .locator('.job-filter-field')
+          .first()
+          .evaluate((el) => {
+            const c = getComputedStyle(el);
+            const r = getComputedStyle(el.parentElement);
+            return JSON.stringify({
+              d: c.display,
+              w: c.width,
+              ml: c.marginLeft,
+              js: c.justifySelf,
+              pd: r.display,
+              ji: r.justifyItems,
+              cols: r.gridTemplateColumns,
+            });
+          }),
       );
       const listed = async () =>
         Number(
