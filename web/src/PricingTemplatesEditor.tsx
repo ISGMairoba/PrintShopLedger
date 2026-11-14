@@ -573,25 +573,25 @@ export default function TemplateEditor({
         {w('services')} with a template cost.
       </p>
       <div className="template-editor-bar">
-      <div className="settings-tabs template-editor-tabs" role="tablist" aria-label="Template sections">
-        {tabs.map((name) => (
-          <button
-            key={name}
-            type="button"
-            role="tab"
-            aria-selected={tab === name}
-            className={tab === name ? 'active' : 'secondary'}
-            onClick={() => setTab(name)}
-          >
-            {name}
-            {name === 'Computed variables'
-              ? ` (${d.computed.length})`
-              : name === 'Expenses'
-                ? ` (${d.expenses.length})`
-                : ''}
-          </button>
-        ))}
-      </div>
+        <div className="settings-tabs template-editor-tabs" role="tablist" aria-label="Template sections">
+          {tabs.map((name) => (
+            <button
+              key={name}
+              type="button"
+              role="tab"
+              aria-selected={tab === name}
+              className={tab === name ? 'active' : 'secondary'}
+              onClick={() => setTab(name)}
+            >
+              {name}
+              {name === 'Computed variables'
+                ? ` (${d.computed.length})`
+                : name === 'Expenses'
+                  ? ` (${d.expenses.length})`
+                  : ''}
+            </button>
+          ))}
+        </div>
         <div className="template-history" role="group" aria-label="Undo and redo">
           <button
             type="button"

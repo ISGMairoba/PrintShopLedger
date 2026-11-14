@@ -261,7 +261,8 @@ try {
       await name.fill(`${before} changed`);
       await d.screenshot({ path: `${out}/${mode}-93-template-undo-ready.png` });
       await d.getByRole('button', { name: 'Undo', exact: true }).click();
-      if ((await name.inputValue()) !== before) failures.push(`${mode} template undo did not restore the name`);
+      if ((await name.inputValue()) !== before)
+        failures.push(`${mode} template undo did not restore the name`);
       // Remove asks first.
       const remove = d.getByRole('button', { name: /^Remove / }).first();
       if (await remove.count()) {
