@@ -530,6 +530,7 @@ button:not(
     .formula-tokens button,
     nav button,
     .settings-tabs button,
+    .template-history button,
     .sidebar-bottom button,
     .detail > button
   ) {
@@ -1853,7 +1854,7 @@ label small > .field-error {
 
 /* Pricing template editor: the section tabs stay at the top of the dialog while a long list of
    variables or expenses scrolls under them. */
-.modal-body > .template-editor-tabs {
+.modal-body > .template-editor-bar {
   position: sticky;
   top: -24px;
   z-index: 3;
@@ -1863,7 +1864,7 @@ label small > .field-error {
   border-bottom: 1px solid var(--line, rgba(0, 0, 0, 0.08));
 }
 @media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
-  .modal-body > .template-editor-tabs {
+  .modal-body > .template-editor-bar {
     top: -18px;
     margin-inline: -18px;
     padding-inline: 18px;
@@ -3140,6 +3141,52 @@ label.checkbox input[type="checkbox"],
   }
   .material-check-row > select {
     grid-column: 1 / -1;
+  }
+}
+
+/* Pricing template editor: Undo and Redo sit at the end of the sticky section bar. */
+.template-editor-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px 12px;
+}
+.template-editor-bar > .template-editor-tabs {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+}
+.template-history {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+.template-history button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+}
+/* Remove links react only to their own words, not the empty space beside them. */
+.template-editor .text-button.danger-text {
+  justify-self: start;
+  align-self: start;
+  width: fit-content;
+  max-width: 100%;
+}
+@media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
+  .template-editor-bar {
+    align-items: flex-start;
+  }
+  .template-history button {
+    padding: 8px 10px;
+  }
+  .template-history button > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
 }
 
