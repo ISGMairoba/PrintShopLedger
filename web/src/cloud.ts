@@ -259,6 +259,20 @@ async function synchronize(scope: string, shopId: string) {
     };
   });
 }
+/**
+ * The business's whole history, for a report on a device that keeps recent history only. It is
+ * held in memory for that report and never saved, so the device keeps its shorter copy; work not
+ * yet sent from this device is included, as in the saved copy.
+ */
+export async function fetchFullLedger(scope: string, shopId: string): Promise<Ledger> {
+  if (!supabase) throw Error('Sign in to load earlier records.');
+  const { data, error } = await supabase
+    .rpc('get_ledger_changes', { p_shop: shopId, p_since: null, p_slim: true })
+    .abortSignal(AbortSignal.timeout(90000));
+  if (error) throw Error(error.message);
+  const result = data as { ledger: Partial<Ledger> };
+  return projectPending(normalizeLedger(result.ledger as Ledger), await readState(scope)) as Ledger;
+}
 export type RemoteConflict = {
   event_id: string;
   actor_id: string;
