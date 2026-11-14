@@ -393,7 +393,9 @@ export function expenseSummary(ledger, from = '', to = '') {
   );
   const sales =
     carried +
-    ledger.jobs.filter((item) => within(expenseDay(item.createdAt))).reduce((sum, item) => sum + item.amount, 0);
+    ledger.jobs
+      .filter((item) => within(expenseDay(item.createdAt)))
+      .reduce((sum, item) => sum + item.amount, 0);
   return {
     incurred,
     paid,
