@@ -32,6 +32,7 @@ import { termPresets } from './terms.mjs';
 import { businessTypes, featureOn, optionalFeatures, typeFeatures } from './business-type.mjs';
 import { useWords } from './Words';
 import { DEFAULT_READY_MESSAGE, READY_PLACEHOLDERS } from './ready-message.mjs';
+import { KEEP_CHOICES } from './history-keep.mjs';
 export default function BusinessSettingsPage({
   settings,
   version,
@@ -1215,6 +1216,34 @@ export default function BusinessSettingsPage({
                   Work done on a device is always sent straight away. This sets how often each open device
                   fetches work done on other devices; it also fetches when the app is opened or brought back
                   to the front. Checking less often uses less of your cloud data allowance.
+                </p>
+                <label>
+                  History kept on devices
+                  <select
+                    aria-label="History kept on devices"
+                    value={draft.security.historyKeep ?? 'all'}
+                    onChange={(event) => {
+                      const { historyKeep: _old, ...rest } = draft.security;
+                      field(
+                        'security',
+                        event.target.value === 'all' ? rest : { ...rest, historyKeep: event.target.value },
+                      );
+                    }}
+                  >
+                    {KEEP_CHOICES.map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                        {value === '30d' ? ' (recommended for phones)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <p>
+                  How much history each device downloads, unless the device chooses for itself (My Account →
+                  This device). A shorter choice keeps phones fast: balances, wallets, stock and jobs still
+                  owing are always complete, and a report that reaches further back downloads the earlier
+                  records when it opens. Nothing is deleted from the business. Keep office computers on
+                  Everything from their own setting.
                 </p>
                 {sectionSave('Security settings', ['security'])}
               </fieldset>

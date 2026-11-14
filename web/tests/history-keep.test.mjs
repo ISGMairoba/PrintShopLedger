@@ -50,7 +50,32 @@ test('the choice is kept per business on this device', () => {
   setKeepChoice('a', '14d', storage);
   assert.equal(keepChoice('a', storage), '14d');
   assert.equal(keepChoice('b', storage), 'all');
+  // Everything is now a device's own choice (it no longer follows the business default).
   setKeepChoice('a', 'all', storage);
+  assert.equal(keepChoice('a', storage), 'all');
+  setKeepChoice('a', 'business', storage);
   assert.equal(store.size, 0);
   assert.throws(() => setKeepChoice('a', '2y', storage));
+});
+
+test('a device follows the business default unless it chooses for itself', async () => {
+  const { keepChoice, deviceChoice, setKeepChoice, setBusinessKeep } = await import(
+    '../src/history-keep.mjs'
+  );
+  const store = new Map();
+  const storage = {
+    getItem: (k) => (store.has(k) ? store.get(k) : null),
+    setItem: (k, v) => store.set(k, String(v)),
+    removeItem: (k) => store.delete(k),
+  };
+  assert.equal(keepChoice('s', storage), 'all');
+  assert.equal(deviceChoice('s', storage), 'business');
+  assert.equal(setBusinessKeep('s', 'all', storage), false, 'no change on first sight of Everything');
+  assert.equal(setBusinessKeep('s', '30d', storage), true);
+  assert.equal(keepChoice('s', storage), '30d');
+  setKeepChoice('s', 'all', storage);
+  assert.equal(keepChoice('s', storage), 'all', 'the office computer keeps everything');
+  assert.equal(setBusinessKeep('s', '7d', storage), false, 'its own choice is not changed');
+  setKeepChoice('s', 'business', storage);
+  assert.equal(keepChoice('s', storage), '7d');
 });

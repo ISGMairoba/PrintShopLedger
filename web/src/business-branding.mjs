@@ -24,6 +24,8 @@ import { termDefaults, validateTerms } from './terms.mjs';
 import { validateBranchAccess, validateBranches } from './branches.mjs';
 import { pricingDefaults, validatePricingSettings } from './pricing-templates.mjs';
 import { validateBusinessType } from './business-type.mjs';
+/** The history choices a business can set as its device default (see history-keep.mjs). */
+const HISTORY_KEEP = ['all', '7d', '14d', '30d', '3m', '6m', '12m'];
 // What each business shows on its receipts. headline: the bold line for each job ('description' or 'service');
 // showSubline: print the other one beneath it. Older saved settings fill in these defaults.
 export const receiptContentDefaults = () => ({
@@ -138,7 +140,11 @@ export const defaultBranding = () => ({
     extraMaterialsRank: 1,
   }),
   // syncMinutes: how often devices check for changes made on other devices.
-  security: { autoLockMinutes: 0, syncMinutes: 2 },
+  // historyKeep: how much history devices keep by default (left out = Everything).
+  security: /** @type {{ autoLockMinutes: number, syncMinutes: number, historyKeep?: string }} */ ({
+    autoLockMinutes: 0,
+    syncMinutes: 2,
+  }),
   jobs: jobSettingsDefaults(),
   pricing: pricingDefaults(),
   periods: defaultPeriods(),
@@ -297,8 +303,15 @@ export function validateBranding(input) {
   const sync = value.security.syncMinutes;
   if (!Number.isInteger(sync) || sync < 1 || sync > 60)
     throw Error('Choose a sync check time from 1 to 60 minutes.');
+  // historyKeep: how much history devices keep unless a device chooses for itself.
+  const keep = value.security.historyKeep;
+  if (keep !== undefined && !HISTORY_KEEP.includes(keep))
+    throw Error('Choose how much history devices keep.');
+  if (keep === 'all') delete value.security.historyKeep;
   if (
-    Object.keys(value.security).some((key) => key !== 'autoLockMinutes' && key !== 'syncMinutes') ||
+    Object.keys(value.security).some(
+      (key) => key !== 'autoLockMinutes' && key !== 'syncMinutes' && key !== 'historyKeep',
+    ) ||
     !Number.isInteger(lock) ||
     lock < 0 ||
     lock > 240

@@ -14,19 +14,50 @@ export const KEEP_CHOICES = [
   ['12m', 'Last 12 months'],
 ];
 const key = (scope) => `printshopledger:history-keep:${scope}`;
-/** @returns {string} */
-export function keepChoice(scope, storage = globalThis.localStorage) {
+const businessKey = (scope) => `printshopledger:history-keep-business:${scope}`;
+const valid = (value) => KEEP_CHOICES.some(([v]) => v === value);
+const read = (storage, k) => {
   try {
-    const value = storage?.getItem(key(scope)) ?? 'all';
-    return KEEP_CHOICES.some(([v]) => v === value) ? value : 'all';
+    return storage?.getItem(k) ?? null;
   } catch {
-    return 'all';
+    return null;
   }
+};
+/** This device's own choice, or 'business' when it follows the business default. */
+export function deviceChoice(scope, storage = globalThis.localStorage) {
+  const value = read(storage, key(scope));
+  return valid(value) ? value : 'business';
 }
+/** The business default (Business Settings → Security), as last seen on this device. */
+export function businessKeepChoice(scope, storage = globalThis.localStorage) {
+  const value = read(storage, businessKey(scope));
+  return valid(value) ? value : 'all';
+}
+/** How much history this device keeps: its own choice, else the business default. */
+export function keepChoice(scope, storage = globalThis.localStorage) {
+  const own = deviceChoice(scope, storage);
+  return own === 'business' ? businessKeepChoice(scope, storage) : own;
+}
+/** 'business' follows the business default; any other choice is this device's own. */
 export function setKeepChoice(scope, value, storage = globalThis.localStorage) {
-  if (!KEEP_CHOICES.some(([v]) => v === value)) throw Error('Choose how much history to keep.');
-  if (value === 'all') storage.removeItem(key(scope));
+  if (value !== 'business' && !valid(value)) throw Error('Choose how much history to keep.');
+  if (value === 'business') storage.removeItem(key(scope));
   else storage.setItem(key(scope), value);
+}
+/**
+ * Remember the business default on this device. Returns true when that changes what this device
+ * keeps (it follows the default, and the new default differs), so it downloads its copy again.
+ */
+export function setBusinessKeep(scope, value, storage = globalThis.localStorage) {
+  const next = valid(value) ? value : 'all';
+  const before = keepChoice(scope, storage);
+  try {
+    if (next === 'all') storage.removeItem(businessKey(scope));
+    else storage.setItem(businessKey(scope), next);
+  } catch {
+    return false;
+  }
+  return keepChoice(scope, storage) !== before;
 }
 /** The first day kept for a choice (YYYY-MM-DD, Lagos), or null for Everything. */
 export function keepCutoff(choice, now = new Date().toISOString()) {
