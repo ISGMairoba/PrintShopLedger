@@ -115,6 +115,7 @@ export default function BranchesSettings({
           </div>
         ))}
       </div>
+      <div className="material-actions">
       <button
         type="button"
         className="secondary"
@@ -123,7 +124,7 @@ export default function BranchesSettings({
         }
       >
         <Icon name="add" /> Add branch
-      </button>{' '}
+      </button>
       <button
         type="button"
         className="secondary"
@@ -136,6 +137,7 @@ export default function BranchesSettings({
       >
         <Icon name="add" /> Add store
       </button>
+      </div>
       {active.length > 1 && (
         <>
           <h3>Prices</h3>

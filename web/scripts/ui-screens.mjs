@@ -20,6 +20,7 @@ const server = spawn(
 );
 let browser;
 const failures = [];
+const touching = [];
 try {
   for (let i = 0; i < 100; i++) {
     try {
@@ -92,6 +93,52 @@ try {
     const shot = async (name, full = true) => {
       await delay(250);
       await page.screenshot({ path: `${out}/${mode}-${name}.png`, fullPage: full });
+      // Buttons should never touch another control: report any pair closer than 6px.
+      const close = await page.evaluate(() => {
+        const seen = (el) => {
+          const r = el.getBoundingClientRect();
+          return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden';
+        };
+        const name = (el) =>
+          (el.getAttribute('aria-label') || el.textContent || el.getAttribute('type') || el.tagName)
+            .trim()
+            .replace(/\s+/g, ' ')
+            .slice(0, 30);
+        // With a dialog open, only the top dialog counts (the page behind is covered).
+        const dialogs = [...document.querySelectorAll('dialog[open]')];
+        const scope = dialogs.at(-1) ?? document.querySelector('main');
+        const controls = [
+          ...scope.querySelectorAll(
+            'button, input:not([type=checkbox]):not([type=radio]):not([type=hidden]), select, textarea',
+          ),
+        ].filter(
+          (el) =>
+            seen(el) &&
+            !el.closest(
+              '.settings-tabs, .toolbar-view-controls, .input-with-unit, .quick-qty, .listed-combobox-list, .text-button, nav, .mobile-cards td, table',
+            ) &&
+            !el.classList.contains('text-button'),
+        );
+        const buttons = controls.filter((el) => el.tagName === 'BUTTON');
+        const found = new Set();
+        for (const b of buttons) {
+          const r = b.getBoundingClientRect();
+          for (const o of controls) {
+            if (o === b || o.contains(b) || b.contains(o)) continue;
+            const q = o.getBoundingClientRect();
+            const rows = Math.min(r.bottom, q.bottom) - Math.max(r.top, q.top);
+            const cols = Math.min(r.right, q.right) - Math.max(r.left, q.left);
+            const dx = Math.max(q.left - r.right, r.left - q.right);
+            const dy = Math.max(q.top - r.bottom, r.top - q.bottom);
+            if ((rows > 4 && dx >= -1 && dx < 6) || (cols > 4 && dy >= -1 && dy < 6)) {
+              const pair = [name(b), name(o)].sort().join(' | ');
+              found.add(`${pair} (${Math.round(rows > 4 ? dx : dy)}px at y ${Math.round(r.top + scrollY)})`);
+            }
+          }
+        }
+        return [...found];
+      });
+      for (const c of close) touching.push(`${mode} ${name}: ${c}`);
     };
     const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     let n = 1;
@@ -322,6 +369,15 @@ try {
       failures.push(`${mode} material choice: ${e.message.split('\n')[0]}`);
       await closeDialogs();
     }
+    // Pricing Templates: the toolbar, then its Filter row.
+    try {
+      await nav('Pricing Templates');
+      await page.getByRole('tab', { name: 'Templates', exact: true }).click();
+      await page.getByRole('button', { name: /^Filter/ }).click();
+      await shot('96-templates-filter', false);
+    } catch (e) {
+      failures.push(`${mode} templates filter: ${e.message.split('\n')[0]}`);
+    }
     // Jobs filters: a stage with its range, and payment.
     try {
       await nav('Jobs');
@@ -475,4 +531,5 @@ try {
   await browser?.close();
   server.kill();
 }
+console.log(touching.length ? `Touching:\n${touching.join('\n')}` : 'No touching controls.');
 console.log(failures.length ? `Not captured:\n${failures.join('\n')}` : 'All screens captured.');
