@@ -1669,8 +1669,8 @@ export default function App() {
                     )}
                     {staleApp && !needRefresh && (
                       <div className="notice notice-warning" role="alert">
-                        The app was updated while it was open. Reload to finish; saved work stays on this
-                        device.{' '}
+                        Part of the app could not load. If it keeps failing, reload the app; saved work
+                        stays on this device.{' '}
                         <button
                           className="secondary"
                           disabled={busy}

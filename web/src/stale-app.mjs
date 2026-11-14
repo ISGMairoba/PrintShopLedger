@@ -1,6 +1,7 @@
 /**
- * After an update, a screen still open from the older version may ask for a part of the app that
- * the new version replaced. Browsers word that failure differently; this spots it and says what to do.
+ * A part of the app loaded only when needed (PDFs, the developer console) can fail to load: a
+ * dropped connection, or an update that replaced it while a screen was open. Browsers word that
+ * failure differently; this spots it and says what to do.
  */
 const STALE = [
   /Failed to fetch dynamically imported module/i,
@@ -11,7 +12,7 @@ const STALE = [
 ];
 
 export const STALE_APP_MESSAGE =
-  'The app was updated while this screen was open, so this part could not load. Reload the app (saved work stays on this device), then try again.';
+  'This part of the app could not load. Check the internet connection and try again; if it still fails, the app was updated while open: reload it (saved work stays on this device).';
 
 /** @param {string} text */
 export const isStaleAppError = (text) => STALE.some((pattern) => pattern.test(String(text ?? '')));
