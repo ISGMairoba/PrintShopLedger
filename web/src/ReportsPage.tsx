@@ -1,4 +1,13 @@
-import { createContext, Fragment, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  Fragment,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { profitReport, profitSections } from './profit.mjs';
 import { profitLoss, profitLossSections } from './profit-loss.mjs';
 import ResponsiveTable from './ResponsiveTable';
@@ -300,9 +309,7 @@ export default function ReportsPage({
     (key: string, from: string) => setNeeds((n) => (n[key] === from ? n : { ...n, [key]: from })),
     [],
   );
-  const earliest = Object.values(needs)
-    .filter(Boolean)
-    .sort()[0];
+  const earliest = Object.values(needs).filter(Boolean).sort()[0];
   const wanted = !!trimmed && !!earliest && earliest < trimmed;
   const [full, setFull] = useState<{ key: string; ledger: Ledger; at: string } | null>(null);
   const [fullState, setFullState] = useState<'' | 'loading' | 'failed'>('');
@@ -385,12 +392,16 @@ export default function ReportsPage({
     );
   const keptFrom = trimmed;
   const day = (d: string) =>
-    new Date(d + 'T12:00:00+01:00').toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' });
+    new Date(d + 'T12:00:00+01:00').toLocaleDateString('en-NG', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
   const kept = !keptFrom ? null : wanted && fullReady ? (
     <p className="dashboard-freshness" role="status">
       Includes records from before {day(keptFrom)}, downloaded for this report at{' '}
-      {new Date(fullReady.at).toLocaleTimeString('en-NG', { timeZone: 'Africa/Lagos', timeStyle: 'short' })} (not
-      kept on this device).{' '}
+      {new Date(fullReady.at).toLocaleTimeString('en-NG', { timeZone: 'Africa/Lagos', timeStyle: 'short' })}{' '}
+      (not kept on this device).{' '}
       <button type="button" className="text-button" onClick={() => void loadFull()}>
         Download again
       </button>
@@ -398,11 +409,14 @@ export default function ReportsPage({
   ) : wanted ? (
     <div className="dashboard-warning" role="status">
       {fullState === 'loading' ? (
-        <>This report starts before {day(keptFrom)}, the earliest record this device keeps. Downloading the earlier records…</>
+        <>
+          This report starts before {day(keptFrom)}, the earliest record this device keeps. Downloading the
+          earlier records…
+        </>
       ) : (
         <>
-          This report starts before {day(keptFrom)}, the earliest record this device keeps, so its figures may be
-          incomplete.{' '}
+          This report starts before {day(keptFrom)}, the earliest record this device keeps, so its figures may
+          be incomplete.{' '}
           {!online || !loadFullHistory
             ? 'Connect to the internet to download the earlier records for this report.'
             : `The earlier records could not be downloaded${fullError ? ` (${fullError})` : ''}.`}{' '}
@@ -471,36 +485,36 @@ export default function ReportsPage({
   const shared = { ledger, freshness, busy, error, pdf, csv, share, company };
   return (
     <ReportNeeds.Provider value={need}>
-    <div className="dashboard reports">
-      {branchControl && <section className="panel dashboard-filters">{branchControl}</section>}
-      <div className="settings-tabs" role="tablist" aria-label="Reports">
-        {tabs.map((item) => (
-          <button
-            key={item}
-            role="tab"
-            aria-selected={tab === item}
-            tabIndex={tab === item ? 0 : -1}
-            className={tab === item ? 'active' : 'secondary'}
-            onClick={() => setTab(item)}
-          >
-            {item}
-          </button>
-        ))}
+      <div className="dashboard reports">
+        {branchControl && <section className="panel dashboard-filters">{branchControl}</section>}
+        <div className="settings-tabs" role="tablist" aria-label="Reports">
+          {tabs.map((item) => (
+            <button
+              key={item}
+              role="tab"
+              aria-selected={tab === item}
+              tabIndex={tab === item ? 0 : -1}
+              className={tab === item ? 'active' : 'secondary'}
+              onClick={() => setTab(item)}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+        {tab === 'Customer statement' ? (
+          <StatementTab {...shared} customerId={customerId} onCustomerChange={onCustomerChange} />
+        ) : tab === 'Profit' ? (
+          <ProfitTab {...shared} />
+        ) : tab === 'Profit & loss' ? (
+          <ProfitLossTab {...shared} />
+        ) : tab === 'Payee statement' ? (
+          <PayeeStatementTab {...shared} payeeId={payeeId} onPayeeChange={onPayeeChange} />
+        ) : tab === 'Transactions' ? (
+          <TransactionsTab {...shared} access={access} />
+        ) : (
+          <SummaryTab {...shared} access={access} />
+        )}
       </div>
-      {tab === 'Customer statement' ? (
-        <StatementTab {...shared} customerId={customerId} onCustomerChange={onCustomerChange} />
-      ) : tab === 'Profit' ? (
-        <ProfitTab {...shared} />
-      ) : tab === 'Profit & loss' ? (
-        <ProfitLossTab {...shared} />
-      ) : tab === 'Payee statement' ? (
-        <PayeeStatementTab {...shared} payeeId={payeeId} onPayeeChange={onPayeeChange} />
-      ) : tab === 'Transactions' ? (
-        <TransactionsTab {...shared} access={access} />
-      ) : (
-        <SummaryTab {...shared} access={access} />
-      )}
-    </div>
     </ReportNeeds.Provider>
   );
 }
