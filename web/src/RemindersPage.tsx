@@ -29,6 +29,8 @@ export default function RemindersPage({
   actor,
   branding,
   onSave,
+  onReceivePayment,
+  onOpenCustomer,
 }: {
   ledger: Ledger;
   ready: boolean;
@@ -36,6 +38,10 @@ export default function RemindersPage({
   actor: { id: string; label: string };
   branding: Branding;
   onSave: (event: ReminderEvent) => Promise<void>;
+  /** Record a payment for this customer (whoever brings it: put the sender in the reference). */
+  onReceivePayment?: (customerId: string) => void;
+  /** Open the customer's account records on Customers. */
+  onOpenCustomer?: (customerId: string) => void;
 }) {
   const { w, terms } = useWords();
   const notify = useFeedback();
@@ -198,13 +204,29 @@ export default function RemindersPage({
                         )}
                       </td>
                       <td>
-                        <button
-                          className="text-button"
-                          disabled={busy || !!sending}
-                          onClick={() => void remind(r)}
-                        >
-                          <Icon name="share" /> {sending === r.customerId ? 'Preparing…' : 'Remind'}
-                        </button>
+                        <div className="material-actions">
+                          <button
+                            className="text-button"
+                            disabled={busy || !!sending}
+                            onClick={() => void remind(r)}
+                          >
+                            <Icon name="share" /> {sending === r.customerId ? 'Preparing…' : 'Remind'}
+                          </button>
+                          {onReceivePayment && (
+                            <button
+                              className="text-button"
+                              disabled={busy}
+                              onClick={() => onReceivePayment(r.customerId)}
+                            >
+                              <Icon name="payments" /> {w('Receive payment')}
+                            </button>
+                          )}
+                          {onOpenCustomer && (
+                            <button className="text-button" onClick={() => onOpenCustomer(r.customerId)}>
+                              <Icon name="customers" /> {w('Customer account')}
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

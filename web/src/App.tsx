@@ -213,6 +213,11 @@ export default function App() {
   const [deadlineJobs, setDeadlineJobs] = useState<Job[] | null>(null);
   const [page, setPage] = useState<Page>('Point of Service');
   const [reportCustomer, setReportCustomer] = useState('');
+  // Payment Reminders → Customer account: Customers opens on that customer's account records.
+  const [customerToOpen, setCustomerToOpen] = useState('');
+  useEffect(() => {
+    if (page !== 'Customers') setCustomerToOpen('');
+  }, [page]);
   const [reportPayee, setReportPayee] = useState('');
   const [supervisor, setSupervisor] = useState('');
   const [query, setQuery] = useState('');
@@ -2407,6 +2412,15 @@ export default function App() {
                             branding={docBusiness}
                             actor={salesActor}
                             onSave={saveCatalogue}
+                            onReceivePayment={(id) => openPayment(id)}
+                            onOpenCustomer={
+                              demo || canAccessPage('Customers', shop?.accessLevel ?? 0, branding.settings.pageAccess)
+                                ? (id) => {
+                                    setCustomerToOpen(id);
+                                    setPage('Customers');
+                                  }
+                                : undefined
+                            }
                           />
                         ) : page === 'Quotations' ? (
                           <QuotationsPage
@@ -2489,7 +2503,8 @@ export default function App() {
                           />
                         ) : page === 'Customers' ? (
                           <CustomersPage
-                            key={scope}
+                            key={`${scope}:${customerToOpen}`}
+                            initialAccountId={customerToOpen}
                             branches={ownerBranches}
                             onStatement={
                               demo ||
