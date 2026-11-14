@@ -2259,6 +2259,9 @@ export default function App() {
                             actor={catalogueActor}
                             onSaveMany={canEditCatalogue ? saveCatalogueMany : undefined}
                             onSaveStock={demo || shop?.role !== 'cashier' ? saveCatalogue : undefined}
+                            businessName={businessName}
+                            canRecordPurchase={demo || allowed('Expenses')}
+                            onSaveExpense={saveCatalogue}
                           />
                         ) : page === 'Pricing Templates' ? (
                           <PricingTemplatesPage

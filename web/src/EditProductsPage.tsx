@@ -8,7 +8,9 @@ import { variantGroups } from './variants.mjs';
 import AddProduct from './AddProduct';
 import SplitStock from './SplitStock';
 import StockAdjustDialog from './StockAdjustDialog';
-import type { Ledger, Material, MaterialEvent, ServiceEvent } from './types';
+import ReorderList from './ReorderList';
+import { reorderList } from './reorder.mjs';
+import type { ExpenseEvent, Ledger, Material, MaterialEvent, ServiceEvent } from './types';
 
 /**
  * Products: every product and service with its stock. Edit changes name, price and minimum stock;
@@ -22,6 +24,9 @@ export default function EditProductsPage({
   actor,
   onSaveMany,
   onSaveStock,
+  businessName = '',
+  canRecordPurchase = false,
+  onSaveExpense,
 }: {
   ledger: Ledger;
   ready: boolean;
@@ -32,7 +37,13 @@ export default function EditProductsPage({
   onSaveMany?: (events: (MaterialEvent | ServiceEvent)[]) => Promise<void>;
   /** Stock changes (left out for people who may not change stock). */
   onSaveStock?: (event: MaterialEvent) => Promise<void>;
+  /** The reorder list (as on Stock items): send it to a supplier, record the purchase. */
+  businessName?: string;
+  canRecordPurchase?: boolean;
+  onSaveExpense?: (event: ExpenseEvent) => Promise<void>;
 }) {
+  const [reorder, setReorder] = useState(false);
+  const toReorder = useMemo(() => reorderList(ledger).length, [ledger]);
   const [stock, setStock] = useState<{ material: Material; mode: 'add' | 'set' } | null>(null);
   const [splitting, setSplitting] = useState<Material | null>(null);
   const live = (m: Material) => ledger.materials.find((x) => x.id === m.id) ?? m;
@@ -70,6 +81,11 @@ export default function EditProductsPage({
           <input type="checkbox" checked={stockOnly} onChange={(e) => setStockOnly(e.target.checked)} />
           {w('Only items with stock')}
         </label>
+        {actor && (
+          <button type="button" className="secondary" disabled={!ready} onClick={() => setReorder(true)}>
+            <Icon name="materials" /> Reorder list{toReorder ? ` (${toReorder})` : ''}
+          </button>
+        )}
         {onSaveMany && actor && (
           <button type="button" disabled={!ready || busy} onClick={() => setAdding(true)}>
             <Icon name="add" /> {w('Add product')}
@@ -197,6 +213,19 @@ export default function EditProductsPage({
           actor={actor}
           onSave={onSaveStock}
           onClose={() => setStock(null)}
+        />
+      )}
+      {reorder && actor && (
+        <ReorderList
+          ledger={ledger}
+          businessName={businessName}
+          actor={actor}
+          busy={busy}
+          canRecordPurchase={canRecordPurchase && !!onSaveExpense}
+          onSaveExpense={async (event) => {
+            await onSaveExpense!(event);
+          }}
+          onClose={() => setReorder(false)}
         />
       )}
       {splitting && onSaveStock && actor && (
