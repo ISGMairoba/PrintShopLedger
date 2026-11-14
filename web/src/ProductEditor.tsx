@@ -77,17 +77,7 @@ export default function ProductEditor({
   const [error, setError] = useFeedbackMessage('error');
   const [done, setDone] = useState('');
   const set = (patch: Partial<Fields>) => setF((x) => ({ ...x, ...patch }));
-  const {
-    serviceId,
-    name,
-    price,
-    renameStock,
-    unit,
-    minimum,
-    packs,
-    tiers,
-    pricing,
-  } = f;
+  const { serviceId, name, price, renameStock, unit, minimum, packs, tiers, pricing } = f;
   const chosen = products.find((p) => p.service.id === serviceId) ?? null;
   const group = chosen ? variantGroupOf(ledger, chosen.service) : null;
   // After variants change, reload the fields from the updated ledger (names change with them).
@@ -423,7 +413,9 @@ export default function ProductEditor({
                     </label>
                   </div>
                   <small className="muted">
-                    {w('Stock changes are on the Products page: Add stock, Set quantity and Split on each row.')}
+                    {w(
+                      'Stock changes are on the Products page: Add stock, Set quantity and Split on each row.',
+                    )}
                   </small>
                 </>
               ) : (

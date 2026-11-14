@@ -438,7 +438,8 @@ export const helpTopics = [
     id: 'edit-product',
     chapter: 'stock',
     title: 'Editing a product: price, unit, packs and variants',
-    summary: 'Products lists what you sell with its stock. Edit changes name, price, unit and pack prices; stock has its own buttons on each row.',
+    summary:
+      'Products lists what you sell with its stock. Edit changes name, price, unit and pack prices; stock has its own buttons on each row.',
     steps: [
       'Open Products and press Edit on the product.',
       'Change the name, price, unit or pack prices. The box at the bottom shows what will change.',
