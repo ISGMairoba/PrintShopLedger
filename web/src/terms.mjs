@@ -103,5 +103,9 @@ export const stageName = (stage, terms) => terms?.stages?.[stage] ?? stage;
 const renamedPages = ['Jobs', 'Services', 'Materials', 'Material Waste'];
 /** Pages shown under another name (the stored page name stays, so page access settings keep working). */
 const shownAs = { 'Edit Products': 'Products' };
-export const pageName = (page, terms) =>
-  shownAs[page] ?? (renamedPages.includes(page) ? renameTerms(page, terms) : page);
+export const pageName = (page, terms) => {
+  if (renamedPages.includes(page)) return renameTerms(page, terms);
+  const shown = shownAs[page];
+  // Never two menu entries with one name: when Services is already called Products, keep "Edit Products".
+  return shown && renameTerms('Services', terms) !== shown ? shown : page;
+};
