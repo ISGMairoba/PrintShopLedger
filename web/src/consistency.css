@@ -3334,6 +3334,8 @@ label.checkbox input[type="checkbox"],
 /* A button right under a field (Upload logo → Remove logo) keeps a gap from it. */
 :where(fieldset, .modal-body, form) > :where(label) + :where(button:not(.text-button)) {
   margin-top: 12px;
+}
+
 /* Template tags: small rounded labels, on cards and in the editor (with a × to remove). */
 .tag-chips {
   display: flex;
