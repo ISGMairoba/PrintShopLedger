@@ -42,9 +42,11 @@ import { setBusinessKeep, setKeepChoice } from './history-keep.mjs';
 import { confirmMaterialsRank, extraMaterialsRank } from './production-materials.mjs';
 import { holdEvent } from './job-hold.mjs';
 import type { HoldChange } from './JobActions';
-import { dismissLowStockReminder, lowAtOtherLocations, lowStockReminderDue } from './low-stock-locations.mjs';
+import { dismissLowStockReminder } from './low-stock-locations.mjs';
+import useAdminReminders from './useAdminReminders';
+import BranchSwitch from './BranchSwitch';
 import { businessDay } from './dashboard.mjs';
-import { dismissLateReminder, LATE_FILTER_KEY, lateReminderDue, stageOverdue } from './stage-time.mjs';
+import { dismissLateReminder, LATE_FILTER_KEY } from './stage-time.mjs';
 import type { ProgressMode } from './JobActions';
 import JobProgressDialog from './JobProgressDialog';
 import { stageMoveEvents } from './material-choice.mjs';
@@ -82,8 +84,6 @@ import { PeriodDefaultsContext } from './PeriodFilter';
 import { TermsProvider } from './Words';
 import { ReadyMessageContext } from './ReadyMessage';
 import { readyMessage } from './ready-message.mjs';
-import { dueRepeats } from './repeating-expenses.mjs';
-import { repaymentsDue } from './lenders.mjs';
 import { TemplateAuditContext, TemplateDocumentContext, type TemplateStart } from './TemplateFields';
 import { canSeeTemplateCosts } from './pricing-templates.mjs';
 import { pageName, renameTerms } from './terms.mjs';
@@ -129,6 +129,10 @@ import {
   withdrawCorrectionRequest,
   rejectCorrectionRequest,
   fetchFullLedger,
+  requestStock,
+  answerStockRequest,
+  cancelStockRequest,
+  transferStock,
 } from './cloud';
 import { readState, saveEvent, saveEvents, mutateState, storageHealth } from './storage';
 import { holdSale, listHeld, removeHeld } from './held-sales.mjs';
@@ -413,9 +417,7 @@ export default function App() {
     setRequestBranch(id);
     setBranchChoice(id);
     try {
-      const next = await requestFullSync(target);
-      if (activeScope.current === target) setState(next);
-      syncNow();
+      await downloadAgain(target);
     } catch {}
   }
   // Changing due dates: Admin and higher.
@@ -429,45 +431,26 @@ export default function App() {
     () => branchesOf(branding.settings).filter((b) => !b.archived),
     [branding.settings],
   );
-  // Admin and higher in a business with locations: once a day, items running low at other locations.
-  const [lowStockSeen, setLowStockSeen] = useState(false);
-  const lowElsewhereCount = useMemo(() => {
-    if (demo || !multiBranch || !activeBranch || !scope || lowStockSeen || (shop?.accessLevel ?? 0) < 2)
-      return 0;
-    if (!lowStockReminderDue(scope, businessDay(new Date().toISOString()))) return 0;
-    return lowAtOtherLocations(
-      state.ledger.materials,
-      state.ledger.locationStock ?? [],
-      activeBranch.id,
-      openBranches,
-    ).length;
-  }, [demo, multiBranch, activeBranch, scope, lowStockSeen, shop?.accessLevel, state.ledger, openBranches]);
-  // Admin and higher: once a day, jobs that have been at a stage too long.
-  // Admin and higher: repeating expenses due to record (until dismissed for this session).
-  const [repeatsSeen, setRepeatsSeen] = useState(false);
-  const dueRepeatCount = useMemo(
-    () =>
-      repeatsSeen || (!demo && (shop?.accessLevel ?? 0) < 2)
-        ? 0
-        : dueRepeats(state.ledger, businessDay(new Date().toISOString())).length,
-    [repeatsSeen, demo, shop?.accessLevel, state.ledger],
-  );
-  // Admin and higher: loan repayments due within three days (or overdue).
-  const [loansSeen, setLoansSeen] = useState(false);
-  const loansDue = useMemo(
-    () =>
-      loansSeen || (!demo && (shop?.accessLevel ?? 0) < 2)
-        ? []
-        : repaymentsDue(state.ledger, businessDay(new Date().toISOString())),
-    [loansSeen, demo, shop?.accessLevel, state.ledger],
-  );
-  const [lateSeen, setLateSeen] = useState(false);
-  const lateJobs = useMemo(() => {
-    if (demo || !scope || lateSeen || (shop?.accessLevel ?? 0) < 2) return 0;
-    if (!lateReminderDue(scope, businessDay(new Date().toISOString()))) return 0;
-    const hours = branding.settings.options.stageHours ?? {};
-    return state.ledger.jobs.filter((job) => stageOverdue(job, hours)).length;
-  }, [demo, scope, lateSeen, shop?.accessLevel, branding.settings.options, state.ledger.jobs]);
+  // Reminders for Admins and higher: low stock elsewhere, repeating expenses, loans due, late jobs.
+  const {
+    lowElsewhereCount,
+    setLowStockSeen,
+    dueRepeatCount,
+    setRepeatsSeen,
+    loansDue,
+    setLoansSeen,
+    lateJobs,
+    setLateSeen,
+  } = useAdminReminders({
+    demo,
+    scope,
+    level: shop?.accessLevel ?? 0,
+    ledger: state.ledger,
+    multiBranch,
+    activeBranch,
+    openBranches,
+    stageHours: branding.settings.options.stageHours,
+  });
   // Stores keep stock only, so the sales comparisons leave them out.
   const salesBranches = useMemo(() => openBranches.filter((b) => b.kind !== 'store'), [openBranches]);
   const masterLedger = useMemo(() => {
@@ -1019,18 +1002,19 @@ export default function App() {
       }
     },
   });
+  /** Download this business's copy afresh on the next sync, and sync now (unsent work goes first). */
+  async function downloadAgain(target: string) {
+    const next = await requestFullSync(target);
+    if (activeScope.current === target) setState(next);
+    syncNow();
+  }
   // Business Settings → Security → History kept on devices: a device following the business default
   // downloads its copy again when the default changes.
   const businessKeep = branding.settings.security.historyKeep ?? 'all';
   const brandingReadyForKeep = branding.ready && branding.version > 0;
   useEffect(() => {
     if (demo || !scope || !brandingReadyForKeep) return;
-    if (!setBusinessKeep(scope, businessKeep)) return;
-    const target = scope;
-    void requestFullSync(target).then((next) => {
-      if (activeScope.current === target) setState(next);
-      syncNow();
-    });
+    if (setBusinessKeep(scope, businessKeep)) void downloadAgain(scope);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scope, businessKeep, brandingReadyForKeep]);
   const syncLabel = !ready
@@ -2217,40 +2201,16 @@ export default function App() {
                               }}
                             />
                             {branchChoices.length > 1 && (
-                              <section
-                                className="panel editor branch-switch"
-                                aria-labelledby="branch-switch-title"
-                              >
-                                <h2 id="branch-switch-title">Branch</h2>
-                                <p className="muted">
-                                  This device works in <strong>{activeBranch?.name}</strong>. Work recorded
-                                  here belongs to that branch.
-                                </p>
-                                <label>
-                                  Switch this device to
-                                  <select
-                                    value={activeBranch?.id ?? ''}
-                                    disabled={state.pending.length > 0}
-                                    onChange={(e) => {
-                                      void changeBranch(e.target.value);
-                                      setMessage(
-                                        `This device now works in ${branchChoices.find((b) => b.id === e.target.value)?.name}.`,
-                                      );
-                                    }}
-                                  >
-                                    {branchChoices.map((b) => (
-                                      <option key={b.id} value={b.id}>
-                                        {b.name}
-                                      </option>
-                                    ))}
-                                  </select>
-                                  {state.pending.length > 0 && (
-                                    <small>
-                                      Wait until all work on this device has synced before switching.
-                                    </small>
-                                  )}
-                                </label>
-                              </section>
+                              <BranchSwitch
+                                branches={branchChoices}
+                                activeId={activeBranch?.id ?? ''}
+                                activeName={activeBranch?.name ?? ''}
+                                pending={state.pending.length}
+                                onChange={(id, name) => {
+                                  void changeBranch(id);
+                                  setMessage(`This device now works in ${name}.`);
+                                }}
+                              />
                             )}
                             <DeviceStorageCard
                               pending={state.pending.length}
@@ -2261,23 +2221,11 @@ export default function App() {
                                 demo || !scope
                                   ? undefined
                                   : async (choice) => {
-                                      const target = scope;
-                                      setKeepChoice(target, choice);
-                                      const next = await requestFullSync(target);
-                                      if (activeScope.current === target) setState(next);
-                                      syncNow();
+                                      setKeepChoice(scope, choice);
+                                      await downloadAgain(scope);
                                     }
                               }
-                              onSyncAll={
-                                demo || !scope
-                                  ? undefined
-                                  : async () => {
-                                      const target = scope;
-                                      const next = await requestFullSync(target);
-                                      if (activeScope.current === target) setState(next);
-                                      syncNow();
-                                    }
-                              }
+                              onSyncAll={demo || !scope ? undefined : () => downloadAgain(scope)}
                             />
                           </>
                         ) : page === 'Edit Products' ? (
@@ -2589,51 +2537,24 @@ export default function App() {
                                       seesAll: ownerView,
                                       requests: state.ledger.stockRequests ?? [],
                                       request: async (materialId, from, quantity, note) => {
-                                        const { error } = await supabase!.rpc('request_stock', {
-                                          p_shop: shop!.id,
-                                          p_id: crypto.randomUUID(),
-                                          p_material: materialId,
-                                          p_from: from,
-                                          p_quantity: quantity,
-                                          p_note: note,
-                                        });
-                                        if (error) throw Error(error.message);
+                                        await requestStock(shop!.id, materialId, from, quantity, note);
                                         setMessage(
                                           'Request sent. It shows under Stock requests after the next sync.',
                                         );
                                         syncNow();
                                       },
                                       answer: async (id, send, quantity, reply) => {
-                                        const { error } = await supabase!.rpc('answer_stock_request', {
-                                          p_shop: shop!.id,
-                                          p_id: id,
-                                          p_send: send,
-                                          p_quantity: quantity,
-                                          p_reply: reply,
-                                        });
-                                        if (error) throw Error(error.message);
+                                        await answerStockRequest(shop!.id, id, send, quantity, reply);
                                         setMessage(send ? 'Stock sent.' : 'Request declined.');
                                         syncNow();
                                       },
                                       cancel: async (id) => {
-                                        const { error } = await supabase!.rpc('cancel_stock_request', {
-                                          p_shop: shop!.id,
-                                          p_id: id,
-                                        });
-                                        if (error) throw Error(error.message);
+                                        await cancelStockRequest(shop!.id, id);
                                         setMessage('Request withdrawn.');
                                         syncNow();
                                       },
                                       transfer: async (materialId, from, to, quantity, reason) => {
-                                        const { error } = await supabase!.rpc('transfer_stock', {
-                                          p_shop: shop!.id,
-                                          p_material: materialId,
-                                          p_from: from,
-                                          p_to: to,
-                                          p_quantity: quantity,
-                                          p_reason: reason,
-                                        });
-                                        if (error) throw Error(error.message);
+                                        await transferStock(shop!.id, materialId, from, to, quantity, reason);
                                         setMessage(
                                           'Stock transferred. Quantities update with the next sync.',
                                         );
