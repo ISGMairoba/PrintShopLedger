@@ -2684,6 +2684,13 @@ export default function App() {
                         ) : page === 'Stock History' ? (
                           <StockHistoryPage
                             key={scope}
+                            online={online}
+                            cutoff={state.ledger.historySummary?.cutoff ?? ''}
+                            loadOlder={
+                              shop && !demo && state.ledger.historySummary?.cutoff
+                                ? async () => viewOf(await fetchFullLedger(scope, shop.id)).materialHistory
+                                : undefined
+                            }
                             history={ledger.materialHistory}
                             materials={ledger.materials}
                             pending={state.pending}

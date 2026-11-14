@@ -3398,3 +3398,16 @@ label.checkbox input[type="checkbox"],
 .template-card .tag-chips {
   margin-bottom: 8px;
 }
+
+/* Stock History on a device keeping recent history: what it holds, and older entries downloading. */
+.stock-older-note {
+  padding: 12px 20px 0;
+}
+.stock-older-note > * {
+  margin: 0;
+}
+@media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
+  .stock-older-note {
+    padding-inline: 16px;
+  }
+}

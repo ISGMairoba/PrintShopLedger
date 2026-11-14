@@ -15,6 +15,11 @@ type Props = {
   pending: LedgerEvent[];
   ready: boolean;
   demo: boolean;
+  online?: boolean;
+  /** The first day this device keeps (a device keeping recent history only). */
+  cutoff?: string;
+  /** Download the whole stock history, for dates before the cutoff (held in memory, not saved). */
+  loadOlder?: () => Promise<MaterialHistoryEntry[]>;
 };
 // Formatters made once (not per row).
 const quantityFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 3 });
@@ -47,7 +52,16 @@ const fields: { key: keyof MaterialSnapshot; label: string }[] = [
 const valueLabel = (value: unknown) =>
   value == null ? '-' : typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value);
 
-export default function StockHistoryPage({ history, materials, pending, ready, demo }: Props) {
+export default function StockHistoryPage({
+  history: kept,
+  materials,
+  pending,
+  ready,
+  demo,
+  online = true,
+  cutoff = '',
+  loadOlder,
+}: Props) {
   const { w } = useWords();
   const [search, setSearch] = useState('');
   const [action, setAction] = useState('');
@@ -57,6 +71,83 @@ export default function StockHistoryPage({ history, materials, pending, ready, d
     to = dates.period.preset === 'all' ? '' : dates.period.to;
   const [page, setPage] = useState(0);
   useEffect(() => setPage(0), [from, to]);
+  // On a device keeping recent history only: dates before its first kept day download the whole
+  // stock history for this page (held in memory), or say what may be missing.
+  const wanted = !!cutoff && (!from || from < cutoff);
+  const [older, setOlder] = useState<{ entries: MaterialHistoryEntry[]; at: string } | null>(null);
+  const [olderState, setOlderState] = useState<'' | 'loading' | 'failed'>('');
+  const [olderError, setOlderError] = useState('');
+  async function fetchOlder() {
+    if (!loadOlder) return;
+    setOlderState('loading');
+    setOlderError('');
+    try {
+      setOlder({ entries: await loadOlder(), at: new Date().toISOString() });
+      setOlderState('');
+    } catch (cause) {
+      setOlderState('failed');
+      setOlderError(cause instanceof Error ? cause.message : String(cause));
+    }
+  }
+  useEffect(() => {
+    // A chosen period downloads straight away; All dates waits for the button (it is the default).
+    if (wanted && from && online && loadOlder && !older && olderState === '') void fetchOlder();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wanted, online, !!older, olderState]);
+  const history = wanted && older ? older.entries : kept;
+  const day = (d: string) =>
+    new Date(d + 'T12:00:00+01:00').toLocaleDateString('en-NG', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  const olderNote = !cutoff ? null : wanted && older ? (
+    <p className="muted" role="status">
+      Includes entries from before {day(cutoff)}, downloaded at{' '}
+      {new Date(older.at).toLocaleTimeString('en-NG', { timeZone: 'Africa/Lagos', timeStyle: 'short' })} (not
+      kept on this device).{' '}
+      <button type="button" className="text-button" onClick={() => void fetchOlder()}>
+        Download again
+      </button>
+    </p>
+  ) : wanted && !from && olderState === '' ? (
+    <p className="muted">
+      This device keeps entries from {day(cutoff)}.{' '}
+      {loadOlder && online ? (
+        <button type="button" className="text-button" onClick={() => void fetchOlder()}>
+          Load older entries
+        </button>
+      ) : (
+        'Connect to the internet to load older entries.'
+      )}
+    </p>
+  ) : wanted ? (
+    <div className="notice notice-warning" role="status">
+      {olderState === 'loading' ? (
+        <>
+          These dates start before {day(cutoff)}, the earliest entry this device keeps. Downloading earlier
+          entries…
+        </>
+      ) : (
+        <>
+          These dates start before {day(cutoff)}, the earliest entry this device keeps, so older entries may
+          be missing.{' '}
+          {!online || !loadOlder
+            ? 'Connect to the internet to download them.'
+            : `They could not be downloaded${olderError ? ` (${olderError})` : ''}.`}{' '}
+          {online && loadOlder && (
+            <button type="button" className="text-button" onClick={() => void fetchOlder()}>
+              Try again
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  ) : (
+    <p className="muted">
+      This device keeps entries from {day(cutoff)}; choosing earlier dates downloads the older ones.
+    </p>
+  );
   const [selected, setSelected] = useState<MaterialHistoryEntry | null>(null);
   const pendingIds = new Set(pending.map((item) => item.id));
   const sorting = useTableSort<MaterialHistoryEntry>('date', 'desc');
@@ -148,6 +239,7 @@ export default function StockHistoryPage({ history, materials, pending, ready, d
           </button>
         </div>
         {dates.panel}
+        {olderNote && <div className="stock-older-note">{olderNote}</div>}
         {!ready ? (
           <div className="empty">Loading stock history.</div>
         ) : !matching.length ? (
