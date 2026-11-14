@@ -3288,3 +3288,33 @@ label.checkbox input[type="checkbox"],
     grid-column: 1 / -1;
   }
 }
+/* Inside the toolbar, the filter fields fill their share of the row (toolbar label rules aside). */
+.toolbar .job-filter-row > .job-filter-field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-end;
+  justify-self: stretch;
+  width: auto;
+  max-width: none;
+  margin: 0;
+  gap: 4px;
+  font-size: 12px;
+}
+.toolbar .job-filter-row > .job-filter-sort {
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 8px;
+}
+.toolbar .job-filter-row label {
+  flex: 1 1 auto;
+  width: auto;
+  margin: 0;
+}
+.toolbar .job-filter-row select {
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  margin: 0;
+}
