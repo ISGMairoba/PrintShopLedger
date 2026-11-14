@@ -3,9 +3,10 @@
 // choice of materials) starts at the calculated amount; staff confirm it, change the amount, swap
 // to another material of the same unit, or split it across several. Stock then moves by the
 // difference from what the job has already taken (more used: taken; less: given back).
-// * An Admin or higher confirms at once (mode "confirm").
-// * Anyone else sends it for approval (mode "request"): nothing moves until an Admin confirms it,
-//   as entered or changed. The job may move on meanwhile.
+// * Staff at or above the business's "confirm without approval" rank (default Admin) confirm at
+//   once (mode "confirm"); a cashier too when the business allows it.
+// * Anyone else sends it for approval (mode "request"): nothing moves until someone at that rank
+//   confirms it, as entered or changed. The job may move on meanwhile.
 // The server applies the same rules (apply_job_check_event, private.job_check_lines,
 // private.material_confirm_due); keep them in step.
 import { materialSnapshot } from './material-display.mjs';
@@ -160,7 +161,8 @@ function validUsages(ledger, job, usages) {
  * usages: [{ line, materialId, quantity }].
  */
 export function materialsCheckEvent(ledger, job, usages, actor, now = new Date().toISOString()) {
-  const mode = (actor.level ?? 0) >= 2 ? 'confirm' : 'request';
+  // Business Settings → Jobs & payments decides who confirms at once (default: Admins and above).
+  const mode = (actor.confirms ?? (actor.level ?? 0) >= 2) ? 'confirm' : 'request';
   const clean = usages.map((u) => ({
     id: crypto.randomUUID(),
     line: u.line,

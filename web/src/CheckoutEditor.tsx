@@ -1077,6 +1077,40 @@ export default function CheckoutEditor({
                               {stepsFor === item.id ? 'Done' : 'Edit steps'}
                             </button>
                           )}
+                          {canChooseWorkflow &&
+                            stepsFor === item.id &&
+                            item.steps &&
+                            (options.workflows ?? []).length > 0 && (
+                              <label className="job-steps-copy">
+                                {w('Copy a saved workflow')}
+                                <select
+                                  aria-label={`${w('Job')} ${index + 1}: copy a saved workflow`}
+                                  value=""
+                                  onChange={(e) => {
+                                    const wf = (options.workflows ?? []).find((x) => x.id === e.target.value);
+                                    if (!wf) return;
+                                    setLines((items) =>
+                                      items.map((l) =>
+                                        l.id === item.id
+                                          ? {
+                                              ...l,
+                                              steps: wf.steps.map((st) => ({ ...st })),
+                                              workflowName: wf.name,
+                                            }
+                                          : l,
+                                      ),
+                                    );
+                                  }}
+                                >
+                                  <option value="">{w('Choose…')}</option>
+                                  {(options.workflows ?? []).map((wf) => (
+                                    <option key={wf.id} value={wf.id}>
+                                      {wf.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                            )}
                           {canChooseWorkflow && stepsFor === item.id && item.steps && (
                             <StepBuilder
                               steps={item.steps}

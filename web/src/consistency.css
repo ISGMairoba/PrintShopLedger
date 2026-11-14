@@ -3188,4 +3188,7 @@ label.checkbox input[type="checkbox"],
     clip: rect(0 0 0 0);
     white-space: nowrap;
   }
+/* Checkout → Edit steps: copy a saved workflow's steps into this job. */
+.job-steps-copy {
+  max-width: 320px;
 }

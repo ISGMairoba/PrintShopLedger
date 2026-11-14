@@ -233,7 +233,7 @@ export function applyJobMaterial(ledger, event) {
  * @param {any} ledger
  * @param {import('./types').Job} job
  * @param {string} target
- * @param {{ id: string, label: string, level?: number }} actor
+ * @param {{ id: string, label: string, level?: number, confirms?: boolean }} actor
  * @param {{ line: string, materialId: string, quantity: number }[] | null} [usages]
  * @param {string} [now]
  * @returns {any[]}
