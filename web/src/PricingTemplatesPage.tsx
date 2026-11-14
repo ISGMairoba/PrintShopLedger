@@ -360,7 +360,12 @@ export default function PricingTemplatesPage({
               </button>
             </ToolbarActions>
             {filtersOpen && (
-              <div className="job-filter-row keep-sort" id="template-filters" role="group" aria-label="Filter and sort">
+              <div
+                className="job-filter-row keep-sort"
+                id="template-filters"
+                role="group"
+                aria-label="Filter and sort"
+              >
                 <label className="job-filter-field">
                   <select
                     aria-label="Template category"
