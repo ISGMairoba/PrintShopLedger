@@ -6,9 +6,14 @@ import { currency } from './receipts.mjs';
 import { editableProducts } from './product-edit.mjs';
 import { variantGroups } from './variants.mjs';
 import AddProduct from './AddProduct';
-import type { Ledger, MaterialEvent, ServiceEvent } from './types';
+import SplitStock from './SplitStock';
+import StockAdjustDialog from './StockAdjustDialog';
+import type { Ledger, Material, MaterialEvent, ServiceEvent } from './types';
 
-/** Every product and service, with its stock: pick one to change its name, price and stock together. */
+/**
+ * Products: every product and service with its stock. Edit changes name, price and minimum stock;
+ * stock changes through the row actions (Add stock, Set quantity, Split), as on Stock items.
+ */
 export default function EditProductsPage({
   ledger,
   ready,
@@ -16,6 +21,7 @@ export default function EditProductsPage({
   onEdit,
   actor,
   onSaveMany,
+  onSaveStock,
 }: {
   ledger: Ledger;
   ready: boolean;
@@ -24,7 +30,12 @@ export default function EditProductsPage({
   actor?: { id: string; label: string };
   /** Add product here too (so a shop without Services can add them). */
   onSaveMany?: (events: (MaterialEvent | ServiceEvent)[]) => Promise<void>;
+  /** Stock changes (left out for people who may not change stock). */
+  onSaveStock?: (event: MaterialEvent) => Promise<void>;
 }) {
+  const [stock, setStock] = useState<{ material: Material; mode: 'add' | 'set' } | null>(null);
+  const [splitting, setSplitting] = useState<Material | null>(null);
+  const live = (m: Material) => ledger.materials.find((x) => x.id === m.id) ?? m;
   const { w } = useWords();
   const [adding, setAdding] = useState(false);
   const [query, setQuery] = useState('');
@@ -135,9 +146,38 @@ export default function EditProductsPage({
                       </td>
                       <td className="numeric">{service.private ? '—' : currency(service.price)}</td>
                       <td>
-                        <button className="text-button" disabled={busy} onClick={() => onEdit(service.id)}>
-                          <Icon name="edit" /> Edit
-                        </button>
+                        <div className="material-actions">
+                          <button className="text-button" disabled={busy} onClick={() => onEdit(service.id)}>
+                            <Icon name="edit" /> Edit
+                          </button>
+                          {material && onSaveStock && actor && (
+                            <>
+                              <button
+                                className="text-button"
+                                disabled={busy}
+                                onClick={() => setStock({ material, mode: 'add' })}
+                              >
+                                <Icon name="add" /> Add stock
+                              </button>
+                              <button
+                                className="text-button"
+                                disabled={busy}
+                                onClick={() => setStock({ material, mode: 'set' })}
+                              >
+                                <Icon name="quantity" /> Set quantity
+                              </button>
+                              {material.canSplit && (
+                                <button
+                                  className="text-button"
+                                  disabled={busy}
+                                  onClick={() => setSplitting(material)}
+                                >
+                                  <Icon name="copy" /> Split
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -146,6 +186,28 @@ export default function EditProductsPage({
             </table>
           </ResponsiveTable>
         </div>
+      )}
+      {stock && onSaveStock && actor && (
+        <StockAdjustDialog
+          key={stock.material.id + stock.mode}
+          material={live(stock.material)}
+          mode={stock.mode}
+          history={ledger.materialHistory}
+          busy={busy}
+          actor={actor}
+          onSave={onSaveStock}
+          onClose={() => setStock(null)}
+        />
+      )}
+      {splitting && onSaveStock && actor && (
+        <SplitStock
+          material={live(splitting)}
+          materials={ledger.materials}
+          busy={busy}
+          actor={actor}
+          onSave={onSaveStock}
+          onClose={() => setSplitting(null)}
+        />
       )}
     </section>
   );

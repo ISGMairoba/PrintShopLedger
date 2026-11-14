@@ -386,7 +386,7 @@ export const helpTopics = [
     ],
     notes: [
       'Every change is kept in Stock History with who made it and why.',
-      'Edit Products can also restock or count an item while you change its price.',
+      'On Products, each row has Add stock and Set quantity (and Split when the item can be split).',
     ],
     pages: ['Materials'],
     rank: 2,
@@ -438,12 +438,13 @@ export const helpTopics = [
     id: 'edit-product',
     chapter: 'stock',
     title: 'Editing a product: price, unit, packs and variants',
-    summary: 'Edit Products changes a product’s name, price, unit, pack prices and stock together.',
+    summary:
+      'Products lists what you sell with its stock. Edit changes name, price, unit and pack prices; stock has its own buttons on each row.',
     steps: [
-      'Open Edit Products and press Edit on the product.',
+      'Open Products and press Edit on the product.',
       'Change the name, price, unit or pack prices. The box at the bottom shows what will change.',
-      'To change stock at the same time, choose Add stock or Set to counted amount and give a reason.',
       'Press Save changes.',
+      'To restock or count it, press Add stock or Set quantity on its row and give a reason.',
     ],
     notes: [
       'For a product with variants, the name, unit, price and pack prices change for every variant; stock is for the variant you opened.',

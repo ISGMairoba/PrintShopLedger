@@ -524,7 +524,7 @@ export default function ServicesPage({
                                 title="Name, price and stock together"
                                 onClick={() => onEditProduct(service.id)}
                               >
-                                <Icon name="quantity" /> Price & stock
+                                <Icon name="edit" /> Price & name
                               </button>
                             )}
                             <button

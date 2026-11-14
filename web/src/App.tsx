@@ -2258,6 +2258,7 @@ export default function App() {
                             onEdit={(id) => setProductEdit(id)}
                             actor={catalogueActor}
                             onSaveMany={canEditCatalogue ? saveCatalogueMany : undefined}
+                            onSaveStock={demo || shop?.role !== 'cashier' ? saveCatalogue : undefined}
                           />
                         ) : page === 'Pricing Templates' ? (
                           <PricingTemplatesPage
