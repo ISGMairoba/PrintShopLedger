@@ -8,6 +8,7 @@ import { chromium } from 'playwright';
 import { fixture } from '../tests/pricing-fixture.mjs';
 import { applyEvent } from '../src/domain.mjs';
 import { navigationPages } from '../src/page-access.mjs';
+import { pageName as shownName } from '../src/terms.mjs';
 import { pick } from './pick.mjs';
 
 const out = process.argv[2] ?? '/tmp/ui-screens';
@@ -155,7 +156,7 @@ try {
       if (name === 'Material Waste') continue;
       const id = String(++n).padStart(2, '0');
       try {
-        await nav(name);
+        await nav(shownName(name));
         await shot(`${id}-${slug(name)}`);
         // Toolbar controls should share one height, and rows should line up.
         const sizes = await page.evaluate(() =>
