@@ -3217,12 +3217,17 @@ label.checkbox input[type="checkbox"],
 }
 .job-filter-row {
   display: grid;
+  flex: 1 1 100%;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 12px;
   align-items: end;
-  margin-top: 12px;
+  margin: 2px 0 0;
   padding-top: 12px;
   border-top: 1px solid var(--line, rgba(0, 0, 0, 0.08));
+}
+.toolbar > .job-filter-button[aria-expanded="true"] {
+  border-color: var(--brand-primary);
+  box-shadow: inset 0 0 0 1px var(--brand-primary);
 }
 .job-filter-field {
   display: grid;
