@@ -97,6 +97,9 @@ export default function JobsPaymentsPage({
   const [stageRange, setStageRange] = useState<StageRange>('only');
   // Jobs → Payment: paid in full, part paid, unpaid, or still owing.
   const [payFilter, setPayFilter] = useState<PayFilter>('');
+  // The Filter button opens a second row with the stage, payment and sort boxes.
+  const [filtersOpen, setFiltersOpen] = useState(() => !!stageFilter);
+  const activeFilters = (stageFilter ? 1 : 0) + (payFilter ? 1 : 0);
   // The usual steps, then any other step a job follows (items can have their own).
   const stageOrder = useMemo(
     () => [
@@ -227,139 +230,15 @@ export default function JobsPaymentsPage({
             onChange={(e) => onQuery(e.target.value)}
           />
           {dates.button}
-          {page === 'Jobs' &&
-            (() => {
-              // Counts follow the period and the other filter; a choice with no jobs is left out.
-              const inList = ledger.jobs.filter((job) => inPeriod(job.createdAt, period));
-              const forStage = inList.filter((job) => matchesPay(job, payFilter));
-              const forPay = inList.filter((job) => matchesStage(job, stageFilter, stageRange));
-              const count = (s: string) => forStage.filter((job) => matchesStage(job, s, 'only')).length;
-              const stageChoices = [
-                { value: HELD, label: 'On hold' },
-                { value: LATE, label: 'Too long at a stage' },
-                ...[...stageOrder, 'Cancelled'].map((s) => ({ value: s, label: stage(s) })),
-              ]
-                .map((c) => ({ ...c, n: count(c.value) }))
-                .filter((c) => c.n > 0 || c.value === stageFilter);
-              const payChoices = (
-                [
-                  ['paid', 'Paid in full'],
-                  ['part', 'Part paid'],
-                  ['unpaid', 'Unpaid'],
-                  ['owing', 'Still owing (part paid or unpaid)'],
-                ] as const
-              )
-                .map(([value, label]) => ({
-                  value,
-                  label,
-                  n: forPay.filter((job) => matchesPay(job, value)).length,
-                }))
-                .filter((c) => c.n > 0 || c.value === payFilter);
-              return (
-                <>
-                  <label className="list-sort-select list-filter-select job-filter-half">
-                    <span className="filter-label">{w('Job stage')}</span>
-                    <select
-                      aria-label={w('Filter jobs by stage')}
-                      value={stageFilter}
-                      onChange={(e) => setStageFilter(e.target.value)}
-                    >
-                      <option value="">All stages</option>
-                      {stageChoices.map((c) => (
-                        <option key={c.value} value={c.value}>
-                          {c.label} ({c.n})
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  {!special(stageFilter) && (
-                    <label className="list-sort-select list-filter-select">
-                      <span className="filter-label">{w('Stages shown')}</span>
-                      <select
-                        aria-label={w('Which stages to show')}
-                        value={stageRange}
-                        onChange={(e) => setStageRange(e.target.value as StageRange)}
-                      >
-                        <option value="only">Only {stage(stageFilter)}</option>
-                        <option value="upTo">
-                          {stage(stageOrder[0] ?? 'Added')} → {stage(stageFilter)}
-                        </option>
-                        <option value="from">
-                          {stage(stageFilter)} → {stage(jobStages[jobStages.length - 2] ?? 'Completed')}
-                        </option>
-                      </select>
-                    </label>
-                  )}
-                  <label className="list-sort-select list-filter-select job-filter-half">
-                    <span className="filter-label">{w('Payment')}</span>
-                    <select
-                      aria-label={w('Filter jobs by payment')}
-                      value={payFilter}
-                      onChange={(e) => setPayFilter(e.target.value as PayFilter)}
-                    >
-                      <option value="">All payments</option>
-                      {payChoices.map((c) => (
-                        <option key={c.value} value={c.value}>
-                          {c.label} ({c.n})
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </>
-              );
-            })()}
-          <label className="list-sort-select">
-            Sort by
-            <select
-              aria-label={page === 'Jobs' ? w('Sort jobs by') : 'Sort payments by'}
-              value={page === 'Jobs' ? jobSorting.key : paymentSorting.key}
-              onChange={(e) => (page === 'Jobs' ? jobSorting : paymentSorting).toggle(e.target.value)}
-            >
-              {page === 'Jobs' ? (
-                <>
-                  <option value="createdAt">Created at</option>
-                  <option value="id">{w('Job ID')}</option>
-                  <option value="description">Description</option>
-                  <option value="service">{w('Service')}</option>
-                  <option value="customer">Customer</option>
-                  <option value="amount">{w('Job amount')}</option>
-                  <option value="paid">Paid</option>
-                  <option value="outstanding">Outstanding</option>
-                  <option value="status">{w('Job stage')}</option>
-                  <option value="lastPayment">Last payment date</option>
-                  <option value="dueAt">Deadline</option>
-                  <option value="createdBy">Added by</option>
-                  <option value="modifiedAt">Last changed</option>
-                </>
-              ) : (
-                <>
-                  <option value="createdAt">Created at</option>
-                  <option value="id">Payment ID</option>
-                  <option value="date">Payment date</option>
-                  <option value="customer">Customer</option>
-                  <option value="amount">Amount</option>
-                  <option value="method">Method</option>
-                  <option value="allocations">{w('Job allocations')}</option>
-                </>
-              )}
-            </select>
-          </label>
           <button
-            className="secondary sort-direction"
-            aria-label={
-              (page === 'Jobs' ? jobSorting : paymentSorting).direction === 'asc'
-                ? 'Ascending, reverse sort direction'
-                : 'Descending, reverse sort direction'
-            }
-            title={
-              (page === 'Jobs' ? jobSorting : paymentSorting).direction === 'asc' ? 'Ascending' : 'Descending'
-            }
-            onClick={() => {
-              const sorting = page === 'Jobs' ? jobSorting : paymentSorting;
-              sorting.toggle(sorting.key);
-            }}
+            type="button"
+            className={`secondary job-filter-button${page === 'Payments' ? ' sort-only' : ''}`}
+            aria-expanded={filtersOpen}
+            aria-controls={`${page}-filters`}
+            onClick={() => setFiltersOpen((open) => !open)}
           >
-            {(page === 'Jobs' ? jobSorting : paymentSorting).direction === 'asc' ? '↑' : '↓'}
+            <Icon name="filter" /> Filter
+            {activeFilters > 0 && <span className="filter-count">{activeFilters}</span>}
           </button>
           <ToolbarActions
             more={
@@ -382,6 +261,151 @@ export default function JobsPaymentsPage({
               <Icon name="add" /> {page === 'Jobs' ? w('New job') : 'Record payment'}
             </button>
           </ToolbarActions>
+          {filtersOpen && (
+            <div
+              className={`job-filter-row${page === 'Payments' ? ' sort-only' : ''}`}
+              id={`${page}-filters`}
+              role="group"
+              aria-label="Filter and sort"
+            >
+              {page === 'Jobs' &&
+                (() => {
+                  // Counts follow the period and the other filter; a choice with no jobs is left out.
+                  const inList = ledger.jobs.filter((job) => inPeriod(job.createdAt, period));
+                  const forStage = inList.filter((job) => matchesPay(job, payFilter));
+                  const forPay = inList.filter((job) => matchesStage(job, stageFilter, stageRange));
+                  const count = (s: string) => forStage.filter((job) => matchesStage(job, s, 'only')).length;
+                  const stageChoices = [
+                    { value: HELD, label: 'On hold' },
+                    { value: LATE, label: 'Too long at a stage' },
+                    ...[...stageOrder, 'Cancelled'].map((s) => ({ value: s, label: stage(s) })),
+                  ]
+                    .map((c) => ({ ...c, n: count(c.value) }))
+                    .filter((c) => c.n > 0 || c.value === stageFilter);
+                  const payChoices = (
+                    [
+                      ['paid', 'Paid in full'],
+                      ['part', 'Part paid'],
+                      ['unpaid', 'Unpaid'],
+                      ['owing', 'Still owing (part paid or unpaid)'],
+                    ] as const
+                  )
+                    .map(([value, label]) => ({
+                      value,
+                      label,
+                      n: forPay.filter((job) => matchesPay(job, value)).length,
+                    }))
+                    .filter((c) => c.n > 0 || c.value === payFilter);
+                  return (
+                    <>
+                      <label className="job-filter-field">
+                        <select
+                          aria-label={w('Filter jobs by stage')}
+                          value={stageFilter}
+                          onChange={(e) => setStageFilter(e.target.value)}
+                        >
+                          <option value="">All stages</option>
+                          {stageChoices.map((c) => (
+                            <option key={c.value} value={c.value}>
+                              {c.label} ({c.n})
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      {!special(stageFilter) && (
+                        <label className="job-filter-field">
+                          <select
+                            aria-label={w('Which stages to show')}
+                            value={stageRange}
+                            onChange={(e) => setStageRange(e.target.value as StageRange)}
+                          >
+                            <option value="only">Only {stage(stageFilter)}</option>
+                            <option value="upTo">
+                              {stage(stageOrder[0] ?? 'Added')} → {stage(stageFilter)}
+                            </option>
+                            <option value="from">
+                              {stage(stageFilter)} → {stage(jobStages[jobStages.length - 2] ?? 'Completed')}
+                            </option>
+                          </select>
+                        </label>
+                      )}
+                      <label className="job-filter-field">
+                        <select
+                          aria-label={w('Filter jobs by payment')}
+                          value={payFilter}
+                          onChange={(e) => setPayFilter(e.target.value as PayFilter)}
+                        >
+                          <option value="">All payments</option>
+                          {payChoices.map((c) => (
+                            <option key={c.value} value={c.value}>
+                              {c.label} ({c.n})
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </>
+                  );
+                })()}
+              <div className="job-filter-field job-filter-sort">
+                <label>
+                  <span>Sort by:</span>
+                  <select
+                    aria-label={page === 'Jobs' ? w('Sort jobs by') : 'Sort payments by'}
+                    value={page === 'Jobs' ? jobSorting.key : paymentSorting.key}
+                    onChange={(e) => (page === 'Jobs' ? jobSorting : paymentSorting).toggle(e.target.value)}
+                  >
+                    {page === 'Jobs' ? (
+                      <>
+                        <option value="createdAt">Created at</option>
+                        <option value="id">{w('Job ID')}</option>
+                        <option value="description">Description</option>
+                        <option value="service">{w('Service')}</option>
+                        <option value="customer">Customer</option>
+                        <option value="amount">{w('Job amount')}</option>
+                        <option value="paid">Paid</option>
+                        <option value="outstanding">Outstanding</option>
+                        <option value="status">{w('Job stage')}</option>
+                        <option value="lastPayment">Last payment date</option>
+                        <option value="dueAt">Deadline</option>
+                        <option value="createdBy">Added by</option>
+                        <option value="modifiedAt">Last changed</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="createdAt">Created at</option>
+                        <option value="id">Payment ID</option>
+                        <option value="date">Payment date</option>
+                        <option value="customer">Customer</option>
+                        <option value="amount">Amount</option>
+                        <option value="method">Method</option>
+                        <option value="allocations">{w('Job allocations')}</option>
+                      </>
+                    )}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  className="secondary sort-direction"
+                  aria-label={
+                    (page === 'Jobs' ? jobSorting : paymentSorting).direction === 'asc'
+                      ? 'Ascending, reverse sort direction'
+                      : 'Descending, reverse sort direction'
+                  }
+                  title={
+                    (page === 'Jobs' ? jobSorting : paymentSorting).direction === 'asc'
+                      ? 'Ascending'
+                      : 'Descending'
+                  }
+                  onClick={() => {
+                    const sorting = page === 'Jobs' ? jobSorting : paymentSorting;
+                    sorting.toggle(sorting.key);
+                  }}
+                >
+                  {(page === 'Jobs' ? jobSorting : paymentSorting).direction === 'asc' ? '↑' : '↓'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
         {dates.panel}
         {!ready ? (
