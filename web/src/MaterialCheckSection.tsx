@@ -21,7 +21,7 @@ export function MaterialCheckDialog({
   ledger: Ledger;
   job: Job;
   busy: boolean;
-  actor: { id: string; label: string; level: number };
+  actor: { id: string; label: string; level: number; confirms: boolean };
   onSave: (event: JobMaterialsCheckEvent) => Promise<void>;
   onClose: () => void;
 }) {
@@ -29,7 +29,7 @@ export function MaterialCheckDialog({
   const [draft, setDraft] = useState<CheckDraft>(() => checkDraftFor(ledger, job));
   const [error, setError] = useState('');
   const pending = job.materialCheck?.status === 'pending';
-  const admin = actor.level >= 2;
+  const admin = actor.confirms;
   const formId = `material-check-${job.id}`;
   return (
     <Modal
@@ -77,7 +77,7 @@ export function MaterialCheckDialog({
           job={job}
           value={draft}
           onChange={setDraft}
-          level={actor.level}
+          confirms={actor.confirms}
         />
       </form>
     </Modal>
@@ -95,7 +95,7 @@ export default function MaterialCheckSection({
   ledger: Ledger;
   job: Job;
   busy: boolean;
-  actor?: { id: string; label: string; level: number };
+  actor?: { id: string; label: string; level: number; confirms: boolean };
   onSave?: (event: JobMaterialsCheckEvent) => Promise<void>;
 }) {
   const { w } = useWords();
@@ -105,7 +105,7 @@ export default function MaterialCheckSection({
   const name = (id: string) => ledger.materials.find((m) => m.id === id)?.name ?? 'Material';
   const unit = (id: string) => ledger.materials.find((m) => m.id === id)?.measurementUnit ?? '';
   const cancelled = job.productionStatus === 'Cancelled';
-  const admin = (actor?.level ?? 0) >= 2;
+  const admin = !!actor?.confirms;
   // Who may act: an Admin any time; others while nothing is confirmed.
   const canAct = !!actor && !!onSave && !cancelled && (admin || check?.status !== 'confirmed');
   const label = !check
@@ -166,14 +166,14 @@ export function PendingChecksBanner({
 }: {
   ledger: Ledger;
   busy: boolean;
-  actor: { id: string; label: string; level: number };
+  actor: { id: string; label: string; level: number; confirms: boolean };
   onSave: (event: JobMaterialsCheckEvent) => Promise<void>;
 }) {
   const { w } = useWords();
   const [list, setList] = useState(false);
   const [review, setReview] = useState<string | null>(null);
   const waiting = pendingChecks(ledger);
-  if (actor.level < 2 || !waiting.length) return null;
+  if (!actor.confirms || !waiting.length) return null;
   const job = review ? ledger.jobs.find((j) => j.id === review) : undefined;
   return (
     <>

@@ -130,8 +130,11 @@ export const defaultBranding = () => ({
   corrections: { recentDays: 7 },
   /** autoClose: drawers left open overnight are closed "not counted" for an Admin to review. */
   drawers: { autoClose: true },
-  /** extraMaterialsRank: the lowest rank that may add materials to a job in production. */
-  production: { extraMaterialsRank: 1 },
+  /**
+   * extraMaterialsRank: the lowest rank that may add materials to a job in production.
+   * confirmMaterialsRank: the lowest rank whose materials check applies without approval (default 2).
+   */
+  production: /** @type {{ extraMaterialsRank: 1 | 2 | 3, confirmMaterialsRank?: 1 | 2 | 3 }} */ ({ extraMaterialsRank: 1 }),
   // syncMinutes: how often devices check for changes made on other devices.
   security: { autoLockMinutes: 0, syncMinutes: 2 },
   jobs: jobSettingsDefaults(),

@@ -30,15 +30,15 @@ export default function MaterialCheckFields({
   job,
   value,
   onChange,
-  level,
+  confirms,
   compact = false,
 }: {
   ledger: Ledger;
   job: Job;
   value: CheckDraft;
   onChange: (next: CheckDraft) => void;
-  /** The person's access level: below Admin, the check goes for approval. */
-  level: number;
+  /** Whether this person's check applies at once (else it goes for approval). */
+  confirms: boolean;
   compact?: boolean;
 }) {
   const { w } = useWords();
@@ -53,7 +53,7 @@ export default function MaterialCheckFields({
           {w(
             'Each line starts at the calculated amount. Confirm it, enter what was really used, or split it across materials.',
           )}{' '}
-          {level >= 2
+          {confirms
             ? w('Stock moves by the difference when you save.')
             : w('An Admin approves these amounts; stock moves then.')}
         </p>

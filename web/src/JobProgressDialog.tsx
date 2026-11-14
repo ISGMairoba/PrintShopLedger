@@ -13,7 +13,7 @@ export default function JobProgressDialog({
   job,
   mode,
   busy,
-  level,
+  confirms,
   onClose,
   onSave,
 }: {
@@ -21,8 +21,8 @@ export default function JobProgressDialog({
   job: Job;
   mode: ProgressMode;
   busy: boolean;
-  /** The person's access level: below Admin, the materials go for approval. */
-  level: number;
+  /** Whether this person's materials check applies at once (else it goes for approval). */
+  confirms: boolean;
   onClose: () => void;
   /** usages: the materials used, when this move passes the job's confirmation stage. */
   onSave: (
@@ -78,7 +78,7 @@ export default function JobProgressDialog({
           </label>
         )}
         {confirming && (
-          <MaterialCheckFields ledger={ledger} job={job} value={draft} onChange={setDraft} level={level} />
+          <MaterialCheckFields ledger={ledger} job={job} value={draft} onChange={setDraft} confirms={confirms} />
         )}
         <p>Proceed in order: {path.map(stage).join(' → ')}</p>
         <p className="muted">

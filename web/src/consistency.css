@@ -3142,3 +3142,8 @@ label.checkbox input[type="checkbox"],
     grid-column: 1 / -1;
   }
 }
+
+/* Checkout → Edit steps: copy a saved workflow's steps into this job. */
+.job-steps-copy {
+  max-width: 320px;
+}
