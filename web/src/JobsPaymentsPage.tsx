@@ -232,7 +232,7 @@ export default function JobsPaymentsPage({
           {dates.button}
           <button
             type="button"
-            className="secondary job-filter-button"
+            className={`secondary job-filter-button${page === 'Payments' ? ' sort-only' : ''}`}
             aria-expanded={filtersOpen}
             aria-controls={`${page}-filters`}
             onClick={() => setFiltersOpen((open) => !open)}
@@ -262,7 +262,7 @@ export default function JobsPaymentsPage({
             </button>
           </ToolbarActions>
           {filtersOpen && (
-            <div className="job-filter-row" id={`${page}-filters`} role="group" aria-label="Filter and sort">
+            <div className={`job-filter-row${page === 'Payments' ? ' sort-only' : ''}`} id={`${page}-filters`} role="group" aria-label="Filter and sort">
               {page === 'Jobs' &&
                 (() => {
                   // Counts follow the period and the other filter; a choice with no jobs is left out.
@@ -294,8 +294,7 @@ export default function JobsPaymentsPage({
                   return (
                     <>
                       <label className="job-filter-field">
-                        <span>{w('Job stage')}</span>
-                        <select
+                          <select
                           aria-label={w('Filter jobs by stage')}
                           value={stageFilter}
                           onChange={(e) => setStageFilter(e.target.value)}
@@ -310,8 +309,7 @@ export default function JobsPaymentsPage({
                       </label>
                       {!special(stageFilter) && (
                         <label className="job-filter-field">
-                          <span>{w('Stages shown')}</span>
-                          <select
+                              <select
                             aria-label={w('Which stages to show')}
                             value={stageRange}
                             onChange={(e) => setStageRange(e.target.value as StageRange)}
@@ -327,8 +325,7 @@ export default function JobsPaymentsPage({
                         </label>
                       )}
                       <label className="job-filter-field">
-                        <span>{w('Payment')}</span>
-                        <select
+                          <select
                           aria-label={w('Filter jobs by payment')}
                           value={payFilter}
                           onChange={(e) => setPayFilter(e.target.value as PayFilter)}
@@ -346,7 +343,7 @@ export default function JobsPaymentsPage({
                 })()}
               <div className="job-filter-field job-filter-sort">
                 <label>
-                  <span>Sort by</span>
+                  <span>Sort by:</span>
                   <select
                     aria-label={page === 'Jobs' ? w('Sort jobs by') : 'Sort payments by'}
                     value={page === 'Jobs' ? jobSorting.key : paymentSorting.key}
