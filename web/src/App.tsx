@@ -129,6 +129,10 @@ import {
   withdrawCorrectionRequest,
   rejectCorrectionRequest,
   fetchFullLedger,
+  requestStock,
+  answerStockRequest,
+  cancelStockRequest,
+  transferStock,
 } from './cloud';
 import { readState, saveEvent, saveEvents, mutateState, storageHealth } from './storage';
 import { holdSale, listHeld, removeHeld } from './held-sales.mjs';
@@ -2533,51 +2537,24 @@ export default function App() {
                                       seesAll: ownerView,
                                       requests: state.ledger.stockRequests ?? [],
                                       request: async (materialId, from, quantity, note) => {
-                                        const { error } = await supabase!.rpc('request_stock', {
-                                          p_shop: shop!.id,
-                                          p_id: crypto.randomUUID(),
-                                          p_material: materialId,
-                                          p_from: from,
-                                          p_quantity: quantity,
-                                          p_note: note,
-                                        });
-                                        if (error) throw Error(error.message);
+                                        await requestStock(shop!.id, materialId, from, quantity, note);
                                         setMessage(
                                           'Request sent. It shows under Stock requests after the next sync.',
                                         );
                                         syncNow();
                                       },
                                       answer: async (id, send, quantity, reply) => {
-                                        const { error } = await supabase!.rpc('answer_stock_request', {
-                                          p_shop: shop!.id,
-                                          p_id: id,
-                                          p_send: send,
-                                          p_quantity: quantity,
-                                          p_reply: reply,
-                                        });
-                                        if (error) throw Error(error.message);
+                                        await answerStockRequest(shop!.id, id, send, quantity, reply);
                                         setMessage(send ? 'Stock sent.' : 'Request declined.');
                                         syncNow();
                                       },
                                       cancel: async (id) => {
-                                        const { error } = await supabase!.rpc('cancel_stock_request', {
-                                          p_shop: shop!.id,
-                                          p_id: id,
-                                        });
-                                        if (error) throw Error(error.message);
+                                        await cancelStockRequest(shop!.id, id);
                                         setMessage('Request withdrawn.');
                                         syncNow();
                                       },
                                       transfer: async (materialId, from, to, quantity, reason) => {
-                                        const { error } = await supabase!.rpc('transfer_stock', {
-                                          p_shop: shop!.id,
-                                          p_material: materialId,
-                                          p_from: from,
-                                          p_to: to,
-                                          p_quantity: quantity,
-                                          p_reason: reason,
-                                        });
-                                        if (error) throw Error(error.message);
+                                        await transferStock(shop!.id, materialId, from, to, quantity, reason);
                                         setMessage(
                                           'Stock transferred. Quantities update with the next sync.',
                                         );

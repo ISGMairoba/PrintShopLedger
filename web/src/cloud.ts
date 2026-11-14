@@ -259,6 +259,42 @@ async function synchronize(scope: string, shopId: string) {
     };
   });
 }
+/** Stock between locations (Materials → Stock requests): each a server function, synced after. */
+async function stockCall(name: string, args: Record<string, unknown>) {
+  if (!supabase) throw Error('Sign in to move stock between locations.');
+  const { error } = await supabase.rpc(name, args);
+  if (error) throw Error(error.message);
+}
+export const requestStock = (shopId: string, materialId: string, from: string, quantity: number, note: string) =>
+  stockCall('request_stock', {
+    p_shop: shopId,
+    p_id: crypto.randomUUID(),
+    p_material: materialId,
+    p_from: from,
+    p_quantity: quantity,
+    p_note: note,
+  });
+export const answerStockRequest = (shopId: string, id: string, send: boolean, quantity: number, reply: string) =>
+  stockCall('answer_stock_request', { p_shop: shopId, p_id: id, p_send: send, p_quantity: quantity, p_reply: reply });
+export const cancelStockRequest = (shopId: string, id: string) =>
+  stockCall('cancel_stock_request', { p_shop: shopId, p_id: id });
+export const transferStock = (
+  shopId: string,
+  materialId: string,
+  from: string,
+  to: string,
+  quantity: number,
+  reason: string,
+) =>
+  stockCall('transfer_stock', {
+    p_shop: shopId,
+    p_material: materialId,
+    p_from: from,
+    p_to: to,
+    p_quantity: quantity,
+    p_reason: reason,
+  });
+
 /**
  * The business's whole history, for a report on a device that keeps recent history only. It is
  * held in memory for that report and never saved, so the device keeps its shorter copy; work not
