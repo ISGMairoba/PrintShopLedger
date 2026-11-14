@@ -3304,9 +3304,13 @@ label.checkbox input[type="checkbox"],
     flex: 1 1 0;
   }
   .job-list-toolbar:not(:has(> .date-filter-button)) > .toolbar-actions {
-    flex: 2.4 1 0;
+    flex: 0 0 auto;
+    width: auto;
     min-width: 0;
     flex-wrap: nowrap;
+  }
+  .job-list-toolbar:not(:has(> .date-filter-button)) > .toolbar-actions button {
+    white-space: nowrap;
   }
   /* Lists without their own Sort by bar keep sorting in the Filter row. */
   .toolbar .job-filter-row.keep-sort > .job-filter-sort {
