@@ -386,9 +386,14 @@ export function expenseSummary(ledger, from = '', to = '') {
       sum + item.payments.filter((p) => within(p.paidOn)).reduce((total, p) => total + p.amount, 0),
     0,
   );
-  const sales = ledger.jobs
-    .filter((item) => within(expenseDay(item.createdAt)))
-    .reduce((sum, item) => sum + item.amount, 0);
+  // A device keeping recent history only holds the sales of the days it left out as daily totals.
+  const carried = Object.entries(ledger.historySummary?.daily ?? {}).reduce(
+    (sum, [day, totals]) => (within(day) ? sum + (totals.sales ?? 0) : sum),
+    0,
+  );
+  const sales =
+    carried +
+    ledger.jobs.filter((item) => within(expenseDay(item.createdAt))).reduce((sum, item) => sum + item.amount, 0);
   return {
     incurred,
     paid,

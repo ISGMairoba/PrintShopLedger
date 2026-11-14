@@ -226,3 +226,14 @@ test('a trimmed copy keeps every expense, so This month expense totals match', (
   assert.equal(trimmed.expenses.length, 2, 'an old paid expense is kept');
   assert.equal(trimmed.expenseHistory.length, ledger.expenseHistory.length);
 });
+
+test("Expenses: this month's sales count the days a short-history device left out", async () => {
+  const { expenseSummary } = await import('../src/expenses.mjs');
+  const ledger = business();
+  const cutoff = '2026-10-20';
+  const { ledger: trimmed } = trimHistory(ledger, cutoff);
+  const left = ledger.jobs.filter((j) => !trimmed.jobs.some((t) => t.id === j.id));
+  assert.ok(left.length > 0, 'some jobs are left out');
+  const from = left.map((j) => j.createdAt.slice(0, 10)).sort()[0];
+  assert.deepEqual(expenseSummary(trimmed, from, '2026-10-31'), expenseSummary(ledger, from, '2026-10-31'));
+});
