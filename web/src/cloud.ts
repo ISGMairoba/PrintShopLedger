@@ -284,7 +284,7 @@ export const answerStockRequest = (
   shopId: string,
   id: string,
   send: boolean,
-  quantity: number,
+  quantity: number | null,
   reply: string,
 ) =>
   stockCall('answer_stock_request', {
