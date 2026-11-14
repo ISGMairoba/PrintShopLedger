@@ -38,7 +38,8 @@ export default function DeviceStorageCard({
   const low = health?.free != null && health.free < LOW_SPACE;
   const [keep, setKeep] = useState(() => (history ? deviceChoice(history.scope) : 'business'));
   const businessLabel =
-    KEEP_CHOICES.find(([v]) => v === (history ? businessKeepChoice(history.scope) : 'all'))?.[1] ?? 'Everything';
+    KEEP_CHOICES.find(([v]) => v === (history ? businessKeepChoice(history.scope) : 'all'))?.[1] ??
+    'Everything';
   const [keepError, setKeepError] = useState('');
   const cutoff = history?.ledger.historySummary?.cutoff;
   return (

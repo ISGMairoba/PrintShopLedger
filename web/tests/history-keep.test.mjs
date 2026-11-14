@@ -59,7 +59,9 @@ test('the choice is kept per business on this device', () => {
 });
 
 test('a device follows the business default unless it chooses for itself', async () => {
-  const { keepChoice, deviceChoice, setKeepChoice, setBusinessKeep } = await import('../src/history-keep.mjs');
+  const { keepChoice, deviceChoice, setKeepChoice, setBusinessKeep } = await import(
+    '../src/history-keep.mjs'
+  );
   const store = new Map();
   const storage = {
     getItem: (k) => (store.has(k) ? store.get(k) : null),
