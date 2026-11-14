@@ -325,7 +325,9 @@ try {
     // Jobs filters: a stage with its range, and payment.
     try {
       await nav('Jobs');
-      await page.locator('.job-list-toolbar').screenshot({ path: `${out}/${mode}-96-jobs-toolbar-closed.png` });
+      await page
+        .locator('.job-list-toolbar')
+        .screenshot({ path: `${out}/${mode}-96-jobs-toolbar-closed.png` });
       await page.getByRole('button', { name: /^Filter/ }).click();
       const listed = async () =>
         Number(

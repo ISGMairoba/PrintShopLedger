@@ -263,7 +263,9 @@ try {
       // Jobs and Payments sort from their Filter row; other lists from the Sort by bar.
       if (name === 'Jobs' || name === 'Payments') {
         await page.getByRole('button', { name: /^Filter/ }).click();
-        await page.getByLabel(name === 'Jobs' ? 'Sort jobs by' : 'Sort payments by').selectOption({ index: 0 });
+        await page
+          .getByLabel(name === 'Jobs' ? 'Sort jobs by' : 'Sort payments by')
+          .selectOption({ index: 0 });
         await page.getByRole('button', { name: /reverse sort direction/ }).click();
         assert.ok(
           await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
