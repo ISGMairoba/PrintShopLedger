@@ -97,6 +97,9 @@ export default function JobsPaymentsPage({
   const [stageRange, setStageRange] = useState<StageRange>('only');
   // Jobs → Payment: paid in full, part paid, unpaid, or still owing.
   const [payFilter, setPayFilter] = useState<PayFilter>('');
+  // The Filter button opens a second row with the stage, payment and sort boxes.
+  const [filtersOpen, setFiltersOpen] = useState(() => !!stageFilter);
+  const activeFilters = (stageFilter ? 1 : 0) + (payFilter ? 1 : 0);
   // The usual steps, then any other step a job follows (items can have their own).
   const stageOrder = useMemo(
     () => [
@@ -227,6 +230,40 @@ export default function JobsPaymentsPage({
             onChange={(e) => onQuery(e.target.value)}
           />
           {dates.button}
+          <button
+            type="button"
+            className="secondary job-filter-button"
+            aria-expanded={filtersOpen}
+            aria-controls={`${page}-filters`}
+            onClick={() => setFiltersOpen((open) => !open)}
+          >
+            <Icon name="filter" /> Filter
+            {activeFilters > 0 && <span className="filter-count">{activeFilters}</span>}
+          </button>
+          <ToolbarActions
+            more={
+              page === 'Jobs'
+                ? jobViewItems({
+                    audit: audit,
+                    onAudit: () => setAudit((value) => !value),
+                    grouped: grouped,
+                    selecting: selecting,
+                    onGroup: () => setGrouped((value) => !value),
+                    onSelect: () => setSelecting((value) => !value),
+                  })
+                : undefined
+            }
+          >
+            <button
+              disabled={!ready || busy || legacyConflict || (page === 'Payments' && !ledger.customers.length)}
+              onClick={onCreate}
+            >
+              <Icon name="add" /> {page === 'Jobs' ? w('New job') : 'Record payment'}
+            </button>
+          </ToolbarActions>
+        </div>
+        {filtersOpen && (
+          <div className="job-filter-row" id={`${page}-filters`} role="group" aria-label="Filter and sort">
           {page === 'Jobs' &&
             (() => {
               // Counts follow the period and the other filter; a choice with no jobs is left out.
@@ -257,8 +294,8 @@ export default function JobsPaymentsPage({
                 .filter((c) => c.n > 0 || c.value === payFilter);
               return (
                 <>
-                  <label className="list-sort-select list-filter-select job-filter-half">
-                    <span className="filter-label">{w('Job stage')}</span>
+                  <label className="job-filter-field">
+                    <span>{w('Job stage')}</span>
                     <select
                       aria-label={w('Filter jobs by stage')}
                       value={stageFilter}
@@ -273,8 +310,8 @@ export default function JobsPaymentsPage({
                     </select>
                   </label>
                   {!special(stageFilter) && (
-                    <label className="list-sort-select list-filter-select">
-                      <span className="filter-label">{w('Stages shown')}</span>
+                    <label className="job-filter-field">
+                      <span>{w('Stages shown')}</span>
                       <select
                         aria-label={w('Which stages to show')}
                         value={stageRange}
@@ -290,8 +327,8 @@ export default function JobsPaymentsPage({
                       </select>
                     </label>
                   )}
-                  <label className="list-sort-select list-filter-select job-filter-half">
-                    <span className="filter-label">{w('Payment')}</span>
+                  <label className="job-filter-field">
+                    <span>{w('Payment')}</span>
                     <select
                       aria-label={w('Filter jobs by payment')}
                       value={payFilter}
@@ -308,8 +345,9 @@ export default function JobsPaymentsPage({
                 </>
               );
             })()}
-          <label className="list-sort-select">
-            Sort by
+          <div className="job-filter-field job-filter-sort">
+          <label>
+            <span>Sort by</span>
             <select
               aria-label={page === 'Jobs' ? w('Sort jobs by') : 'Sort payments by'}
               value={page === 'Jobs' ? jobSorting.key : paymentSorting.key}
@@ -345,6 +383,7 @@ export default function JobsPaymentsPage({
             </select>
           </label>
           <button
+            type="button"
             className="secondary sort-direction"
             aria-label={
               (page === 'Jobs' ? jobSorting : paymentSorting).direction === 'asc'
@@ -361,28 +400,9 @@ export default function JobsPaymentsPage({
           >
             {(page === 'Jobs' ? jobSorting : paymentSorting).direction === 'asc' ? '↑' : '↓'}
           </button>
-          <ToolbarActions
-            more={
-              page === 'Jobs'
-                ? jobViewItems({
-                    audit: audit,
-                    onAudit: () => setAudit((value) => !value),
-                    grouped: grouped,
-                    selecting: selecting,
-                    onGroup: () => setGrouped((value) => !value),
-                    onSelect: () => setSelecting((value) => !value),
-                  })
-                : undefined
-            }
-          >
-            <button
-              disabled={!ready || busy || legacyConflict || (page === 'Payments' && !ledger.customers.length)}
-              onClick={onCreate}
-            >
-              <Icon name="add" /> {page === 'Jobs' ? w('New job') : 'Record payment'}
-            </button>
-          </ToolbarActions>
-        </div>
+          </div>
+          </div>
+        )}
         {dates.panel}
         {!ready ? (
           <div className="empty">Loading saved records.</div>

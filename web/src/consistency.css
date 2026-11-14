@@ -3195,20 +3195,91 @@ label.checkbox input[type="checkbox"],
   max-width: 320px;
 }
 
-/* Jobs: on phones the stage and payment filters share a row; "Stages shown" takes its own. */
+/* Jobs and Payments: search, dates, Filter and the actions on one row; Filter opens a second
+   row whose boxes share its width evenly. */
+.job-list-toolbar > input:not([type="checkbox"]) {
+  flex: 1 1 240px;
+}
+.job-filter-button {
+  position: relative;
+}
+.filter-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--brand-primary, #124b40);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
+}
+.job-filter-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+  align-items: end;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line, rgba(0, 0, 0, 0.08));
+}
+.job-filter-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.job-filter-field select {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  height: var(--control-h);
+  min-height: var(--control-h);
+  padding-top: 0;
+  padding-bottom: 0;
+  font-size: 14px;
+  font-weight: 400;
+}
+.job-filter-sort {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+.job-filter-sort > label {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+}
+.job-filter-sort > .sort-direction {
+  flex: 0 0 var(--control-h);
+  width: var(--control-h);
+  height: var(--control-h);
+  min-height: var(--control-h);
+  padding: 0;
+  font-size: 18px;
+}
 @media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
-  .toolbar .list-sort-select.list-filter-select.job-filter-half {
+  /* Phones: search across the top, then dates and Filter side by side. */
+  .job-list-toolbar > input:not([type="checkbox"]) {
+    flex: 1 1 100%;
+  }
+  .job-list-toolbar > .date-filter-button,
+  .job-list-toolbar > .job-filter-button {
     flex: 1 1 calc(50% - 5px);
     min-width: 0;
   }
-}
-/* Jobs: the filter boxes name themselves ("All stages", "All payments"), so their field names
-   are for screen readers only, and the toolbar stays on one line on a computer. */
-.job-list-toolbar .list-filter-select .filter-label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
+  .job-filter-row {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .job-filter-row > .job-filter-sort,
+  .job-filter-row > .job-filter-field:only-child {
+    grid-column: 1 / -1;
+  }
 }

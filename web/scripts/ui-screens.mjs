@@ -325,6 +325,8 @@ try {
     // Jobs filters: a stage with its range, and payment.
     try {
       await nav('Jobs');
+      await page.locator('.job-list-toolbar').screenshot({ path: `${out}/${mode}-96-jobs-toolbar-closed.png` });
+      await page.getByRole('button', { name: /^Filter/ }).click();
       const listed = async () =>
         Number(
           (
@@ -350,7 +352,6 @@ try {
       const pay = page.getByLabel('Filter jobs by payment');
       const pays = await pay.locator('option').evaluateAll((o) => o.map((x) => x.value));
       if (pays.includes('owing')) await pay.selectOption('owing');
-      await page.locator('.job-list-toolbar').screenshot({ path: `${out}/${mode}-96-jobs-filters.png` });
       await shot('96-jobs-filtered', false);
     } catch (e) {
       failures.push(`${mode} jobs filters: ${e.message.split('\n')[0]}`);

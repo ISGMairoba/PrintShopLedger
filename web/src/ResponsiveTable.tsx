@@ -175,7 +175,7 @@ export default function ResponsiveTable({
         children
       ) : (
         <>
-          {sort && (mobile || !pageSort) && (
+          {sort && !pageSort && (
             <div className="mobile-sort">
               <label>
                 Sort by
