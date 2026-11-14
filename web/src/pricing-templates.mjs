@@ -174,6 +174,35 @@ const percent = (v, label, max) => {
   return n;
 };
 
+/** A template's tags: up to 10, each up to 30 characters, each once (ignoring capitals). */
+export function templateTags(value) {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) throw Error('Tags must be a list.');
+  const out = [];
+  for (const raw of value) {
+    const tag = plain(raw, 'A tag', 30).replace(/\s+/g, ' ');
+    if (tag && !out.some((t) => t.toLowerCase() === tag.toLowerCase())) out.push(tag);
+  }
+  if (out.length > 10) throw Error('Use at most 10 tags.');
+  return out;
+}
+
+/**
+ * The spelling a template should use for a category or tag already used elsewhere: the same
+ * word in other capitals, or the same word with or without a final "s" (Bag and Bags).
+ */
+export function knownSpelling(text, known) {
+  const want = String(text ?? '').trim().replace(/\s+/g, ' ');
+  if (!want) return '';
+  const base = (s) => s.toLowerCase().replace(/(?<=\w)s$/, '');
+  return (
+    known.find((k) => k === want) ??
+    known.find((k) => k.toLowerCase() === want.toLowerCase()) ??
+    known.find((k) => base(k) === base(want)) ??
+    want
+  );
+}
+
 /** Structural checks for one template (no service costs needed). Returns the canonical template. */
 export function validateTemplate(t) {
   if (!t || typeof t !== 'object') throw Error('Invalid template.');
@@ -186,6 +215,7 @@ export function validateTemplate(t) {
     throw Error('Invalid template identity or version.');
   const name = required(t.name, 'A template name', 100);
   const category = plain(t.category ?? '', 'Category', 50);
+  const tags = templateTags(t.tags);
   const description = plain(t.description ?? '', 'Description', 200);
   if (!Array.isArray(t.variables) || t.variables.length < 1 || t.variables.length > 30)
     throw Error('Use 1 to 30 editable variables.');
@@ -352,6 +382,7 @@ export function validateTemplate(t) {
     id: t.id,
     name,
     category,
+    ...(tags.length ? { tags } : {}),
     description,
     version: t.version,
     archived: t.archived,

@@ -61,6 +61,8 @@ export type PricingTemplate = {
   id: string;
   name: string;
   category: string;
+  /** Labels for finding templates; a template may have several (unlike its one category). */
+  tags?: string[];
   description: string;
   version: number;
   archived: boolean;
