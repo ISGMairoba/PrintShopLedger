@@ -16,7 +16,7 @@ export default function BatchJobProgressDialog({
   jobs,
   mode,
   busy,
-  level,
+  confirms,
   onClose,
   onSave,
 }: {
@@ -24,8 +24,8 @@ export default function BatchJobProgressDialog({
   jobs: Job[];
   mode: ProgressMode;
   busy: boolean;
-  /** The person's access level: below Admin, the materials go for approval. */
-  level: number;
+  /** Whether this person's materials check applies at once (else it goes for approval). */
+  confirms: boolean;
   onClose: () => void;
   /** usages: for each job whose move passes its confirmation stage, what was used. */
   onSave: (
@@ -106,7 +106,7 @@ export default function BatchJobProgressDialog({
               {!row.reason && materialConfirmDue(row.job, row.target) && (
                 <MaterialCheckFields
                   compact
-                  level={level}
+                  confirms={confirms}
                   ledger={ledger}
                   job={row.job}
                   value={draftFor(row.job)}

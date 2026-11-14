@@ -154,3 +154,11 @@ test('a choice of materials is checked the same way: nothing was taken, the chec
   assert.equal(l.jobs[0].materialUsed.usages[0].materialId, 'b');
   assert.equal(materialPending(l.jobs[0]), false);
 });
+
+test('a business may let cashiers confirm materials without approval', () => {
+  let l = setup();
+  const usages = [{ line: 'm:a', materialId: 'a', quantity: 7 }];
+  l = applyEvent(l, materialsCheckEvent(l, l.jobs[0], usages, { ...cashier, confirms: true }));
+  assert.equal(l.jobs[0].materialCheck.status, 'confirmed');
+  assert.equal(stock(l, 'a'), 93);
+});

@@ -39,7 +39,7 @@ import { allowedSettingsTabs, canAccessPage, pageGroup, pages, navigationPages }
 import ExpensesPage from './ExpensesPage';
 import DrawerReviews from './DrawerReviews';
 import { setKeepChoice } from './history-keep.mjs';
-import { extraMaterialsRank } from './production-materials.mjs';
+import { confirmMaterialsRank, extraMaterialsRank } from './production-materials.mjs';
 import { holdEvent } from './job-hold.mjs';
 import type { HoldChange } from './JobActions';
 import { dismissLowStockReminder, lowAtOtherLocations, lowStockReminderDue } from './low-stock-locations.mjs';
@@ -1232,7 +1232,11 @@ export default function App() {
       : shop?.staffName || session?.user.user_metadata.full_name || salesActor.label,
   };
   // Materials checks: below Admin, the check goes for approval (material-check.mjs).
-  const checkActor = { ...catalogueActor, level: demo ? 5 : (shop?.accessLevel ?? 0) };
+  const checkActor = {
+    ...catalogueActor,
+    level: demo ? 5 : (shop?.accessLevel ?? 0),
+    confirms: demo || (shop?.accessLevel ?? 0) >= confirmMaterialsRank(branding.settings),
+  };
   const currentJob = ledger.jobs.find((job) => job.id === selectedJob);
   // Auto-lock (Business Settings → Security): sign the user out after the idle time. The business
   // stays signed in, so the staff sign-in appears with empty fields.
@@ -2924,7 +2928,7 @@ export default function App() {
                         jobs={batchToAdvance.jobs}
                         mode={batchToAdvance.mode}
                         busy={busy}
-                        level={demo ? 5 : (shop?.accessLevel ?? 0)}
+                        confirms={checkActor.confirms}
                         onClose={() => setBatchToAdvance(null)}
                         onSave={async (targetStage, usages) => {
                           if (busy || !ready || !scope || legacyConflict)
@@ -2949,6 +2953,7 @@ export default function App() {
                                 ? 'Local trial user'
                                 : shop?.staffName || session!.user.email || session!.user.id,
                               level: demo ? 5 : (shop?.accessLevel ?? 0),
+                              confirms: checkActor.confirms,
                             },
                             undefined,
                             { ledger: state.ledger, usages },
@@ -2977,7 +2982,7 @@ export default function App() {
                         job={jobToAdvance.job}
                         mode={jobToAdvance.mode}
                         busy={busy}
-                        level={demo ? 5 : (shop?.accessLevel ?? 0)}
+                        confirms={checkActor.confirms}
                         onClose={() => setJobToAdvance(null)}
                         onSave={async (targetStage, usages) => {
                           if (busy || !ready || !scope || legacyConflict)
@@ -2996,6 +3001,7 @@ export default function App() {
                                   ? 'Local trial user'
                                   : shop?.staffName || session!.user.email || session!.user.id,
                                 level: demo ? 5 : (shop?.accessLevel ?? 0),
+                                confirms: checkActor.confirms,
                               },
                               usages,
                             );

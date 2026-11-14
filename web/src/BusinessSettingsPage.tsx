@@ -1045,14 +1045,17 @@ export default function BusinessSettingsPage({
                 {sectionSave('Cash drawers', ['drawers'])}
               </fieldset>
               <fieldset hidden={tab !== 'Jobs & payments'} disabled={busy || !ready}>
-                <legend>Materials added in production</legend>
+                <legend>Materials in production</legend>
                 <label>
                   Who may add materials to a job
                   <select
                     aria-label="Who may add materials to a job"
                     value={draft.production.extraMaterialsRank}
                     onChange={(event) =>
-                      field('production', { extraMaterialsRank: Number(event.target.value) as 1 | 2 | 3 })
+                      field('production', {
+                        ...draft.production,
+                        extraMaterialsRank: Number(event.target.value) as 1 | 2 | 3,
+                      })
                     }
                   >
                     <option value={1}>Cashiers and above</option>
@@ -1063,6 +1066,27 @@ export default function BusinessSettingsPage({
                 <p className="muted">
                   For services and templates set to accept added materials (for example a paper bag's board,
                   lamination and glue). Stock is taken when they are added.
+                </p>
+                <label>
+                  Who may confirm materials used without approval
+                  <select
+                    aria-label="Who may confirm materials used without approval"
+                    value={draft.production.confirmMaterialsRank ?? 2}
+                    onChange={(event) =>
+                      field('production', {
+                        ...draft.production,
+                        confirmMaterialsRank: Number(event.target.value) as 1 | 2 | 3,
+                      })
+                    }
+                  >
+                    <option value={1}>Cashiers and above (no approvals)</option>
+                    <option value={2}>Admins and above</option>
+                    <option value={3}>Managers and above</option>
+                  </select>
+                </label>
+                <p className="muted">
+                  When a job passes its confirmation stage, staff enter the materials really used. Below this
+                  rank, the entry waits on the approval list and stock moves when it is approved.
                 </p>
                 {sectionSave('Materials added in production', ['production'])}
               </fieldset>

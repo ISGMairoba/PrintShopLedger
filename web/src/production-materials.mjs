@@ -60,15 +60,22 @@ export const acceptsExtraMaterials = (ledger, job) =>
 
 /** The lowest rank that may add materials in production (Business Settings → Jobs & payments). */
 export const extraMaterialsRank = (settings) => settings?.production?.extraMaterialsRank ?? 1;
+/**
+ * The lowest rank whose materials check applies at once (Business Settings → Jobs & payments);
+ * below it, the check waits for approval. Default: Admins and above.
+ */
+export const confirmMaterialsRank = (settings) => settings?.production?.confirmMaterialsRank ?? 2;
 export function validProductionSettings(value) {
   const rank = value?.extraMaterialsRank ?? 1;
+  const confirm = value?.confirmMaterialsRank ?? 2;
   if (
     (value !== undefined && (typeof value !== 'object' || value === null || Array.isArray(value))) ||
-    Object.keys(value ?? {}).some((k) => k !== 'extraMaterialsRank') ||
-    ![1, 2, 3].includes(rank)
+    Object.keys(value ?? {}).some((k) => !['extraMaterialsRank', 'confirmMaterialsRank'].includes(k)) ||
+    ![1, 2, 3].includes(rank) ||
+    ![1, 2, 3].includes(confirm)
   )
     throw Error('Invalid production settings.');
-  return { extraMaterialsRank: rank };
+  return { extraMaterialsRank: rank, ...(confirm !== 2 ? { confirmMaterialsRank: confirm } : {}) };
 }
 
 /** Materials a job may not take as extras: its fixed material and its choice of materials. */
