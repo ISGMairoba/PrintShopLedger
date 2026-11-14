@@ -326,14 +326,24 @@ try {
     try {
       await nav('Jobs');
       // Move one job on, so there are two stages to choose from.
-      const next = page.getByRole('main').getByRole('button', { name: /^Next: / }).first();
+      const next = page
+        .getByRole('main')
+        .getByRole('button', { name: /^Next: / })
+        .first();
       if (await next.isVisible()) {
         await next.click();
         await delay(300);
         await closeDialogs();
       }
       const listed = async () =>
-        Number((await page.getByText(/\d+ jobs? in this list/).first().textContent()).match(/\d+/)[0]);
+        Number(
+          (
+            await page
+              .getByText(/\d+ jobs? in this list/)
+              .first()
+              .textContent()
+          ).match(/\d+/)[0],
+        );
       const st = page.getByLabel('Filter jobs by stage');
       const values = await st.locator('option').evaluateAll((o) => o.map((x) => x.value));
       const chosen = values.find((v) => v && !v.startsWith('__') && v !== 'Added' && v !== 'Cancelled');
