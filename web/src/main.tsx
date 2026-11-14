@@ -9,12 +9,18 @@ import './tailwind.css';
 import { FeedbackProvider } from './Feedback';
 import { installInputGuard } from './input-guard.mjs';
 import { recordProblem } from './problem-log.mjs';
+import { STALE_EVENT } from './stale-app.mjs';
 // The developer console (/console) is a separate part of the app, loaded only when opened.
 const ConsoleApp = lazy(() => import('./console/ConsoleApp'));
 const isConsole = window.location.pathname === '/console' || window.location.pathname.startsWith('/console/');
 
 // Number and phone fields refuse letters as they are typed (input-guard.mjs).
 installInputGuard();
+// A part of the app that fails to load because the app was updated while open: the app offers
+// a reload (stale-app.mjs; the banner is in App).
+window.addEventListener('vite:preloadError', () => {
+  window.dispatchEvent(new Event(STALE_EVENT));
+});
 // App errors on this device are noted for the developer console (sent with the next sync).
 if (!isConsole) {
   const detail = (stack?: string) => ({

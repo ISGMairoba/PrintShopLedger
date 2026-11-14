@@ -39,6 +39,7 @@ import { allowedSettingsTabs, canAccessPage, pageGroup, pages, navigationPages }
 import ExpensesPage from './ExpensesPage';
 import DrawerReviews from './DrawerReviews';
 import { setBusinessKeep, setKeepChoice } from './history-keep.mjs';
+import { STALE_EVENT } from './stale-app.mjs';
 import { confirmMaterialsRank, extraMaterialsRank } from './production-materials.mjs';
 import { holdEvent } from './job-hold.mjs';
 import type { HoldChange } from './JobActions';
@@ -402,6 +403,13 @@ export default function App() {
     resolveCustomerConflict,
   } = useSyncConflicts({ scope, shop, busy, setBusy, activeScope, channel, setState, setMessage });
   const { needRefresh, updateServiceWorker } = useAppUpdates(busy);
+  // A part of the app failed to load because the app was updated while open (stale-app.mjs).
+  const [staleApp, setStaleApp] = useState(false);
+  useEffect(() => {
+    const flag = () => setStaleApp(true);
+    window.addEventListener(STALE_EVENT, flag);
+    return () => window.removeEventListener(STALE_EVENT, flag);
+  }, []);
   // With branches, pages show this device's branch only (the owner's master view comes later).
   const ledger = useMemo(
     () => ({
@@ -1658,6 +1666,19 @@ export default function App() {
                         />
                         <FeedbackBanner message={message} tone={messageTone} login />
                       </Modal>
+                    )}
+                    {staleApp && !needRefresh && (
+                      <div className="notice notice-warning" role="alert">
+                        Part of the app could not load. If it keeps failing, reload the app; saved work stays
+                        on this device.{' '}
+                        <button
+                          className="secondary"
+                          disabled={busy}
+                          onClick={() => window.location.reload()}
+                        >
+                          <Icon name="sync" /> Reload app
+                        </button>
+                      </div>
                     )}
                     {needRefresh && (
                       <div className="notice">

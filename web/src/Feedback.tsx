@@ -10,6 +10,7 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { renameActive } from './Words';
+import { plainError } from './stale-app.mjs';
 export type FeedbackTone = 'success' | 'error' | 'warning' | 'info';
 type Toast = { id: number; message: string; tone: FeedbackTone };
 const labels = { success: 'Success', error: 'Action failed', warning: 'Warning', info: 'Notice' };
@@ -71,7 +72,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
     sequence = useRef(0);
   const notify = useCallback((text: string, tone: FeedbackTone) => {
     // App-written messages use the business's words (jobs → orders for a retail shop).
-    const message = renameActive(text);
+    const message = plainError(renameActive(text));
     if (!message) {
       setItems([]);
       return;
@@ -124,7 +125,7 @@ export function useFeedbackMessage(defaultTone: FeedbackTone = 'info') {
     [tone, setTone] = useState(defaultTone);
   const setMessage = useCallback(
     (text: string, severity: FeedbackTone = defaultTone) => {
-      const value = renameActive(text);
+      const value = plainError(renameActive(text));
       setValue(value);
       setTone(severity);
       notify(value, severity);
