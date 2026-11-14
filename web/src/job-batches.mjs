@@ -56,7 +56,7 @@ export function batchProgressPlan(jobs, mode, target) {
  * @param {import('./types').Job[]} jobs
  * @param {'next' | 'set' | 'complete'} mode
  * @param {string} target
- * @param {{ id: string, label: string, level?: number }} actor
+ * @param {{ id: string, label: string, level?: number, confirms?: boolean }} actor
  * @param {string} [now]
  * @param {{ ledger?: any, usages?: Record<string, { line: string, materialId: string, quantity: number }[]> }} [options]
  */

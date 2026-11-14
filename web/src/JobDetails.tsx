@@ -46,7 +46,7 @@ type Props = {
   actor?: { id: string; label: string };
   onExtraMaterials?: (event: JobExtraMaterialsEvent) => Promise<void>;
   /** The materials check (confirm, approve, correct); level decides approval. */
-  checkActor?: { id: string; label: string; level: number };
+  checkActor?: { id: string; label: string; level: number; confirms: boolean };
   onMaterialsCheck?: (event: JobMaterialsCheckEvent) => Promise<void>;
   onHold?: (job: Job, hold: HoldChange) => Promise<void>;
 };
