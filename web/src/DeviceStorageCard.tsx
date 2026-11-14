@@ -135,7 +135,7 @@ export default function DeviceStorageCard({
           </label>
           <p className="muted">
             {cutoff
-              ? `This device keeps records from ${new Date(cutoff + 'T12:00:00+01:00').toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}, plus every job still owing or not collected. Balances, wallets and stock are the same as on every other device. Older detail (old reports and statements) needs Everything.`
+              ? `This device keeps records from ${new Date(cutoff + 'T12:00:00+01:00').toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}, plus every job still owing or not collected. Balances, wallets and stock are the same as on every other device. Reports and statements that reach further back download the earlier records when they open.`
               : 'Everything: this device has every record. A shorter choice downloads less and keeps phones fast; balances stay the same. Nothing is deleted from the business.'}
             {pending > 0 && ' Wait until all work on this device has synced before changing this.'}
           </p>
