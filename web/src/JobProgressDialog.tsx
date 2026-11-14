@@ -78,7 +78,13 @@ export default function JobProgressDialog({
           </label>
         )}
         {confirming && (
-          <MaterialCheckFields ledger={ledger} job={job} value={draft} onChange={setDraft} confirms={confirms} />
+          <MaterialCheckFields
+            ledger={ledger}
+            job={job}
+            value={draft}
+            onChange={setDraft}
+            confirms={confirms}
+          />
         )}
         <p>Proceed in order: {path.map(stage).join(' → ')}</p>
         <p className="muted">

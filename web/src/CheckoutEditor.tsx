@@ -1092,7 +1092,11 @@ export default function CheckoutEditor({
                                     setLines((items) =>
                                       items.map((l) =>
                                         l.id === item.id
-                                          ? { ...l, steps: wf.steps.map((st) => ({ ...st })), workflowName: wf.name }
+                                          ? {
+                                              ...l,
+                                              steps: wf.steps.map((st) => ({ ...st })),
+                                              workflowName: wf.name,
+                                            }
                                           : l,
                                       ),
                                     );

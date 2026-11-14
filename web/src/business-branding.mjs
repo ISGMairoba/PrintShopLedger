@@ -134,7 +134,9 @@ export const defaultBranding = () => ({
    * extraMaterialsRank: the lowest rank that may add materials to a job in production.
    * confirmMaterialsRank: the lowest rank whose materials check applies without approval (default 2).
    */
-  production: /** @type {{ extraMaterialsRank: 1 | 2 | 3, confirmMaterialsRank?: 1 | 2 | 3 }} */ ({ extraMaterialsRank: 1 }),
+  production: /** @type {{ extraMaterialsRank: 1 | 2 | 3, confirmMaterialsRank?: 1 | 2 | 3 }} */ ({
+    extraMaterialsRank: 1,
+  }),
   // syncMinutes: how often devices check for changes made on other devices.
   security: { autoLockMinutes: 0, syncMinutes: 2 },
   jobs: jobSettingsDefaults(),
