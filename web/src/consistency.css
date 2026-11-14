@@ -3277,6 +3277,7 @@ label.checkbox input[type="checkbox"],
 }
 .toolbar .job-filter-row > .job-filter-check {
   flex: 0 0 auto;
+  padding-inline: 4px 14px;
   min-height: var(--control-h);
   margin: 0;
   font-size: 14px;

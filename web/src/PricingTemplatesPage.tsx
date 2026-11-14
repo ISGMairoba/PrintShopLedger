@@ -321,6 +321,23 @@ export default function PricingTemplatesPage({
             </button>
             <ToolbarActions
               more={
+                <>
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={!canSave}
+                    onClick={() => fileInput.current?.click()}
+                  >
+                    <Icon name="import" /> Import
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={busy || !visible.length}
+                    onClick={() => setExporting({ templates: visible, share: false })}
+                  >
+                    <Icon name="export" /> Export {showArchived ? 'all' : 'active'}
+                  </button>
                 <button
                   type="button"
                   className="secondary"
@@ -333,24 +350,9 @@ export default function PricingTemplatesPage({
                 >
                   <Icon name="sync" /> Reload saved templates
                 </button>
+                </>
               }
             >
-              <button
-                type="button"
-                className="secondary"
-                disabled={!canSave}
-                onClick={() => fileInput.current?.click()}
-              >
-                <Icon name="import" /> Import
-              </button>
-              <button
-                type="button"
-                className="secondary"
-                disabled={busy || !visible.length}
-                onClick={() => setExporting({ templates: visible, share: false })}
-              >
-                <Icon name="export" /> Export {showArchived ? 'all' : 'active'}
-              </button>
               <button
                 type="button"
                 disabled={!canSave}
