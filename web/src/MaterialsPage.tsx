@@ -14,6 +14,7 @@ import type { Expense, ExpenseEvent, Material, MaterialEvent, MaterialHistoryEnt
 import { useWords } from './Words';
 import ReorderList from './ReorderList';
 import SplitStock from './SplitStock';
+import StockAdjustDialog from './StockAdjustDialog';
 import { RequestStockModal, StockRequestsPanel } from './StockRequests';
 import { reorderList } from './reorder.mjs';
 import { renameActive as wt } from './Words';
@@ -88,7 +89,7 @@ export default function MaterialsPage({
     ? lowAtOtherLocations(materials, locations.stock ?? [], locations.here, locations.list)
     : [];
   const { w } = useWords();
-  const { stockReasons: stockReasonDefaults, materialUnits } = useBusinessOptions();
+  const { materialUnits } = useBusinessOptions();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('active');
   const [editor, setEditor] = useState<Material | 'new' | null>(null);
@@ -97,16 +98,6 @@ export default function MaterialsPage({
   const [audit, setAudit] = useState(false);
   const [stock, setStock] = useState<{ material: Material; mode: 'add' | 'set' } | null>(null);
   const [splitting, setSplitting] = useState<Material | null>(null);
-  const [stockReason, setStockReason] = useState('');
-  const noteSuggestions = [
-    ...new Set([
-      ...stockReasonDefaults,
-      ...history
-        .filter((item) => item.action.startsWith('material.stock_'))
-        .map((item) => item.reason)
-        .filter(Boolean),
-    ]),
-  ];
   const editing = editor && editor !== 'new' ? editor : null;
   const sorting = useTableSort<Material>('name');
   const visible = sorting.sortRows(
@@ -416,11 +407,6 @@ export default function MaterialsPage({
                                 disabled={busy}
                                 onClick={() => {
                                   setStock({ material, mode: 'add' });
-                                  setStockReason(
-                                    stockReasonDefaults.includes('Restocking')
-                                      ? 'Restocking'
-                                      : stockReasonDefaults[0],
-                                  );
                                   setEditor(null);
                                   setConfirmation(null);
                                   setError('');
@@ -433,11 +419,6 @@ export default function MaterialsPage({
                                 disabled={busy}
                                 onClick={() => {
                                   setStock({ material, mode: 'set' });
-                                  setStockReason(
-                                    stockReasonDefaults.includes('Stock Count Correction')
-                                      ? 'Stock Count Correction'
-                                      : stockReasonDefaults[0],
-                                  );
                                   setEditor(null);
                                   setConfirmation(null);
                                   setError('');
@@ -531,92 +512,16 @@ export default function MaterialsPage({
         />
       )}
       {stock && (
-        <Modal
-          title={`${stock.mode === 'add' ? 'Add to stock' : 'Set quantity'}: ${stock.material.name}`}
+        <StockAdjustDialog
+          key={stock.material.id + stock.mode}
+          material={materials.find((m) => m.id === stock.material.id) ?? stock.material}
+          mode={stock.mode}
+          history={history}
           busy={busy}
+          actor={actor}
+          onSave={onSave}
           onClose={() => setStock(null)}
-        >
-          {error && (
-            <div className="notice" role="alert">
-              {error}
-            </div>
-          )}
-          <p>
-            Current available: {stock.material.available} {stock.material.measurementUnit}
-          </p>
-          <form
-            key={stock.material.id + stock.mode}
-            onSubmit={async (e) => {
-              e.preventDefault();
-              if (busy) return;
-              const data = new FormData(e.currentTarget);
-              await commit(stock.mode === 'add' ? 'material.stock_added' : 'material.stock_set', {
-                id: stock.material.id,
-                baseVersion: stock.material.version,
-                quantity: Number(data.get('quantity')),
-                reason: String(data.get('reason') ?? '').trim(),
-                modifiedBy: actor.id,
-                modifiedByLabel: actor.label,
-                modifiedAt: '',
-              });
-            }}
-          >
-            <fieldset disabled={busy}>
-              <div className="form-grid">
-                <label>
-                  {stock.mode === 'add' ? 'Quantity to add' : 'New available quantity'}
-                  <input
-                    name="quantity"
-                    type="number"
-                    inputMode="decimal"
-                    min={stock.mode === 'add' ? '0.001' : '-1000000000000'}
-                    max="1000000000000"
-                    step="0.001"
-                    defaultValue={stock.mode === 'set' ? stock.material.available : ''}
-                    required
-                  />
-                </label>
-                <label>
-                  Reason / note
-                  <input
-                    name="reason"
-                    list="stock-reason-suggestions"
-                    maxLength={500}
-                    value={stockReason}
-                    onChange={(e) => setStockReason(e.target.value)}
-                    placeholder="Choose a suggestion or enter your own note"
-                  />
-                </label>
-              </div>
-              <datalist id="stock-reason-suggestions">
-                {noteSuggestions.map((reason) => (
-                  <option key={reason} value={reason} />
-                ))}
-              </datalist>
-              <div className="reason-options" aria-label="Suggested stock notes">
-                {stockReasonDefaults.map((reason) => (
-                  <button
-                    type="button"
-                    className="secondary"
-                    key={reason}
-                    onClick={() => setStockReason(reason)}
-                  >
-                    {reason}
-                  </button>
-                ))}
-              </div>
-              <p className="muted">
-                {stock.mode === 'add'
-                  ? 'This quantity will be added to the existing stock.'
-                  : 'This will replace the available quantity with the number you enter.'}
-              </p>
-              <button type="submit">
-                <Icon name="save" />{' '}
-                {busy ? 'Saving...' : stock.mode === 'add' ? 'Add to stock' : 'Set quantity'}
-              </button>
-            </fieldset>
-          </form>
-        </Modal>
+        />
       )}
       {confirmation && (
         <Modal

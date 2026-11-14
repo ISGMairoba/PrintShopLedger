@@ -101,4 +101,7 @@ export const stageName = (stage, terms) => terms?.stages?.[stage] ?? stage;
 
 /** Menu and page names: only pages named after jobs, services or materials change. */
 const renamedPages = ['Jobs', 'Services', 'Materials', 'Material Waste'];
-export const pageName = (page, terms) => (renamedPages.includes(page) ? renameTerms(page, terms) : page);
+/** Pages shown under another name (the stored page name stays, so page access settings keep working). */
+const shownAs = { 'Edit Products': 'Products' };
+export const pageName = (page, terms) =>
+  shownAs[page] ?? (renamedPages.includes(page) ? renameTerms(page, terms) : page);

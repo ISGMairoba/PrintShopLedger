@@ -286,7 +286,7 @@ try {
       failures.push(`${mode} service costing: ${e.message.split('\n')[0]}`);
       await closeDialogs();
     }
-    await dialog('Edit Products', 'Edit', 'edit-product');
+    await dialog('Products', 'Edit', 'edit-product');
     await dialog('Jobs', 'Books', 'job-details');
     try {
       await nav('Pricing Templates');
@@ -460,7 +460,7 @@ try {
       await q.getByRole('button', { name: /^Add Envelope — Blue/ }).click();
       await shot('97-quick-sale-variants', false);
       await closeDialogs();
-      await nav('Edit Products');
+      await nav('Products');
       await page
         .getByRole('main')
         .getByPlaceholder(/Search/)

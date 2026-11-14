@@ -16,8 +16,8 @@ import { addVariantEvents, variantBase, variantEditEvents, variantGroupOf } from
 import type { Ledger, MaterialEvent, ServiceEvent } from './types';
 
 /**
- * Edit a product or service in one place: its name (and its stock item's name with it), price,
- * minimum stock and stock level.
+ * Edit a product or service in one place: its name (and its stock item's name with it), price
+ * and minimum stock. Stock levels change only through the stock actions (Add stock, Set quantity).
  */
 export default function ProductEditor({
   ledger,
@@ -35,7 +35,7 @@ export default function ProductEditor({
   onClose: () => void;
 }) {
   const { w } = useWords();
-  const { stockReasons, materialUnits } = useBusinessOptions();
+  const { materialUnits } = useBusinessOptions();
   const products = useMemo(() => editableProducts(ledger), [ledger]);
   const [query, setQuery] = useState('');
   type Fields = {
@@ -84,9 +84,6 @@ export default function ProductEditor({
     renameStock,
     unit,
     minimum,
-    mode,
-    quantity,
-    reason,
     packs,
     tiers,
     pricing,
@@ -118,7 +115,7 @@ export default function ProductEditor({
     renameStock,
     ...(unit ? { unit } : {}),
     minimumStock: minimum === '' ? 0 : Number(minimum),
-    stock: { mode, quantity: Number(quantity || 0), reason },
+    stock: { mode: 'none' as const, quantity: 0, reason: '' },
     packPrices: pricing === 'packs' ? packPricesFrom(packs) : [],
     priceTiers: pricing === 'ranges' ? tiersFrom(tiers) : [],
   });
@@ -424,59 +421,10 @@ export default function ProductEditor({
                         onChange={(e) => set({ minimum: e.target.value })}
                       />
                     </label>
-                    <label>
-                      Stock change
-                      <select
-                        aria-label="Stock change"
-                        value={mode}
-                        onChange={(e) => set({ mode: e.target.value as Fields['mode'] })}
-                      >
-                        <option value="none">No change</option>
-                        <option value="add">Add stock (restock)</option>
-                        <option value="set">Set to counted amount</option>
-                      </select>
-                    </label>
-                    {mode !== 'none' && (
-                      <>
-                        <label>
-                          {mode === 'add'
-                            ? `Quantity to add (${m.measurementUnit})`
-                            : `Counted stock (${m.measurementUnit})`}
-                          <input
-                            aria-label={mode === 'add' ? 'Quantity to add' : 'Counted stock'}
-                            type="number"
-                            min="0"
-                            step="0.001"
-                            required
-                            value={quantity}
-                            onChange={(e) => set({ quantity: e.target.value })}
-                          />
-                        </label>
-                        <label>
-                          Reason
-                          <input
-                            aria-label="Reason"
-                            list="product-stock-reasons"
-                            maxLength={500}
-                            required
-                            value={reason}
-                            onChange={(e) => set({ reason: e.target.value })}
-                          />
-                          <datalist id="product-stock-reasons">
-                            {stockReasons.map((r) => (
-                              <option key={r} value={r} />
-                            ))}
-                          </datalist>
-                        </label>
-                      </>
-                    )}
                   </div>
-                  {mode === 'set' && (
-                    <small className="muted">
-                      A count replaces the stock level and is recorded as a stock count, like on the{' '}
-                      {w('Materials')} page.
-                    </small>
-                  )}
+                  <small className="muted">
+                    {w('Stock changes are on the Products page: Add stock, Set quantity and Split on each row.')}
+                  </small>
                 </>
               ) : (
                 <p className="muted">

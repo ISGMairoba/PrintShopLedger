@@ -8,6 +8,8 @@ test('business type: retail hides print-shop parts, which can be turned back on 
   const retail = { businessType: 'retail', features: { 'Pricing Templates': true } };
   assert.equal(featureOn(retail, 'Services'), false);
   assert.equal(featureOn(retail, 'Jobs'), false);
+  assert.equal(featureOn(retail, 'Materials'), false, 'retail works from Products');
+  assert.equal(featureOn({ businessType: 'print' }, 'Materials'), true);
   assert.equal(featureOn(retail, 'Pricing Templates'), true);
   assert.equal(featureOn(retail, 'Point of Service'), true);
   assert.equal(featureOn({ businessType: 'both', features: { Quotations: false } }, 'Quotations'), false);

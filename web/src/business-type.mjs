@@ -13,6 +13,10 @@ export const businessTypes = /** @type {const} */ ([
 export const optionalFeatures = /** @type {const} */ ([
   ['Jobs', 'Jobs and production: Add job on Point of Service, stages, the Jobs page'],
   ['Services', 'Services: work done to order, and linking items to stock'],
+  [
+    'Materials',
+    'Stock items: stock kept apart from what is sold (paper, film, packaging). Products have their own stock actions',
+  ],
   ['Pricing Templates', 'Pricing Templates: prices worked out with formulas'],
   ['Quotations', 'Quotations'],
   ['Print Settings', 'Print Settings: printers and print layouts'],

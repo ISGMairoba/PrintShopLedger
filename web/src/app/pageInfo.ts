@@ -40,7 +40,7 @@ export const pageDescriptions: Record<Page, string> = {
   'Business Settings': '',
   'Pricing Templates':
     'Price jobs from templates, compare options for clients, and manage templates and costs.',
-  'Edit Products': 'Rename a product and its stock item together, change its price and update its stock.',
+  'Edit Products': 'Your products with their stock: add stock, set the counted quantity, split, or edit name and price.',
   'Conflict Inbox': 'Review pending work from connected staff devices.',
   'My Account': 'Manage your username and password.',
   Payees: 'Manage suppliers and review their expenses, payments and outstanding balances.',

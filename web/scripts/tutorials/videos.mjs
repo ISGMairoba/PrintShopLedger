@@ -622,12 +622,12 @@ export const videos = [
   {
     id: '13-editing-products',
     title: 'Editing a product',
-    description: 'Changing a product’s price, unit and pack prices, and restocking it, in one place.',
+    description: 'Changing a product’s price, unit and pack prices. Restock with Add stock on its row.',
     steps: [
       {
-        say: 'To change a product, open Edit Products and press Edit.',
+        say: 'To change a product, open Products and press Edit.',
         do: async ({ nav, page, tap }) => {
-          await nav('Edit Products');
+          await nav('Products');
           await tap(
             page
               .getByRole('row', { name: /Ballpoint pen/ })
@@ -640,16 +640,6 @@ export const videos = [
         say: 'Change the price, the unit, or the pack prices here.',
         do: async ({ page, type }) =>
           type(page.getByRole('dialog').last().getByLabel('Price', { exact: true }), '160'),
-      },
-      {
-        say: 'You can restock it at the same time: choose Add stock, enter the quantity and a reason.',
-        do: async ({ page, choose, type }) => {
-          const d = page.getByRole('dialog').last();
-          await choose(d.getByLabel('Stock change'), 'Add stock');
-          await type(d.getByLabel('Quantity to add'), '100');
-          await type(d.getByLabel('Reason'), 'New carton');
-        },
-        min: 5,
       },
       {
         say: 'The box at the bottom shows exactly what will change. Then press Save changes.',

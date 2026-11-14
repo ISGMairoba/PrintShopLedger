@@ -78,7 +78,7 @@ try {
     // Point of Service is for selling: no catalogue editing there.
     await nav('Point of Service');
     assert.equal(await page.getByRole('button', { name: 'Edit product', exact: true }).count(), 0);
-    await nav('Edit Products');
+    await nav('Products');
     await page.getByLabel('Search products', { exact: true }).fill('art');
     assert.match(await page.locator('body').innerText(), /Art card[\s\S]*100 card/);
     await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
@@ -87,18 +87,25 @@ try {
     await d.getByLabel('Name', { exact: true }).fill('Art card 300gsm');
     await d.getByLabel('Price', { exact: true }).fill('250');
     await d.getByLabel('Minimum stock', { exact: true }).fill('20');
-    await d.getByLabel('Stock change', { exact: true }).selectOption('add');
-    await d.getByLabel('Quantity to add', { exact: true }).fill('50');
-    await d.getByLabel('Reason', { exact: true }).fill('Restocking');
+    // Stock no longer changes in Edit: it has its own actions on the row.
+    assert.equal(await d.getByLabel('Stock change', { exact: true }).count(), 0);
     assert.match(
       await d.getByRole('status').filter({ hasText: 'This will' }).innerText(),
-      /Rename[\s\S]*Change the price[\s\S]*Rename the stock item[\s\S]*Add 50 card to stock \(150 after\)/,
+      /Rename[\s\S]*Change the price[\s\S]*Rename the stock item/,
     );
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await d.screenshot({ path: `/tmp/product-edit-${mobile ? 'mobile' : 'desktop'}.png` });
     await d.getByRole('button', { name: 'Save changes', exact: true }).click();
     await d.getByText(/^Saved:/).waitFor();
     await d.getByRole('button', { name: 'Close', exact: true }).click();
+    // Add stock from the product's row.
+    await page.getByLabel('Search products', { exact: true }).fill('art card 300');
+    if (mobile) await page.locator('.mobile-actions').first().getByRole('button', { name: /More/ }).click();
+    await page.getByRole('button', { name: 'Add stock', exact: true }).first().click();
+    const add = page.getByRole('dialog', { name: /^Add to stock: Art card 300gsm/ });
+    await add.getByLabel('Quantity to add', { exact: true }).fill('50');
+    await add.getByRole('button', { name: 'Add to stock', exact: true }).click();
+    await add.waitFor({ state: 'detached' });
     const state = await readCopy(page, 'local-trial');
     const service = state.ledger.services.find((s) => s.description === 'Art card 300gsm');
     const material = state.ledger.materials.find((m) => m.id === service.materialId);
@@ -110,7 +117,7 @@ try {
     await nav('Services');
     // On phones the extra row buttons sit under "More".
     if (mobile) await page.locator('.mobile-actions').first().getByRole('button', { name: /More/ }).click();
-    await page.getByRole('button', { name: 'Price & stock', exact: true }).first().click();
+    await page.getByRole('button', { name: 'Price & name', exact: true }).first().click();
     await page.getByRole('dialog', { name: 'Edit product' }).getByLabel('Name', { exact: true }).waitFor();
     await page
       .getByRole('dialog', { name: 'Edit product' })
