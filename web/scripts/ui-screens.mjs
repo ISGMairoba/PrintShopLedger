@@ -322,6 +322,24 @@ try {
       failures.push(`${mode} material choice: ${e.message.split('\n')[0]}`);
       await closeDialogs();
     }
+    // Jobs filters: a stage with its range, and payment.
+    try {
+      await nav('Jobs');
+      const st = page.getByLabel('Filter jobs by stage');
+      const values = await st.locator('option').evaluateAll((o) => o.map((x) => x.value));
+      const chosen = values.find((v) => v && !v.startsWith('__') && v !== 'Added' && v !== 'Cancelled');
+      if (chosen) {
+        await st.selectOption(chosen);
+        await page.getByLabel('Which stages to show').selectOption('upTo');
+      }
+      const pay = page.getByLabel('Filter jobs by payment');
+      const pays = await pay.locator('option').evaluateAll((o) => o.map((x) => x.value));
+      if (pays.includes('owing')) await pay.selectOption('owing');
+      await page.locator('.job-list-toolbar').screenshot({ path: `${out}/${mode}-96-jobs-filters.png` });
+      await shot('96-jobs-filtered', false);
+    } catch (e) {
+      failures.push(`${mode} jobs filters: ${e.message.split('\n')[0]}`);
+    }
     // Help: the panel from a page's ? button, and from the menu.
     try {
       await nav('Point of Service');
