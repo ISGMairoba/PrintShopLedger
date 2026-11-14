@@ -325,16 +325,6 @@ try {
     // Jobs filters: a stage with its range, and payment.
     try {
       await nav('Jobs');
-      // Move one job on, so there are two stages to choose from.
-      const next = page
-        .getByRole('main')
-        .getByRole('button', { name: /^Next: / })
-        .first();
-      if (await next.isVisible()) {
-        await next.click();
-        await delay(300);
-        await closeDialogs();
-      }
       const listed = async () =>
         Number(
           (

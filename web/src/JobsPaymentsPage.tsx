@@ -16,6 +16,7 @@ import type { CheckoutRecord, Job, Ledger, Payment } from './types';
 import { useWords } from './Words';
 import { useBusinessOptions } from './BusinessOptionsContext';
 import { LATE_FILTER_KEY, stageOverdue } from './stage-time.mjs';
+import { inStageRange, payMatches, payState } from './job-filters.mjs';
 
 const LATE = '__late__';
 const HELD = '__held__';
@@ -108,28 +109,14 @@ export default function JobsPaymentsPage({
     [jobStages, ledger.jobs],
   );
   const special = (s: string) => !s || s === LATE || s === HELD || s === 'Cancelled';
-  /** Where a job is against a stage: -1 before it, 0 at it, 1 after it (its own steps first). */
-  const against = (job: Job, s: string) => {
-    const own = job.workflow?.length ? job.workflow : null;
-    const order = own && own.includes(s) && own.includes(stageOf(job)) ? own : stageOrder;
-    return Math.sign(order.indexOf(stageOf(job)) - order.indexOf(s));
-  };
-  const matchesStage = (job: Job, s: string, range: StageRange) => {
-    if (!s) return true;
-    if (s === LATE) return !!stageOverdue(job, stageHours);
-    if (s === HELD) return !!job.hold;
-    if (range === 'only' || s === 'Cancelled') return stageOf(job) === s;
-    // Ranges leave out cancelled jobs, and collected ones (they are past Completed).
-    if (stageOf(job) === 'Cancelled' || stageOf(job) === jobStages[jobStages.length - 1]) return false;
-    const at = against(job, s);
-    return range === 'upTo' ? at <= 0 : at >= 0;
-  };
-  const payState = (job: Job) => {
-    const b = jobBalanceFast(ledger, job);
-    return b.outstanding <= 0 ? 'paid' : b.paid > 0 ? 'part' : 'unpaid';
-  };
-  const matchesPay = (job: Job, f: PayFilter) =>
-    !f || (f === 'owing' ? payState(job) !== 'paid' : payState(job) === f);
+  const matchesStage = (job: Job, s: string, range: StageRange) =>
+    !s ||
+    (s === LATE
+      ? !!stageOverdue(job, stageHours)
+      : s === HELD
+        ? !!job.hold
+        : inStageRange(job, s, range, stageOrder, jobStages));
+  const matchesPay = (job: Job, f: PayFilter) => payMatches(payState(jobBalanceFast(ledger, job)), f);
   const inStage = (job: Job) => matchesStage(job, stageFilter, stageRange) && matchesPay(job, payFilter);
   const matchingJobs = jobSorting.sortRows(
     ledger.jobs.filter(
