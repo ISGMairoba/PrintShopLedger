@@ -1349,6 +1349,7 @@ export default function TemplateEditor({
               </p>
             )}
             <ItemSteps
+              kind="service"
               value={d.production?.steps}
               onChange={(steps) => {
                 const { steps: _old, workflowId: _id, ...rest } = d.production ?? {};

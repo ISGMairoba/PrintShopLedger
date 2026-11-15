@@ -1,4 +1,5 @@
 import { stockBelowZeroBlocked } from './stock-rule.mjs';
+import { defaultMethod, defaultSource } from './business-options.mjs';
 import { alphabetical } from './alphabetical.mjs';
 import { useMemo, useState } from 'react';
 import Modal from './Modal';
@@ -84,7 +85,9 @@ export default function QuickSale({
     return p?.stock != null && line.quantity > p.stock;
   });
   const [customerText, setCustomerText] = useState(resumed?.customerText ?? WALK_IN_NAME);
-  const [methodLabel, setMethodLabel] = useState(methods[0]?.label ?? 'Cash');
+  const [methodLabel, setMethodLabel] = useState(
+    defaultMethod(methods, options.defaultIncomeMethod)?.label ?? 'Cash',
+  );
   const [received, setReceived] = useState<string | null>(null);
   // What is typed in each quantity box, so clearing a box to retype does not drop the item.
   const [typed, setTyped] = useState<Record<string, string>>({});
@@ -98,7 +101,7 @@ export default function QuickSale({
     priced = pricedCart(ledger, cart, {
       discount: discountSpec(discount),
       policy: discountPolicy,
-      source: options.jobSources[0],
+      source: defaultSource(options),
     });
   } catch (cause) {
     priceError = cause instanceof Error ? cause.message : String(cause);
@@ -131,7 +134,7 @@ export default function QuickSale({
         method: method.kind,
         methodLabel: method.label,
         paidOn: today(),
-        source: options.jobSources[0],
+        source: defaultSource(options),
         actor,
         now: new Date().toISOString(),
         discount: discountSpec(discount),

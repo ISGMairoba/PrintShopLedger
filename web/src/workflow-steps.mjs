@@ -71,12 +71,34 @@ export const stepAmount = (step) => (step.minutes ? step.minutes / UNITS[step.un
  * The steps a business gives items without their own: its fallback saved workflow, else Processing.
  * @returns {import('./types').Step[]}
  */
-export function fallbackSteps(options) {
-  const saved = (options.workflows ?? []).find((w) => w.id === options.defaultWorkflowId);
+export function fallbackSteps(options, kind = '') {
+  const own =
+    kind === 'shelf'
+      ? options.defaultShelfWorkflowId
+      : kind === 'service'
+        ? options.defaultServiceWorkflowId
+        : null;
+  const flows = options.workflows ?? [];
+  const saved = flows.find((w) => w.id === own) ?? flows.find((w) => w.id === options.defaultWorkflowId);
   return saved ? saved.steps : MASTER_STEPS;
 }
+/** The name of the saved workflow items of a kind follow ('' for Added → Processing → Completed). */
+export function fallbackName(options, kind = '') {
+  const own =
+    kind === 'shelf'
+      ? options.defaultShelfWorkflowId
+      : kind === 'service'
+        ? options.defaultServiceWorkflowId
+        : null;
+  const flows = options.workflows ?? [];
+  return (
+    (flows.find((w) => w.id === own) ?? flows.find((w) => w.id === options.defaultWorkflowId))?.name ?? ''
+  );
+}
 /**
- * The steps an item's jobs follow: its own, else the business's fallback.
+ * The steps an item's jobs follow: its own, else the business's usual steps for its kind
+ * ('service' or 'shelf'), else the business's usual steps.
  * @returns {import('./types').Step[]}
  */
-export const itemSteps = (options, production) => production?.steps ?? fallbackSteps(options);
+export const itemSteps = (options, production, kind = '') =>
+  production?.steps ?? fallbackSteps(options, kind);

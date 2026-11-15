@@ -1,4 +1,5 @@
 import DialogActions from './DialogActions';
+import { orderMethods } from './business-options.mjs';
 import { useFeedbackMessage } from './Feedback';
 import ListedCombobox from './ListedCombobox';
 import { useBusinessOptions } from './BusinessOptionsContext';
@@ -85,9 +86,12 @@ export default function ExpenseEditor({
   // One "Paid from" list: each account and its methods (or the business's methods before accounts
   // are set up), plus the owner's own money. The method and source follow from the choice.
   const paidFromOptions = [
-    ...accountPaymentOptions(
-      { moneyAccounts: accounts },
-      options.paymentMethods.filter((m) => m.enabled),
+    ...orderMethods(
+      accountPaymentOptions(
+        { moneyAccounts: accounts },
+        options.paymentMethods.filter((m) => m.enabled),
+      ) as { label: string; kind: string; accountId?: string; displayLabel?: string }[],
+      options.methodOrder,
     ).map((o: { label: string; kind: string; accountId?: string; displayLabel?: string }) => ({
       key: `${o.accountId ?? ''}|${o.label}`,
       text: o.displayLabel || o.label,
@@ -116,7 +120,13 @@ export default function ExpenseEditor({
         paidFromOptions.find((o) => o.label === (correcting.methodLabel || correcting.method))?.key ??
         '')
     : '';
-  const [paidFrom, setPaidFrom] = useState(correctingKey || paidFromOptions[0]?.key || 'personal');
+  // The business's usual "paid from" for expenses (Business Settings), else the first.
+  const [paidFrom, setPaidFrom] = useState(
+    correctingKey ||
+      paidFromOptions.find((o) => o.key === options.defaultExpenseMethod)?.key ||
+      paidFromOptions[0]?.key ||
+      'personal',
+  );
   const chosenFrom = paidFromOptions.find((o) => o.key === paidFrom) ?? paidFromOptions[0];
   const nowLocal = lagosLocal(new Date().toISOString());
   const [when, setWhen] = useState(

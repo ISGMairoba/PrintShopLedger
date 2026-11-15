@@ -29,7 +29,44 @@ export const defaultOptions = () => ({
   workflows: /** @type {SavedWorkflow[]} */ ([]),
   /** The saved workflow items without their own steps follow; none: Added → Processing → Completed. */
   defaultWorkflowId: /** @type {string | null} */ (null),
+  /** Services' and shelf items' own usual steps (none: the usual steps above). */
+  defaultServiceWorkflowId: /** @type {string | null} */ (null),
+  defaultShelfWorkflowId: /** @type {string | null} */ (null),
+  /** The sales channel new jobs start with (none: the first in the list). */
+  defaultJobSource: '',
+  /** Payment methods in the business's order (methodKey of each), and the ones chosen first. */
+  methodOrder: /** @type {string[]} */ ([]),
+  defaultIncomeMethod: '',
+  defaultExpenseMethod: '',
 });
+/** A payment method's key: its account and label (the label alone before accounts are set up). */
+export const methodKey = (/** @type {{ label: string, accountId?: string }} */ m) =>
+  `${m.accountId ?? ''}|${m.label}`;
+/**
+ * Payment methods in the business's chosen order; any not yet placed keep their order at the end.
+ * @template {{ label: string, accountId?: string }} T
+ * @param {T[]} methods
+ * @param {string[]} [order]
+ * @returns {T[]}
+ */
+export function orderMethods(methods, order = []) {
+  const rank = new Map(order.map((k, i) => [k, i]));
+  return methods
+    .map((m, i) => ({ m, i, r: rank.get(methodKey(m)) ?? order.length + i }))
+    .sort((a, b) => a.r - b.r)
+    .map((x) => x.m);
+}
+/**
+ * The method a new payment (or expense) starts with: the business default when offered, else the first.
+ * @template {{ label: string, accountId?: string }} T
+ * @param {T[]} methods
+ * @param {string} key
+ * @returns {T | undefined}
+ */
+export const defaultMethod = (methods, key) => methods.find((m) => methodKey(m) === key) ?? methods[0];
+/** The sales channel new jobs start with. */
+export const defaultSource = (options) =>
+  options.jobSources.includes(options.defaultJobSource) ? options.defaultJobSource : options.jobSources[0];
 /** @typedef {{ name: string, minutes?: number, unit?: 'm' | 'h' | 'd' }} Step */
 /** @typedef {{ id: string, name: string, steps: Step[] }} SavedWorkflow */
 export const CURRENT_STAGES_ID = 'our-current-stages';
@@ -101,6 +138,15 @@ export function validateOptions(input) {
     }
   }
   if (!value.workflows.some((w) => w.id === value.defaultWorkflowId)) value.defaultWorkflowId = null;
+  for (const key of ['defaultServiceWorkflowId', 'defaultShelfWorkflowId'])
+    if (!value.workflows.some((w) => w.id === value[key])) value[key] = null;
+  if (!value.jobSources.includes(value.defaultJobSource)) value.defaultJobSource = '';
+  const text = (x, max) => (typeof x === 'string' && x.length <= max && !/[\x00-\x1f\x7f]/.test(x) ? x : '');
+  value.methodOrder = Array.isArray(value.methodOrder)
+    ? [...new Set(value.methodOrder.map((k) => text(k, 200)).filter(Boolean))].slice(0, 200)
+    : [];
+  value.defaultIncomeMethod = text(value.defaultIncomeMethod, 200);
+  value.defaultExpenseMethod = text(value.defaultExpenseMethod, 200);
   const fallback = stepsWorkflow(fallbackSteps(value));
   value.jobStages = fallback.stages;
   value.stageHours = fallback.hours;

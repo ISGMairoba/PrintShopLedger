@@ -1,4 +1,5 @@
 import TemplateDiscountWarning from './TemplateDiscountWarning';
+import { defaultMethod, defaultSource } from './business-options.mjs';
 import { defaultMoneyAccount } from './operations.mjs';
 import { notEnoughStock } from './stock-rule.mjs';
 import DialogActions from './DialogActions';
@@ -313,7 +314,8 @@ export default function CheckoutEditor({
     const production =
       working.pricing?.templates.find((t) => t.id === id)?.production ??
       working.services.find((s) => s.id === id)?.production;
-    const flow = stepsWorkflow(itemSteps(options, production));
+    const service = working.services.find((s) => s.id === id);
+    const flow = stepsWorkflow(itemSteps(options, production, service?.shelfItem ? 'shelf' : 'service'));
     return {
       workflow: flow.stages,
       workflowId: undefined,
@@ -325,7 +327,7 @@ export default function CheckoutEditor({
   const [stepsFor, setStepsFor] = useState<string | null>(null);
   const newLine = () => ({
     ...line(),
-    source: jobSources[0],
+    source: defaultSource(options),
     workflow: [...options.jobStages],
     dueAt: defaultDueAt(jobSettings.defaultDuration),
   });
@@ -425,7 +427,10 @@ export default function CheckoutEditor({
   const allocations = manualAllocations.amounts;
   const availableMethods = options.paymentMethods.filter((item) => item.enabled);
   const [methodLabel, setMethodLabel] = useState(
-    initialCheckout?.methodLabel ?? initialCheckout?.method ?? availableMethods[0]?.label ?? '',
+    initialCheckout?.methodLabel ??
+      initialCheckout?.method ??
+      defaultMethod(availableMethods, options.defaultIncomeMethod)?.label ??
+      '',
   );
   const originalMethodLabel = initialCheckout?.methodLabel ?? initialCheckout?.method;
   const paymentMethods =
@@ -1370,7 +1375,7 @@ export default function CheckoutEditor({
                     value={methodLabel}
                     onChange={(e) => setMethodLabel(e.target.value)}
                   >
-                    {alphabetical(paymentMethods, (item) => item.label).map((item) => (
+                    {paymentMethods.map((item) => (
                       <option key={item.label} value={item.label}>
                         {('displayLabel' in item && item.displayLabel) || item.label}
                       </option>
