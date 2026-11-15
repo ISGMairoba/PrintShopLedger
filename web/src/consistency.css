@@ -3411,3 +3411,13 @@ label.checkbox input[type="checkbox"],
     padding-inline: 16px;
   }
 }
+
+/* Conflict Inbox → Review drawer: the summary, then the drawer's sales (scrolls inside the dialog). */
+.drawer-review-stats {
+  margin: 12px 0 16px;
+}
+.drawer-review-sales {
+  max-height: 45vh;
+  margin-bottom: 16px;
+  overflow: auto;
+}
