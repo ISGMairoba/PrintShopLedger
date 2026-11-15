@@ -52,6 +52,35 @@ try {
     await page.getByRole('button', { name: 'Back to sign in', exact: true }).click();
     const f = fixture();
     const ledger = applyEvent(f.ledger, f.event);
+    // A part order: 200 jotters, 100 done, 60 collected by Sara.
+    ledger.jobs = [
+      ...ledger.jobs,
+      {
+        id: 'b7c1d2e3-0000-4000-8000-000000000200',
+        customerId: ledger.customers[0].id,
+        service: 'Jotter',
+        description: 'Sara jotters A5',
+        quantity: 200,
+        amount: 20000000,
+        createdAt: new Date(Date.now() - 86400000).toISOString(),
+        productionStatus: 'Printing',
+        workflow: ['Added', 'Printing', 'Completed', 'Collected'],
+        version: 3,
+        progress: {
+          done: 100,
+          handovers: [
+            {
+              id: 'c8d2e3f4-0000-4000-8000-000000000060',
+              quantity: 60,
+              collectedBy: 'Sara',
+              note: '',
+              at: new Date(Date.now() - 3600000).toISOString(),
+              byLabel: 'Ada',
+            },
+          ],
+        },
+      },
+    ];
     const settings = { ...f.settings, theme, businessName: 'Mairoba Studio' };
     settings.pricing = { ...settings.pricing, enabled: true };
     await page.evaluate(
@@ -534,6 +563,27 @@ try {
       }
     } catch (e) {
       failures.push(`${mode} repeating: ${e.message.split('\n')[0]}`);
+      await closeDialogs();
+    }
+    // Part orders: the job card, its details and the handover dialog.
+    try {
+      await nav('Jobs');
+      const card = page.locator('main tr').filter({ hasText: 'Collected 60 of 200' }).first();
+      await card.screenshot({ path: `${out}/${mode}-86-parts-card.png` });
+      await card.getByRole('button', { name: 'Jotter', exact: true }).first().click();
+      const d = page.getByRole('dialog').last();
+      await d.locator('.job-parts').screenshot({ path: `${out}/${mode}-86-parts-details.png` });
+      await d.getByRole('button', { name: 'Hand over part' }).click();
+      const h = page.getByRole('dialog').last();
+      await h.getByLabel('Quantity handed over').fill('40');
+      await h.screenshot({ path: `${out}/${mode}-86-parts-handover.png` });
+      await h.getByRole('button', { name: 'Cancel' }).click();
+      await d.getByRole('button', { name: /Delivery note/ }).first().click();
+      await page.getByRole('dialog').last().screenshot({ path: `${out}/${mode}-86-parts-note.png` });
+      await shot('86-parts-full', false);
+      await closeDialogs();
+    } catch (e) {
+      failures.push(`${mode} parts: ${e.message.split('\n')[0]}`);
       await closeDialogs();
     }
     await context.close();
