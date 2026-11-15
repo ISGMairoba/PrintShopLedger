@@ -3421,3 +3421,35 @@ label.checkbox input[type="checkbox"],
   margin-bottom: 16px;
   overflow: auto;
 }
+
+/* Customers summary: six cards, two to a row on a phone so the list stays close. */
+@media (max-width: 740px), (max-width: 1024px) and (pointer: coarse) {
+  .stats.customer-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .stats.customer-stats article {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 6px;
+    min-width: 0;
+    padding: 12px;
+    overflow-wrap: anywhere;
+  }
+  .stats.customer-stats article > span {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .stats.customer-stats article > strong {
+    margin: 0;
+    font-size: 20px;
+    line-height: 1.2;
+  }
+  .stats.customer-stats article > small {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+}

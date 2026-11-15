@@ -14,6 +14,11 @@ export function useTableSort<T>(initialKey: string, initialDirection: 'asc' | 'd
     key,
     direction,
     toggle,
+    /** Sort by a column in a given direction (for example, from a summary card). */
+    set: (next: string, nextDirection: 'asc' | 'desc') => {
+      setKey(next);
+      setDirection(nextDirection);
+    },
     sortRows: (rows: T[], selectors: Record<string, (row: T) => Value>): T[] =>
       selectors[key] ? sortRows(rows, selectors[key], direction) : [...rows],
   };
