@@ -38,6 +38,8 @@ export const defaultOptions = () => ({
   methodOrder: /** @type {string[]} */ ([]),
   defaultIncomeMethod: '',
   defaultExpenseMethod: '',
+  /** Part orders: 'warn' lets staff hand over unpaid parts after a warning; 'require' needs them paid. */
+  handoverPayment: /** @type {'warn' | 'require'} */ ('warn'),
 });
 /** A payment method's key: its account and label (the label alone before accounts are set up). */
 export const methodKey = (/** @type {{ label: string, accountId?: string }} */ m) =>
@@ -147,6 +149,7 @@ export function validateOptions(input) {
     : [];
   value.defaultIncomeMethod = text(value.defaultIncomeMethod, 200);
   value.defaultExpenseMethod = text(value.defaultExpenseMethod, 200);
+  value.handoverPayment = value.handoverPayment === 'require' ? 'require' : 'warn';
   const fallback = stepsWorkflow(fallbackSteps(value));
   value.jobStages = fallback.stages;
   value.stageHours = fallback.hours;
