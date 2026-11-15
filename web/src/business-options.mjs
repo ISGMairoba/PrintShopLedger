@@ -40,7 +40,8 @@ export const defaultOptions = () => ({
   defaultExpenseMethod: '',
 });
 /** A payment method's key: its account and label (the label alone before accounts are set up). */
-export const methodKey = (/** @type {{ label: string, accountId?: string }} */ m) => `${m.accountId ?? ''}|${m.label}`;
+export const methodKey = (/** @type {{ label: string, accountId?: string }} */ m) =>
+  `${m.accountId ?? ''}|${m.label}`;
 /**
  * Payment methods in the business's chosen order; any not yet placed keep their order at the end.
  * @template {{ label: string, accountId?: string }} T
