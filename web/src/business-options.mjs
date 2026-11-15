@@ -40,8 +40,14 @@ export const defaultOptions = () => ({
   defaultExpenseMethod: '',
 });
 /** A payment method's key: its account and label (the label alone before accounts are set up). */
-export const methodKey = (m) => `${m.accountId ?? ''}|${m.label}`;
-/** Payment methods in the business's chosen order; any not yet placed keep their order at the end. */
+export const methodKey = (/** @type {{ label: string, accountId?: string }} */ m) => `${m.accountId ?? ''}|${m.label}`;
+/**
+ * Payment methods in the business's chosen order; any not yet placed keep their order at the end.
+ * @template {{ label: string, accountId?: string }} T
+ * @param {T[]} methods
+ * @param {string[]} [order]
+ * @returns {T[]}
+ */
 export function orderMethods(methods, order = []) {
   const rank = new Map(order.map((k, i) => [k, i]));
   return methods
@@ -49,7 +55,13 @@ export function orderMethods(methods, order = []) {
     .sort((a, b) => a.r - b.r)
     .map((x) => x.m);
 }
-/** The method a new payment (or expense) starts with: the business default when offered, else the first. */
+/**
+ * The method a new payment (or expense) starts with: the business default when offered, else the first.
+ * @template {{ label: string, accountId?: string }} T
+ * @param {T[]} methods
+ * @param {string} key
+ * @returns {T | undefined}
+ */
 export const defaultMethod = (methods, key) => methods.find((m) => methodKey(m) === key) ?? methods[0];
 /** The sales channel new jobs start with. */
 export const defaultSource = (options) =>
