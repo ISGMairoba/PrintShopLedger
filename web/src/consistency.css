@@ -3493,7 +3493,7 @@ label.checkbox input[type="checkbox"],
   position: relative;
   height: 0.5rem;
   border-radius: 999px;
-  background: color-mix(in srgb, currentColor 10%, transparent);
+  background: var(--line);
   overflow: hidden;
   margin-bottom: 0.75rem;
 }
@@ -3503,7 +3503,7 @@ label.checkbox input[type="checkbox"],
   border-radius: inherit;
 }
 .parts-bar .parts-done {
-  background: color-mix(in srgb, var(--brand-primary, #124b40) 35%, transparent);
+  background: color-mix(in srgb, var(--brand-primary, #124b40) 45%, var(--line));
 }
 .parts-bar .parts-collected {
   background: var(--brand-primary, #124b40);
@@ -3538,4 +3538,20 @@ label.checkbox input[type="checkbox"],
   .job-parts .parts-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+.job-actions.parts-actions {
+  flex-direction: row;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+.parts-dialog .modal-body > label + label,
+.parts-dialog .modal-body > label + p,
+.parts-dialog .modal-body > p + label {
+  margin-top: 14px;
+}
+.parts-dialog .modal-body > small.danger-text {
+  display: block;
+  margin-top: 8px;
 }

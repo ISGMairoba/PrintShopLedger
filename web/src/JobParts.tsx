@@ -164,7 +164,7 @@ export default function JobParts({
       </div>
       <PartsBar job={job} />
       {canEdit && (
-        <div className="job-actions">
+        <div className="job-actions parts-actions">
           {!p.finished && (
             <button
               type="button"
@@ -197,7 +197,9 @@ export default function JobParts({
           {p.handovers.map((h) => (
             <li key={h.id}>
               <span>
-                <strong>{h.quantity}</strong> on {when(h.at)}
+                <span>
+                  <strong>{h.quantity} handed over</strong> · {when(h.at)}
+                </span>
                 <small>
                   {h.collectedBy ? `Collected by ${h.collectedBy} · ` : ''}handed over by {h.byLabel}
                   {h.note ? ` · ${h.note}` : ''}
@@ -211,11 +213,15 @@ export default function JobParts({
         </ul>
       )}
       {note4 && (
-        <Modal title={`Delivery note ${deliveryRef(note4.id)}`} onClose={() => setNote4(null)}>
+        <Modal
+          title={`Delivery note ${deliveryRef(note4.id)}`}
+          className="parts-dialog"
+          onClose={() => setNote4(null)}
+        >
           <p className="muted">
             {note4.quantity} × {job.description}, {when(note4.at)}. No prices are shown.
           </p>
-          <div className="material-actions">
+          <div className="dialog-action-buttons">
             <button type="button" className="secondary" onClick={() => void deliveryPdf(note4, 'open')}>
               Open A4
             </button>
@@ -232,6 +238,7 @@ export default function JobParts({
       {dialog && (
         <Modal
           title={dialog === 'done' ? 'Record done so far' : 'Hand over part'}
+          className="parts-dialog"
           busy={working}
           onClose={() => setDialog(null)}
         >
@@ -304,7 +311,7 @@ export default function JobParts({
             </>
           )}
           {count !== '' && problem && <small className="danger-text">{problem}</small>}
-          <div className="material-actions">
+          <div className="dialog-action-buttons">
             <button type="button" className="secondary" onClick={() => setDialog(null)}>
               Cancel
             </button>
