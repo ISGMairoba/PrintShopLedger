@@ -154,8 +154,8 @@ function AppIconEditor({
     <>
       <h3>Installed app icon</h3>
       <p>
-        The icon staff see on their phone or computer after installing the app. Choose a logo layout and
-        the color behind it.
+        The icon staff see on their phone or computer after installing the app. Choose a logo layout and the
+        color behind it.
       </p>
       <div className="app-icon-editor">
         <div className="form-grid">

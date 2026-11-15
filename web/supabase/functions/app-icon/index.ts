@@ -14,7 +14,8 @@ Deno.serve(async (request: Request) => {
   const url = new URL(request.url);
   const shop = url.searchParams.get('b') ?? '';
   const file = url.searchParams.get('f') ?? 'manifest';
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(shop)) return fail(400, 'Invalid business.');
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(shop))
+    return fail(400, 'Invalid business.');
   if (!['manifest', 'png'].includes(file)) return fail(400, 'Invalid file.');
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
     auth: { persistSession: false },
@@ -32,7 +33,10 @@ Deno.serve(async (request: Request) => {
     const bytes = Uint8Array.from(atob(match[1]), (c) => c.charCodeAt(0));
     return new Response(bytes, { headers: { ...base, 'Content-Type': 'image/png' } });
   }
-  const name = String(data.name ?? '').trim().slice(0, 45) || 'PrintShopLedger';
+  const name =
+    String(data.name ?? '')
+      .trim()
+      .slice(0, 45) || 'PrintShopLedger';
   const color = /^#[0-9a-f]{6}$/i.test(String(data.primary)) ? String(data.primary) : '#124b40';
   const icon = `/b/${shop}/icon.png?v=${data.version}`;
   const manifest = {

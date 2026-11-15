@@ -14,7 +14,9 @@ test('the app icon is off by default and keeps only its own fields', () => {
   });
   assert.throws(() => validateAppIcon({ layout: 'logo', background: '#fff', png: '' }), /layout/);
   assert.throws(() => validateAppIcon({ layout: 'icon', background: 'red', png: '' }), /background/);
-  assert.throws(() => validateAppIcon({ layout: 'icon', background: '#ffffff', png: 'data:image/svg+xml;base64,AA' }));
+  assert.throws(() =>
+    validateAppIcon({ layout: 'icon', background: '#ffffff', png: 'data:image/svg+xml;base64,AA' }),
+  );
 });
 
 test('the icon is drawn from the chosen layout, in the version that suits the background', () => {

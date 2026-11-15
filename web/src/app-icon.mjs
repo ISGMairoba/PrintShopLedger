@@ -31,7 +31,11 @@ export function validateAppIcon(input) {
 export function appIconSource(settings, layout, background) {
   if (layout === 'none') return '';
   const dark = luminance(background) < 0.5;
-  return resolveLogo({ ...settings, logoUsage: { ...settings.logoUsage, app: layout } }, 'app', dark ? 'dark' : 'light');
+  return resolveLogo(
+    { ...settings, logoUsage: { ...settings.logoUsage, app: layout } },
+    'app',
+    dark ? 'dark' : 'light',
+  );
 }
 
 function luminance(hex) {
