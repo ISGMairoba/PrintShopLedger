@@ -90,7 +90,7 @@ export default function ExpenseEditor({
       accountPaymentOptions(
         { moneyAccounts: accounts },
         options.paymentMethods.filter((m) => m.enabled),
-      ),
+      ) as { label: string; kind: string; accountId?: string; displayLabel?: string }[],
       options.methodOrder,
     ).map((o: { label: string; kind: string; accountId?: string; displayLabel?: string }) => ({
       key: `${o.accountId ?? ''}|${o.label}`,
