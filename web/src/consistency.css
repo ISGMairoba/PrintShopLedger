@@ -3555,3 +3555,20 @@ label.checkbox input[type="checkbox"],
   display: block;
   margin-top: 8px;
 }
+
+/* Fields stacked in a dialog keep a steady gap, and buttons never sit on the field above them
+   (Put on hold, Hand over part, Upload logo → Remove logo). */
+.modal-body > label + label,
+.modal-body > label + p,
+.modal-body > p + label,
+.modal-body > label + small + label {
+  margin-top: 14px;
+}
+.modal-body > :where(label, p, small) + :where(.material-actions, .dialog-action-buttons),
+.modal-body > div > label + :where(.material-actions, .dialog-action-buttons),
+.logo-variant-card > label + button {
+  margin-top: 14px;
+}
+.modal-body > :where(label, p) + :where(.material-actions, .dialog-action-buttons) {
+  justify-content: flex-end;
+}

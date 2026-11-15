@@ -123,7 +123,7 @@ try {
     const shot = async (name, full = true) => {
       await delay(250);
       await page.screenshot({ path: `${out}/${mode}-${name}.png`, fullPage: full });
-      // Buttons should never touch another control: report any pair closer than 6px.
+      // Buttons should never touch another control: report any pair closer than 10px.
       const close = await page.evaluate(() => {
         const seen = (el) => {
           const r = el.getBoundingClientRect();
@@ -160,7 +160,7 @@ try {
             const cols = Math.min(r.right, q.right) - Math.max(r.left, q.left);
             const dx = Math.max(q.left - r.right, r.left - q.right);
             const dy = Math.max(q.top - r.bottom, r.top - q.bottom);
-            if ((rows > 4 && dx >= -1 && dx < 6) || (cols > 4 && dy >= -1 && dy < 6)) {
+            if ((rows > 4 && dx >= -1 && dx < 6) || (cols > 4 && dy >= -1 && dy < 10)) {
               const pair = [name(b), name(o)].sort().join(' | ');
               found.add(`${pair} (${Math.round(rows > 4 ? dx : dy)}px at y ${Math.round(r.top + scrollY)})`);
             }
