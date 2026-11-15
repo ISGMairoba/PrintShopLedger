@@ -578,8 +578,14 @@ try {
       await h.getByLabel('Quantity handed over').fill('40');
       await h.screenshot({ path: `${out}/${mode}-86-parts-handover.png` });
       await h.getByRole('button', { name: 'Cancel' }).click();
-      await d.getByRole('button', { name: /Delivery note/ }).first().click();
-      await page.getByRole('dialog').last().screenshot({ path: `${out}/${mode}-86-parts-note.png` });
+      await d
+        .getByRole('button', { name: /Delivery note/ })
+        .first()
+        .click();
+      await page
+        .getByRole('dialog')
+        .last()
+        .screenshot({ path: `${out}/${mode}-86-parts-note.png` });
       await shot('86-parts-full', false);
       await closeDialogs();
     } catch (e) {
