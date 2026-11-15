@@ -70,7 +70,7 @@ export default function CustomersPage({
       );
   const wallet = (id: string) => wallets.get(id) ?? 0;
   const summary = useMemo(
-    () => customerSummary(ledger, { balance: (id) => customerBalanceFast(ledger, id), wallet }),
+    () => customerSummary(ledger, { balance: (id: string) => customerBalanceFast(ledger, id), wallet }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [ledger],
   );
