@@ -1,8 +1,7 @@
 import Icon from './Icon';
 import { useWords } from './Words';
 import { useBusinessOptions } from './BusinessOptionsContext';
-import { FIXED_END, FIXED_START, UNITS, fallbackName,
-  fallbackSteps, stepAmount } from './workflow-steps.mjs';
+import { FIXED_END, FIXED_START, UNITS, fallbackName, fallbackSteps, stepAmount } from './workflow-steps.mjs';
 import type { Step } from './types';
 
 const unitNames = { m: 'minutes', h: 'hours', d: 'days' } as const;

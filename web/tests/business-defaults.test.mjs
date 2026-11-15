@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { defaultMethod, defaultSource, methodKey, orderMethods, validateOptions } from '../src/business-options.mjs';
+import {
+  defaultMethod,
+  defaultSource,
+  methodKey,
+  orderMethods,
+  validateOptions,
+} from '../src/business-options.mjs';
 import { fallbackSteps, itemSteps } from '../src/workflow-steps.mjs';
 
 test('payment methods follow the business order; new ones go last', () => {
@@ -31,7 +37,13 @@ test('the usual sales channel and steps per kind', () => {
   assert.equal(defaultSource(options), 'WhatsApp');
   assert.equal(defaultSource({ ...options, defaultJobSource: 'Gone' }), 'In shop');
   assert.equal(options.defaultServiceWorkflowId, null, 'an unknown workflow is dropped');
-  assert.deepEqual(fallbackSteps(options, 'shelf').map((s) => s.name), ['Packing']);
+  assert.deepEqual(
+    fallbackSteps(options, 'shelf').map((s) => s.name),
+    ['Packing'],
+  );
   assert.deepEqual(fallbackSteps(options, 'service'), fallbackSteps(options));
-  assert.deepEqual(itemSteps(options, { steps: [{ name: 'Own' }] }, 'shelf').map((s) => s.name), ['Own']);
+  assert.deepEqual(
+    itemSteps(options, { steps: [{ name: 'Own' }] }, 'shelf').map((s) => s.name),
+    ['Own'],
+  );
 });

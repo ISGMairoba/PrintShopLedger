@@ -87,7 +87,10 @@ export default function ExpenseEditor({
   // are set up), plus the owner's own money. The method and source follow from the choice.
   const paidFromOptions = [
     ...orderMethods(
-      accountPaymentOptions({ moneyAccounts: accounts }, options.paymentMethods.filter((m) => m.enabled)),
+      accountPaymentOptions(
+        { moneyAccounts: accounts },
+        options.paymentMethods.filter((m) => m.enabled),
+      ),
       options.methodOrder,
     ).map((o: { label: string; kind: string; accountId?: string; displayLabel?: string }) => ({
       key: `${o.accountId ?? ''}|${o.label}`,
