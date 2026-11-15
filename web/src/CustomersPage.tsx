@@ -11,6 +11,8 @@ import { useMemo, useState } from 'react';
 import Modal from './Modal';
 import CustomerEditor from './CustomerEditor';
 import { customerCode, customerMatches } from './customers.mjs';
+import { customerSummary } from './customer-summary.mjs';
+import { currency } from './receipts.mjs';
 import { servicePrice } from './services.mjs';
 import { SortHeader, useTableSort } from './TableSort';
 import type { Customer, CustomerEvent, Ledger } from './types';
@@ -67,10 +69,26 @@ export default function CustomersPage({
         (wallets.get(p.customerId) ?? 0) + (p.walletAdded ?? 0) - (p.walletUsed ?? 0),
       );
   const wallet = (id: string) => wallets.get(id) ?? 0;
+  const summary = useMemo(
+    () => customerSummary(ledger, { balance: (id) => customerBalanceFast(ledger, id), wallet }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [ledger],
+  );
+  const inFilter = (customer: Customer) =>
+    filter === 'owing'
+      ? customerBalanceFast(ledger, customer.id) > 0
+      : filter === 'wallet'
+        ? wallet(customer.id) > 0
+        : filter === 'all' || customer.archived === (filter === 'archived');
+  const show = (next: string) => {
+    setFilter(next);
+    if (next === 'owing' || next === 'wallet') sorting.set(next === 'owing' ? 'outstanding' : 'wallet', 'desc');
+  };
+  const keptFrom = ledger.historySummary?.cutoff;
   const visible = sorting.sortRows(
     ledger.customers.filter(
       (customer) =>
-        (filter === 'all' || customer.archived === (filter === 'archived')) &&
+        inFilter(customer) &&
         customerMatches(customer, query, ledger.customers, [
           jobs(customer.id),
           (customerBalanceFast(ledger, customer.id) / 100).toFixed(2),
@@ -121,6 +139,58 @@ export default function CustomersPage({
   }
   return (
     <>
+      <div className="stats customer-stats">
+        <article>
+          <span>{w('Customers')}</span>
+          <strong>{summary.total}</strong>
+          <small>
+            {summary.archived} archived
+          </small>
+        </article>
+        <article>
+          <span>Active this month</span>
+          <strong>{summary.activeMonth}</strong>
+          <small>
+            Bought or paid · this year {summary.activeYear}
+            {keptFrom ? ` (records from ${keptFrom})` : ''}
+          </small>
+        </article>
+        <article>
+          <span>New this month</span>
+          <strong>{summary.newMonth}</strong>
+          <small>Last month {summary.newLastMonth}</small>
+        </article>
+        <article>
+          <span>Owing the business</span>
+          <strong>{currency(summary.owingTotal)}</strong>
+          <small>
+            {summary.owingCount} {summary.owingCount === 1 ? 'customer' : 'customers'}
+            {summary.owingCount > 0 && (
+              <>
+                {' · '}
+                <button type="button" className="text-button" onClick={() => show('owing')}>
+                  Show them
+                </button>
+              </>
+            )}
+          </small>
+        </article>
+        <article>
+          <span>Wallet credit held</span>
+          <strong>{currency(summary.walletTotal)}</strong>
+          <small>
+            {summary.walletCount} {summary.walletCount === 1 ? 'customer' : 'customers'}
+            {summary.walletCount > 0 && (
+              <>
+                {' · '}
+                <button type="button" className="text-button" onClick={() => show('wallet')}>
+                  Show them
+                </button>
+              </>
+            )}
+          </small>
+        </article>
+      </div>
       <section className="panel">
         <div className="toolbar customer-toolbar">
           <input
@@ -133,6 +203,8 @@ export default function CustomersPage({
             <option value="active">Active</option>
             <option value="archived">Archived</option>
             <option value="all">All customers</option>
+            <option value="owing">Owing the business</option>
+            <option value="wallet">With wallet credit</option>
           </select>
           <ToolbarActions
             more={
