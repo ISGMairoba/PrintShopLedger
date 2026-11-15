@@ -96,6 +96,36 @@ export function doneProblem(job, done) {
   return '';
 }
 
+/** The event taking back the latest handover (admins and managers), with a reason. */
+export function removeHandoverEvent(job, handoverId, reason, actor, now = new Date().toISOString()) {
+  return {
+    id: crypto.randomUUID(),
+    kind: 'job.handover_removed',
+    data: {
+      id: job.id,
+      baseVersion: job.version ?? 1,
+      handoverId,
+      reason: String(reason ?? '').trim(),
+      modifiedBy: actor.id,
+      modifiedByLabel: actor.label,
+      modifiedAt: now,
+    },
+  };
+}
+
+/** Why this handover cannot be removed ('' when it can). Only the latest one, with a reason. */
+export function removeProblem(job, handoverId, reason) {
+  const list = job.progress?.handovers ?? [];
+  if (job.productionStatus === 'Cancelled') return 'This job is cancelled.';
+  if (!list.length || list[list.length - 1].id !== handoverId) return 'Only the latest handover can be removed.';
+  const sum = list.reduce((total, h) => total + h.quantity, 0);
+  if (job.productionStatus === 'Collected' && sum !== job.quantity)
+    return 'This job was collected in full, not by handovers.';
+  const why = String(reason ?? '').trim();
+  if (!why || why.length > 200) return 'Give a short reason (up to 200 characters).';
+  return '';
+}
+
 /**
  * Apply a done-so-far or handover event. The payment rule is checked on screen before saving and
  * by the server, which knows the business's setting.
@@ -141,6 +171,23 @@ export function applyJobHandover(ledger, event) {
         ].slice(-200),
       },
       ...(last ? { productionStatus: 'Collected', stageAt: d.modifiedAt, stageHeldMs: 0 } : {}),
+    };
+  } else if (event.kind === 'job.handover_removed') {
+    const problem = removeProblem(job, d.handoverId, d.reason);
+    if (problem) throw Error(problem);
+    const gone = progress.handovers[progress.handovers.length - 1];
+    const reopen = job.productionStatus === 'Collected';
+    next = {
+      ...job,
+      progress: {
+        ...progress,
+        handovers: progress.handovers.slice(0, -1),
+        removed: [
+          ...(progress.removed ?? []),
+          { ...gone, removedAt: d.modifiedAt, removedByLabel: d.modifiedByLabel, reason: String(d.reason).trim() },
+        ].slice(-50),
+      },
+      ...(reopen ? { productionStatus: 'Completed', stageAt: d.modifiedAt, stageHeldMs: 0 } : {}),
     };
   } else throw Error('Unknown handover operation.');
   next = {

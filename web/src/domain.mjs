@@ -109,7 +109,9 @@ function applyEventCore(ledger, event) {
   if (event.kind === 'job.extra_materials_set') return applyJobExtraMaterials(ledger, event);
   if (event.kind === 'job.materials_checked') return applyMaterialsCheck(ledger, event);
   if (event.kind === 'job.held' || event.kind === 'job.resumed') return applyJobHold(ledger, event);
-  if (event.kind === 'job.done_recorded' || event.kind === 'job.handed_over')
+  if (event.kind === 'job.done_recorded' ||
+    event.kind === 'job.handed_over' ||
+    event.kind === 'job.handover_removed')
     return applyJobHandover(ledger, event);
   const data = event.data;
   if (!event.id || !data.id) throw new Error('Missing record identifier.');

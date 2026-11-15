@@ -8,6 +8,8 @@ import {
   jobParts,
   partsAllowed,
   paymentNeeded,
+  removeHandoverEvent,
+  removeProblem,
 } from '../src/job-handover.mjs';
 import { deliveryNoteModel } from '../src/delivery-note.mjs';
 
@@ -79,4 +81,27 @@ test('the delivery note counts what came before and what is still to come, with 
   assert.deepEqual(m.items[0].meta, ['Ordered 200', 'Collected before 50', 'Still to collect 120']);
   assert.match(m.notices[0], /80 of 200 collected so far, 120 still to come/);
   assert.ok(!JSON.stringify(m).includes('₦'));
+});
+
+test('an admin takes back the latest handover; a closing one reopens the job to Completed', () => {
+  let l = base('Completed');
+  l = applyEvent(l, handoverEvent(job(l), { quantity: 50, collectedBy: 'Sara' }, actor));
+  l = applyEvent(l, handoverEvent(job(l), { quantity: 150, collectedBy: 'Sara' }, actor));
+  assert.equal(job(l).productionStatus, 'Collected');
+  const [first, second] = job(l).progress.handovers;
+  assert.match(removeProblem(job(l), first.id, 'typo'), /Only the latest/);
+  assert.match(removeProblem(job(l), second.id, ' '), /Give a short reason/);
+  l = applyEvent(l, removeHandoverEvent(job(l), second.id, 'Entered 150 instead of 15', actor));
+  assert.equal(job(l).productionStatus, 'Completed');
+  assert.deepEqual([jobParts(job(l)).collected, jobParts(job(l)).ready], [50, 150]);
+  assert.equal(job(l).progress.removed[0].reason, 'Entered 150 instead of 15');
+  assert.equal(job(l).progress.removed[0].quantity, 150);
+});
+
+test('a job moved to Collected by the usual button is not reopened by removing a part', () => {
+  let l = base('Completed');
+  l = applyEvent(l, handoverEvent(job(l), { quantity: 50 }, actor));
+  const h = job(l).progress.handovers[0];
+  l = { ...l, jobs: [{ ...job(l), productionStatus: 'Collected' }] };
+  assert.match(removeProblem(job(l), h.id, 'typo'), /collected in full/);
 });

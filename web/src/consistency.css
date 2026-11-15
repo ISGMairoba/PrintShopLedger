@@ -3555,3 +3555,26 @@ label.checkbox input[type="checkbox"],
   display: block;
   margin-top: 8px;
 }
+.parts-remove {
+  margin-top: var(--gap-section, 20px);
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.parts-remove label {
+  width: 100%;
+}
+.parts-remove .dialog-action-buttons {
+  align-self: stretch;
+}
+.parts-removed {
+  margin-top: 10px;
+  font-size: 0.85rem;
+}
+.parts-removed ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}

@@ -15,6 +15,8 @@ import {
   jobParts,
   partsAllowed,
   paymentNeeded,
+  removeHandoverEvent,
+  removeProblem,
 } from './job-handover.mjs';
 import type { Job, JobHandoverEvent, Ledger } from './types';
 
@@ -56,6 +58,7 @@ export default function JobParts({
   actor,
   onSave,
   onPayment,
+  canRemove = false,
 }: {
   job: Job;
   ledger: Ledger;
@@ -63,6 +66,8 @@ export default function JobParts({
   actor?: { id: string; label: string };
   onSave?: (event: JobHandoverEvent) => Promise<void>;
   onPayment?: (customerId: string) => void;
+  /** Admins, managers and up may take back the latest handover. */
+  canRemove?: boolean;
 }) {
   const options = useBusinessOptions();
   const doc = useContext(TemplateDocumentContext);
@@ -74,6 +79,8 @@ export default function JobParts({
   const [notice, setNotice] = useState('');
   const [working, setWorking] = useState(false);
   const [note4, setNote4] = useState<Handover | null>(null);
+  const [removing, setRemoving] = useState(false);
+  const [reason, setReason] = useState('');
   useEffect(() => {
     if (job.progress?.handovers?.length) {
       void import('./receipt-pdf');
@@ -116,6 +123,23 @@ export default function JobParts({
       await onSave(event as JobHandoverEvent);
       setDialog(null);
       if (dialog === 'handover') setNotice('Handed over. Print or share the delivery note below.');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setWorking(false);
+    }
+  };
+  const latest = p.handovers[p.handovers.length - 1];
+  const removable = (h: Handover) =>
+    canRemove && !!actor && !!onSave && h.id === latest?.id && !removeProblem(job, h.id, 'x');
+  const remove = async (h: Handover) => {
+    if (!actor || !onSave || removeProblem(job, h.id, reason)) return;
+    setError('');
+    setWorking(true);
+    try {
+      await onSave(removeHandoverEvent(job, h.id, reason, actor) as JobHandoverEvent);
+      setNote4(null);
+      setNotice(`Handover of ${h.quantity} removed.`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
@@ -205,12 +229,38 @@ export default function JobParts({
                   {h.note ? ` · ${h.note}` : ''}
                 </small>
               </span>
-              <button type="button" className="secondary" onClick={() => setNote4(h)}>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  setRemoving(false);
+                  setReason('');
+                  setError('');
+                  setNote4(h);
+                }}
+              >
                 <Icon name="details" /> Delivery note
               </button>
             </li>
           ))}
         </ul>
+      )}
+      {!!job.progress?.removed?.length && (
+        <details className="parts-removed">
+          <summary>
+            {job.progress.removed.length} removed handover{job.progress.removed.length === 1 ? '' : 's'}
+          </summary>
+          <ul>
+            {job.progress.removed.map((r) => (
+              <li key={r.id}>
+                <s>
+                  {r.quantity} on {when(r.at)}
+                </s>{' '}
+                removed by {r.removedByLabel}, {when(r.removedAt)}: {r.reason}
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
       {note4 && (
         <Modal
@@ -233,6 +283,51 @@ export default function JobParts({
             </button>
           </div>
           {notice && <p className="muted">{notice}</p>}
+          {removable(note4) && !removing && (
+            <p className="parts-remove">
+              <button type="button" className="text-button danger-text" onClick={() => setRemoving(true)}>
+                <Icon name="waste" /> Remove this handover
+              </button>
+              <small>For a handover entered by mistake. It stays in the record as removed.</small>
+            </p>
+          )}
+          {removable(note4) && removing && (
+            <div className="parts-remove">
+              {error && (
+                <p className="notice" role="alert">
+                  {error}
+                </p>
+              )}
+              <p className="muted">
+                {note4.quantity} go back to “ready to hand over”
+                {job.productionStatus === 'Collected' ? ' and the job goes back to Completed' : ''}. Delivery
+                note {deliveryRef(note4.id)} will no longer count.
+              </p>
+              <label>
+                Reason
+                <input
+                  aria-label="Reason for removing"
+                  maxLength={200}
+                  value={reason}
+                  placeholder="e.g. Entered 60 instead of 6"
+                  onChange={(e) => setReason(e.target.value)}
+                />
+              </label>
+              <div className="dialog-action-buttons">
+                <button type="button" className="secondary" onClick={() => setRemoving(false)}>
+                  Keep it
+                </button>
+                <button
+                  type="button"
+                  className="danger-button"
+                  disabled={working || !reason.trim()}
+                  onClick={() => void remove(note4)}
+                >
+                  Remove handover
+                </button>
+              </div>
+            </div>
+          )}
         </Modal>
       )}
       {dialog && (

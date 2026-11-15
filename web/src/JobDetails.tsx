@@ -52,6 +52,8 @@ type Props = {
   onHold?: (job: Job, hold: HoldChange) => Promise<void>;
   /** Part orders: record done so far and hand over parts (left out: view only). */
   onParts?: (event: JobHandoverEvent) => Promise<void>;
+  /** Admins, managers and up may take back the latest handover. */
+  canRemoveHandover?: boolean;
 };
 
 /** One job: amounts, payment history, adjustments and the next actions. */
@@ -75,6 +77,7 @@ export default function JobDetails({
   onMaterialsCheck,
   onHold,
   onParts,
+  canRemoveHandover = false,
 }: Props) {
   const { w } = useWords();
   const customerName = (id: string) =>
@@ -230,6 +233,7 @@ export default function JobDetails({
         busy={busy || legacyConflict}
         actor={actor}
         onSave={onParts}
+        canRemove={canRemoveHandover}
         onPayment={customerHeld ? undefined : onPayment}
       />
       <section className="job-detail-stage" aria-label={w('Job stage')}>
