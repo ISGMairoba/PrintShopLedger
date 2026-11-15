@@ -175,6 +175,11 @@ export default function CustomersPage({
           </small>
         </article>
         <article>
+          <span>Quiet for 90+ days</span>
+          <strong>{summary.quiet}</strong>
+          <small>Bought before, nothing since: worth a call</small>
+        </article>
+        <article>
           <span>Wallet credit held</span>
           <strong>{currency(summary.walletTotal)}</strong>
           <small>
