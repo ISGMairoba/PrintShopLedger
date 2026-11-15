@@ -2182,6 +2182,7 @@ export default function App() {
                               {(shop?.accessLevel ?? 0) >= 2 && (
                                 <DrawerReviews
                                   closings={state.ledger.drawerClosings}
+                                  ledger={state.ledger}
                                   online={online}
                                   onReview={reviewDrawer}
                                 />

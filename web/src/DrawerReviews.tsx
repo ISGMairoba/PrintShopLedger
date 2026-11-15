@@ -4,21 +4,25 @@ import Icon from './Icon';
 import CurrencyInput from './CurrencyInput';
 import { currency } from './receipts.mjs';
 import { money } from './domain.mjs';
-import type { DrawerClosing } from './types';
+import { myTransactions, saleDescription, salesSummary } from './my-sales.mjs';
+import type { DrawerClosing, Ledger } from './types';
 
 const when = (value?: string) =>
   value ? new Date(value).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' }) : '';
 
 /**
- * Conflict Inbox → drawers closed automatically overnight. An Admin enters the cash actually found
- * (or leaves it empty) and marks the drawer reviewed.
+ * Conflict Inbox → drawers closed automatically overnight. The review shows the drawer's whole
+ * sales summary and every sale in it; after checking them (and ticking that they did), an Admin
+ * enters the cash actually found (or leaves it empty) and marks the drawer reviewed.
  */
 export default function DrawerReviews({
   closings,
+  ledger,
   online,
   onReview,
 }: {
   closings: DrawerClosing[];
+  ledger: Ledger;
   online: boolean;
   onReview: (id: string, counted: number | null, note: string) => Promise<void>;
 }) {
@@ -30,7 +34,16 @@ export default function DrawerReviews({
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [checked, setChecked] = useState(false);
   if (!pending.length) return null;
+  const customerName = (id: string) => ledger.customers.find((c) => c.id === id)?.name ?? 'Walk-in';
+  const sales = open
+    ? myTransactions(ledger, open.fromUserId, true)
+        .filter((r) => open.checkoutIds.includes(r.id))
+        .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
+    : [];
+  const summary = salesSummary(sales);
+  const missing = open ? open.checkoutIds.length - sales.length : 0;
   const save = async (counted: number | null) => {
     if (!open) return;
     setBusy(true);
@@ -88,6 +101,7 @@ export default function DrawerReviews({
                       setCount('');
                       setNote('');
                       setError('');
+                      setChecked(false);
                     }}
                   >
                     <Icon name="details" /> Review
@@ -100,17 +114,91 @@ export default function DrawerReviews({
       </div>
       {!online && <p className="muted">Connect to review drawers.</p>}
       {open && (
-        <Modal title={`Review drawer · ${open.fromUserLabel}`} busy={busy} onClose={() => setOpen(null)}>
+        <Modal
+          title={`Review drawer · ${open.fromUserLabel}`}
+          wide
+          busy={busy}
+          onClose={() => setOpen(null)}
+        >
           {error && (
             <p className="notice" role="alert">
               {error}
             </p>
           )}
-          <p>
-            {open.checkoutIds.length} sales closed {when(open.closedAt)}. Expected cash{' '}
-            <strong>{currency(open.expectedCash)}</strong>
-            {open.cashRefunded ? ` (after ${currency(open.cashRefunded)} cash refunds)` : ''}.
+          <p className="muted">
+            Closed automatically {when(open.closedAt)}: {open.checkoutIds.length} sales. Check the summary and
+            each sale below, then record what you found.
           </p>
+          <div className="stats drawer-review-stats">
+            <article>
+              <span>Expected cash in the drawer</span>
+              <strong>{currency(open.expectedCash)}</strong>
+              <small>
+                {open.openingCash > 0 ? `Opening cash ${currency(open.openingCash)} · ` : ''}
+                Cash received {currency(summary.cash)}
+                {open.cashRefunded ? ` · Cash refunds ${currency(open.cashRefunded)}` : ''}
+              </small>
+            </article>
+            <article>
+              <span>Total money received</span>
+              <strong>{currency(summary.collected)}</strong>
+              <small>
+                POS {currency(summary.pos)} · Transfer {currency(summary.transfer)} · Wallet used{' '}
+                {currency(summary.walletUsed)}
+              </small>
+            </article>
+            <article>
+              <span>Sales value</span>
+              <strong>{currency(summary.sales)}</strong>
+              <small>
+                {sales.length} sales · {summary.customers.length} customers
+              </small>
+            </article>
+          </div>
+          {missing > 0 && (
+            <p className="notice notice-warning" role="status">
+              {missing} of these sales are not on this device (it keeps recent history only). Review from a
+              device that keeps everything to see them all.
+            </p>
+          )}
+          <div className="table-wrap drawer-review-sales">
+            <table aria-label="Sales in this drawer">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Customer</th>
+                  <th>What</th>
+                  <th>Sale</th>
+                  <th>Paid</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sales.map((r) => (
+                  <tr key={r.id}>
+                    <td>
+                      {new Date(r.createdAt).toLocaleString('en-NG', {
+                        timeZone: 'Africa/Lagos',
+                        day: 'numeric',
+                        month: 'short',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      })}
+                    </td>
+                    <td>{customerName(r.customerId)}</td>
+                    <td>{saleDescription(r)}</td>
+                    <td>{currency(r.total)}</td>
+                    <td>
+                      {currency(r.cashReceived)}
+                      <small>
+                        {r.methodLabel || r.method}
+                        {r.walletUsed > 0 ? ` · wallet ${currency(r.walletUsed)}` : ''}
+                      </small>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <fieldset disabled={busy}>
             <label>
               Cash found (₦)
@@ -126,11 +214,20 @@ export default function DrawerReviews({
               Note (optional)
               <input maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
             </label>
+            <label className="check-label">
+              <input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)} />I have
+              checked the sales and the summary above
+            </label>
             <div className="material-actions">
-              <button type="button" className="secondary" onClick={() => void save(null)}>
+              <button
+                type="button"
+                className="secondary"
+                disabled={!checked}
+                onClick={() => void save(null)}
+              >
                 Mark reviewed without a count
               </button>
-              <button type="button" disabled={!count} onClick={() => void save(money(count))}>
+              <button type="button" disabled={!checked || !count} onClick={() => void save(money(count))}>
                 <Icon name="save" /> Save count and mark reviewed
               </button>
             </div>
