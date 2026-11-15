@@ -175,6 +175,30 @@ export default function useBusinessBranding(
       }
     };
   }, [saved.settings, scope, preference]);
+  // The installed app's icon: point the manifest at this business's copy (served by the
+  // app-icon function through /b/<business>/), so installing from here uses its icon and name.
+  // iPhones read the apple-touch-icon instead.
+  const appIcon = scope && !demo ? saved.settings.appIcon?.png : '';
+  useEffect(() => {
+    const manifest = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
+    let touch = document.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]');
+    const originalManifest = manifest?.getAttribute('href') ?? '/manifest.webmanifest';
+    if (!appIcon || !/^[0-9a-f-]{36}$/i.test(shopId)) return;
+    manifest?.setAttribute('href', `/b/${shopId}/manifest.webmanifest`);
+    const added = !touch;
+    if (!touch) {
+      touch = document.createElement('link');
+      touch.rel = 'apple-touch-icon';
+      document.head.append(touch);
+    }
+    const originalTouch = touch.getAttribute('href');
+    touch.setAttribute('href', appIcon);
+    return () => {
+      manifest?.setAttribute('href', originalManifest);
+      if (added) touch?.remove();
+      else if (originalTouch) touch?.setAttribute('href', originalTouch);
+    };
+  }, [appIcon, shopId]);
   return {
     sidebarLogo,
     settings: { ...saved.settings, businessName: saved.settings.businessName || name },
