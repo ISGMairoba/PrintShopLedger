@@ -19,6 +19,8 @@ export const deliveryRef = (handoverId) =>
 /**
  * The handover as a document. details: { job, handover, customerName, customerPhone }.
  * Counts come from the job's handovers up to and including this one.
+ * @param {{ job: import('./types').Job, handover: { id: string, quantity: number, collectedBy: string, note: string, at: string, byLabel: string }, customerName?: string, customerPhone?: string }} details
+ * @param {string | import('./useBusinessBranding').Branding} business
  */
 export function deliveryNoteModel({ job, handover, customerName = '', customerPhone = '' }, business) {
   const b = receiptBusiness(business),

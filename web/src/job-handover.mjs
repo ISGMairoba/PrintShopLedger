@@ -11,9 +11,12 @@ const closed = ['Collected', 'Cancelled'];
 export const partsAllowed = (job) =>
   Number.isInteger(job.quantity) && job.quantity >= 2 && !closed.includes(job.productionStatus ?? 'Added');
 
-/** Where a job stands: items in all, done so far, collected so far, ready to hand over now. */
+/**
+ * Where a job stands: items in all, done so far, collected so far, ready to hand over now.
+ * @param {import('./types').Job} job
+ */
 export function jobParts(job) {
-  const total = Number.isInteger(job.quantity) ? job.quantity : 1;
+  const total = Number.isInteger(job.quantity) ? Number(job.quantity) : 1;
   const handovers = job.progress?.handovers ?? [];
   const collected =
     job.productionStatus === 'Collected' ? total : handovers.reduce((sum, h) => sum + h.quantity, 0);
