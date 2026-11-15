@@ -117,7 +117,8 @@ export function removeHandoverEvent(job, handoverId, reason, actor, now = new Da
 export function removeProblem(job, handoverId, reason) {
   const list = job.progress?.handovers ?? [];
   if (job.productionStatus === 'Cancelled') return 'This job is cancelled.';
-  if (!list.length || list[list.length - 1].id !== handoverId) return 'Only the latest handover can be removed.';
+  if (!list.length || list[list.length - 1].id !== handoverId)
+    return 'Only the latest handover can be removed.';
   const sum = list.reduce((total, h) => total + h.quantity, 0);
   if (job.productionStatus === 'Collected' && sum !== job.quantity)
     return 'This job was collected in full, not by handovers.';
@@ -184,7 +185,12 @@ export function applyJobHandover(ledger, event) {
         handovers: progress.handovers.slice(0, -1),
         removed: [
           ...(progress.removed ?? []),
-          { ...gone, removedAt: d.modifiedAt, removedByLabel: d.modifiedByLabel, reason: String(d.reason).trim() },
+          {
+            ...gone,
+            removedAt: d.modifiedAt,
+            removedByLabel: d.modifiedByLabel,
+            reason: String(d.reason).trim(),
+          },
         ].slice(-50),
       },
       ...(reopen ? { productionStatus: 'Completed', stageAt: d.modifiedAt, stageHeldMs: 0 } : {}),
