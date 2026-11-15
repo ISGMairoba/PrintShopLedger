@@ -579,7 +579,10 @@ try {
       await h.screenshot({ path: `${out}/${mode}-86-parts-handover.png` });
       await h.getByRole('button', { name: 'Cancel' }).click();
       await d.getByRole('button', { name: 'Put on hold' }).click();
-      await page.getByRole('dialog').last().screenshot({ path: `${out}/${mode}-86-hold-dialog.png` });
+      await page
+        .getByRole('dialog')
+        .last()
+        .screenshot({ path: `${out}/${mode}-86-hold-dialog.png` });
       await page.getByRole('dialog').last().getByRole('button', { name: 'Cancel' }).click();
       await d
         .getByRole('button', { name: /Delivery note/ })
