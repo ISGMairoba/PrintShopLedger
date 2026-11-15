@@ -82,7 +82,8 @@ export default function CustomersPage({
         : filter === 'all' || customer.archived === (filter === 'archived');
   const show = (next: string) => {
     setFilter(next);
-    if (next === 'owing' || next === 'wallet') sorting.set(next === 'owing' ? 'outstanding' : 'wallet', 'desc');
+    if (next === 'owing' || next === 'wallet')
+      sorting.set(next === 'owing' ? 'outstanding' : 'wallet', 'desc');
   };
   const keptFrom = ledger.historySummary?.cutoff;
   const visible = sorting.sortRows(
@@ -143,9 +144,7 @@ export default function CustomersPage({
         <article>
           <span>{w('Customers')}</span>
           <strong>{summary.total}</strong>
-          <small>
-            {summary.archived} archived
-          </small>
+          <small>{summary.archived} archived</small>
         </article>
         <article>
           <span>Active this month</span>
