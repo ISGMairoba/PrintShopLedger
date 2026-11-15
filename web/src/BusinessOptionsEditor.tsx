@@ -211,6 +211,22 @@ export default function BusinessOptionsEditor({
             </select>
             <small>{w('The sales channel each new job starts with; staff can still change it.')}</small>
           </label>
+          <label>
+            {w('Handing over part of a job')}
+            <select
+              aria-label="Part handover payment rule"
+              value={value.handoverPayment ?? 'warn'}
+              onChange={(e) => update('handoverPayment', e.target.value)}
+            >
+              <option value="warn">Warn when that part is not paid for</option>
+              <option value="require">Only when that part is paid for</option>
+            </select>
+            <small>
+              {w(
+                'For big orders collected in batches (200 jotters, 100 now): a part counts as paid when the job’s payments cover its share of the price.',
+              )}
+            </small>
+          </label>
           {methods.length > 0 && (
             <fieldset className="method-order">
               <legend>{w('Payment methods: order and usual choice')}</legend>

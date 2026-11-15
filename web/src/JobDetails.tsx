@@ -1,6 +1,7 @@
 import { jobBalanceFast } from './balances.mjs';
 import ExtraMaterials from './ExtraMaterials';
 import MaterialCheckSection from './MaterialCheckSection';
+import JobParts from './JobParts';
 import DeadlineProgress from './DeadlineProgress';
 import Icon from './Icon';
 import { TemplateSummary } from './TemplateFields';
@@ -10,7 +11,7 @@ import JobActions, { type HoldChange, type ProgressMode } from './JobActions';
 import { AdjustmentHistory } from './SaleAdjustmentsPage';
 import { paymentName } from './business-options.mjs';
 import { currency, dateLabel, shortId } from './app/shared';
-import type { JobExtraMaterialsEvent, JobMaterialsCheckEvent, Job, Ledger } from './types';
+import type { JobExtraMaterialsEvent, JobHandoverEvent, JobMaterialsCheckEvent, Job, Ledger } from './types';
 import { useWords } from './Words';
 
 const lagosTime = (value: string) =>
@@ -49,6 +50,8 @@ type Props = {
   checkActor?: { id: string; label: string; level: number; confirms: boolean };
   onMaterialsCheck?: (event: JobMaterialsCheckEvent) => Promise<void>;
   onHold?: (job: Job, hold: HoldChange) => Promise<void>;
+  /** Part orders: record done so far and hand over parts (left out: view only). */
+  onParts?: (event: JobHandoverEvent) => Promise<void>;
 };
 
 /** One job: amounts, payment history, adjustments and the next actions. */
@@ -71,6 +74,7 @@ export default function JobDetails({
   checkActor,
   onMaterialsCheck,
   onHold,
+  onParts,
 }: Props) {
   const { w } = useWords();
   const customerName = (id: string) =>
@@ -220,6 +224,14 @@ export default function JobDetails({
           onSave={onExtraMaterials}
         />
       )}
+      <JobParts
+        job={job}
+        ledger={ledger}
+        busy={busy || legacyConflict}
+        actor={actor}
+        onSave={onParts}
+        onPayment={customerHeld ? undefined : onPayment}
+      />
       <section className="job-detail-stage" aria-label={w('Job stage')}>
         <h3>{w('Job stage')}</h3>
         <JobActions job={job} busy={busy || legacyConflict} onAction={onAction} onHold={onHold} />

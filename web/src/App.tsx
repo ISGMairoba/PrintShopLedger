@@ -2722,6 +2722,9 @@ export default function App() {
                           await save(event);
                         }}
                         onHold={holdJob}
+                        onParts={async (event) => {
+                          await save(event as LedgerEvent);
+                        }}
                         onExtraMaterials={
                           demo || (shop?.accessLevel ?? 0) >= extraMaterialsRank(branding.settings)
                             ? async (event) => {

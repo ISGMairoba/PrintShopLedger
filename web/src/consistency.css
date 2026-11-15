@@ -3470,3 +3470,88 @@ label.checkbox input[type="checkbox"],
   flex: 1 1 auto;
   min-width: 0;
 }
+
+/* Part orders: done and collected (JobParts). */
+.job-parts .parts-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.job-parts .parts-summary span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  font-size: 0.85rem;
+  color: color-mix(in srgb, var(--ink) 65%, transparent);
+}
+.job-parts .parts-summary strong {
+  font-size: 1.15rem;
+  color: var(--ink);
+}
+.parts-bar {
+  position: relative;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+}
+.parts-bar span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+}
+.parts-bar .parts-done {
+  background: color-mix(in srgb, var(--brand-primary, #124b40) 45%, var(--line));
+}
+.parts-bar .parts-collected {
+  background: var(--brand-primary, #124b40);
+}
+.parts-handovers {
+  list-style: none;
+  padding: 0;
+  margin: 0.75rem 0 0;
+  display: grid;
+  gap: 0.5rem;
+}
+.parts-handovers li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--line);
+}
+.parts-handovers li > span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.parts-handovers li > button {
+  flex: none;
+}
+.job-parts-line {
+  font-weight: 600;
+}
+@media (max-width: 640px) {
+  .job-parts .parts-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.job-actions.parts-actions {
+  flex-direction: row;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+.parts-dialog .modal-body > label + label,
+.parts-dialog .modal-body > label + p,
+.parts-dialog .modal-body > p + label {
+  margin-top: 14px;
+}
+.parts-dialog .modal-body > small.danger-text {
+  display: block;
+  margin-top: 8px;
+}

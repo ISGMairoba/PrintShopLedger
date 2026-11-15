@@ -1,5 +1,6 @@
 import { jobBalanceFast, lastPaymentFast } from './balances.mjs';
 import DeadlineProgress from './DeadlineProgress';
+import { partsLine } from './JobParts';
 import Icon from './Icon';
 import { useState, useEffect } from 'react';
 import { groupJobsByCheckout } from './job-batches.mjs';
@@ -233,6 +234,9 @@ export default function JobTable({
                       On hold: {job.hold.reason}
                       {job.hold.note ? ` — ${job.hold.note}` : ''}
                     </small>
+                  )}
+                  {partsLine(job) && stage !== 'Collected' && (
+                    <small className="job-parts-line">{partsLine(job)}</small>
                   )}
                   {job.workflowName && <small>Workflow: {job.workflowName}</small>}
                   {(() => {

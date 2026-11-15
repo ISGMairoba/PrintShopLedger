@@ -6,6 +6,7 @@ import { registerPdfFonts, pdfText, PDF_FONT, rgb } from './pdf-common';
 import type { CheckoutRecord, Quotation, SaleAdjustment } from './types';
 import { quotationModel, quotationRef } from './quotations.mjs';
 import { comparisonModel } from './comparison-doc.mjs';
+import { deliveryNoteModel } from './delivery-note.mjs';
 import type { Branding } from './useBusinessBranding';
 
 /** The paper a receipt is drawn for (see receiptMedia in print-settings.mjs). */
@@ -201,7 +202,7 @@ function drawPage(doc: jsPDF, m: Model, media: ReceiptMedia, watermark: string, 
     // Amount columns from the business's settings, right-aligned from the right edge.
     const step = U * 0.157,
       cols: { head: string; value: (i: Model['items'][number]) => string; bold?: boolean }[] = [
-        { head: 'AMOUNT', value: (i) => i.amount },
+        { head: (m as { amountHeading?: string }).amountHeading ?? 'AMOUNT', value: (i) => i.amount },
         ...(m.show.paidNow ? [{ head: 'PAID NOW', value: (i: Model['items'][number]) => i.paidNow }] : []),
         ...(m.show.balance
           ? [{ head: 'BALANCE', value: (i: Model['items'][number]) => i.balance, bold: true }]
@@ -423,7 +424,7 @@ function drawRoll(doc: jsPDF, m: Model, media: ReceiptMedia, credit: string) {
     y += text(i.title, L, 8.6, 'bold') + 0.3 * k;
     const subline = [i.subtitle, ...i.meta].filter(Boolean).join(' · ');
     if (subline) y += text(subline, L, 6.8) + 0.6 * k;
-    pair('Amount', i.amount, 7.8);
+    pair((m as { amountLabel?: string }).amountLabel ?? 'Amount', i.amount, 7.8);
     if (i.paidBefore) pair('Paid before', i.paidBefore, 7.8);
     if (i.paidNow) pair('Paid now', i.paidNow, 7.8);
     if (i.balance) pair('Balance', i.balance, 7.8, 'bold');
@@ -567,4 +568,14 @@ export function createComparisonPdf(
     size === 'a5' ? A5_DOCUMENT : A4_RECEIPT,
     business,
   );
+}
+
+/** A delivery note for one handover of a part order, on A4, A5 or an 80 mm roll. */
+export function createDeliveryNotePdf(
+  details: Parameters<typeof deliveryNoteModel>[0],
+  business: string | Branding,
+  size: 'a4' | 'a5' | 'roll' = 'a4',
+) {
+  const media = size === 'a5' ? A5_DOCUMENT : mediaFor(size);
+  return modelPdf(deliveryNoteModel(details, business) as unknown as Model, media, business);
 }

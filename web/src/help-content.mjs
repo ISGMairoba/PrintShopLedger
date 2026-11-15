@@ -285,6 +285,27 @@ export const helpTopics = [
     rank: 1,
   },
   {
+    id: 'job-parts',
+    chapter: 'jobs',
+    title: 'Big orders made and collected in parts',
+    summary:
+      'For an order of many items (200 jotters), record how many are done so far and hand them over in batches, each with a delivery note.',
+    steps: [
+      'Open the job from Jobs. Under Done and collected, press Record done so far and enter how many are finished.',
+      'When the customer comes, press Hand over part, enter how many they are taking and who is collecting, then press Hand over.',
+      'Press Delivery note beside the handover to print it (A4 or 80 mm) or share it with the customer. It shows no prices.',
+      'Once everything is done, mark the job Complete. The handover that takes the last items moves it to Collected.',
+    ],
+    notes: [
+      'The job card shows how many are done and collected, e.g. Done 100 · Collected 60 of 200.',
+      'Payment stays with the whole job. A part counts as paid when the job’s payments cover its share of the price.',
+      'Business Settings → Dropdowns & workflow decides whether an unpaid part only warns, or cannot be handed over until it is paid.',
+      'Only jobs of two or more whole items can be handed over in parts.',
+    ],
+    pages: ['Jobs'],
+    rank: 1,
+  },
+  {
     id: 'customers',
     chapter: 'jobs',
     title: 'Customers, credit and wallet',

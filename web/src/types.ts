@@ -221,6 +221,20 @@ export interface Job {
     resumedByLabel: string;
     resumedAt: string;
   }[];
+  /** Part orders (job-handover.mjs): done so far, and each part handed to the customer. */
+  progress?: {
+    done: number;
+    doneByLabel?: string;
+    doneAt?: string;
+    handovers: {
+      id: string;
+      quantity: number;
+      collectedBy: string;
+      note: string;
+      at: string;
+      byLabel: string;
+    }[];
+  };
   /** Materials added in production (services and templates that accept them): current totals. */
   extraMaterials?: {
     usages: { materialId: string; quantity: number }[];
@@ -449,6 +463,22 @@ export type JobMaterialsCheckEvent = {
     mode: 'confirm' | 'request';
     usages: { id: string; line: string; materialId: string; quantity: number }[];
     stockIds?: Record<string, string>;
+    modifiedBy: string;
+    modifiedByLabel: string;
+    modifiedAt: string;
+  };
+};
+export type JobHandoverEvent = {
+  id: string;
+  kind: 'job.done_recorded' | 'job.handed_over';
+  data: {
+    id: string;
+    baseVersion: number;
+    done?: number;
+    handoverId?: string;
+    quantity?: number;
+    collectedBy?: string;
+    note?: string;
     modifiedBy: string;
     modifiedByLabel: string;
     modifiedAt: string;
@@ -743,6 +773,7 @@ export type LedgerEvent =
   | JobExtraMaterialsEvent
   | JobMaterialsCheckEvent
   | JobHoldEvent
+  | JobHandoverEvent
   | CustomerEvent
   | { id: string; kind: 'job.created'; data: Job }
   | { id: string; kind: 'payment.recorded'; data: Payment }
