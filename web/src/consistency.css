@@ -3453,3 +3453,20 @@ label.checkbox input[type="checkbox"],
     line-height: 1.4;
   }
 }
+
+/* Business Settings → payment methods in order: name, then move up/down. */
+.method-order-list {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding-left: 20px;
+}
+.method-order-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.method-order-list li > span {
+  flex: 1 1 auto;
+  min-width: 0;
+}

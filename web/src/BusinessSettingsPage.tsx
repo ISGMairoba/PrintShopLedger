@@ -33,6 +33,7 @@ import { businessTypes, featureOn, optionalFeatures, typeFeatures } from './busi
 import { useWords } from './Words';
 import { DEFAULT_READY_MESSAGE, READY_PLACEHOLDERS } from './ready-message.mjs';
 import { KEEP_CHOICES } from './history-keep.mjs';
+import { useBusinessOptions } from './BusinessOptionsContext';
 export default function BusinessSettingsPage({
   settings,
   version,
@@ -61,6 +62,8 @@ export default function BusinessSettingsPage({
   loadStaff?: () => Promise<BranchStaff[]>;
 }) {
   const { w } = useWords();
+  // The payment methods sales offer (accounts' methods), for their order and defaults.
+  const salesMethods = useBusinessOptions().paymentMethods;
   const [draft, setDraft] = useState(settings),
     [base, setBase] = useState(version),
     [dirtyKeys, setDirtyKeys] = useState<(keyof Branding)[]>([]),
@@ -740,6 +743,7 @@ export default function BusinessSettingsPage({
                     setDirtyOptions((parts) => (parts.includes('workflow') ? parts : [...parts, 'workflow']));
                   }}
                   disabled={busy || !ready}
+                  methods={salesMethods}
                   saveControl={sectionSave('Dropdown settings', ['options'])}
                 />
               </div>

@@ -39,6 +39,7 @@ import { allowedSettingsTabs, canAccessPage, pageGroup, pages, navigationPages }
 import ExpensesPage from './ExpensesPage';
 import DrawerReviews from './DrawerReviews';
 import { setBusinessKeep, setKeepChoice } from './history-keep.mjs';
+import { orderMethods } from './business-options.mjs';
 import { STALE_EVENT } from './stale-app.mjs';
 import { confirmMaterialsRank, extraMaterialsRank } from './production-materials.mjs';
 import { holdEvent } from './job-hold.mjs';
@@ -1427,7 +1428,11 @@ export default function App() {
     <BusinessOptionsContext.Provider
       value={{
         ...branding.settings.options,
-        paymentMethods: accountPaymentOptions(ledger, branding.settings.options.paymentMethods),
+        // In the business's order (Business Settings → Dropdowns & workflow).
+        paymentMethods: orderMethods(
+          accountPaymentOptions(ledger, branding.settings.options.paymentMethods),
+          branding.settings.options.methodOrder,
+        ),
       }}
     >
       <TermsProvider value={branding.settings.terms}>

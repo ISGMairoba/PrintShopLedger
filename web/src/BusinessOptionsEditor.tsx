@@ -2,7 +2,7 @@ import Icon from './Icon';
 import { StepBuilder } from './StepBuilder';
 import { useFeedbackMessage } from './Feedback';
 import { useState, type ReactNode } from 'react';
-import { defaultOptions } from './business-options.mjs';
+import { defaultOptions, methodKey, orderMethods } from './business-options.mjs';
 import { useWords } from './Words';
 type Options = ReturnType<typeof defaultOptions>;
 export default function BusinessOptionsEditor({
@@ -11,12 +11,15 @@ export default function BusinessOptionsEditor({
   disabled,
   saveControl,
   section = 'workflow',
+  methods = [],
 }: {
   value: Options;
   onChange: (value: Options) => void;
   disabled: boolean;
   saveControl?: ReactNode;
   section?: 'payments' | 'workflow';
+  /** Payment methods as sales offer them: put in order, choose the usual ones. */
+  methods?: { label: string; kind: string; accountId?: string; displayLabel?: string }[];
 }) {
   const { w, stage } = useWords();
   const [error, setError] = useFeedbackMessage('error'),
@@ -190,6 +193,101 @@ export default function BusinessOptionsEditor({
               </label>
             ))}
           </div>
+          <label>
+            {w('New jobs come in through')}
+            <select
+              aria-label="Usual sales channel"
+              value={value.defaultJobSource ?? ''}
+              onChange={(e) => update('defaultJobSource', e.target.value)}
+            >
+              <option value="">The first in the list ({value.jobSources[0] ?? '—'})</option>
+              {value.jobSources
+                .filter((s) => s.trim())
+                .map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+            </select>
+            <small>{w('The sales channel each new job starts with; staff can still change it.')}</small>
+          </label>
+          {methods.length > 0 && (
+            <fieldset className="method-order">
+              <legend>{w('Payment methods: order and usual choice')}</legend>
+              <p className="muted">
+                {w(
+                  'The order sales, payments and expenses list them in. The usual choice is selected when the form opens.',
+                )}
+              </p>
+              <ol className="method-order-list">
+                {orderMethods(methods, value.methodOrder).map((m, i, list) => {
+                  const move = (to: number) => {
+                    const keys = list.map(methodKey);
+                    const [k] = keys.splice(i, 1);
+                    keys.splice(to, 0, k);
+                    update('methodOrder', keys);
+                  };
+                  return (
+                    <li key={methodKey(m)}>
+                      <span>{m.displayLabel || m.label}</span>
+                      <button
+                        type="button"
+                        className="secondary icon-button"
+                        aria-label={`Move ${m.displayLabel || m.label} up`}
+                        title="Move up"
+                        disabled={i === 0}
+                        onClick={() => move(i - 1)}
+                      >
+                        <Icon name="up" />
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary icon-button"
+                        aria-label={`Move ${m.displayLabel || m.label} down`}
+                        title="Move down"
+                        disabled={i === list.length - 1}
+                        onClick={() => move(i + 1)}
+                      >
+                        <Icon name="down" />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+              <div className="form-grid">
+                <label>
+                  {w('Money received: usual method')}
+                  <select
+                    aria-label="Usual method for money received"
+                    value={value.defaultIncomeMethod ?? ''}
+                    onChange={(e) => update('defaultIncomeMethod', e.target.value)}
+                  >
+                    <option value="">The first in the list</option>
+                    {orderMethods(methods, value.methodOrder).map((m) => (
+                      <option key={methodKey(m)} value={methodKey(m)}>
+                        {m.displayLabel || m.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  {w('Expenses: usual "paid from"')}
+                  <select
+                    aria-label="Usual method for expenses"
+                    value={value.defaultExpenseMethod ?? ''}
+                    onChange={(e) => update('defaultExpenseMethod', e.target.value)}
+                  >
+                    <option value="">The first in the list</option>
+                    {orderMethods(methods, value.methodOrder).map((m) => (
+                      <option key={methodKey(m)} value={methodKey(m)}>
+                        {m.displayLabel || m.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </fieldset>
+          )}
           <fieldset className="stage-hours">
             <legend>{w('Workflows')}</legend>
             <p className="muted">
@@ -219,6 +317,30 @@ export default function BusinessOptionsEditor({
                 )}
               </small>
             </label>
+            <div className="form-grid">
+              {(
+                [
+                  ['defaultServiceWorkflowId', 'Services follow'],
+                  ['defaultShelfWorkflowId', 'Shelf items follow'],
+                ] as const
+              ).map(([key, label]) => (
+                <label key={key}>
+                  {w(label)}
+                  <select
+                    aria-label={label}
+                    value={value[key] ?? ''}
+                    onChange={(e) => onChange({ ...value, [key]: e.target.value || null })}
+                  >
+                    <option value="">The usual steps above</option>
+                    {(value.workflows ?? []).map((wf) => (
+                      <option key={wf.id} value={wf.id}>
+                        {wf.name || 'Unnamed workflow'}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ))}
+            </div>
             {(value.workflows ?? []).map((wf, i) => {
               const setWf = (patch: Partial<typeof wf>) =>
                 onChange({

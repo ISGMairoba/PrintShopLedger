@@ -943,7 +943,9 @@ export default function ServicesPage({
                   </small>
                 </label>
               )}
-              {!privateItem && <ItemSteps value={steps} onChange={setSteps} />}
+              {!privateItem && (
+                <ItemSteps value={steps} onChange={setSteps} kind={editing?.shelfItem ? 'shelf' : 'service'} />
+              )}
               {!privateItem && (
                 <fieldset className="choice-materials">
                   <legend>{w('Materials added in production')}</legend>

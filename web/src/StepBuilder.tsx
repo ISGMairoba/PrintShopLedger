@@ -1,7 +1,8 @@
 import Icon from './Icon';
 import { useWords } from './Words';
 import { useBusinessOptions } from './BusinessOptionsContext';
-import { FIXED_END, FIXED_START, UNITS, fallbackSteps, stepAmount } from './workflow-steps.mjs';
+import { FIXED_END, FIXED_START, UNITS, fallbackName,
+  fallbackSteps, stepAmount } from './workflow-steps.mjs';
 import type { Step } from './types';
 
 const unitNames = { m: 'minutes', h: 'hours', d: 'days' } as const;
@@ -143,15 +144,18 @@ export function ItemSteps({
   value,
   onChange,
   disabled,
+  kind = '',
 }: {
   value: Step[] | undefined;
   onChange: (steps: Step[] | undefined) => void;
   disabled?: boolean;
+  /** 'service' or 'shelf': which of the business's usual steps this item follows. */
+  kind?: '' | 'service' | 'shelf';
 }) {
   const options = useBusinessOptions();
   const { w, stage } = useWords();
   const saved = options.workflows ?? [];
-  const usual = saved.find((wf) => wf.id === options.defaultWorkflowId);
+  const usual = { name: fallbackName(options, kind) || undefined };
   return (
     <fieldset className="stage-hours">
       <legend>{w('Production steps')}</legend>
@@ -164,7 +168,7 @@ export function ItemSteps({
           onChange={(e) => {
             const id = e.target.value;
             if (id === 'usual') onChange(undefined);
-            else if (id === 'own') onChange(fallbackSteps(options).map((s) => ({ ...s })));
+            else if (id === 'own') onChange(fallbackSteps(options, kind).map((s) => ({ ...s })));
             else {
               const wf = saved.find((x) => x.id === id);
               if (wf) onChange(wf.steps.map((s) => ({ ...s })));
@@ -187,7 +191,7 @@ export function ItemSteps({
       ) : (
         <p className="muted">
           {w('Jobs for this item follow the usual steps')}:{' '}
-          {fallbackSteps(options)
+          {fallbackSteps(options, kind)
             .map((s) => stage(s.name))
             .join(', ')}
           . {w('Change them here to give this item its own.')}
