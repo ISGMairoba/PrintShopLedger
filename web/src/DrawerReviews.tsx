@@ -5,7 +5,7 @@ import CurrencyInput from './CurrencyInput';
 import { currency } from './receipts.mjs';
 import { money } from './domain.mjs';
 import { myTransactions, saleDescription, salesSummary } from './my-sales.mjs';
-import type { DrawerClosing, Ledger } from './types';
+import type { CheckoutRecord, DrawerClosing, Ledger } from './types';
 
 const when = (value?: string) =>
   value ? new Date(value).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' }) : '';
@@ -38,7 +38,7 @@ export default function DrawerReviews({
   if (!pending.length) return null;
   const customerName = (id: string) => ledger.customers.find((c) => c.id === id)?.name ?? 'Walk-in';
   const sales = open
-    ? myTransactions(ledger, open.fromUserId, true)
+    ? (myTransactions(ledger, open.fromUserId, true) as CheckoutRecord[])
         .filter((r) => open.checkoutIds.includes(r.id))
         .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
     : [];
@@ -179,7 +179,7 @@ export default function DrawerReviews({
                         minute: '2-digit',
                       })}
                     </td>
-                    <td>{customerName(r.customerId)}</td>
+                    <td>{r.customerSnapshot?.name || customerName(r.customerId)}</td>
                     <td>{saleDescription(r)}</td>
                     <td>{currency(r.total)}</td>
                     <td>
