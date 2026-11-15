@@ -114,12 +114,7 @@ export default function DrawerReviews({
       </div>
       {!online && <p className="muted">Connect to review drawers.</p>}
       {open && (
-        <Modal
-          title={`Review drawer · ${open.fromUserLabel}`}
-          wide
-          busy={busy}
-          onClose={() => setOpen(null)}
-        >
+        <Modal title={`Review drawer · ${open.fromUserLabel}`} wide busy={busy} onClose={() => setOpen(null)}>
           {error && (
             <p className="notice" role="alert">
               {error}
@@ -219,12 +214,7 @@ export default function DrawerReviews({
               checked the sales and the summary above
             </label>
             <div className="material-actions">
-              <button
-                type="button"
-                className="secondary"
-                disabled={!checked}
-                onClick={() => void save(null)}
-              >
+              <button type="button" className="secondary" disabled={!checked} onClick={() => void save(null)}>
                 Mark reviewed without a count
               </button>
               <button type="button" disabled={!checked || !count} onClick={() => void save(money(count))}>
