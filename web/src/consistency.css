@@ -3568,6 +3568,7 @@ label.checkbox input[type="checkbox"],
   width: 100%;
 }
 .parts-remove .dialog-action-buttons {
+  justify-content: flex-end;
   align-self: stretch;
 }
 .parts-removed {
