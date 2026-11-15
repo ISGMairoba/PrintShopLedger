@@ -13,7 +13,8 @@ const longDate = (value) =>
     minute: '2-digit',
   });
 /** The note's number, from the handover, e.g. DN-6F2A91C4. */
-export const deliveryRef = (handoverId) => 'DN-' + String(handoverId).replace(/-/g, '').slice(0, 8).toUpperCase();
+export const deliveryRef = (handoverId) =>
+  'DN-' + String(handoverId).replace(/-/g, '').slice(0, 8).toUpperCase();
 
 /**
  * The handover as a document. details: { job, handover, customerName, customerPhone }.

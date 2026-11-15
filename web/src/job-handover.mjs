@@ -23,7 +23,8 @@ export function jobParts(job) {
 }
 
 /** True when the job has any part progress worth showing on its card. */
-export const hasParts = (job) => !!job.progress && (job.progress.done > 0 || !!job.progress.handovers?.length);
+export const hasParts = (job) =>
+  !!job.progress && (job.progress.done > 0 || !!job.progress.handovers?.length);
 
 /** Money a handover needs paid (kobo): the job's price for everything collected after it. */
 export function paymentNeeded(job, paid, quantity) {
@@ -116,7 +117,8 @@ export function applyJobHandover(ledger, event) {
     if (problem) throw Error(problem);
     const who = String(d.collectedBy ?? '').trim(),
       note = String(d.note ?? '').trim();
-    if (who.length > 80 || note.length > 300) throw Error('Keep the name to 80 and the note to 300 characters.');
+    if (who.length > 80 || note.length > 300)
+      throw Error('Keep the name to 80 and the note to 300 characters.');
     const { total, collected } = jobParts(job);
     const last = collected + d.quantity >= total;
     next = {
@@ -148,4 +150,3 @@ export function applyJobHandover(ledger, event) {
   };
   return { ...ledger, jobs: ledger.jobs.map((j) => (j.id === job.id ? next : j)) };
 }
-

@@ -86,10 +86,17 @@ export default function JobParts({
   const canEdit = !!actor && !!onSave && partsAllowed(job);
   const quantity = Number(count);
   const paid = jobBalanceFast(ledger, job).paid;
-  const money = dialog === 'handover' && Number.isInteger(quantity) && quantity > 0 ? paymentNeeded(job, paid, quantity) : null;
+  const money =
+    dialog === 'handover' && Number.isInteger(quantity) && quantity > 0
+      ? paymentNeeded(job, paid, quantity)
+      : null;
   const blocked = !!money?.short && options.handoverPayment === 'require';
   const problem =
-    dialog === 'done' ? doneProblem(job, count === '' ? NaN : quantity) : dialog === 'handover' ? handoverProblem(job, count === '' ? NaN : quantity) : '';
+    dialog === 'done'
+      ? doneProblem(job, count === '' ? NaN : quantity)
+      : dialog === 'handover'
+        ? handoverProblem(job, count === '' ? NaN : quantity)
+        : '';
   const open = (kind: 'done' | 'handover') => {
     setCount(kind === 'done' ? String(p.done || '') : String(p.ready || ''));
     setCollectedBy(kind === 'handover' ? (customer?.name ?? '') : '');
@@ -159,7 +166,13 @@ export default function JobParts({
       {canEdit && (
         <div className="job-actions">
           {!p.finished && (
-            <button type="button" className="text-button" disabled={busy} data-opens-dialog onClick={() => open('done')}>
+            <button
+              type="button"
+              className="text-button"
+              disabled={busy}
+              data-opens-dialog
+              onClick={() => open('done')}
+            >
               <Icon name="quantity" /> Record done so far
             </button>
           )}
@@ -254,11 +267,21 @@ export default function JobParts({
               </label>
               <label>
                 Note (optional)
-                <input aria-label="Handover note" maxLength={300} value={note} onChange={(e) => setNote(e.target.value)} />
+                <input
+                  aria-label="Handover note"
+                  maxLength={300}
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                />
               </label>
               {money && money.short > 0 && (
-                <p className={`notice ${blocked ? '' : 'notice-warning'}`} role={blocked ? 'alert' : 'status'}>
-                  {blocked ? 'Not yet: this part must be paid for first. ' : 'This part is not fully paid for. '}
+                <p
+                  className={`notice ${blocked ? '' : 'notice-warning'}`}
+                  role={blocked ? 'alert' : 'status'}
+                >
+                  {blocked
+                    ? 'Not yet: this part must be paid for first. '
+                    : 'This part is not fully paid for. '}
                   Paid so far {currency(paid)}; taking {p.collected + quantity} of {p.total} needs{' '}
                   {currency(money.due)} — {currency(money.short)} more.
                   {blocked && onPayment && (

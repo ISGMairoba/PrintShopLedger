@@ -36,10 +36,7 @@ test('Sara’s 200 jotters: 100 done, 60 handed over, the rest later; the last h
   assert.equal(partsAllowed(job(l)), true);
   assert.match(handoverProblem(job(l), 10), /Record how many are done first/);
   l = applyEvent(l, doneEvent(job(l), 100, actor));
-  assert.deepEqual(
-    { done: jobParts(job(l)).done, ready: jobParts(job(l)).ready },
-    { done: 100, ready: 100 },
-  );
+  assert.deepEqual({ done: jobParts(job(l)).done, ready: jobParts(job(l)).ready }, { done: 100, ready: 100 });
   l = applyEvent(l, handoverEvent(job(l), { quantity: 60, collectedBy: 'Sara' }, actor));
   let p = jobParts(job(l));
   assert.deepEqual([p.done, p.collected, p.ready], [100, 60, 40]);
