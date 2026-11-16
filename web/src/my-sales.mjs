@@ -26,7 +26,12 @@ export function myTransactions(ledger, userId, corrected = false) {
               const splits = r.splits.map((part) => {
                 const p = paid.find((x) => x.id === part.id);
                 return p
-                  ? { ...part, amount: p.amount, method: p.method, methodLabel: p.methodLabel || part.methodLabel }
+                  ? {
+                      ...part,
+                      amount: p.amount,
+                      method: p.method,
+                      methodLabel: p.methodLabel || part.methodLabel,
+                    }
                   : part;
               });
               return { splits, cashReceived: splits.reduce((n, part) => n + part.amount, 0) };

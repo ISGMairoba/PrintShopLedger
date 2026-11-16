@@ -19,9 +19,28 @@ const actor = { id: 'u', label: 'Ada' };
 const shop = () => {
   let l = emptyLedger();
   for (const e of [
-    { id: 'm1', kind: 'material.created', data: { id: 'pen', name: 'Pen', measurementUnit: 'piece', available: 100, requireSize: false, ...audit } },
-    { id: 's1', kind: 'service.created', data: { id: 'pen-s', description: 'Pen', materialId: 'pen', price: 500000, shelfItem: true, ...audit } },
-    { id: 'c1', kind: 'customer.created', data: { id: 'bayo', name: 'Bayo', phone: '0802', address: '', creditLimit: 0, ...audit } },
+    {
+      id: 'm1',
+      kind: 'material.created',
+      data: {
+        id: 'pen',
+        name: 'Pen',
+        measurementUnit: 'piece',
+        available: 100,
+        requireSize: false,
+        ...audit,
+      },
+    },
+    {
+      id: 's1',
+      kind: 'service.created',
+      data: { id: 'pen-s', description: 'Pen', materialId: 'pen', price: 500000, shelfItem: true, ...audit },
+    },
+    {
+      id: 'c1',
+      kind: 'customer.created',
+      data: { id: 'bayo', name: 'Bayo', phone: '0802', address: '', creditLimit: 0, ...audit },
+    },
   ])
     l = applyEvent(l, e);
   return l;
@@ -77,7 +96,10 @@ test('A split sale is one checkout and one payment per method; jobs are paid in 
   const record = ledger.checkouts[0];
   assert.equal(partsByMethod(record, 'Cash'), 300000);
   assert.equal(partsByMethod(record, 'Transfer'), 700000);
-  assert.equal(partsLabel(record, (n) => `₦${n / 100}`), 'Cash ₦3000 · OPay ₦7000');
+  assert.equal(
+    partsLabel(record, (n) => `₦${n / 100}`),
+    'Cash ₦3000 · OPay ₦7000',
+  );
   const summary = salesSummary([record]);
   assert.deepEqual([summary.cash, summary.transfer, summary.collected], [300000, 700000, 1000000]);
   // Replaying the same event changes nothing.
@@ -141,7 +163,11 @@ test('Walk-in split: change comes out of the cash part', () => {
       quickSaleInput(
         shop(),
         [{ serviceId: 'pen-s', quantity: 1 }],
-        base({ customerId: null, tendered: 600000, splits: [{ ...opay(300000), methodLabel: 'POS', method: 'POS' }, opay(300000)] }),
+        base({
+          customerId: null,
+          tendered: 600000,
+          splits: [{ ...opay(300000), methodLabel: 'POS', method: 'POS' }, opay(300000)],
+        }),
       ),
     /change comes from cash/,
   );

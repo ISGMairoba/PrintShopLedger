@@ -318,7 +318,9 @@ export function correctedReceipt(record, ledger) {
   // A split sale: every part, as corrected.
   const splits = record.splits?.map((part) => {
     const p = paidHere.find((x) => x.id === part.id);
-    return p ? { ...part, amount: p.amount, method: p.method, methodLabel: p.methodLabel || part.methodLabel } : part;
+    return p
+      ? { ...part, amount: p.amount, method: p.method, methodLabel: p.methodLabel || part.methodLabel }
+      : part;
   });
   const jobBalances = record.jobBalances.map((balance) => {
     const job = ledger.jobs.find((j) => j.id === balance.id);
@@ -347,7 +349,9 @@ export function correctedReceipt(record, ledger) {
     jobs,
     jobBalances,
     total: jobs.reduce((n, j) => n + j.amount, 0),
-    cashReceived: splits ? splits.reduce((n, part) => n + part.amount, 0) : (payment?.amount ?? record.cashReceived),
+    cashReceived: splits
+      ? splits.reduce((n, part) => n + part.amount, 0)
+      : (payment?.amount ?? record.cashReceived),
     method: payment?.method ?? record.method,
     methodLabel: payment?.methodLabel ?? record.methodLabel,
     ...(splits ? { splits } : {}),

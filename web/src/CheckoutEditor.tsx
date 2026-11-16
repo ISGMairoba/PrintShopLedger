@@ -547,7 +547,9 @@ export default function CheckoutEditor({
   const prefill = jobSettings.paymentPrefill === 'zero' ? 0 : (recommended ?? 0);
   // Split payment: the money received is the total of the parts.
   const [splitRows, setSplitRows] = useState<SplitRow[] | null>(null);
-  const cash = splitRows ? (splitTotal(splitRows) / 100).toFixed(2) : (cashOverride ?? (prefill / 100).toFixed(2));
+  const cash = splitRows
+    ? (splitTotal(splitRows) / 100).toFixed(2)
+    : (cashOverride ?? (prefill / 100).toFixed(2));
   const parts = (() => {
     if (!splitRows) return null;
     try {
@@ -790,7 +792,9 @@ export default function CheckoutEditor({
                     : null,
                   method: payMethod,
                   methodLabel: payLabel,
-                  accountId: parts?.length ? (defaultMoneyAccount(ledger, payLabel) ?? undefined) : selectedAccount,
+                  accountId: parts?.length
+                    ? (defaultMoneyAccount(ledger, payLabel) ?? undefined)
+                    : selectedAccount,
                   ...(splitRows ? { splits: splitParts(ledger, splitRows, paymentMethods) } : {}),
                   paidOn,
                   reference,
@@ -1376,12 +1380,7 @@ export default function CheckoutEditor({
             <div className="form-grid">
               <label>
                 Money received (₦)
-                <CurrencyInput
-                  required
-                  value={cash}
-                  disabled={!!splitRows}
-                  onValueChange={setCashOverride}
-                />
+                <CurrencyInput required value={cash} disabled={!!splitRows} onValueChange={setCashOverride} />
                 {splitRows && <small>The total of the split.</small>}
               </label>
               <label>

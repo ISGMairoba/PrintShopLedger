@@ -126,7 +126,10 @@ export default function SplitPayment({
             <Icon name="add" /> Add method
           </button>
         )}
-        <span role="status" className={target !== undefined && sum !== target ? 'stock-near-text' : undefined}>
+        <span
+          role="status"
+          className={target !== undefined && sum !== target ? 'stock-near-text' : undefined}
+        >
           Total of the parts <strong>{currency(sum)}</strong>
           {target !== undefined && sum < target && ` · ${currency(target - sum)} left to split`}
           {target !== undefined && sum > target && ` · ${currency(sum - target)} more than the total`}

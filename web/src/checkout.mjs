@@ -305,7 +305,13 @@ export function validSplits(splits, cashReceived, checkoutId) {
     const id = index === 0 ? checkoutId : String(s.id ?? crypto.randomUUID());
     if (!id || ids.has(id)) throw Error('Each part of the split needs its own ID.');
     ids.add(id);
-    return { id, method: s.method, methodLabel, ...(s.accountId ? { accountId: String(s.accountId) } : {}), amount: s.amount };
+    return {
+      id,
+      method: s.method,
+      methodLabel,
+      ...(s.accountId ? { accountId: String(s.accountId) } : {}),
+      amount: s.amount,
+    };
   });
   const sum = parts.reduce((n, s) => n + s.amount, 0);
   if (sum !== cashReceived) throw Error('The split parts must add up to the money received.');
@@ -479,10 +485,13 @@ export function prepareCheckout(
   const total = jobs.reduce((sum, j) => sum + j.amount, 0);
   amount(total);
   const splits =
-    input.splits === undefined || input.splits === null ? null : validSplits(input.splits, input.cashReceived, id);
+    input.splits === undefined || input.splits === null
+      ? null
+      : validSplits(input.splits, input.cashReceived, id);
   if (
     splits &&
-    (input.method !== splits[0].method || (input.methodLabel ?? input.method).trim() !== splits[0].methodLabel)
+    (input.method !== splits[0].method ||
+      (input.methodLabel ?? input.method).trim() !== splits[0].methodLabel)
   )
     throw Error('The payment method must be the first part of the split.');
   if (splits && splits.some((s) => s.id !== id && working.payments.some((p) => p.id === s.id)))
@@ -667,9 +676,7 @@ export function applyCheckout(ledger, event) {
       });
     }
   }
-  const payments = rebuilt.data.splits
-    ? splitPayments(rebuilt.data)
-    : null;
+  const payments = rebuilt.data.splits ? splitPayments(rebuilt.data) : null;
   const payment =
     !payments && (data.cashReceived > 0 || data.walletUsed > 0)
       ? {
