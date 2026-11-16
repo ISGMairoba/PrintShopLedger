@@ -93,6 +93,12 @@ test('profit report: period, cancelled left out, unknown jobs kept apart', () =>
     margin: 80,
     unknownJobs: 1,
     unknownRevenue: 30000,
+    actualCost: 20000,
+    actualProfit: 80000,
+    actualJobs: 1,
+    actualCostAll: 20000,
+    actualUnknownJobs: 1,
+    provisionalJobs: 0,
     partialCost: 0,
     otherIncome: 0,
   });

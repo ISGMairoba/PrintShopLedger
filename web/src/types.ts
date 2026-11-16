@@ -868,6 +868,8 @@ export interface Expense {
   payeeId?: string;
   /** The orders (jobs) this expense was for: its cost counts in their profit (profit.mjs). */
   jobIds?: string[];
+  /** Restocks this expense is for (delivery, clearance…): its cost joins theirs. */
+  restockIds?: string[];
   id: string;
   description: string;
   category: string;

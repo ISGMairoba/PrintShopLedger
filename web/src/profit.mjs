@@ -5,6 +5,7 @@
 // * plus materials added in production, unless their cost is already in the price.
 // Jobs with no cost to go on are counted separately, so the profit is never guessed.
 import { moneyMoveTotals } from './money-moves.mjs';
+import { actualJobCost } from './actual-cost.mjs';
 import { businessDay } from './dashboard.mjs';
 import { extraMaterialsCost, extraUsages } from './production-materials.mjs';
 
@@ -122,6 +123,7 @@ export function profitReport(ledger, from, to) {
     const day = businessDay(job.createdAt);
     if (day < from || day > to) continue;
     const cost = jobCost(ledger, job);
+    const actual = actualJobCost(ledger, job);
     rows.push({
       id: job.id,
       day,
@@ -132,11 +134,18 @@ export function profitReport(ledger, from, to) {
       known: cost.known,
       basis: cost.basis,
       profit: job.amount - cost.kobo,
+      // Actual (actual-cost.mjs): stock really taken at actual cost, plus linked expenses.
+      actualCost: actual.kobo,
+      actualKnown: actual.known,
+      actualProfit: job.amount - actual.kobo,
+      actualBasis: actual.basis,
+      provisional: actual.provisional,
     });
   }
   rows.sort((a, b) => a.day.localeCompare(b.day) || a.item.localeCompare(b.item));
   const sum = (list, key) => list.reduce((n, r) => n + r[key], 0);
   const knownRows = rows.filter((r) => r.known);
+  const actualRows = rows.filter((r) => r.actualKnown);
   const byItem = new Map();
   for (const r of rows) {
     const g = byItem.get(r.item) ?? { item: r.item, jobs: 0, revenue: 0, cost: 0, profit: 0, unknown: 0 };
@@ -163,6 +172,14 @@ export function profitReport(ledger, from, to) {
       unknownRevenue: sum(rows, 'revenue') - revenue,
       // The part of those jobs' cost that is known (a job can be partly costed).
       partialCost: sum(rows, 'cost') - sum(knownRows, 'cost'),
+      // Actual cost and profit of the jobs whose cost is known (the estimate where a job took no stock),
+      // and every known part of every job (profit & loss counts those, as it does for estimates).
+      actualCost: sum(actualRows, 'actualCost'),
+      actualProfit: sum(actualRows, 'revenue') - sum(actualRows, 'actualCost'),
+      actualJobs: actualRows.length,
+      actualCostAll: sum(rows, 'actualCost'),
+      actualUnknownJobs: rows.length - actualRows.length,
+      provisionalJobs: rows.filter((r) => r.provisional).length,
       // Gifts, grants and other money that is not a sale (Accounts → Money in / out).
       otherIncome: moneyMoveTotals(ledger, from, to).other_income,
     },
@@ -186,6 +203,9 @@ export function profitSections(report, { money, unit = ' (NGN)' }) {
         [`Sales with a known cost${unit}`, money(t.revenue)],
         [`Estimated cost${unit}`, money(t.cost)],
         [`Estimated profit${unit}`, money(t.profit)],
+        [`Actual cost of jobs with a cost${unit}`, money(t.actualCost ?? 0)],
+        [`Actual profit of jobs with a cost${unit}`, money(t.actualProfit ?? 0)],
+        ['Jobs with materials not yet confirmed (actual is provisional)', t.provisionalJobs ?? 0],
         ['Margin', t.margin === null ? '—' : `${t.margin}%`],
         ['Jobs with no cost set', t.unknownJobs],
         [`Their sales (not in the profit)${unit}`, money(t.unknownRevenue)],
@@ -216,9 +236,12 @@ export function profitSections(report, { money, unit = ' (NGN)' }) {
         `Cost${unit}`,
         `Profit${unit}`,
         'Cost from',
+        `Actual cost${unit}`,
+        `Actual profit${unit}`,
+        'Actual from',
       ],
-      widths: [10, 18, 26, 11, 11, 11, 13],
-      numeric: [3, 4, 5],
+      widths: [9, 15, 20, 10, 10, 10, 11, 10, 10, 12],
+      numeric: [3, 4, 5, 7, 8],
       rows: report.jobs.map((r) => [
         r.day,
         r.item,
@@ -227,6 +250,9 @@ export function profitSections(report, { money, unit = ' (NGN)' }) {
         r.known ? money(r.cost) : '—',
         r.known ? money(r.profit) : '—',
         r.basis,
+        r.actualKnown ? money(r.actualCost) : '—',
+        r.actualKnown ? money(r.actualProfit) : '—',
+        `${r.actualBasis}${r.provisional ? ' (provisional)' : ''}`,
       ]),
     },
   ];

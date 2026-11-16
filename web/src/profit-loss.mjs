@@ -1,11 +1,12 @@
 // Reports → Profit & loss: did the business make money in a period, after its running costs?
-//   Sales (after discounts) − estimated cost of jobs = gross profit
+//   Sales (after discounts) − actual cost of goods used − waste − late cost adjustments = gross profit
 //   − operating expenses (by category) + other income (gifts, grants) = net profit
 // Expenses that bought materials into stock are left out: their cost reaches the jobs that use the
 // materials (job costs), so counting the purchase as well would count it twice. They are listed
 // for reference. Loans and owner money are neither income nor expenses (Accounts → Money in / out);
 // loan interest is an ordinary expense. Compared with the period just before, of the same length.
 import { profitReport } from './profit.mjs';
+import { lateCostsIn, wasteCost } from './actual-cost.mjs';
 import { moneyMoveTotals } from './money-moves.mjs';
 
 const DAY = 86400000;
@@ -19,17 +20,27 @@ export function previousPeriod(from, to) {
 function period(ledger, from, to) {
   const jobs = profitReport(ledger, from, to);
   const sales = jobs.jobs.reduce((n, r) => n + r.revenue, 0);
-  // Every known cost counts, including the known part of a job that is only partly costed.
-  const jobCost = jobs.totals.cost + jobs.totals.partialCost;
+  // Actual cost of goods used: the stock jobs really took at actual cost (the estimate for jobs that
+  // took no stock), plus expenses linked to them. Every known part counts.
+  const jobCost = jobs.totals.actualCostAll;
+  const estimatedJobCost = jobs.totals.cost + jobs.totals.partialCost;
+  const waste = wasteCost(ledger, from, to);
+  const lateCost = Math.round(lateCostsIn(ledger, from, to).reduce((n, c) => n + c.amount, 0));
   const categories = new Map();
   let stockPurchases = 0,
-    linkedToOrders = 0;
+    linkedToOrders = 0,
+    linkedToRestocks = 0;
   for (const e of ledger.expenses) {
     if (e.voided) continue;
     const day = e.incurredOn;
     if (day < from || day > to) continue;
     if (e.materials?.length) {
       stockPurchases += e.amount;
+      continue;
+    }
+    // For restocks (delivery, clearance…): part of the stock's cost, reaching jobs as stock is used.
+    if (e.restockIds?.length) {
+      linkedToRestocks += e.amount;
       continue;
     }
     // Linked to orders: counted in those orders' cost (job costs) instead.
@@ -48,11 +59,16 @@ function period(ledger, from, to) {
     to,
     sales,
     jobCost,
-    grossProfit: sales - jobCost,
+    grossProfit: sales - jobCost - waste.kobo - lateCost,
     expenses,
     operating,
     otherIncome,
-    net: sales - jobCost - operating + otherIncome,
+    net: sales - jobCost - waste.kobo - lateCost - operating + otherIncome,
+    estimatedJobCost,
+    waste: waste.kobo,
+    lateCost,
+    linkedToRestocks,
+    provisionalJobs: jobs.totals.provisionalJobs,
     stockPurchases,
     linkedToOrders,
     unknownJobs: jobs.totals.unknownJobs,
@@ -80,7 +96,9 @@ export function profitLossSections(r, { money, unit = ' (NGN)' }) {
       numeric: [1, 2],
       rows: [
         ['Sales (after discounts)', money(r.sales), prevOf('sales')],
-        ['Estimated cost of jobs', money(-r.jobCost), money(-p.jobCost)],
+        ['Cost of goods used (actual)', money(-r.jobCost), money(-p.jobCost)],
+        ['Waste and damage (not on a job)', money(-r.waste), money(-p.waste)],
+        ['Late cost adjustments', money(-r.lateCost), money(-p.lateCost)],
         ['Gross profit', money(r.grossProfit), prevOf('grossProfit')],
         ...categories.map((c) => [
           `Expenses: ${c}`,
@@ -100,7 +118,18 @@ export function profitLossSections(r, { money, unit = ' (NGN)' }) {
           money(r.linkedToOrders),
           prevOf('linkedToOrders'),
         ],
+        [
+          'For reference: expenses for restocks (in the stock cost above)',
+          money(r.linkedToRestocks),
+          prevOf('linkedToRestocks'),
+        ],
+        [
+          'For reference: estimated cost of the same jobs',
+          money(r.estimatedJobCost),
+          prevOf('estimatedJobCost'),
+        ],
         ['Jobs not fully costed (only their known costs are counted)', r.unknownJobs, p.unknownJobs],
+        ['Jobs with materials not yet confirmed (provisional)', r.provisionalJobs, p.provisionalJobs],
       ],
     },
   ];
