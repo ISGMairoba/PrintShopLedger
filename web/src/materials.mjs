@@ -1,3 +1,4 @@
+import { validRestockCost } from './actual-cost.mjs';
 import { normalizeCustomer } from './customers.mjs';
 import { materialSnapshot } from './material-display.mjs';
 /**
@@ -197,9 +198,11 @@ export function applyMaterialEvent(input, event) {
     changedByLabel: next.modifiedByLabel,
     changedAt: next.modifiedAt,
     before: materialSnapshot(existing),
-    after: materialSnapshot(next),
+    // A restock with a supplier price keeps it on the history line (actual-cost.mjs).
+    after: { ...materialSnapshot(next), ...(restockCost ? { cost: restockCost } : {}) },
     detailsComplete: true,
   });
+  const restockCost = event.kind === 'material.stock_added' ? validRestockCost(data.cost) : null;
   let next;
   if (event.kind === 'material.created') {
     if (existing) throw new Error('This material ID is already in use.');

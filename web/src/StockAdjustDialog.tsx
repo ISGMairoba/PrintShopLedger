@@ -2,6 +2,9 @@ import { useState } from 'react';
 import Icon from './Icon';
 import Modal from './Modal';
 import { useBusinessOptions } from './BusinessOptionsContext';
+import CurrencyInput from './CurrencyInput';
+import { money } from './domain.mjs';
+import { currency } from './receipts.mjs';
 import type { Material, MaterialEvent, MaterialHistoryEntry } from './types';
 
 /** The suggested note a stock change starts with. */
@@ -34,6 +37,19 @@ export default function StockAdjustDialog({
   const { stockReasons } = useBusinessOptions();
   const [reason, setReason] = useState(() => defaultStockReason(mode, stockReasons));
   const [error, setError] = useState('');
+  // A restock's supplier price (optional): it sets the actual cost per unit (actual-cost.mjs).
+  const [price, setPrice] = useState(''),
+    [supplier, setSupplier] = useState(''),
+    [included, setIncluded] = useState(''),
+    [quantity, setQuantity] = useState('');
+  const perUnit = (() => {
+    try {
+      const q = Number(quantity);
+      return price.trim() && q > 0 ? money(price) / q : null;
+    } catch {
+      return null;
+    }
+  })();
   const suggestions = [
     ...new Set([
       ...stockReasons,
@@ -72,6 +88,15 @@ export default function StockAdjustDialog({
                 baseVersion: material.version,
                 quantity: Number(data.get('quantity')),
                 reason: String(data.get('reason') ?? '').trim(),
+                ...(mode === 'add' && price.trim()
+                  ? {
+                      cost: {
+                        supplierPrice: money(price),
+                        ...(supplier.trim() ? { supplier: supplier.trim() } : {}),
+                        ...(included.trim() ? { included: included.trim() } : {}),
+                      },
+                    }
+                  : {}),
                 modifiedBy: actor.id,
                 modifiedByLabel: actor.label,
                 modifiedAt: new Date().toISOString(),
@@ -95,6 +120,7 @@ export default function StockAdjustDialog({
                 max="1000000000000"
                 step="0.001"
                 defaultValue={mode === 'set' ? material.available : ''}
+                onChange={(e) => setQuantity(e.target.value)}
                 required
               />
             </label>
@@ -122,6 +148,34 @@ export default function StockAdjustDialog({
               </button>
             ))}
           </div>
+          {mode === 'add' && (
+            <div className="form-grid restock-cost">
+              <label>
+                Supplier price for this quantity (₦)
+                <CurrencyInput value={price} onValueChange={setPrice} />
+                <small>
+                  {perUnit !== null
+                    ? `${currency(Math.round(perUnit))} per ${material.measurementUnit}`
+                    : 'Leave empty for stock with no cost (a return, a gift, a found count).'}
+                </small>
+              </label>
+              <label>
+                Supplier (optional)
+                <input value={supplier} maxLength={80} onChange={(e) => setSupplier(e.target.value)} />
+              </label>
+              {price.trim() && (
+                <label>
+                  Already included in the price (optional)
+                  <input
+                    value={included}
+                    maxLength={200}
+                    placeholder="For example: delivery, clearance"
+                    onChange={(e) => setIncluded(e.target.value)}
+                  />
+                </label>
+              )}
+            </div>
+          )}
           <p className="muted">
             {mode === 'add'
               ? 'This quantity will be added to the existing stock.'

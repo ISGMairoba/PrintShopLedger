@@ -344,6 +344,8 @@ export interface MaterialCommand {
   baseVersion?: number;
   quantity?: number;
   reason?: string;
+  /** material.stock_added: what the supplier charged for this quantity (kobo), see actual-cost.mjs. */
+  cost?: RestockCost;
   /** material.split: the smaller material, its version, how many one item of this makes, the
    * id of its history entry, and whether it is put back together (join) instead of split. */
   toId?: string;
@@ -369,7 +371,14 @@ export type MaterialEvent = {
     | 'material.split';
   data: MaterialCommand;
 };
+export interface RestockCost {
+  supplierPrice: number;
+  supplier?: string;
+  included?: string;
+}
 export interface MaterialSnapshot {
+  /** On a restock's history line: its supplier price. */
+  cost?: RestockCost;
   minimumStock?: number;
   name?: string;
   available?: number;
