@@ -87,7 +87,7 @@ export default function ReceiptView({
                   : 'Thank you for your payment.',
               business: name,
             },
-            record.customerSnapshot?.name ?? '',
+            { id: record.customerId, name: record.customerSnapshot?.name ?? '' },
           ),
           phone: record.customerSnapshot?.phone,
           mode: messages.mode('receipt'),

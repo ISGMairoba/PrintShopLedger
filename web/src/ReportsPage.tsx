@@ -957,7 +957,7 @@ function StatementTab({
                             ? `Amount owed: ${currency(t.owedNow)}. Thank you.`
                             : 'Thank you for your business.',
                       },
-                      statement.customer.name,
+                      { id: statement.customer.id, name: statement.customer.name },
                     ),
                     phone: statement.customer.phone,
                     mode: messages.mode('statement'),

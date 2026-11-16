@@ -8,6 +8,8 @@ export type Shop = {
   accessLevel: number;
   username: string;
   staffName: string;
+  /** Their own initials for the round avatar (up to 2), if set. */
+  initials?: string;
 };
 export type Page =
   | 'Dashboard'

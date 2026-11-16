@@ -1,3 +1,5 @@
+import ItemIcon from './ItemIcon';
+import ItemLookDialog from './ItemLookDialog';
 import { useMemo, useState } from 'react';
 import Icon from './Icon';
 import ResponsiveTable from './ResponsiveTable';
@@ -10,7 +12,15 @@ import SplitStock from './SplitStock';
 import StockAdjustDialog from './StockAdjustDialog';
 import ReorderList from './ReorderList';
 import { reorderList } from './reorder.mjs';
-import type { ExpenseEvent, Ledger, Material, MaterialEvent, ServiceEvent } from './types';
+import type {
+  ExpenseEvent,
+  Ledger,
+  Material,
+  MaterialEvent,
+  ServiceEvent,
+  FieldEvent,
+  Service,
+} from './types';
 
 /**
  * Products: every product and service with its stock. Edit changes name, price and minimum stock;
@@ -34,7 +44,7 @@ export default function EditProductsPage({
   onEdit: (serviceId: string) => void;
   actor?: { id: string; label: string };
   /** Add product here too (so a shop without Services can add them). */
-  onSaveMany?: (events: (MaterialEvent | ServiceEvent)[]) => Promise<void>;
+  onSaveMany?: (events: (MaterialEvent | ServiceEvent | FieldEvent)[]) => Promise<void>;
   /** Stock changes (left out for people who may not change stock). */
   onSaveStock?: (event: MaterialEvent) => Promise<void>;
   /** The reorder list (as on Stock items): send it to a supplier, record the purchase. */
@@ -46,6 +56,7 @@ export default function EditProductsPage({
   const toReorder = useMemo(() => reorderList(ledger).length, [ledger]);
   const [stock, setStock] = useState<{ material: Material; mode: 'add' | 'set' } | null>(null);
   const [splitting, setSplitting] = useState<Material | null>(null);
+  const [look, setLook] = useState<Service | null>(null);
   const live = (m: Material) => ledger.materials.find((x) => x.id === m.id) ?? m;
   const { w } = useWords();
   const [adding, setAdding] = useState(false);
@@ -137,8 +148,12 @@ export default function EditProductsPage({
                   return (
                     <tr key={service.id}>
                       <td>
-                        <strong>{service.description}</strong>
+                        <strong className="product-name-with-icon">
+                          <ItemIcon name={service.icon} />
+                          {service.description}
+                        </strong>
                         <small>
+                          {service.category ? `${service.category} · ` : ''}
                           {service.variantGroup
                             ? groupLine(service.variantGroup)
                             : material
@@ -166,6 +181,11 @@ export default function EditProductsPage({
                           <button className="text-button" disabled={busy} onClick={() => onEdit(service.id)}>
                             <Icon name="edit" /> Edit
                           </button>
+                          {onSaveMany && actor && (
+                            <button className="text-button" disabled={busy} onClick={() => setLook(service)}>
+                              <Icon name="edit" /> Icon & category
+                            </button>
+                          )}
                           {material && onSaveStock && actor && (
                             <>
                               <button
@@ -226,6 +246,17 @@ export default function EditProductsPage({
             await onSaveExpense!(event);
           }}
           onClose={() => setReorder(false)}
+        />
+      )}
+      {look && onSaveMany && actor && (
+        <ItemLookDialog
+          key={look.id}
+          service={ledger.services.find((x) => x.id === look.id) ?? look}
+          services={ledger.services}
+          actor={actor}
+          busy={busy}
+          onSave={onSaveMany}
+          onClose={() => setLook(null)}
         />
       )}
       {splitting && onSaveStock && actor && (

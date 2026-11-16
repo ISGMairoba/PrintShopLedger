@@ -1,3 +1,4 @@
+import { initialsFor } from './item-fields.mjs';
 import Icon from './Icon';
 import { useFeedbackMessage, FeedbackBanner } from './Feedback';
 import { useState, type FormEvent } from 'react';
@@ -12,7 +13,12 @@ export default function AccountPage({
   themePreference,
   setThemePreference,
   onChanged,
+  staffName = '',
+  initials = '',
 }: {
+  /** The person's name and own initials, for the round avatar. */
+  staffName?: string;
+  initials?: string;
   shopId: string;
   userId: string;
   businessAccount: boolean;
@@ -61,6 +67,22 @@ export default function AccountPage({
       form.reset();
       if (action === 'username') onChanged(result.message);
       else setMessage(result.message);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error), 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
+  const [letters, setLetters] = useState(initials);
+  async function saveInitials(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy || demo || !navigator.onLine || !supabase) return;
+    setBusy(true);
+    setMessage('');
+    try {
+      const { error } = await supabase.rpc('set_my_initials', { p_shop: shopId, p_initials: letters });
+      if (error) throw Error(error.message);
+      onChanged(letters.trim() ? 'Initials saved.' : 'Initials cleared: your avatar uses your name.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error), 'error');
     } finally {
@@ -131,6 +153,26 @@ export default function AccountPage({
         </div>
         <button disabled={disabled || !valid}>
           <Icon name="save" /> Save username
+        </button>
+      </form>
+      <h3>Initials</h3>
+      <form className="initials-form" onSubmit={(event) => void saveInitials(event)}>
+        <span className="user-avatar" aria-hidden="true">
+          {initialsFor(staffName || '?', letters)}
+        </span>
+        <label>
+          Your initials (up to 2)
+          <input
+            aria-label="Initials"
+            maxLength={2}
+            value={letters}
+            placeholder={initialsFor(staffName || '?')}
+            onChange={(event) => setLetters(event.target.value.replace(/[^\p{L}\p{N}]/gu, '').toUpperCase())}
+          />
+          <small>Shown in the round avatar. Leave empty to use the first letters of your name.</small>
+        </label>
+        <button disabled={disabled || letters === initials}>
+          <Icon name="save" /> Save initials
         </button>
       </form>
       <h3>Change password</h3>

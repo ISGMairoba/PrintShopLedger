@@ -3,7 +3,7 @@
 // * 'whatsapp': WhatsApp opens on the customer's number with the message ready to send (with a
 //   document, the PDF downloads first so it can be attached);
 // * 'share': the phone's share sheet (WhatsApp, SMS, email…), with the PDF attached when there is one.
-// Customer names: {customer} is the first name, {customer_full} the name as saved,
+// Customer names: {customer} is the "Called as" name (else the first name), {customer_full} the name as saved,
 // {customer_first} / {customer_last} the first / last word of it.
 
 export const SEND_MODES = ['whatsapp', 'share'];
@@ -162,15 +162,15 @@ export function validateMessages(input) {
   return value;
 }
 
-/** The name placeholders from a customer's saved name. */
-export function customerNames(name) {
+/** The name placeholders from a customer's saved name ({customer}: their "Called as" name, if set). */
+export function customerNames(name, calledAs = '') {
   const words = String(name ?? '')
     .trim()
     .split(/\s+/)
     .filter(Boolean);
   const first = words[0] ?? 'there';
   return {
-    customer: first,
+    customer: String(calledAs ?? '').trim() || first,
     customer_full: words.join(' ') || 'there',
     customer_first: first,
     customer_last: words.at(-1) ?? first,

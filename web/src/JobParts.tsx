@@ -165,7 +165,7 @@ export default function JobParts({
           text: messages.text(
             'delivery',
             { note: deliveryRef(h.id), quantity: h.quantity, item: job.description, business: name },
-            customer?.name ?? '',
+            { id: customer?.id, name: customer?.name ?? '' },
           ),
           phone: customer?.phone || undefined,
           mode: messages.mode('delivery'),

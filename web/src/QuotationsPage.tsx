@@ -171,7 +171,7 @@ export default function QuotationsPage({
         text: messages.text(
           'quotation',
           { quotation: ref, total: currency(quote.total), valid_until: date(quote.validUntil) },
-          quote.customerName,
+          { id: quote.customerId, name: quote.customerName },
         ),
         phone: quote.customerPhone,
         mode: messages.mode('quotation'),

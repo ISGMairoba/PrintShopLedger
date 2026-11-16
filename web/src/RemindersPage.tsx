@@ -99,7 +99,7 @@ export default function RemindersPage({
         text: messages.text(
           'reminder',
           { owed: currency(row.owed), oldest: reminderDate(row.oldest) },
-          row.name,
+          { id: row.customerId, name: row.name },
         ),
         phone: row.phone,
         mode: messages.mode('reminder'),

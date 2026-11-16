@@ -6,7 +6,8 @@ import { useId, useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import { money } from './domain.mjs';
 import { createCustomerEvent, customerCode, phoneKey, phoneOwner } from './customers.mjs';
-import type { Customer, CustomerEvent } from './types';
+import type { Customer, CustomerEvent, FieldEvent } from './types';
+import { calledAsEvent } from './item-fields.mjs';
 type Props = {
   customer?: Customer;
   customers?: Customer[];
@@ -15,6 +16,8 @@ type Props = {
   onSave: (event: CustomerEvent) => Promise<void>;
   onClose: () => void;
   onSaved?: (customerId: string) => void;
+  /** Saves "Called as" (its own operation); without it the field is not shown. */
+  onSaveCalledAs?: (event: FieldEvent) => Promise<void>;
 };
 export default function CustomerEditor({
   customer,
@@ -24,6 +27,7 @@ export default function CustomerEditor({
   onSave,
   onClose,
   onSaved,
+  onSaveCalledAs,
 }: Props) {
   const formId = useId();
   const [error, setError] = useFeedbackMessage('error');
@@ -66,6 +70,12 @@ export default function CustomerEditor({
           `This phone number already belongs to ${phoneTakenBy.name}. Use that customer or enter a different number.`,
         );
       await onSave(operation);
+      const calledAs = String(form.get('calledAs') ?? '').trim();
+      if (onSaveCalledAs && calledAs !== (customer?.calledAs ?? '')) {
+        // After the save above the customer is one version on (a new one starts at 1).
+        const saved = { id: operation.data.id, version: customer ? customer.version + 1 : 1 };
+        await onSaveCalledAs(calledAsEvent(saved, calledAs, actor) as FieldEvent);
+      }
       onSaved?.(operation.data.id);
       onClose();
     } catch (cause) {
@@ -102,6 +112,18 @@ export default function CustomerEditor({
                 required
               />
             </label>
+            {onSaveCalledAs && (
+              <label>
+                Called as
+                <input
+                  name="calledAs"
+                  maxLength={80}
+                  defaultValue={customer?.calledAs ?? ''}
+                  placeholder="Optional, e.g. Baban Suhaila"
+                />
+                <small>The name messages greet them by. Empty: their first name.</small>
+              </label>
+            )}
             <label>
               Phone number
               <input
