@@ -67,7 +67,11 @@ function withCheck(job) {
   return takes ? { ...rest, checkMaterials: true } : rest;
 }
 const quoteShelf = (ledger, serviceId) => !!ledger.services.find((s) => s.id === serviceId)?.shelfItem;
-export function quoteLine(ledger, line) {
+/**
+ * @param {boolean} [notCollected] the sale is not handed over now (Quick sale → Collected unticked): shelf
+ *   items keep their deadline and follow their steps.
+ */
+export function quoteLine(ledger, line, notCollected = false) {
   if (line.templateSnapshot || ledger.pricing?.templates.some((t) => t.id === line.serviceId)) {
     const priced = quoteTemplate(ledger, line);
     if (!line.description?.trim() || line.description.trim().length > 500)
@@ -162,9 +166,10 @@ export function quoteLine(ledger, line) {
     materialChoice: givenChoice,
     ...rest
   } = line;
-  // Shelf items are handed over at the till: no deadline, no production stages.
+  // Shelf items are handed over at the till: no deadline, no production stages, unless the sale
+  // says they are collected later (then they follow their steps like any job).
   const shelfItem = !!service.shelfItem;
-  const dueAt = shelfItem ? '' : validDueAt(rawDue);
+  const dueAt = shelfItem && !notCollected ? '' : validDueAt(rawDue);
   // The job's own discount; a whole-order discount is added by applyOrderDiscount.
   const discount = validDiscount(rawDiscount);
   const lineDiscount = discountKobo(discount, total);
@@ -303,14 +308,26 @@ export function prepareCheckout(
   if (!Array.isArray(input.lines) || input.lines.length > 50)
     throw Error('A checkout can contain at most 50 jobs.');
   const expectedAccount = accountToken(working, customer.id);
+  // Collected now (the usual): shelf items close at once. Not collected: they start their steps,
+  // and the sale needs a saved customer (not Walk-in) to follow up.
+  if (input.collected !== undefined && typeof input.collected !== 'boolean')
+    throw Error('Invalid collected choice.');
+  const notCollected = input.collected === false;
+  if (
+    notCollected &&
+    customer.name.trim().toLowerCase() === 'walk-in customer' &&
+    !/\d/.test(customer.phone ?? '')
+  )
+    throw Error('Choose a saved customer for a sale that is collected later.');
   const quoted = input.lines.map((line, index) =>
     withCheck({
-      ...quoteLine(working, line),
+      ...quoteLine(working, line, notCollected),
       customerId: customer.id,
       createdAt: now,
       checkoutId: id,
       checkoutPosition: index,
-      productionStatus: line.serviceId && quoteShelf(working, line.serviceId) ? 'Collected' : 'Added',
+      productionStatus:
+        line.serviceId && quoteShelf(working, line.serviceId) && !notCollected ? 'Collected' : 'Added',
       version: 1,
       createdBy: actor.id,
       createdByLabel: actor.label,
@@ -393,6 +410,7 @@ export function prepareCheckout(
         ? {}
         : { termsAndConditions: validDocumentTerms(input.termsAndConditions) }),
       newCustomer: input.newCustomer ?? null,
+      ...(notCollected ? { collected: false } : {}),
       customerSnapshot: {
         id: customer.id,
         name: customer.name,
@@ -443,6 +461,7 @@ export function applyCheckout(ledger, event) {
       paidOn: data.paidOn,
       reference: data.reference,
       orderDiscount: data.orderDiscount ?? null,
+      ...(data.collected === false ? { collected: false } : {}),
     },
     { id: data.createdBy, label: data.createdByLabel },
     data.id,

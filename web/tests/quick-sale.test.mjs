@@ -188,3 +188,37 @@ test('Typing a quantity of zero keeps the item in the cart until it is removed',
     /more than zero/,
   );
 });
+
+test('A shelf sale not collected yet follows a workflow, keeps its due date and still takes stock', () => {
+  let ledger = shop();
+  const cart = [{ serviceId: 'pen-s', quantity: 2 }];
+  assert.throws(
+    () => quickSaleInput(ledger, cart, opts({ customerId: null, tendered: 40000, collected: false })),
+    /saved customer/,
+  );
+  const { input } = quickSaleInput(
+    ledger,
+    cart,
+    opts({ customerId: 'bayo', tendered: 40000, collected: false, dueAt: '2026-10-15T12:00:00Z' }),
+  );
+  assert.equal(input.collected, false);
+  const event = prepareCheckout(ledger, input, actor, 'sale-later', '2026-10-13T09:00:00Z');
+  assert.equal(event.data.collected, false);
+  ledger = applyCheckout(ledger, event);
+  const pen = ledger.jobs.find((j) => j.checkoutId === 'sale-later');
+  assert.equal(pen.productionStatus, 'Added');
+  assert.equal(new Date(pen.dueAt).toISOString(), '2026-10-15T12:00:00.000Z');
+  assert.equal(ledger.materials.find((m) => m.id === 'pen').available, 8, 'stock is taken at the sale');
+});
+
+test('A collected shelf sale is still Collected straight away', () => {
+  const ledger = shop();
+  const { input } = quickSaleInput(
+    ledger,
+    [{ serviceId: 'pen-s', quantity: 1 }],
+    opts({ customerId: 'bayo', tendered: 20000 }),
+  );
+  assert.notEqual(input.collected, false);
+  const after = applyCheckout(ledger, prepareCheckout(ledger, input, actor, 's-now', '2026-10-13T09:00:00Z'));
+  assert.equal(after.jobs.find((j) => j.checkoutId === 's-now').productionStatus, 'Collected');
+});
