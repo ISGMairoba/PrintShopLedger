@@ -1,0 +1,39 @@
+desktop desktop-01-start.png
+desktop desktop-02-home.png
+desktop nav: Dashboard | Point of sale | Products | Inventory2 | Purchases | Customers | Sales | Expenses | Reports | Team | Settings | Business settings
+desktop desktop-03-dashboard.png
+desktop desktop-04-dashboard-form.png
+desktop desktop-05-point-of-sale.png
+desktop desktop-06-products.png
+desktop desktop-07-products-form.png
+desktop desktop-08-inventory2.png
+desktop desktop-09-purchases.png
+desktop desktop-10-purchases-form.png
+desktop desktop-11-customers.png
+desktop desktop-12-customers-form.png
+desktop desktop-13-sales.png
+desktop desktop-14-expenses.png
+desktop desktop-15-expenses-form.png
+desktop desktop-16-reports.png
+desktop desktop-17-team.png
+desktop desktop-18-settings.png
+desktop desktop-19-business-settings.png
+desktop desktop-20-pos-basket.png
+desktop desktop-21-pos-payment.png
+mobile mobile-01-start.png
+mobile mobile-02-home.png
+mobile mobile-03-menu.png
+mobile nav: Dashboard | Point of sale | Products | Inventory2 | Purchases | Customers | Sales | Expenses | Reports | Team | Settings | Business settings
+mobile Dashboard: locator.click: Timeout 3000ms exceeded.
+mobile Point of sale: locator.click: Timeout 3000ms exceeded.
+mobile Products: locator.click: Timeout 3000ms exceeded.
+mobile Inventory2: locator.click: Timeout 3000ms exceeded.
+mobile Purchases: locator.click: Timeout 3000ms exceeded.
+mobile Customers: locator.click: Timeout 3000ms exceeded.
+mobile Sales: locator.click: Timeout 3000ms exceeded.
+mobile Expenses: locator.click: Timeout 3000ms exceeded.
+mobile Reports: locator.click: Timeout 3000ms exceeded.
+mobile Team: locator.click: Timeout 3000ms exceeded.
+mobile Settings: locator.click: Timeout 3000ms exceeded.
+mobile Business settings: locator.click: Timeout 3000ms exceeded.
+mobile pos: locator.click: Timeout 3000ms exceeded.
