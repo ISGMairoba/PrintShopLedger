@@ -3,6 +3,12 @@
   "framework": "vite",
   "buildCommand": "npm test && npm run build",
   "outputDirectory": "dist",
+  "git": {
+    "deploymentEnabled": {
+      "claude/**": false,
+      "ui-screens-output": false
+    }
+  },
   "rewrites": [
     {
       "source": "/b/:shop/manifest.webmanifest",
