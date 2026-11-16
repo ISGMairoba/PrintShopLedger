@@ -1593,6 +1593,8 @@ type ProfitLoss = {
   stockPurchases: number;
   linkedToOrders: number;
   linkedToRestocks: number;
+  paidInAdvance: number;
+  spreadExpenses: number;
   estimatedJobCost: number;
   waste: number;
   lateCost: number;
@@ -1756,6 +1758,14 @@ function ProfitLossTab({ ledger, freshness, busy, error, pdf, csv }: TabProps) {
               <p className="muted">
                 {currency(report.stockPurchases)} of materials bought into stock in this period is not listed
                 as an expense: its cost is counted in the jobs that use the materials.
+              </p>
+            )}
+            {(report.spreadExpenses > 0 || report.paidInAdvance > 0) && (
+              <p className="muted">
+                {report.spreadExpenses > 0 &&
+                  `${report.spreadExpenses} expense${report.spreadExpenses === 1 ? ' covers' : 's cover'} a longer period (rent, salaries…): only this period's share is counted. `}
+                {report.paidInAdvance > 0 &&
+                  `${currency(report.paidInAdvance)} was paid in advance for later periods and is not counted yet.`}
               </p>
             )}
             {report.linkedToRestocks > 0 && (

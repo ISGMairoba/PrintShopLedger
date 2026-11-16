@@ -1,3 +1,4 @@
+import { PERIOD_CHOICES } from './expense-periods.mjs';
 import Icon from './Icon';
 import { StepBuilder } from './StepBuilder';
 import { useFeedbackMessage } from './Feedback';
@@ -193,6 +194,40 @@ export default function BusinessOptionsEditor({
               </label>
             ))}
           </div>
+          <fieldset className="category-periods">
+            <legend>{w('Usual period each expense category covers')}</legend>
+            <p className="muted">
+              Profit spreads an expense evenly, day by day, over the period it covers (rent for a year,
+              salaries for a month). New expenses start with their category's period; it can be changed on
+              each expense.
+            </p>
+            <div className="form-grid">
+              {value.expenseCategories
+                .filter((c) => c.trim())
+                .map((c) => (
+                  <label key={c}>
+                    {c}
+                    <select
+                      aria-label={`${c}: usually covers`}
+                      value={String(value.categoryPeriods?.[c] ?? 0)}
+                      onChange={(e) => {
+                        const months = Number(e.target.value);
+                        const next: Record<string, number> = { ...(value.categoryPeriods ?? {}) };
+                        if (months > 0) next[c] = months;
+                        else delete next[c];
+                        update('categoryPeriods', next);
+                      }}
+                    >
+                      {PERIOD_CHOICES.map(([n, text]) => (
+                        <option key={n} value={String(n)}>
+                          {text}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ))}
+            </div>
+          </fieldset>
           <label>
             {w('New jobs come in through')}
             <select

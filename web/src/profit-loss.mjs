@@ -7,6 +7,7 @@
 // loan interest is an ordinary expense. Compared with the period just before, of the same length.
 import { profitReport } from './profit.mjs';
 import { lateCostsIn, wasteCost } from './actual-cost.mjs';
+import { expenseShare, paidInAdvance } from './expense-periods.mjs';
 import { moneyMoveTotals } from './money-moves.mjs';
 
 const DAY = 86400000;
@@ -32,23 +33,29 @@ function period(ledger, from, to) {
     linkedToRestocks = 0;
   for (const e of ledger.expenses) {
     if (e.voided) continue;
+    // Spread over the period it covers (rent for a year…), else on its day; linked costs on their day.
+    const share = expenseShare(e, from, to);
     const day = e.incurredOn;
-    if (day < from || day > to) continue;
+    const onDay = day >= from && day <= to;
+    if (!share && !onDay) continue;
     if (e.materials?.length) {
+      if (!onDay) continue;
       stockPurchases += e.amount;
       continue;
     }
     // For restocks (delivery, clearance…): part of the stock's cost, reaching jobs as stock is used.
     if (e.restockIds?.length) {
+      if (!onDay) continue;
       linkedToRestocks += e.amount;
       continue;
     }
     // Linked to orders: counted in those orders' cost (job costs) instead.
     if (e.jobIds?.some((id) => ledger.jobs.some((j) => j.id === id && j.productionStatus !== 'Cancelled'))) {
+      if (!onDay) continue;
       linkedToOrders += e.amount;
       continue;
     }
-    categories.set(e.category, (categories.get(e.category) ?? 0) + e.amount);
+    if (share) categories.set(e.category, (categories.get(e.category) ?? 0) + share);
   }
   const expenses = [...categories].map(([category, amount]) => ({ category, amount }));
   expenses.sort((a, b) => b.amount - a.amount || a.category.localeCompare(b.category));
@@ -68,6 +75,12 @@ function period(ledger, from, to) {
     waste: waste.kobo,
     lateCost,
     linkedToRestocks,
+    // Paid by the end of the period for later periods (the rest of a year's rent…).
+    paidInAdvance: paidInAdvance(
+      ledger.expenses.filter((e) => !e.materials?.length && !e.restockIds?.length && !e.jobIds?.length),
+      to,
+    ),
+    spreadExpenses: ledger.expenses.filter((e) => !e.voided && e.covers && expenseShare(e, from, to)).length,
     provisionalJobs: jobs.totals.provisionalJobs,
     stockPurchases,
     linkedToOrders,
@@ -118,6 +131,7 @@ export function profitLossSections(r, { money, unit = ' (NGN)' }) {
           money(r.linkedToOrders),
           prevOf('linkedToOrders'),
         ],
+        ['For reference: paid in advance for later periods', money(r.paidInAdvance), prevOf('paidInAdvance')],
         [
           'For reference: expenses for restocks (in the stock cost above)',
           money(r.linkedToRestocks),

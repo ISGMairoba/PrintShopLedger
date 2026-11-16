@@ -876,6 +876,8 @@ export interface Expense {
   jobIds?: string[];
   /** Restocks this expense is for (delivery, clearance…): its cost joins theirs. */
   restockIds?: string[];
+  /** The days this expense covers (profit & loss spreads it by day); none: the day it was incurred. */
+  covers?: { from: string; to: string } | null;
   id: string;
   description: string;
   category: string;
