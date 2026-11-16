@@ -3571,6 +3571,7 @@ label.checkbox input[type="checkbox"],
 }
 .modal-body > :where(label, p) + :where(.material-actions, .dialog-action-buttons) {
   justify-content: flex-end;
+}
 .parts-remove {
   margin-top: var(--gap-section, 20px);
   padding-top: 12px;
