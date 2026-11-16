@@ -1,4 +1,3 @@
-import { currency } from './receipts.mjs';
 import { useFeedbackMessage } from './Feedback';
 import { paymentName } from './business-options.mjs';
 import { useBusinessOptions } from './BusinessOptionsContext';
