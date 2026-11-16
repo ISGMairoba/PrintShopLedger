@@ -94,7 +94,7 @@ export default function QuickSale({
   embedded?: boolean;
   /** Retail Point of Service: open the orders list. */
   onOrders?: () => void;
-  jobSettings?: { defaultDuration: number };
+  jobSettings?: { defaultDuration: { value: number; unit: string } };
   /** Admins and above may give a sale collected later another saved workflow. */
   canChooseWorkflow?: boolean;
 }) {
@@ -602,7 +602,7 @@ function PayDialog({
   newCustomer: CustomerEvent | null;
   onNewCustomer: (event: CustomerEvent | null) => void;
   methods: { label: string; kind: string }[];
-  jobSettings: { defaultDuration: number };
+  jobSettings: { defaultDuration: { value: number; unit: string } };
   canChooseWorkflow: boolean;
   stageName: (s: string) => string;
   w: (s: string) => string;
