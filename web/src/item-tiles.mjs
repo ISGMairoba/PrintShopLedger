@@ -119,9 +119,9 @@ const hash = (text) => {
 export function tileColorPicker(tiles, items, count) {
   const t = validateTiles(tiles);
   if (t.mode === 'single' || count <= 1) return () => 0;
-  const categories = [...new Set(items.map((i) => i.category).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const categories = [...new Set(items.map((i) => i.category).filter(Boolean))].sort((a, b) =>
+    a.localeCompare(b),
+  );
   return (item) =>
-    t.by === 'category' && item.category
-      ? categories.indexOf(item.category) % count
-      : hash(item.id) % count;
+    t.by === 'category' && item.category ? categories.indexOf(item.category) % count : hash(item.id) % count;
 }

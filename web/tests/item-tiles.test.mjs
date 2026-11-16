@@ -29,7 +29,13 @@ test('Tile colours come from the brand: light, near its hues, repeatable, anothe
 });
 
 test('Tile settings: varied or one colour, by category or item, 3–8 colours, own colours kept', () => {
-  assert.deepEqual(validateTiles(undefined), { mode: 'varied', by: 'category', count: 6, seed: 0, colors: [] });
+  assert.deepEqual(validateTiles(undefined), {
+    mode: 'varied',
+    by: 'category',
+    count: 6,
+    seed: 0,
+    colors: [],
+  });
   assert.equal(validateTiles({ count: 9 }).count, 6);
   assert.throws(() => validateTiles({ count: 3, colors: ['#ffffff'] }), /valid colour/);
   const own = ['#ffeeee', '#eeffee', '#eeeeff'];
@@ -58,15 +64,26 @@ test('Item code (unique, suggested from the category) and tags (up to 10) are se
   assert.equal(suggestCode(ledger.services, 'Stationery', 's2'), 'STA-002');
   assert.equal(suggestCode(ledger.services, ''), 'ITM-001');
   assert.throws(
-    () => applyFieldEvent(ledger, displayEvent(ledger.services[1], { icon: '', category: 'Stationery', code: 'sta-001' }, actor)),
+    () =>
+      applyFieldEvent(
+        ledger,
+        displayEvent(ledger.services[1], { icon: '', category: 'Stationery', code: 'sta-001' }, actor),
+      ),
     /already has the code/,
   );
-  assert.throws(() => displayEvent(ledger.services[1], { icon: '', category: '', code: 'bad code' }, actor), /Item codes/);
+  assert.throws(
+    () => displayEvent(ledger.services[1], { icon: '', category: '', code: 'bad code' }, actor),
+    /Item codes/,
+  );
   assert.throws(() => cleanTags(Array.from({ length: 11 }, (_, i) => `t${i}`)), /up to 10 tags/);
   assert.deepEqual(cleanTags([' School ', 'school', 'office  supplies']), ['School', 'office supplies']);
   ledger = applyFieldEvent(
     ledger,
-    displayEvent(ledger.services[1], { icon: 'ruler', category: 'Stationery', code: 'RUL-30', tags: ['school', 'maths'] }, actor),
+    displayEvent(
+      ledger.services[1],
+      { icon: 'ruler', category: 'Stationery', code: 'RUL-30', tags: ['school', 'maths'] },
+      actor,
+    ),
   );
   assert.deepEqual([ledger.services[1].code, ledger.services[1].tags], ['RUL-30', ['school', 'maths']]);
   const products = ledger.services.map((s) => ({
@@ -77,6 +94,14 @@ test('Item code (unique, suggested from the category) and tags (up to 10) are se
     variantName: null,
     tags: s.tags ?? [],
   }));
-  assert.deepEqual(productTiles(products, 'maths').map((t) => t.product.id), ['s2'], 'by tag');
-  assert.deepEqual(productTiles(products, 'sta-001').map((t) => t.product.id), ['s1'], 'by code');
+  assert.deepEqual(
+    productTiles(products, 'maths').map((t) => t.product.id),
+    ['s2'],
+    'by tag',
+  );
+  assert.deepEqual(
+    productTiles(products, 'sta-001').map((t) => t.product.id),
+    ['s1'],
+    'by code',
+  );
 });

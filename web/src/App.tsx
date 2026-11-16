@@ -2568,8 +2568,8 @@ export default function App() {
                               onReceipt={setReceipt}
                               jobSettings={branding.settings.jobs}
                               canChooseWorkflow={demo || (shop?.accessLevel ?? 0) >= 2}
-                          tileSettings={branding.settings.tiles}
-                          brand={{ primary: branding.settings.primary, accent: branding.settings.accent }}
+                              tileSettings={branding.settings.tiles}
+                              brand={{ primary: branding.settings.primary, accent: branding.settings.accent }}
                               discountPolicy={discountPolicy(
                                 branding.settings.discounts,
                                 demo ? 5 : (shop?.accessLevel ?? 0),

@@ -3,7 +3,15 @@ import Modal from './Modal';
 import Icon from './Icon';
 import ItemIcon, { ITEM_ICONS } from './ItemIcon';
 import DialogActions from './DialogActions';
-import { MAX_TAGS, cleanCode, cleanTags, displayEvent, itemCategories, itemTags, suggestCode } from './item-fields.mjs';
+import {
+  MAX_TAGS,
+  cleanCode,
+  cleanTags,
+  displayEvent,
+  itemCategories,
+  itemTags,
+  suggestCode,
+} from './item-fields.mjs';
 import type { FieldEvent, Service } from './types';
 
 /** Products → Icon, category, code & tags: how an item shows on the Quick sale screen. */
@@ -45,7 +53,9 @@ export default function ItemLookDialog({
   const [wholeGroup, setWholeGroup] = useState(group.length > 1);
   const [error, setError] = useState('');
   const suggestions = itemCategories(services).filter((c) => c !== category.trim());
-  const tagSuggestions = itemTags(services).filter((t) => !tags.some((x) => x.toLowerCase() === t.toLowerCase()));
+  const tagSuggestions = itemTags(services).filter(
+    (t) => !tags.some((x) => x.toLowerCase() === t.toLowerCase()),
+  );
   const taken =
     code.trim() &&
     services.some((s) => s.id !== service.id && (s.code ?? '').toLowerCase() === code.trim().toLowerCase());
@@ -77,7 +87,12 @@ export default function ItemLookDialog({
                 (s) =>
                   displayEvent(
                     s,
-                    { icon, category, tags: pending, code: s.id === service.id ? cleanCode(code) : undefined },
+                    {
+                      icon,
+                      category,
+                      tags: pending,
+                      code: s.id === service.id ? cleanCode(code) : undefined,
+                    },
                     actor,
                   ) as FieldEvent,
               ),
@@ -150,7 +165,9 @@ export default function ItemLookDialog({
               value={tagText}
               list={`${formId}-tags`}
               disabled={tags.length >= MAX_TAGS}
-              placeholder={tags.length >= MAX_TAGS ? 'Remove a tag to add another' : 'Type a tag and press Enter'}
+              placeholder={
+                tags.length >= MAX_TAGS ? 'Remove a tag to add another' : 'Type a tag and press Enter'
+              }
               onChange={(e) => {
                 const text = e.target.value;
                 if (text.endsWith(',')) addTag(text.slice(0, -1));

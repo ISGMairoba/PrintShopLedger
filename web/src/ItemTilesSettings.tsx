@@ -44,7 +44,10 @@ export default function ItemTilesSettings({
       <div className="form-grid">
         <label>
           Tile colours
-          <select value={tiles.mode} onChange={(e) => set({ mode: e.target.value === 'single' ? 'single' : 'varied' })}>
+          <select
+            value={tiles.mode}
+            onChange={(e) => set({ mode: e.target.value === 'single' ? 'single' : 'varied' })}
+          >
             <option value="varied">Varied colours</option>
             <option value="single">One colour for all</option>
           </select>
@@ -53,7 +56,10 @@ export default function ItemTilesSettings({
           <>
             <label>
               Colour by
-              <select value={tiles.by} onChange={(e) => set({ by: e.target.value === 'item' ? 'item' : 'category' })}>
+              <select
+                value={tiles.by}
+                onChange={(e) => set({ by: e.target.value === 'item' ? 'item' : 'category' })}
+              >
                 <option value="category">Category (items of a category share a colour)</option>
                 <option value="item">Item (each item its own colour)</option>
               </select>
@@ -66,7 +72,10 @@ export default function ItemTilesSettings({
                   const count = Number(e.target.value);
                   // Own colours keep what fits; new places get generated colours.
                   const own = tiles.colors.length
-                    ? [...tiles.colors, ...generateTileColors(primary, accent, count, tiles.seed)].slice(0, count)
+                    ? [...tiles.colors, ...generateTileColors(primary, accent, count, tiles.seed)].slice(
+                        0,
+                        count,
+                      )
                     : [];
                   set({ count, colors: own });
                 }}
@@ -86,9 +95,15 @@ export default function ItemTilesSettings({
           const look = tileLook(color);
           const [icon, label] = SAMPLE[index % SAMPLE.length];
           return (
-            <label key={index} className="tile-swatch" style={{ background: look.background, color: look.ink }}>
+            <label
+              key={index}
+              className="tile-swatch"
+              style={{ background: look.background, color: look.ink }}
+            >
               <ItemIcon name={icon} />
-              <small>{tiles.mode === 'varied' && tiles.by === 'category' ? label : `Colour ${index + 1}`}</small>
+              <small>
+                {tiles.mode === 'varied' && tiles.by === 'category' ? label : `Colour ${index + 1}`}
+              </small>
               {tiles.mode === 'varied' && (
                 <input
                   type="color"
@@ -106,7 +121,11 @@ export default function ItemTilesSettings({
         })}
       </div>
       <div className="action-row">
-        <button type="button" className="secondary" onClick={() => set({ seed: (tiles.seed + 1) % 1000000, colors: [] })}>
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => set({ seed: (tiles.seed + 1) % 1000000, colors: [] })}
+        >
           <Icon name="restore" /> Generate again
         </button>
         {tiles.colors.length > 0 && (
@@ -116,8 +135,8 @@ export default function ItemTilesSettings({
         )}
       </div>
       <small className="muted">
-        {tiles.mode === 'varied' ? 'Tap a colour to change it. ' : ''}Changing the brand colours changes generated
-        tile colours too.
+        {tiles.mode === 'varied' ? 'Tap a colour to change it. ' : ''}Changing the brand colours changes
+        generated tile colours too.
       </small>
     </section>
   );

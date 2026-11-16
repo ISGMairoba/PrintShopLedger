@@ -158,7 +158,10 @@ export default function QuickSale({
     () => tileColors(tileSettings, brand.primary, brand.accent),
     [tileSettings, brand.primary, brand.accent],
   );
-  const pick = useMemo(() => tileColorPicker(tileSettings, products, colors.length), [tileSettings, products, colors]);
+  const pick = useMemo(
+    () => tileColorPicker(tileSettings, products, colors.length),
+    [tileSettings, products, colors],
+  );
   const tileStyle = (p: Product) => {
     const color = colors[pick(p)] ?? colors[0];
     const light = tileLook(color),
@@ -355,7 +358,9 @@ export default function QuickSale({
                           {from && <small>from </small>}
                           {currency(price)}
                         </span>
-                        {first.tags.length > 0 && <small className="pos-tile-tags">{first.tags.join(', ')}</small>}
+                        {first.tags.length > 0 && (
+                          <small className="pos-tile-tags">{first.tags.join(', ')}</small>
+                        )}
                       </span>
                     </span>
                   </button>
