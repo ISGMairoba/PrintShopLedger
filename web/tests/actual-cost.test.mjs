@@ -9,7 +9,14 @@ let version = 1;
 const stock = (id, minute, quantity, cost, kind = 'material.stock_added') => ({
   id,
   kind,
-  data: { id: 'paper', baseVersion: version++, quantity, reason: '', ...(cost ? { cost } : {}), ...audit(minute) },
+  data: {
+    id: 'paper',
+    baseVersion: version++,
+    quantity,
+    reason: '',
+    ...(cost ? { cost } : {}),
+    ...audit(minute),
+  },
 });
 
 test('Restock cost: a supplier price for the quantity, optional supplier and what is already included', () => {
@@ -29,7 +36,14 @@ test('Moving average: restocks set the actual cost; use takes stock at the avera
   l = applyEvent(l, {
     id: 'm1',
     kind: 'material.created',
-    data: { id: 'paper', name: 'Paper', measurementUnit: 'sheet', available: 100, requireSize: false, ...audit(0) },
+    data: {
+      id: 'paper',
+      name: 'Paper',
+      measurementUnit: 'sheet',
+      available: 100,
+      requireSize: false,
+      ...audit(0),
+    },
   });
   let v = materialValuation(l, 'paper');
   assert.equal(v.average, null, 'no estimate and no restock: no cost yet');

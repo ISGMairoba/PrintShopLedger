@@ -376,8 +376,9 @@ export default function MaterialsPage({
                           if (!v || v.average === null) return null;
                           return (
                             <small className="actual-cost">
-                              {v.restocks ? 'Actual cost' : 'Estimated cost'} {currency(Math.round(v.average))} per{' '}
-                              {material.measurementUnit} · value {currency(v.value)}
+                              {v.restocks ? 'Actual cost' : 'Estimated cost'}{' '}
+                              {currency(Math.round(v.average))} per {material.measurementUnit} · value{' '}
+                              {currency(v.value)}
                               {v.noCost > 0 && ` · ${v.noCost.toLocaleString()} added with no cost`}
                             </small>
                           );

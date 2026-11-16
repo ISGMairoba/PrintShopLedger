@@ -23,13 +23,15 @@ export function validRestockCost(input) {
     throw Error('Enter the supplier price for this quantity.');
   const supplier = String(input.supplier ?? '').trim();
   const included = String(input.included ?? '').trim();
-  if (supplier.length > 80 || /[\x00-\x1f\x7f]/.test(supplier)) throw Error('Keep the supplier name to 80 characters.');
+  if (supplier.length > 80 || /[\x00-\x1f\x7f]/.test(supplier))
+    throw Error('Keep the supplier name to 80 characters.');
   if (included.length > 200 || /[\x00-\x1f\x7f]/.test(included))
     throw Error('Keep "already included" to 200 characters.');
   return { supplierPrice, ...(supplier ? { supplier } : {}), ...(included ? { included } : {}) };
 }
 
-const byTime = (a, b) => Date.parse(a.changedAt) - Date.parse(b.changedAt) || String(a.id).localeCompare(String(b.id));
+const byTime = (a, b) =>
+  Date.parse(a.changedAt) - Date.parse(b.changedAt) || String(a.id).localeCompare(String(b.id));
 const valuationCache = new WeakMap();
 
 /**
@@ -70,7 +72,8 @@ export function stockValuation(ledger) {
       m.unitCost.set(entry.id, change > 0 ? cost.supplierPrice / change : null);
     } else {
       // Anything else moves at the current average (no cost for additions without a price).
-      if (change > 0 && entry.action !== 'material.stock_set' && entry.beforeAvailable !== null) m.noCost += change;
+      if (change > 0 && entry.action !== 'material.stock_set' && entry.beforeAvailable !== null)
+        m.noCost += change;
       m.quantity = after;
       m.value = m.average === null ? 0 : Math.max(0, m.quantity) * m.average;
       m.unitCost.set(entry.id, m.average);
