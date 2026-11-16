@@ -5,7 +5,7 @@
 // Saved colours are the light-mode shade; dark mode uses the same hue, deeper.
 
 export const TILE_COUNTS = [3, 4, 5, 6, 7, 8];
-export const tileDefaults = () => ({ mode: 'varied', by: 'category', count: 6, seed: 0, colors: [] });
+export const tileDefaults = () => ({ mode: 'varied', by: 'category', count: 6, seed: 0, colors: /** @type {string[]} */ ([]) });
 
 const hex6 = /^#[0-9a-f]{6}$/i;
 const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
