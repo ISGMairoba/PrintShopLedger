@@ -5,6 +5,7 @@
 // Business Settings → Dropdowns gives each expense category its usual period (months; 0 = the day it
 // was incurred), which new expenses in that category start with.
 
+/** @type {[number, string][]} */
 export const PERIOD_CHOICES = [
   [0, 'Just the day it was incurred'],
   [1, '1 month'],
