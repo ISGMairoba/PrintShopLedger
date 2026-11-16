@@ -1,7 +1,7 @@
 import { stockBelowZeroBlocked } from './stock-rule.mjs';
 import { defaultMethod, defaultSource } from './business-options.mjs';
 import { alphabetical } from './alphabetical.mjs';
-import { useEffect, useMemo, useState } from 'react';
+import { type CSSProperties, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Modal from './Modal';
 import Icon from './Icon';
@@ -22,6 +22,7 @@ import { packList, packSummary } from './pack-prices.mjs';
 import { countPrice, tierList, tierPrice } from './price-tiers.mjs';
 import { defaultDueAt, fromLocalInput, toLocalInput } from './job-deadlines.mjs';
 import { jobSettingsDefaults } from './business-branding.mjs';
+import { tileColorPicker, tileColors, tileLook } from './item-tiles.mjs';
 import {
   DiscountFields,
   discountSpec,
@@ -73,6 +74,8 @@ export default function QuickSale({
   onOrders,
   jobSettings = jobSettingsDefaults(),
   canChooseWorkflow = false,
+  tileSettings,
+  brand = { primary: '#124b40', accent: '#d9a126' },
 }: {
   ledger: Ledger;
   actor: { id: string; label: string };
@@ -98,6 +101,9 @@ export default function QuickSale({
   jobSettings?: { defaultDuration: { value: number; unit: string } };
   /** Admins and above may give a sale collected later another saved workflow. */
   canChooseWorkflow?: boolean;
+  /** Item tile colours (Appearance) and the brand colours they are made from. */
+  tileSettings?: unknown;
+  brand?: { primary: string; accent: string };
 }) {
   const resumed =
     held?.kind === 'quick'
@@ -147,6 +153,23 @@ export default function QuickSale({
   const total = priced?.total ?? 0;
   const pieces = cart.reduce((n, l) => n + l.quantity, 0);
   const tiles = productTiles(products, query, category);
+  // Tile colours (Business Settings → Appearance → Item tiles), light and dark.
+  const colors = useMemo(
+    () => tileColors(tileSettings, brand.primary, brand.accent),
+    [tileSettings, brand.primary, brand.accent],
+  );
+  const pick = useMemo(() => tileColorPicker(tileSettings, products, colors.length), [tileSettings, products, colors]);
+  const tileStyle = (p: Product) => {
+    const color = colors[pick(p)] ?? colors[0];
+    const light = tileLook(color),
+      dark = tileLook(color, true);
+    return {
+      '--tile-bg': light.background,
+      '--tile-ink': light.ink,
+      '--tile-bg-dark': dark.background,
+      '--tile-ink-dark': dark.ink,
+    } as CSSProperties;
+  };
   const left = (p: Product) =>
     p.stock === null ? null : p.stock - (cart.find((l) => l.serviceId === p.id)?.quantity ?? 0);
   const add = (id: string) => {
@@ -302,30 +325,39 @@ export default function QuickSale({
                       tile.kind === 'group' ? setPicking({ name, variants: tile.variants }) : add(first.id)
                     }
                   >
-                    {inCart > 0 && (
-                      <span className="pos-tile-count" aria-hidden="true">
-                        {inCart}
-                      </span>
-                    )}
-                    <span className="pos-tile-icon" aria-hidden="true">
+                    <span className="pos-tile-art" aria-hidden="true" style={tileStyle(first)}>
                       <ItemIcon name={first.icon} />
+                      {inCart > 0 && <span className="pos-tile-count">{inCart} pcs</span>}
                     </span>
-                    {first.category && <small className="pos-tile-category">{first.category}</small>}
-                    <strong className="pos-tile-name">{name}</strong>
-                    <span className="pos-tile-price">
-                      {from && <small>from </small>}
-                      {currency(price)}
-                    </span>
-                    <small className={`pos-tile-stock${out ? ' danger-text' : ''}`}>
-                      {remaining === null
-                        ? tile.kind === 'group'
+                    <span className="pos-tile-body">
+                      <span className="pos-tile-top">
+                        <small className="pos-tile-category">{first.category || '\u00a0'}</small>
+                        <small
+                          className={`pos-tile-stock${out ? ' out' : remaining !== null && remaining <= Math.max(first.minimum, 0) ? ' low' : ''}`}
+                        >
+                          {remaining === null
+                            ? tile.kind === 'group'
+                              ? `${variants.length} options`
+                              : 'Not tracked'
+                            : out
+                              ? 'Out of stock'
+                              : `${remaining} left`}
+                        </small>
+                      </span>
+                      <strong className="pos-tile-name">{name}</strong>
+                      <small className="pos-tile-code">
+                        {tile.kind === 'group'
                           ? `${variants.length} options`
-                          : 'Not stock-tracked'
-                        : out
-                          ? 'Out of stock'
-                          : `${remaining} left`}
-                      {tile.kind === 'group' && remaining !== null ? ` · ${variants.length} options` : ''}
-                    </small>
+                          : first.code || `#${first.id.slice(0, 8).toUpperCase()}`}
+                      </small>
+                      <span className="pos-tile-bottom">
+                        <span className="pos-tile-price">
+                          {from && <small>from </small>}
+                          {currency(price)}
+                        </span>
+                        {first.tags.length > 0 && <small className="pos-tile-tags">{first.tags.join(', ')}</small>}
+                      </span>
+                    </span>
                   </button>
                 );
               })}

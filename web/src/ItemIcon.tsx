@@ -71,7 +71,7 @@ import {
   faWallet,
 } from '@fortawesome/free-solid-svg-icons';
 
-/** Icons an item can show on the Quick sale screen (Products → Icon & category). */
+/** Icons an item can show on the Quick sale screen (Products → Icon, code & tags). */
 export const ITEM_ICONS = {
   box: faBox,
   boxOpen: faBoxOpen,

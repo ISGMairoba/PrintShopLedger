@@ -1,3 +1,4 @@
+import { tileDefaults, validateTiles } from './item-tiles.mjs';
 import { appIconDefaults, validateAppIcon } from './app-icon.mjs';
 import { messagesDefaults, validateMessages } from './messages.mjs';
 import { validDocumentTerms } from './document-terms.mjs';
@@ -134,6 +135,8 @@ export const defaultBranding = () => ({
   accent: '#d9a126',
   theme: 'system',
   backgrounds: defaultBackgrounds(),
+  /** Quick sale item tiles: varied or one colour, by category or item, how many (item-tiles.mjs). */
+  tiles: tileDefaults(),
   options: defaultOptions(),
   corrections: { recentDays: 7 },
   /** autoClose: drawers left open overnight are closed "not counted" for an Admin to review. */
@@ -243,6 +246,7 @@ export function validateBranding(input) {
     if (!/^#[0-9a-f]{6}$/i.test(value[key])) throw Error('Choose valid brand colors.');
   if (!['light', 'dark', 'system'].includes(value.theme)) throw Error('Choose Light, Dark or System.');
   value.backgrounds = validateBackgrounds(value.backgrounds);
+  value.tiles = validateTiles(value.tiles);
   // Till-roll receipts (receipt) and full-page receipts (receiptPage) are set separately.
   // Settings saved before the split start the page copy from the roll settings.
   value.receipt = validateReceiptOptions(value.receipt);

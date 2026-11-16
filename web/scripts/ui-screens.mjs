@@ -621,13 +621,19 @@ try {
       failures.push(`${mode} repeating: ${e.message.split('\n')[0]}`);
       await closeDialogs();
     }
-    // Products → Icon & category.
+    // Products → Icon, code & tags.
     try {
       await nav(shownName('Edit Products'));
-      await page.getByRole('button', { name: 'Icon & category' }).first().click();
+      await page.getByRole('button', { name: 'Icon, code & tags' }).first().click();
       const look = page.getByRole('dialog').last();
       await look.getByRole('radio', { name: 'book', exact: true }).click();
-      await look.locator('input[list]').fill('Stationery');
+      await look.getByLabel('Category', { exact: true }).fill('Stationery');
+      await look.getByRole('button', { name: 'Suggest', exact: true }).click();
+      const tagBox = look.getByLabel('Tags (up to 10)');
+      for (const tag of ['school', 'office']) {
+        await tagBox.fill(tag);
+        await tagBox.press('Enter');
+      }
       await look.screenshot({ path: `${out}/${mode}-87-item-look.png` });
       await closeDialogs();
     } catch (e) {
