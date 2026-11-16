@@ -166,6 +166,17 @@ try {
             }
           }
         }
+        // Fields stacked one under another need a gap too (label right after label).
+        for (const l of scope.querySelectorAll('label')) {
+          const next = l.nextElementSibling;
+          if (!next || next.tagName !== 'LABEL' || !seen(l) || !seen(next)) continue;
+          if (l.closest('.form-grid, .toolbar, table, .check-label, nav')) continue;
+          const a = l.getBoundingClientRect(),
+            b = next.getBoundingClientRect();
+          if (getComputedStyle(l).display.includes('inline') || b.top < a.bottom - 2) continue;
+          const gap = b.top - a.bottom;
+          if (gap < 8) found.add(`${name(l)} | ${name(next)} (fields ${Math.round(gap)}px apart at y ${Math.round(a.bottom + scrollY)})`);
+        }
         return [...found];
       });
       for (const c of close) touching.push(`${mode} ${name}: ${c}`);
@@ -285,6 +296,22 @@ try {
     };
     await dialog('Point of Service', 'Add job', 'new-checkout');
     await dialog('Point of Service', 'Quick sale', 'quick-sale');
+    // The allocation heading and the terms just above it (they once overlapped).
+    try {
+      await nav('Point of Service');
+      await page.getByRole('button', { name: 'Add job', exact: true }).first().click();
+      const c = page.getByRole('dialog').first();
+      await c.locator('summary', { hasText: 'Terms' }).click();
+      const o = c.getByRole('button', { name: /Override allocation|Use automatic allocation/ }).first();
+      if (await o.count()) {
+        await o.scrollIntoViewIfNeeded();
+        await shot('90-dialog-checkout-allocation', false);
+      } else failures.push(`${mode} checkout allocation: no Override allocation button`);
+      await closeDialogs();
+    } catch (e) {
+      failures.push(`${mode} checkout allocation: ${e.message.split('\n')[0]}`);
+      await closeDialogs();
+    }
     try {
       await nav('Point of Service');
       await page.getByRole('button', { name: 'Quick sale', exact: true }).click();
