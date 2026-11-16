@@ -3605,3 +3605,36 @@ label.checkbox input[type="checkbox"],
   gap: 4px 12px;
   margin: 8px 0 0;
 }
+
+/* Stacked fields anywhere (dialogs, settings sections, forms): a field never sits right on the one
+   above it, and a button never on the field above or below it. Margins collapse, so places that
+   already have a gap keep theirs. */
+:where(.modal-body, form, fieldset, details, section, .settings-section, .receipt-settings-grid > div)
+  > :where(label, textarea, select, .material-actions, button:not(.text-button))
+  + :where(label:not(.check-label)) {
+  margin-top: 14px;
+}
+:where(.modal-body, form, fieldset, details, section, .settings-section, .receipt-settings-grid > div)
+  > label
+  + :where(label.check-label, button:not(.text-button), .material-actions, .dialog-action-buttons) {
+  margin-top: 14px;
+}
+/* Text boxes use the app's font (the browser's default is a typewriter font) and the same inner
+   space as other fields. */
+textarea {
+  font-family: inherit;
+  padding: 10px 12px;
+  line-height: 1.45;
+}
+/* Discount fields are a block of fields: the same gap above and below as any field. */
+.discount-fields {
+  margin: 14px 0;
+}
+:where(.modal-body, form, fieldset, details, section)
+  > :where(label, button:not(.text-button), .material-actions)
+  + .discount-fields,
+:where(.modal-body, form, fieldset, details, section)
+  > .discount-fields
+  + :where(label, button:not(.text-button)) {
+  margin-top: 14px;
+}
