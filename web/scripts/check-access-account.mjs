@@ -156,7 +156,8 @@ try {
               canAccessPage(p, rank) &&
               !(p === 'Material Waste' && canAccessPage('Materials', rank)),
           )
-          .map((p) => pageName(p)),
+          .map((p) => pageName(p))
+          .concat('Help'),
       );
       await nav.getByRole('button', { name: 'My Account', exact: true }).click();
       await page.getByLabel('Username', { exact: true }).fill('bad name');

@@ -1606,10 +1606,11 @@ export default function App() {
                           {initialOf(demo ? 'Trial' : shop?.staffName || '?')}
                         </span>
                         <span className="sidebar-user-text">
-                          <strong>{demo ? 'Local trial user' : shop?.staffName || 'Not signed in'}</strong>
-                          <small className="staff-rank">
-                            {demo ? 'Trial' : [shop?.role, shop?.username].filter(Boolean).join(' · ')}
-                          </small>
+                          <strong>
+                            {demo ? 'Local trial user' : shop?.staffName || 'Not signed in'}
+                            {(demo || shop?.username) && ` (${demo ? 'trial' : shop?.username})`}
+                          </strong>
+                          <small className="staff-rank">{demo ? 'Trial' : shop?.role}</small>
                         </span>
                         <span className="sidebar-user-actions">
                           {demo && supabase && (
