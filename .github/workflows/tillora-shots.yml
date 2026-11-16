@@ -12,7 +12,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-      - run: cd tillora-shots && npm init -y >/dev/null && npm i playwright@1.56.1 --no-audit --no-fund && npx playwright install --with-deps chromium
+      - run: cd tillora-shots && npm init -y >/dev/null && npm i playwright@1.63.0 --no-audit --no-fund && npx playwright install --with-deps chromium
       - run: mkdir -p /tmp/out && node tillora-shots/shots.mjs /tmp/out | tee /tmp/out/result.txt
       - name: Save
         if: always()
