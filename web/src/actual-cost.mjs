@@ -32,7 +32,8 @@ export function validRestockCost(input) {
   return { supplierPrice, ...(supplier ? { supplier } : {}), ...(included ? { included } : {}) };
 }
 
-const byTime = (a, b) => Date.parse(a.changedAt) - Date.parse(b.changedAt) || String(a.id).localeCompare(String(b.id));
+const byTime = (a, b) =>
+  Date.parse(a.changedAt) - Date.parse(b.changedAt) || String(a.id).localeCompare(String(b.id));
 const valuationCache = new WeakMap();
 
 /**
@@ -41,9 +42,7 @@ const valuationCache = new WeakMap();
  * @returns {{ restockId: string, expenseId: string, amount: number, at: string }[]}
  */
 export function restockExtras(ledger) {
-  const restocks = new Map(
-    (ledger.materialHistory ?? []).filter((h) => h.after?.cost).map((h) => [h.id, h]),
-  );
+  const restocks = new Map((ledger.materialHistory ?? []).filter((h) => h.after?.cost).map((h) => [h.id, h]));
   const out = [];
   for (const e of ledger.expenses ?? []) {
     if (e.voided || !e.restockIds?.length) continue;
@@ -97,7 +96,15 @@ export function stockValuation(ledger) {
     let m = result.get(entry.materialId);
     if (!m) {
       const estimate = materialUnitCost(ledger, entry.materialId);
-      m = { quantity: 0, value: 0, average: estimate, noCost: 0, restocks: 0, unitCost: new Map(), actual: new Set() };
+      m = {
+        quantity: 0,
+        value: 0,
+        average: estimate,
+        noCost: 0,
+        restocks: 0,
+        unitCost: new Map(),
+        actual: new Set(),
+      };
       result.set(entry.materialId, m);
     }
     if (entry.late) {
@@ -138,7 +145,8 @@ export function stockValuation(ledger) {
       m.actual.add(entry.id);
     } else {
       // Anything else moves at the current average (no cost for additions without a price).
-      if (change > 0 && entry.action !== 'material.stock_set' && entry.beforeAvailable !== null) m.noCost += change;
+      if (change > 0 && entry.action !== 'material.stock_set' && entry.beforeAvailable !== null)
+        m.noCost += change;
       m.quantity = after;
       m.value = m.average === null ? 0 : Math.max(0, m.quantity) * m.average;
       m.unitCost.set(entry.id, m.average);

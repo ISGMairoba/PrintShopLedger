@@ -1469,7 +1469,9 @@ function ProfitTab({ ledger, freshness, busy, error, pdf, csv }: TabProps) {
             </article>
             <article>
               <span>Actual profit</span>
-              <strong className={t.actualProfit < 0 ? 'danger-text' : undefined}>{currency(t.actualProfit)}</strong>
+              <strong className={t.actualProfit < 0 ? 'danger-text' : undefined}>
+                {currency(t.actualProfit)}
+              </strong>
               <small>
                 All {t.jobs} jobs: actual cost {currency(t.actualCost)}
                 {t.provisionalJobs ? ` · ${t.provisionalJobs} provisional` : ''}
@@ -1692,7 +1694,8 @@ function ProfitLossTab({ ledger, freshness, busy, error, pdf, csv }: TabProps) {
               <strong>{currency(report.grossProfit)}</strong>
               <small>
                 Sales {currency(report.sales)} less the actual cost of goods used {currency(report.jobCost)}
-                {report.waste + report.lateCost > 0 && `, waste and late costs ${currency(report.waste + report.lateCost)}`}
+                {report.waste + report.lateCost > 0 &&
+                  `, waste and late costs ${currency(report.waste + report.lateCost)}`}
               </small>
             </article>
             <article>
@@ -1721,9 +1724,13 @@ function ProfitLossTab({ ledger, freshness, busy, error, pdf, csv }: TabProps) {
                 </thead>
                 <tbody>
                   {line('Sales (after discounts)', report.sales, report.previous.sales)}
-                  {line('Cost of goods used (actual)', report.jobCost, report.previous.jobCost, { minus: true })}
+                  {line('Cost of goods used (actual)', report.jobCost, report.previous.jobCost, {
+                    minus: true,
+                  })}
                   {(report.waste > 0 || report.previous.waste > 0) &&
-                    line('Waste and damage (not on a job)', report.waste, report.previous.waste, { minus: true })}
+                    line('Waste and damage (not on a job)', report.waste, report.previous.waste, {
+                      minus: true,
+                    })}
                   {(report.lateCost > 0 || report.previous.lateCost > 0) &&
                     line('Late cost adjustments', report.lateCost, report.previous.lateCost, { minus: true })}
                   {line('Gross profit', report.grossProfit, report.previous.grossProfit, { strong: true })}

@@ -399,7 +399,9 @@ export default function ExpenseEditor({
                     <ul className="expense-order-list">
                       {restockIds.map((id) => (
                         <li key={id}>
-                          <span>{restocks.find((r) => r.id === id)?.label ?? `#${id.slice(0, 8).toUpperCase()}`}</span>
+                          <span>
+                            {restocks.find((r) => r.id === id)?.label ?? `#${id.slice(0, 8).toUpperCase()}`}
+                          </span>
                           <button
                             type="button"
                             className="text-button danger-text"
@@ -413,8 +415,8 @@ export default function ExpenseEditor({
                     </ul>
                   )}
                   <small className="muted">
-                    Delivery, clearance and the like: its cost joins these restocks' cost per unit (shared by their
-                    supplier price), not under expenses.
+                    Delivery, clearance and the like: its cost joins these restocks' cost per unit (shared by
+                    their supplier price), not under expenses.
                   </small>
                 </div>
               )}
