@@ -586,6 +586,16 @@ try {
         .getByRole('dialog')
         .last()
         .screenshot({ path: `${out}/${mode}-86-parts-note.png` });
+      await page
+        .getByRole('dialog')
+        .last()
+        .getByRole('button', { name: /Remove this handover/ })
+        .click();
+      await page.getByRole('dialog').last().getByLabel('Reason for removing').fill('Entered 60 instead of 6');
+      await page
+        .getByRole('dialog')
+        .last()
+        .screenshot({ path: `${out}/${mode}-86-parts-remove.png` });
       await shot('86-parts-full', false);
       await closeDialogs();
     } catch (e) {

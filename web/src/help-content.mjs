@@ -301,6 +301,7 @@ export const helpTopics = [
       'Payment stays with the whole job. A part counts as paid when the job’s payments cover its share of the price.',
       'Business Settings → Dropdowns & workflow decides whether an unpaid part only warns, or cannot be handed over until it is paid.',
       'Only jobs of two or more whole items can be handed over in parts.',
+      'Entered a handover by mistake? An admin or manager opens its Delivery note and presses Remove this handover, with a reason. Only the latest one can be removed; it stays listed as removed.',
     ],
     pages: ['Jobs'],
     rank: 1,

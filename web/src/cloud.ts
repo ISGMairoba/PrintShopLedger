@@ -174,7 +174,9 @@ async function synchronize(scope: string, shopId: string) {
                           ? 'apply_job_check_event'
                           : event.kind === 'job.held' || event.kind === 'job.resumed'
                             ? 'apply_job_hold_event'
-                            : event.kind === 'job.done_recorded' || event.kind === 'job.handed_over'
+                            : event.kind === 'job.done_recorded' ||
+                                event.kind === 'job.handed_over' ||
+                                event.kind === 'job.handover_removed'
                               ? 'apply_job_handover_event'
                               : event.kind.startsWith('customer.')
                                 ? 'apply_customer_event'
