@@ -1,3 +1,4 @@
+import DefaultTermsButton from './DefaultTermsButton';
 import TemplateDiscountWarning from './TemplateDiscountWarning';
 import { defaultMethod, defaultSource } from './business-options.mjs';
 import { defaultMoneyAccount } from './operations.mjs';
@@ -1403,13 +1404,12 @@ export default function CheckoutEditor({
                   onChange={(e) => setTermsAndConditions(e.target.value)}
                 />
               </label>
-              <button
-                type="button"
-                className="text-button"
-                onClick={() => setTermsAndConditions(defaultTerms)}
-              >
-                Use current default terms
-              </button>
+              <DefaultTermsButton
+                value={termsAndConditions}
+                defaults={defaultTerms}
+                kind="invoice / sales document"
+                onUse={setTermsAndConditions}
+              />
             </details>
             {!initialCheckout && recommended !== null && (
               <div className="payment-recommendation">
