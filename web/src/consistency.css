@@ -3609,12 +3609,12 @@ label.checkbox input[type="checkbox"],
 /* Stacked fields anywhere (dialogs, settings sections, forms): a field never sits right on the one
    above it, and a button never on the field above or below it. Margins collapse, so places that
    already have a gap keep theirs. */
-:where(.modal-body, form, fieldset, details, section, .settings-section)
+:where(.modal-body, form, fieldset, details, section, .settings-section, .receipt-settings-grid > div)
   > :where(label, textarea, select, .material-actions, button:not(.text-button))
   + :where(label:not(.check-label)) {
   margin-top: 14px;
 }
-:where(.modal-body, form, fieldset, details, section, .settings-section)
+:where(.modal-body, form, fieldset, details, section, .settings-section, .receipt-settings-grid > div)
   > label
   + :where(label.check-label, button:not(.text-button), .material-actions, .dialog-action-buttons) {
   margin-top: 14px;
