@@ -217,7 +217,8 @@ try {
               canAccessPage(p, rank, customSettings.pageAccess) &&
               !(p === 'Material Waste' && canAccessPage('Materials', rank, customSettings.pageAccess)),
           )
-          .map((p) => pageName(p)),
+          .map((p) => pageName(p))
+          .concat('Help'),
       );
       assert.ok(
         await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
