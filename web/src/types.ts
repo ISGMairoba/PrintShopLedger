@@ -234,6 +234,18 @@ export interface Job {
       at: string;
       byLabel: string;
     }[];
+    /** Handovers taken back by an admin or manager, kept for the record. */
+    removed?: {
+      id: string;
+      quantity: number;
+      collectedBy: string;
+      note: string;
+      at: string;
+      byLabel: string;
+      removedAt: string;
+      removedByLabel: string;
+      reason: string;
+    }[];
   };
   /** Materials added in production (services and templates that accept them): current totals. */
   extraMaterials?: {
@@ -470,7 +482,7 @@ export type JobMaterialsCheckEvent = {
 };
 export type JobHandoverEvent = {
   id: string;
-  kind: 'job.done_recorded' | 'job.handed_over';
+  kind: 'job.done_recorded' | 'job.handed_over' | 'job.handover_removed';
   data: {
     id: string;
     baseVersion: number;
@@ -479,6 +491,7 @@ export type JobHandoverEvent = {
     quantity?: number;
     collectedBy?: string;
     note?: string;
+    reason?: string;
     modifiedBy: string;
     modifiedByLabel: string;
     modifiedAt: string;

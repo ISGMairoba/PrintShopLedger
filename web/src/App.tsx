@@ -2725,6 +2725,7 @@ export default function App() {
                         onParts={async (event) => {
                           await save(event as LedgerEvent);
                         }}
+                        canRemoveHandover={demo || (shop?.accessLevel ?? 0) >= 2}
                         onExtraMaterials={
                           demo || (shop?.accessLevel ?? 0) >= extraMaterialsRank(branding.settings)
                             ? async (event) => {
