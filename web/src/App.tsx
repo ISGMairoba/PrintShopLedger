@@ -1157,6 +1157,35 @@ export default function App() {
   ];
   const noticeCount = noticeBoard.unread + alerts.length;
   const canSeeNotices = (!demo && !!scope && !!shop?.id) || alerts.length > 0;
+  // Sign out business on this device: in Business Settings (anyone allowed there). Managers and up
+  // who can't open Business Settings find it in My Account instead (they always could sign out).
+  const businessSignOut =
+    supabase && !demo ? (
+      <>
+        <small>This device is signed in to {businessName}.</small>
+        <button
+          type="button"
+          className="secondary danger-text"
+          disabled={busy}
+          onClick={async () => {
+            const results = await Promise.all([
+              supabase!.auth.signOut({ scope: 'local' }),
+              businessAuth!.auth.signOut({ scope: 'local' }),
+            ]);
+            const failure = results.find((result) => result.error)?.error;
+            if (failure) setMessage(failure.message, 'error');
+            else {
+              setSession(null);
+              setBusinessSession(null);
+              setShop(null);
+              setMessage('Business signed out.');
+            }
+          }}
+        >
+          <Icon name="logout" /> Sign out business
+        </button>
+      </>
+    ) : undefined;
   // Top right of every page (in the title bar on phones): Notices, connection, the person.
   const headerTools = (
     <div className="header-tools">
@@ -2231,6 +2260,11 @@ export default function App() {
                           )
                         ) : page === 'My Account' ? (
                           <>
+                            {businessSignOut &&
+                              (shop?.accessLevel ?? 0) >= 3 &&
+                              !allowed('Business Settings') && (
+                                <section className="panel device-sign-out">{businessSignOut}</section>
+                              )}
                             <AccountPage
                               key={`${scope}:${shop?.username}`}
                               shopId={shop?.id ?? ''}
@@ -2332,34 +2366,7 @@ export default function App() {
                             accessLevel={demo ? 5 : (shop?.accessLevel ?? 0)}
                             onSave={branding.save}
                             onReload={branding.reload}
-                            deviceSignOut={
-                              supabase && !demo ? (
-                                <>
-                                  <small>This device is signed in to {businessName}.</small>
-                                  <button
-                                    type="button"
-                                    className="secondary danger-text"
-                                    disabled={busy}
-                                    onClick={async () => {
-                                      const results = await Promise.all([
-                                        supabase!.auth.signOut({ scope: 'local' }),
-                                        businessAuth!.auth.signOut({ scope: 'local' }),
-                                      ]);
-                                      const failure = results.find((result) => result.error)?.error;
-                                      if (failure) setMessage(failure.message, 'error');
-                                      else {
-                                        setSession(null);
-                                        setBusinessSession(null);
-                                        setShop(null);
-                                        setMessage('Business signed out.');
-                                      }
-                                    }}
-                                  >
-                                    <Icon name="logout" /> Sign out business
-                                  </button>
-                                </>
-                              ) : undefined
-                            }
+                            deviceSignOut={businessSignOut}
                             accountSettings={
                               <AccountsPage
                                 configurationOnly

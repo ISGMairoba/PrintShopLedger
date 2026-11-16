@@ -287,7 +287,7 @@ try {
     if (mobile) await openMenu();
     await page
       .getByRole('navigation', { name: 'Main' })
-      .getByRole('button', { name: 'Business Settings', exact: true })
+      .getByRole('button', { name: 'My Account', exact: true })
       .click();
     await page.getByRole('button', { name: 'Sign out business', exact: true }).click();
     await page.getByLabel('Business email', { exact: true }).waitFor();

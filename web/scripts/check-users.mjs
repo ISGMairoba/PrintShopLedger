@@ -340,10 +340,10 @@ try {
     await page.locator('.header-tools .sync-status').innerText(),
     /Connected[\s\S]*pending change/,
   );
-  // Sign out business is in Business Settings now.
+  // Sign out business is in Business Settings now (My Account for managers who can't open it).
   await page
     .getByRole('navigation', { name: 'Main' })
-    .getByRole('button', { name: 'Business Settings', exact: true })
+    .getByRole('button', { name: 'My Account', exact: true })
     .click();
   assert.equal(await page.getByRole('button', { name: 'Sign out business', exact: true }).count(), 1);
   await page.setViewportSize({ width: 1280, height: 600 });
@@ -684,7 +684,7 @@ try {
   assert.equal(await page.locator('tbody tr').count(), 3, 'Closed receipts remain viewable');
   await page
     .getByRole('navigation', { name: 'Main' })
-    .getByRole('button', { name: 'Business Settings', exact: true })
+    .getByRole('button', { name: 'My Account', exact: true })
     .click();
   await page.getByRole('button', { name: 'Sign out business', exact: true }).click();
   await page.getByLabel('Business email', { exact: true }).waitFor();
