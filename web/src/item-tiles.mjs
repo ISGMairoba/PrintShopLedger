@@ -59,7 +59,7 @@ const series = (seed) => {
 
 /**
  * `count` light tile colours from the brand colours: shades around the primary and accent hues
- * (within about ±40°), softly saturated and light. `seed` gives another mix.
+ * (within about ±30°), softly saturated and light. `seed` gives another mix.
  */
 export function generateTileColors(primary, accent, count = 6, seed = 0) {
   const bases = [primary, accent].filter((c) => hex6.test(c ?? '')).map(toHsl);
@@ -70,9 +70,9 @@ export function generateTileColors(primary, accent, count = 6, seed = 0) {
     const [h, s] = bases[i % bases.length];
     const step = Math.floor(i / bases.length);
     const spread = Math.ceil(count / bases.length);
-    // Spread the shades of each brand colour from −40° to +40°, nudged by the seed.
-    const offset = spread > 1 ? -40 + (80 * step) / (spread - 1) : 0;
-    const hue = (h + offset + (rand() - 0.5) * 16 + 360) % 360;
+    // Spread the shades of each brand colour from −25° to +25°, nudged by the seed.
+    const offset = spread > 1 ? -25 + (50 * step) / (spread - 1) : 0;
+    const hue = (h + offset + (rand() - 0.5) * 10 + 360) % 360;
     const sat = clamp((s || 40) * 0.75 + (rand() - 0.5) * 14, 22, 62);
     const light = 88 + (rand() - 0.5) * 6;
     colors.push(toHex([hue, sat, light]));

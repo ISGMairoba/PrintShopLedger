@@ -627,7 +627,7 @@ try {
       await page.getByRole('button', { name: 'Icon, code & tags' }).first().click();
       const look = page.getByRole('dialog').last();
       await look.getByRole('radio', { name: 'book', exact: true }).click();
-      await look.getByLabel('Category', { exact: true }).fill('Stationery');
+      await look.getByRole('combobox', { name: /^Category/ }).fill('Stationery');
       await look.getByRole('button', { name: 'Suggest', exact: true }).click();
       const tagBox = look.getByLabel('Tags (up to 10)');
       for (const tag of ['school', 'office']) {
