@@ -310,7 +310,8 @@ export function prepareCheckout(
   const expectedAccount = accountToken(working, customer.id);
   // Collected now (the usual): shelf items close at once. Not collected: they start their steps,
   // and the sale needs a saved customer (not Walk-in) to follow up.
-  if (input.collected !== undefined && typeof input.collected !== 'boolean') throw Error('Invalid collected choice.');
+  if (input.collected !== undefined && typeof input.collected !== 'boolean')
+    throw Error('Invalid collected choice.');
   const notCollected = input.collected === false;
   if (
     notCollected &&
