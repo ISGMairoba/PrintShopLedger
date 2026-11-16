@@ -4172,6 +4172,10 @@ button.pos-tile {
     box-shadow 0.15s ease,
     border-color 0.15s ease;
 }
+button:is(.pos-tile, .pos-variant):hover,
+.pos-chips .chip:hover {
+  filter: none;
+}
 button.pos-tile:not(:disabled):hover {
   background: var(--surface);
   border-color: var(--brand-link);

@@ -325,7 +325,13 @@ try {
       await q.locator('.pos-tile').first().click();
       await q.locator('.pos-tile').first().click();
       await shot('95-quick-sale-basket', false);
-      await q.getByRole('button', { name: /^Pay ₦/ }).click();
+      const bar = q.locator('.pos-phone-bar button').first();
+      if (await bar.isVisible()) {
+        await bar.click();
+        await shot('95-quick-sale-basket-open', false);
+        await q.getByRole('button', { name: 'Back to the items' }).click();
+      }
+      await q.getByRole('button', { name: /^Pay ₦/ }).locator('visible=true').first().click();
       const pay = page.getByRole('dialog', { name: 'Payment' });
       await shot('95-quick-sale-payment', false);
       await fieldHeights('quick sale payment');

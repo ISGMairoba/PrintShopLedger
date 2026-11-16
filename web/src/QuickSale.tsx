@@ -322,7 +322,7 @@ export default function QuickSale({
                           : 'Not stock-tracked'
                         : out
                           ? 'Out of stock'
-                          : `${remaining} ${first.unit === 'item' ? 'left' : `${first.unit} left`}`}
+                          : `${remaining} left`}
                       {tile.kind === 'group' && remaining !== null ? ` · ${variants.length} options` : ''}
                     </small>
                   </button>
@@ -331,11 +331,11 @@ export default function QuickSale({
             </div>
           )}
         </section>
-        <aside className={`pos-basket${basketOpen ? ' open' : ''}`} aria-label="Basket">
+        <section className={`pos-basket${basketOpen ? ' open' : ''}`} aria-label="Basket">
           <div className="pos-basket-head">
             <h3>
               <Icon name="basket" /> Basket
-              {cart.length > 0 && <small>{pieces} pieces</small>}
+              {cart.length > 0 && <small>{pieces === 1 ? '1 piece' : `${pieces} pieces`}</small>}
             </h3>
             <button
               type="button"
@@ -465,15 +465,16 @@ export default function QuickSale({
               <Icon name="payments" /> Pay {currency(total)}
             </button>
           </div>
-        </aside>
+        </section>
       </div>
       {/* Phones: the basket is a bar at the bottom that opens over the items. */}
       <div className="pos-phone-bar">
         <button type="button" className="secondary" onClick={() => setBasketOpen(true)}>
-          <Icon name="basket" /> Basket ({cart.length}) · {currency(total)}
+          <Icon name="basket" /> Basket ({pieces}) · {currency(total)}
         </button>
         <button
           type="button"
+          aria-label={`Pay ${currency(total)}`}
           disabled={busy || !cart.length || !priced || (blocked && anyShort)}
           onClick={() => {
             setError('');
@@ -484,7 +485,16 @@ export default function QuickSale({
         </button>
       </div>
       {picking && (
-        <Modal title={picking.name} onClose={() => setPicking(null)} className="pos-variant-modal">
+        <Modal
+          title={picking.name}
+          onClose={() => setPicking(null)}
+          className="pos-variant-modal"
+          footer={
+            <button type="button" onClick={() => setPicking(null)}>
+              Done
+            </button>
+          }
+        >
           <p className="muted">Choose one to add it to the basket.</p>
           <div className="pos-variant-list">
             {picking.variants.map((v) => {
@@ -508,11 +518,6 @@ export default function QuickSale({
                 </button>
               );
             })}
-          </div>
-          <div className="modal-actions">
-            <button type="button" onClick={() => setPicking(null)}>
-              Done
-            </button>
           </div>
         </Modal>
       )}
