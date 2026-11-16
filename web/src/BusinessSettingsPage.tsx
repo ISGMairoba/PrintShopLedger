@@ -31,7 +31,7 @@ import type { Branding } from './useBusinessBranding';
 import { termPresets } from './terms.mjs';
 import { businessTypes, featureOn, optionalFeatures, typeFeatures } from './business-type.mjs';
 import { useWords } from './Words';
-import { DEFAULT_READY_MESSAGE, READY_PLACEHOLDERS } from './ready-message.mjs';
+import MessagesSettings from './MessagesSettings';
 import { KEEP_CHOICES } from './history-keep.mjs';
 import { useBusinessOptions } from './BusinessOptionsContext';
 export default function BusinessSettingsPage({
@@ -905,26 +905,20 @@ export default function BusinessSettingsPage({
                   waste. Work saved without a connection is checked again when it syncs; if the stock has run
                   out by then, it waits in the conflict inbox until the stock is updated.
                 </p>
-                <h3>{w('Ready message')}</h3>
-                <label>
-                  {w('WhatsApp message when a job is ready')}
-                  <textarea
-                    aria-label="Ready message"
-                    rows={3}
-                    maxLength={600}
-                    placeholder={DEFAULT_READY_MESSAGE}
-                    value={draft.jobs.readyMessage ?? ''}
-                    onChange={(event) => field('jobs', { ...draft.jobs, readyMessage: event.target.value })}
-                  />
-                  <small>
-                    {w(
-                      'Sent with "Tell customer" once a job is completed. Leave empty for the wording shown. You can use',
-                    )}{' '}
-                    {READY_PLACEHOLDERS.map((p) => `{${p}}`).join(' ')}.{' '}
-                    {w('Ready jobs from the same sale go in one message.')}
-                  </small>
-                </label>
+                <p className="muted">
+                  {w('The "order ready" message and every other message the app sends are now in the Messages tab.')}
+                </p>
                 {sectionSave('Job and payment settings', ['jobs'])}
+              </fieldset>
+              <fieldset hidden={tab !== 'Messages'} disabled={busy || !ready}>
+                <legend>Messages</legend>
+                <MessagesSettings
+                  value={draft.messages}
+                  business={draft.businessName}
+                  legacyReady={draft.jobs.readyMessage ?? ''}
+                  onChange={(next) => field('messages', next)}
+                />
+                {sectionSave('Messages', ['messages'])}
               </fieldset>
               <fieldset hidden={tab !== 'Words'} disabled={busy || !ready}>
                 <legend>Words</legend>

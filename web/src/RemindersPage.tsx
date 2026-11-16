@@ -1,3 +1,4 @@
+import { useMessages } from './MessagesContext';
 import { useEffect, useState } from 'react';
 import Icon from './Icon';
 import ResponsiveTable from './ResponsiveTable';
@@ -6,7 +7,7 @@ import { useFeedback, useFeedbackMessage } from './Feedback';
 import { useWords } from './Words';
 import { currency } from './receipts.mjs';
 import { customerStatement, reportFileName, statementSections } from './reports.mjs';
-import { owingCustomers, reminderEvent, reminderMessage } from './reminders.mjs';
+import { owingCustomers, reminderDate, reminderEvent } from './reminders.mjs';
 import { nameSections } from './report-words';
 import type { ReportSection } from './export-csv';
 import type { Branding } from './useBusinessBranding';
@@ -43,6 +44,7 @@ export default function RemindersPage({
   /** Open the customer's account records on Customers. */
   onOpenCustomer?: (customerId: string) => void;
 }) {
+  const messages = useMessages();
   const { w, terms } = useWords();
   const notify = useFeedback();
   const [error, setError] = useFeedbackMessage('error');
@@ -94,8 +96,13 @@ export default function RemindersPage({
       });
       const result = await sharePdf(doc, reportFileName('Statement', row.name, today()), {
         title: `Statement for ${row.name}`,
-        text: reminderMessage(row, company),
+        text: messages.text(
+          'reminder',
+          { owed: currency(row.owed), oldest: reminderDate(row.oldest) },
+          row.name,
+        ),
         phone: row.phone,
+        mode: messages.mode('reminder'),
       });
       if (result === 'cancelled') return;
       await onSave(reminderEvent(row, result === 'shared' ? 'whatsapp' : 'download', actor) as ReminderEvent);

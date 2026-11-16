@@ -58,7 +58,10 @@ const longDate = (day) =>
     year: 'numeric',
   });
 
-/** A polite reminder message for WhatsApp. */
+/** The date of the oldest unpaid order, as reminders write it (e.g. 9 Nov 2026). */
+export const reminderDate = (day) => longDate(day);
+
+/** A polite reminder message for WhatsApp (the app's wording; Business Settings → Messages can change it). */
 export function reminderMessage(row, business) {
   return `Hello ${first(row.name)}, this is a friendly reminder${business ? ` from ${business}` : ''} that ${currency(row.owed)} is outstanding on your account (the oldest from ${longDate(row.oldest)}). Your statement is attached. Thank you.`;
 }

@@ -6,6 +6,7 @@
 import { jobBalanceFast } from './balances.mjs';
 import { currency } from './receipts.mjs';
 import { whatsappLink } from './share.mjs';
+import { customerNames, messageMode, messageText } from './messages.mjs';
 
 export const READY_PLACEHOLDERS = ['customer', 'job', 'number', 'items', 'is', 'business', 'balance'];
 export const DEFAULT_READY_MESSAGE =
@@ -30,20 +31,17 @@ const itemText = (j) => {
 };
 
 /**
- * The message and WhatsApp link for a ready job.
- * @param {{ business: string, template?: string, terms?: { job: string, jobs: string } }} options
+ * The message and WhatsApp link for a ready job, in the business's wording (Business Settings →
+ * Messages; the older Jobs & payments wording still counts until Messages has its own).
+ * @param {{ business: string, template?: string, terms?: { job: string, jobs: string }, messages?: any }} options
  */
-export function readyMessage(ledger, job, { business, template, terms }) {
+export function readyMessage(ledger, job, { business, template, terms, messages }) {
   const jobs = readyJobs(ledger, job);
   const customer = ledger.customers.find((c) => c.id === job.customerId);
   const owed = jobs.reduce((n, j) => n + jobBalanceFast(ledger, j).outstanding, 0);
-  const first =
-    String(customer?.name ?? '')
-      .trim()
-      .split(/\s+/)[0] || 'there';
   const word = jobs.length > 1 ? (terms?.jobs ?? 'jobs') : (terms?.job ?? 'job');
   const values = {
-    customer: first,
+    ...customerNames(customer?.name),
     job: word,
     jobs: word,
     is: jobs.length > 1 ? 'are' : 'is',
@@ -52,11 +50,12 @@ export function readyMessage(ledger, job, { business, template, terms }) {
     business: business || 'our shop',
     balance: owed > 0 ? `Balance to pay: ${currency(owed)}.` : 'It is fully paid. Thank you!',
   };
-  const text = String(template?.trim() || DEFAULT_READY_MESSAGE)
-    .replace(/\{(\w+)\}/g, (found, key) => (key in values ? values[key] : found))
-    .replace(/\(\)\s?/g, '')
-    .replace(/\s+([.,])/g, '$1')
-    .replace(/[ \t]+/g, ' ')
-    .trim();
-  return { text, link: whatsappLink(customer?.phone, text), phone: customer?.phone ?? '', jobs };
+  const text = messageText(messages, 'ready', values, template ?? '');
+  return {
+    text,
+    link: whatsappLink(customer?.phone, text),
+    phone: customer?.phone ?? '',
+    jobs,
+    mode: messageMode(messages, 'ready'),
+  };
 }

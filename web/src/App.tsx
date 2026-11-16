@@ -85,6 +85,7 @@ import { discountPolicy } from './discounts.mjs';
 import { PeriodDefaultsContext } from './PeriodFilter';
 import { TermsProvider } from './Words';
 import { ReadyMessageContext } from './ReadyMessage';
+import { MessagesContext } from './MessagesContext';
 import { readyMessage } from './ready-message.mjs';
 import { TemplateAuditContext, TemplateDocumentContext, type TemplateStart } from './TemplateFields';
 import { canSeeTemplateCosts } from './pricing-templates.mjs';
@@ -1291,8 +1292,15 @@ export default function App() {
         business: businessName,
         template: branding.settings.jobs.readyMessage,
         terms: branding.settings.terms,
+        messages: branding.settings.messages,
       }),
-    [ledger, businessName, branding.settings.jobs.readyMessage, branding.settings.terms],
+    [
+      ledger,
+      businessName,
+      branding.settings.jobs.readyMessage,
+      branding.settings.terms,
+      branding.settings.messages,
+    ],
   );
   if (validActivationToken(activationToken))
     return <DeveloperActivation key={activationToken} token={activationToken} online={online} />;
@@ -1437,6 +1445,13 @@ export default function App() {
     >
       <TermsProvider value={branding.settings.terms}>
         <ReadyMessageContext.Provider value={tellCustomer}>
+          <MessagesContext.Provider
+            value={{
+              settings: branding.settings.messages,
+              business: businessName,
+              legacyReady: branding.settings.jobs.readyMessage ?? '',
+            }}
+          >
           <TemplateAuditContext.Provider
             value={demo || canSeeTemplateCosts(branding.settings.pricing, shop?.accessLevel ?? 0)}
           >
@@ -3035,6 +3050,7 @@ export default function App() {
               </PeriodDefaultsContext.Provider>
             </TemplateDocumentContext.Provider>
           </TemplateAuditContext.Provider>
+          </MessagesContext.Provider>
         </ReadyMessageContext.Provider>
       </TermsProvider>
     </BusinessOptionsContext.Provider>
