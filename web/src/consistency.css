@@ -4622,3 +4622,7 @@ button.pos-variant small {
     grid-template-columns: 1fr;
   }
 }
+/* The items and the basket meet the toolbar with no gap. */
+.pos-screen .pos-body > section {
+  margin: 0;
+}
