@@ -175,7 +175,10 @@ try {
             b = next.getBoundingClientRect();
           if (getComputedStyle(l).display.includes('inline') || b.top < a.bottom - 2) continue;
           const gap = b.top - a.bottom;
-          if (gap < 8) found.add(`${name(l)} | ${name(next)} (fields ${Math.round(gap)}px apart at y ${Math.round(a.bottom + scrollY)})`);
+          if (gap < 8)
+            found.add(
+              `${name(l)} | ${name(next)} (fields ${Math.round(gap)}px apart at y ${Math.round(a.bottom + scrollY)})`,
+            );
         }
         return [...found];
       });
