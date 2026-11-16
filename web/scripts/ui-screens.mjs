@@ -595,6 +595,19 @@ try {
       failures.push(`${mode} repeating: ${e.message.split('\n')[0]}`);
       await closeDialogs();
     }
+    // Products → Icon & category.
+    try {
+      await nav(shownName('Edit Products'));
+      await page.getByRole('button', { name: 'Icon & category' }).first().click();
+      const look = page.getByRole('dialog').last();
+      await look.getByRole('radio', { name: 'book', exact: true }).click();
+      await look.locator('input[list]').fill('Stationery');
+      await look.screenshot({ path: `${out}/${mode}-87-item-look.png` });
+      await closeDialogs();
+    } catch (e) {
+      failures.push(`${mode} item look: ${e.message.split('\n')[0]}`);
+      await closeDialogs();
+    }
     // Part orders: the job card, its details and the handover dialog.
     try {
       await nav('Jobs');
