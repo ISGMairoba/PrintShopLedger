@@ -531,10 +531,7 @@ try {
     await switchDialog.getByLabel('Password', { exact: true }).fill('test-only-password');
     await switchDialog.getByRole('button', { name: 'Sign in user', exact: true }).click();
     await switchDialog.waitFor({ state: 'detached' });
-    await page
-      .locator('.sidebar-user')
-      .filter({ hasText: username })
-      .waitFor();
+    await page.locator('.sidebar-user').filter({ hasText: username }).waitFor();
     // Sign out business now lives in Business Settings (anyone allowed there).
     assert.equal(await page.getByRole('button', { name: 'Logout', exact: true }).count(), 1);
   }

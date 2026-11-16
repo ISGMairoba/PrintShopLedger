@@ -1080,7 +1080,10 @@ export default function App() {
           {
             key: 'loans',
             text: `Loan repayment${loansDue.length === 1 ? '' : 's'} ${loansDue
-              .map((l) => `${l.name} (${l.overdue ? 'overdue since' : 'due'} ${l.due}, owed ${currency(l.owed)})`)
+              .map(
+                (l) =>
+                  `${l.name} (${l.overdue ? 'overdue since' : 'due'} ${l.due}, owed ${currency(l.owed)})`,
+              )
               .join(', ')}.`,
             action: { label: 'Accounts', icon: 'payments' as const, run: () => goTo('Accounts') },
             dismiss: () => setLoansSeen(true),
@@ -1693,7 +1696,10 @@ export default function App() {
                             </button>
                           </Fragment>
                         ))}
-                      <button className={helpFor !== undefined ? 'active' : ''} onClick={() => setHelpFor(null)}>
+                      <button
+                        className={helpFor !== undefined ? 'active' : ''}
+                        onClick={() => setHelpFor(null)}
+                      >
                         <Icon name="help" />
                         Help
                       </button>
@@ -1704,7 +1710,11 @@ export default function App() {
                       <div>
                         <span className="eyebrow">
                           PrintShopLedger
-                          {demo ? ' · Local trial' : multiBranch && activeBranch ? ` · ${activeBranch.name}` : ''}
+                          {demo
+                            ? ' · Local trial'
+                            : multiBranch && activeBranch
+                              ? ` · ${activeBranch.name}`
+                              : ''}
                         </span>
                         <div className="page-title">
                           <h1>{pageName(page, branding.settings.terms)}</h1>

@@ -3759,13 +3759,13 @@ textarea {
   font-size: 11px;
   opacity: 0.8;
 }
-.header-tools .sync-status[data-tone='warn'] {
+.header-tools .sync-status[data-tone="warn"] {
   color: var(--danger, #b42318);
 }
-.header-tools .sync-status[data-tone='pending'] {
+.header-tools .sync-status[data-tone="pending"] {
   color: var(--accent, #b4532a);
 }
-.header-tools .sync-status[data-tone='busy'] svg {
+.header-tools .sync-status[data-tone="busy"] svg {
   animation: sync-spin 1.2s linear infinite;
 }
 .avatar-button {
