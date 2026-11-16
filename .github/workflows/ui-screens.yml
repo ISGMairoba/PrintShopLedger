@@ -24,6 +24,8 @@ jobs:
       - name: Save screenshots
         run: |
           cd /tmp/ui-screens
+          # Pictures only: tell Vercel not to build this branch (it counts towards the daily limit).
+          mkdir -p web && printf '{ "git": { "deploymentEnabled": false } }\n' > web/vercel.json
           git init -q -b ui-screens-output
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
