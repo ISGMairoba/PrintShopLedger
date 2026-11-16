@@ -179,3 +179,59 @@ test('An ordinary checkout has one part', () => {
   ]);
   assert.deepEqual(checkoutParts({ id: 'k', cashReceived: 0, method: 'Cash' }), []);
 });
+
+test('A split sale is corrected as one: only the parts that change, one after another', async () => {
+  const { splitCorrectionEvents } = await import('../src/payment-correction.mjs');
+  const { applySaleAdjustment } = await import('../src/sale-adjustments.mjs');
+  let ledger = shop();
+  const { input } = quickSaleInput(
+    ledger,
+    [{ serviceId: 'pen-s', quantity: 2 }],
+    base({ customerId: 'bayo', tendered: 1000000, splits: [cash(300000), opay(700000, 'p2')] }),
+  );
+  ledger = applyCheckout(ledger, prepareCheckout(ledger, input, actor, 'sale-1', '2026-11-16T09:00:00Z'));
+  const shared = { paidOn: '2026-11-16', reference: '', reason: 'Wrong method' };
+  // The second part was POS, not OPay: one correction.
+  const one = splitCorrectionEvents(
+    ledger,
+    [
+      { paymentId: 'sale-1', amount: 300000, method: 'Cash', methodLabel: 'Cash' },
+      { paymentId: 'p2', amount: 700000, method: 'POS', methodLabel: 'POS' },
+    ],
+    shared,
+    actor,
+  );
+  assert.equal(one.events.length, 1);
+  assert.equal(one.after.payments.find((p) => p.id === 'p2').methodLabel, 'POS');
+  // ₦1,000 less cash and ₦1,000 more on POS: two corrections that apply in order.
+  const two = splitCorrectionEvents(
+    ledger,
+    [
+      { paymentId: 'sale-1', amount: 200000, method: 'Cash', methodLabel: 'Cash' },
+      { paymentId: 'p2', amount: 800000, method: 'POS', methodLabel: 'POS' },
+    ],
+    shared,
+    actor,
+  );
+  assert.equal(two.events.length, 2);
+  let replay = ledger;
+  for (const e of two.events) replay = applySaleAdjustment(replay, e);
+  assert.deepEqual(
+    replay.payments.filter((p) => p.checkoutId === 'sale-1').map((p) => [p.amount, p.methodLabel]),
+    [
+      [200000, 'Cash'],
+      [800000, 'POS'],
+    ],
+  );
+  assert.equal(customerBalance(replay, 'bayo'), 0);
+  assert.throws(
+    () =>
+      splitCorrectionEvents(
+        ledger,
+        [{ paymentId: 'sale-1', amount: 300000, method: 'Cash', methodLabel: 'Cash' }],
+        shared,
+        actor,
+      ),
+    /Nothing changed/,
+  );
+});
