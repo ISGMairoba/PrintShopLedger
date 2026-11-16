@@ -336,9 +336,15 @@ try {
       .count(),
     0,
   );
-  assert.match(await page.locator('.header-tools .sync-status').innerText(), /Connected[\s\S]*pending change/);
+  assert.match(
+    await page.locator('.header-tools .sync-status').innerText(),
+    /Connected[\s\S]*pending change/,
+  );
   // Sign out business is in Business Settings now.
-  await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Business Settings', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: 'Main' })
+    .getByRole('button', { name: 'Business Settings', exact: true })
+    .click();
   assert.equal(await page.getByRole('button', { name: 'Sign out business', exact: true }).count(), 1);
   await page.setViewportSize({ width: 1280, height: 600 });
   const wide = await sidebarScrollCheck();
@@ -676,7 +682,10 @@ try {
   await page.getByLabel('Period', { exact: true }).selectOption('all');
   await page.locator('tbody tr').filter({ hasText: 'Manager print' }).waitFor();
   assert.equal(await page.locator('tbody tr').count(), 3, 'Closed receipts remain viewable');
-  await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Business Settings', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: 'Main' })
+    .getByRole('button', { name: 'Business Settings', exact: true })
+    .click();
   await page.getByRole('button', { name: 'Sign out business', exact: true }).click();
   await page.getByLabel('Business email', { exact: true }).waitFor();
   console.log(
