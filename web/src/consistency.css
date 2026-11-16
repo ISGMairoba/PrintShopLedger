@@ -3623,3 +3623,9 @@ label.checkbox input[type="checkbox"],
 textarea {
   font-family: inherit;
 }
+:where(.modal-body, form, fieldset, details, section)
+  > :where(label, button:not(.text-button), .material-actions)
+  + .discount-fields,
+:where(.modal-body, form, fieldset, details, section) > .discount-fields + :where(label, button:not(.text-button)) {
+  margin-top: 14px;
+}
