@@ -107,6 +107,26 @@ export function expenseJobIds(ledger, ids, materials = []) {
     if (!ledger.jobs.some((j) => j.id === id)) throw Error('A linked order was not found.');
   return ids;
 }
+/**
+ * The restocks an expense is for (delivery, clearance…): up to 20 stock-history lines of restocks with
+ * a supplier price. Its cost joins theirs (actual-cost.mjs). Not with orders or stock lines.
+ */
+export function expenseRestockIds(ledger, ids, jobIds = [], materials = []) {
+  if (!Array.isArray(ids) || ids.length > 20 || ids.some((id) => typeof id !== 'string'))
+    throw Error('Link the expense to up to 20 restocks.');
+  if (!ids.length) return ids;
+  if (new Set(ids).size !== ids.length) throw Error('Link each restock once.');
+  if (jobIds.length) throw Error('Link an expense to orders or to restocks, not both.');
+  if (materials.length) throw Error('A stock purchase is not linked to restocks.');
+  for (const id of ids)
+    if (
+      !(ledger.materialHistory ?? []).some(
+        (h) => h.id === id && h.action === 'material.stock_added' && h.after?.cost,
+      )
+    )
+      throw Error('A linked restock was not found (only restocks with a supplier price can be linked).');
+  return ids;
+}
 export function makeExpenseEvent(kind, data, existing, actor, id = () => crypto.randomUUID()) {
   const lines =
     kind === 'expense.voided'
@@ -227,6 +247,12 @@ export function applyExpenseEvent(input, event) {
       payeeId: data.payeeId === undefined ? (existing?.payeeId ?? '') : data.payeeId,
       jobIds: expenseJobIds(
         ledger,
+        data.jobIds === undefined ? (existing?.jobIds ?? []) : data.jobIds,
+        materials,
+      ),
+      restockIds: expenseRestockIds(
+        ledger,
+        data.restockIds === undefined ? (existing?.restockIds ?? []) : data.restockIds,
         data.jobIds === undefined ? (existing?.jobIds ?? []) : data.jobIds,
         materials,
       ),

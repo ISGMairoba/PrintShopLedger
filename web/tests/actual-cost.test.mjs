@@ -71,3 +71,68 @@ test('Moving average: restocks set the actual cost; use takes stock at the avera
   v = materialValuation(l, 'paper');
   assert.deepEqual([v.quantity, v.average, v.noCost], [210, 2750, 10]);
 });
+
+test('Actual job cost, waste, expenses for restocks (on time and late) and profit & loss', async () => {
+  const { applyCheckout, prepareCheckout } = await import('../src/checkout.mjs');
+  const { quickSaleInput } = await import('../src/quick-sale.mjs');
+  const { actualJobCost, wasteCost, lateCostsIn } = await import('../src/actual-cost.mjs');
+  const { profitLoss } = await import('../src/profit-loss.mjs');
+  const actor = { id: 'u', label: 'Ada' };
+  version = 1;
+  let l = emptyLedger();
+  for (const e of [
+    { id: 'm1', kind: 'material.created', data: { id: 'paper', name: 'Pen', measurementUnit: 'piece', available: 0, requireSize: false, ...audit(0) } },
+    { id: 's1', kind: 'service.created', data: { id: 'pen', description: 'Pen', materialId: 'paper', price: 50000, shelfItem: true, ...audit(0) } },
+    { id: 'c1', kind: 'customer.created', data: { id: 'bayo', name: 'Bayo', phone: '0802', address: '', creditLimit: 0, ...audit(0) } },
+  ])
+    l = applyEvent(l, e);
+  version = l.materials[0].version;
+  // 10 pens for ₦1,000 (₦100 each), with ₦500 delivery recorded with the restock: ₦150 each.
+  l = applyEvent(l, stock('r1', 1, 10, { supplierPrice: 100000 }));
+  l = { ...l, expenses: [{ id: 'x1', amount: 50000, restockIds: ['r1'], createdAt: at(1), incurredOn: '2026-11-16', category: 'Delivery', voided: false }] };
+  assert.equal(materialValuation(l, 'paper').average, 15000);
+  // Sell 2: the job took ₦300 of stock.
+  const sale = quickSaleInput(l, [{ serviceId: 'pen', quantity: 2 }], {
+    customerId: 'bayo', tendered: 100000, method: 'Cash', methodLabel: 'Cash', paidOn: '2026-11-16', source: 'In shop / USB', actor, now: at(2),
+  });
+  l = applyCheckout(l, prepareCheckout(l, sale.input, actor, 'k1', at(2)));
+  const job = l.jobs.find((j) => j.checkoutId === 'k1');
+  assert.deepEqual(
+    [actualJobCost(l, job).kobo, actualJobCost(l, job).basis],
+    [30000, 'Actual'],
+  );
+  // A dearer restock later does not change that sale.
+  version = l.materials[0].version;
+  l = applyEvent(l, stock('r2', 3, 8, { supplierPrice: 240000 }));
+  assert.equal(actualJobCost(l, job).kobo, 30000);
+  // (8 × ₦150 + ₦2,400) ÷ 16 = ₦225 each.
+  assert.equal(materialValuation(l, 'paper').average, 22500);
+  // A late ₦800 delivery for r1 (10 received, 16 in stock): all of it joins the stock still held.
+  l = { ...l, expenses: [...l.expenses, { id: 'x2', amount: 80000, restockIds: ['r1'], createdAt: at(4), incurredOn: '2026-11-16', category: 'Delivery', voided: false }] };
+  assert.equal(materialValuation(l, 'paper').value, 16 * 22500 + 80000);
+  assert.equal(lateCostsIn(l, '2026-11-16', '2026-11-16').length, 0);
+  // Profit & loss: sales ₦1,000 − goods used ₦300; the deliveries are in the stock, not expenses.
+  const pl = profitLoss(l, '2026-11-16', '2026-11-16');
+  assert.deepEqual(
+    [pl.sales, pl.jobCost, pl.operating, pl.linkedToRestocks, pl.net],
+    [100000, 30000, 0, 130000, 70000],
+  );
+  assert.deepEqual(wasteCost(l, '2026-11-16', '2026-11-16'), { kobo: 0, unknown: 0 });
+});
+
+test('A cost linked late, after the stock was used, is a late cost adjustment', async () => {
+  const { lateCostsIn } = await import('../src/actual-cost.mjs');
+  version = 1;
+  let l = emptyLedger();
+  l = applyEvent(l, {
+    id: 'm1',
+    kind: 'material.created',
+    data: { id: 'paper', name: 'Paper', measurementUnit: 'sheet', available: 0, requireSize: false, ...audit(0) },
+  });
+  l = applyEvent(l, stock('r1', 1, 10, { supplierPrice: 100000 }));
+  // All 10 used (a count to zero), then ₦500 of delivery is linked: all of it is late.
+  l = applyEvent(l, stock('s1', 2, 0, null, 'material.stock_set'));
+  l = { ...l, expenses: [{ id: 'x1', amount: 50000, restockIds: ['r1'], createdAt: at(3), incurredOn: '2026-11-16', voided: false }] };
+  const late = lateCostsIn(l, '2026-11-16', '2026-11-16');
+  assert.deepEqual(late.map((c) => Math.round(c.amount)), [50000]);
+});

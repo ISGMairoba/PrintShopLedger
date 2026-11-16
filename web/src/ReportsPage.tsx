@@ -1468,6 +1468,14 @@ function ProfitTab({ ledger, freshness, busy, error, pdf, csv }: TabProps) {
               <strong>{currency(t.cost)}</strong>
             </article>
             <article>
+              <span>Actual profit</span>
+              <strong className={t.actualProfit < 0 ? 'danger-text' : undefined}>{currency(t.actualProfit)}</strong>
+              <small>
+                All {t.jobs} jobs: actual cost {currency(t.actualCost)}
+                {t.provisionalJobs ? ` · ${t.provisionalJobs} provisional` : ''}
+              </small>
+            </article>
+            <article>
               <span>No cost set</span>
               <strong>{t.unknownJobs} jobs</strong>
               <small>{currency(t.unknownRevenue)} of sales not in the profit</small>
@@ -1529,6 +1537,8 @@ function ProfitTab({ ledger, freshness, busy, error, pdf, csv }: TabProps) {
                         <th>Sale</th>
                         <th>Cost</th>
                         <th>Profit</th>
+                        <th>Actual cost</th>
+                        <th>Actual profit</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1544,6 +1554,16 @@ function ProfitTab({ ledger, freshness, busy, error, pdf, csv }: TabProps) {
                           <td>{r.known ? currency(r.cost) : '—'}</td>
                           <td className={r.known && r.profit < 0 ? 'danger-text' : undefined}>
                             {r.known ? currency(r.profit) : '—'}
+                          </td>
+                          <td>
+                            {r.actualKnown ? currency(r.actualCost) : '—'}
+                            <small>
+                              {r.actualBasis}
+                              {r.provisional ? ' · provisional' : ''}
+                            </small>
+                          </td>
+                          <td className={r.actualKnown && r.actualProfit < 0 ? 'danger-text' : undefined}>
+                            {r.actualKnown ? currency(r.actualProfit) : '—'}
                           </td>
                         </tr>
                       ))}
@@ -1570,6 +1590,11 @@ type ProfitLoss = {
   net: number;
   stockPurchases: number;
   linkedToOrders: number;
+  linkedToRestocks: number;
+  estimatedJobCost: number;
+  waste: number;
+  lateCost: number;
+  provisionalJobs: number;
   unknownJobs: number;
   unknownSales: number;
 };
@@ -1666,7 +1691,8 @@ function ProfitLossTab({ ledger, freshness, busy, error, pdf, csv }: TabProps) {
               <span>Gross profit</span>
               <strong>{currency(report.grossProfit)}</strong>
               <small>
-                Sales {currency(report.sales)} less estimated job costs {currency(report.jobCost)}
+                Sales {currency(report.sales)} less the actual cost of goods used {currency(report.jobCost)}
+                {report.waste + report.lateCost > 0 && `, waste and late costs ${currency(report.waste + report.lateCost)}`}
               </small>
             </article>
             <article>
@@ -1695,7 +1721,11 @@ function ProfitLossTab({ ledger, freshness, busy, error, pdf, csv }: TabProps) {
                 </thead>
                 <tbody>
                   {line('Sales (after discounts)', report.sales, report.previous.sales)}
-                  {line('Estimated cost of jobs', report.jobCost, report.previous.jobCost, { minus: true })}
+                  {line('Cost of goods used (actual)', report.jobCost, report.previous.jobCost, { minus: true })}
+                  {(report.waste > 0 || report.previous.waste > 0) &&
+                    line('Waste and damage (not on a job)', report.waste, report.previous.waste, { minus: true })}
+                  {(report.lateCost > 0 || report.previous.lateCost > 0) &&
+                    line('Late cost adjustments', report.lateCost, report.previous.lateCost, { minus: true })}
                   {line('Gross profit', report.grossProfit, report.previous.grossProfit, { strong: true })}
                   {[...new Set([...report.expenses, ...report.previous.expenses].map((x) => x.category))].map(
                     (c) => (
@@ -1721,6 +1751,19 @@ function ProfitLossTab({ ledger, freshness, busy, error, pdf, csv }: TabProps) {
                 as an expense: its cost is counted in the jobs that use the materials.
               </p>
             )}
+            {report.linkedToRestocks > 0 && (
+              <p className="muted">
+                {currency(report.linkedToRestocks)} of expenses in this period is for restocks (delivery,
+                clearance…): it is part of the stock's cost and reaches profit as the stock is used.
+              </p>
+            )}
+            <p className="muted">
+              Cost of goods used is what jobs really took from stock at its actual cost (from restocks with a
+              supplier price); jobs that took no stock use their estimate. The estimate for the same jobs was{' '}
+              {currency(report.estimatedJobCost)}.
+              {report.provisionalJobs > 0 &&
+                ` ${report.provisionalJobs} job${report.provisionalJobs === 1 ? ' has' : 's have'} materials not yet confirmed, so ${report.provisionalJobs === 1 ? 'its' : 'their'} cost may still change.`}
+            </p>
             {report.linkedToOrders > 0 && (
               <p className="muted">
                 {currency(report.linkedToOrders)} of expenses in this period {w('is linked to orders')}, so it
@@ -1752,6 +1795,10 @@ type ProfitReport = {
     unknownJobs: number;
     unknownRevenue: number;
     otherIncome?: number;
+    actualCost: number;
+    actualProfit: number;
+    actualUnknownJobs: number;
+    provisionalJobs: number;
   };
   byItem: { item: string; jobs: number; revenue: number; cost: number; profit: number; unknown: number }[];
   jobs: {
@@ -1764,6 +1811,11 @@ type ProfitReport = {
     known: boolean;
     basis: string;
     profit: number;
+    actualCost: number;
+    actualKnown: boolean;
+    actualProfit: number;
+    actualBasis: string;
+    provisional: boolean;
   }[];
 };
 

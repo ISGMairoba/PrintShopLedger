@@ -50,6 +50,8 @@ type Props = {
   };
   /** Orders this expense can be linked to (For orders), newest first. */
   orders?: { id: string; label: string }[];
+  /** Restocks this expense can be for (For restocks): delivery, clearance… */
+  restocks?: { id: string; label: string }[];
   /** The id a new expense must get (a repeating expense's due date: the same on every device). */
   newId?: string;
   /** Called with the new expense's id once it is saved (e.g. to mark a repeating expense recorded). */
@@ -71,6 +73,7 @@ export default function ExpenseEditor({
   prefill,
   newId,
   orders = [],
+  restocks = [],
   onSave,
   onSaved,
   onClose,
@@ -79,6 +82,7 @@ export default function ExpenseEditor({
   const [payeeId, setPayeeId] = useState(expense?.payeeId ?? prefill?.payeeId ?? '');
   // The orders this expense was for (its cost counts in their profit).
   const [jobIds, setJobIds] = useState<string[]>(expense?.jobIds ?? []);
+  const [restockIds, setRestockIds] = useState<string[]>(expense?.restockIds ?? []);
   const [newPayee, setNewPayee] = useState<{ name: string; phone: string } | null>(null);
   const { w } = useWords();
   const options = useBusinessOptions(),
@@ -239,6 +243,7 @@ export default function ExpenseEditor({
             note: String(f.get('note')),
             receiptReference: String(f.get('receiptReference')),
             jobIds: stock ? [] : jobIds,
+            restockIds: stock ? [] : restockIds,
             materials: stock ? lines : [],
             ...(payment ? { payment } : {}),
             ...(newId && !expense ? { id: newId } : {}),
@@ -378,7 +383,42 @@ export default function ExpenseEditor({
                   />
                 </label>
               </div>
-              {!stock && orders.length > 0 && (
+              {!stock && !jobIds.length && restocks.length > 0 && (
+                <div className="expense-orders">
+                  <SearchSelect
+                    label="For restocks (optional)"
+                    value=""
+                    placeholder="Search a restock to link"
+                    options={restocks
+                      .filter((r) => !restockIds.includes(r.id))
+                      .map((r) => ({ value: r.id, label: r.label }))}
+                    disabled={restockIds.length >= 20}
+                    onChange={(id) => id && setRestockIds([...restockIds, id])}
+                  />
+                  {restockIds.length > 0 && (
+                    <ul className="expense-order-list">
+                      {restockIds.map((id) => (
+                        <li key={id}>
+                          <span>{restocks.find((r) => r.id === id)?.label ?? `#${id.slice(0, 8).toUpperCase()}`}</span>
+                          <button
+                            type="button"
+                            className="text-button danger-text"
+                            aria-label={`Unlink restock ${id.slice(0, 8).toUpperCase()}`}
+                            onClick={() => setRestockIds(restockIds.filter((x) => x !== id))}
+                          >
+                            <Icon name="close" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <small className="muted">
+                    Delivery, clearance and the like: its cost joins these restocks' cost per unit (shared by their
+                    supplier price), not under expenses.
+                  </small>
+                </div>
+              )}
+              {!stock && !restockIds.length && orders.length > 0 && (
                 <div className="expense-orders">
                   <SearchSelect
                     label={wt('For orders (optional)')}

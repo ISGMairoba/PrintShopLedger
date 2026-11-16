@@ -1,3 +1,4 @@
+import { currency } from './receipts.mjs';
 import { useFeedbackMessage } from './Feedback';
 import { paymentName } from './business-options.mjs';
 import { useBusinessOptions } from './BusinessOptionsContext';
@@ -69,6 +70,23 @@ export default function ExpensesPage({
   onSave: (event: ExpenseEvent | OperationsEvent) => Promise<void>;
 }) {
   // Orders an expense can be linked to: the last 120 days, plus any already linked.
+  // Restocks with a supplier price (last 120 days, and any already linked), newest first.
+  const restocks = useMemo(() => {
+    const since = Date.now() - 120 * 86400000;
+    const linked = new Set((ledger.expenses ?? []).flatMap((e) => e.restockIds ?? []));
+    return (ledger.materialHistory ?? [])
+      .filter(
+        (h) =>
+          h.action === 'material.stock_added' &&
+          h.after?.cost &&
+          (Date.parse(h.changedAt) >= since || linked.has(h.id)),
+      )
+      .sort((a, b) => Date.parse(b.changedAt) - Date.parse(a.changedAt))
+      .map((h) => ({
+        id: h.id,
+        label: `${h.materialName} · ${Math.round(((h.afterAvailable ?? 0) - (h.beforeAvailable ?? 0)) * 1000) / 1000} ${h.measurementUnit} · ${currency(h.after!.cost!.supplierPrice)} · ${h.changedAt.slice(0, 10)}${h.after!.cost!.supplier ? ` · ${h.after!.cost!.supplier}` : ''}`,
+      }));
+  }, [ledger.materialHistory, ledger.expenses]);
   const orders = useMemo(() => {
     const since = Date.now() - 120 * 86400000;
     const linked = new Set((ledger.expenses ?? []).flatMap((e) => e.jobIds ?? []));
@@ -453,6 +471,7 @@ export default function ExpensesPage({
         <ExpenseEditor
           key={'repeat:' + recording.repeat.id + ':' + recording.repeat.version}
           orders={orders}
+          restocks={restocks}
           newId={recording.expenseId}
           prefill={{
             description: recording.repeat.description,
@@ -481,6 +500,7 @@ export default function ExpensesPage({
           key={editor === 'new' ? 'new' : editor.id + ':' + editor.version}
           expense={editor === 'new' ? undefined : editor}
           orders={orders}
+          restocks={restocks}
           expenses={ledger.expenses}
           payees={ledger.payees}
           accounts={ledger.moneyAccounts}
