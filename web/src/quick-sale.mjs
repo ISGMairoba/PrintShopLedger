@@ -182,12 +182,28 @@ export function pricedCart(ledger, cart, { discount = null, policy = null, sourc
  * Returns { input, total, change }.
  * @param {any} ledger
  * @param {{ serviceId: string, quantity: number }[]} cart
- * @param {{ customerId: string | null, tendered: number, method: string, methodLabel: string, paidOn: string, source: string, actor: { id: string, label: string }, now: string, discount?: { kind: string, value: number, reason?: string } | null, policy?: { maxPercent: number, canFlat: boolean } | null }} options
+ * Not collected now: the items follow `steps` (workflow fields from workflow-steps.mjs) with an
+ * optional deadline, and a saved customer is needed.
+ * @param {{ customerId: string | null, tendered: number, method: string, methodLabel: string, paidOn: string, source: string, actor: { id: string, label: string }, now: string, discount?: { kind: string, value: number, reason?: string } | null, policy?: { maxPercent: number, canFlat: boolean } | null, collected?: boolean, dueAt?: string, steps?: Record<string, unknown> | null }} options
  */
 export function quickSaleInput(
   ledger,
   cart,
-  { customerId, tendered, method, methodLabel, paidOn, source, actor, now, discount = null, policy = null },
+  {
+    customerId,
+    tendered,
+    method,
+    methodLabel,
+    paidOn,
+    source,
+    actor,
+    now,
+    discount = null,
+    policy = null,
+    collected = true,
+    dueAt = '',
+    steps = null,
+  },
 ) {
   if (!cart.length) throw Error('Add at least one product.');
   for (const line of cart)
@@ -199,6 +215,7 @@ export function quickSaleInput(
   const newCustomer = customerId || walkIn ? null : walkInEvent(actor, now);
   const buyer = customerId || walkIn?.id || newCustomer.data.id;
   const isWalkIn = !customerId;
+  if (!collected && isWalkIn) throw Error('Choose a saved customer for a sale that is collected later.');
   if (isWalkIn && tendered < total)
     throw Error('Walk-in sales are paid in full. Choose a customer to sell on credit.');
   const cashReceived = isWalkIn ? total : tendered;
@@ -208,7 +225,10 @@ export function quickSaleInput(
     input: {
       customerId: buyer,
       newCustomer,
-      lines,
+      lines: collected
+        ? lines
+        : lines.map((line) => ({ ...line, ...(dueAt ? { dueAt } : {}), ...(steps ?? {}) })),
+      ...(collected ? {} : { collected: false }),
       ...(orderDiscount ? { orderDiscount } : {}),
       ...(policy ? { discountPolicy: policy } : {}),
       cashReceived,
