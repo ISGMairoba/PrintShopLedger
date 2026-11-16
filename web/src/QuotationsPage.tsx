@@ -1,3 +1,4 @@
+import { useMessages } from './MessagesContext';
 import DefaultTermsButton from './DefaultTermsButton';
 import TemplateDiscountWarning from './TemplateDiscountWarning';
 import CurrencyInput from './CurrencyInput';
@@ -44,7 +45,6 @@ import {
 } from './CheckoutEditor';
 import type { Branding } from './useBusinessBranding';
 import type { Ledger, Quotation, QuotationEvent } from './types';
-import { quotationMessage } from './share.mjs';
 
 type Props = {
   ledger: Ledger;
@@ -111,6 +111,7 @@ export default function QuotationsPage({
   canDeleteAny = false,
   start = null,
 }: Props) {
+  const messages = useMessages();
   // Load the PDF and share code now: phones only open the share sheet straight after the tap.
   useEffect(() => {
     void import('./receipt-pdf');
@@ -167,8 +168,13 @@ export default function QuotationsPage({
       const ref = quotationRef(quote.id);
       const result = await sharePdf(createQuotationPdf(quote, branding, 'a4'), `Quotation-${ref}`, {
         title: `Quotation ${ref}`,
-        text: quotationMessage(quote, ref, branding.businessName, date(quote.validUntil)),
+        text: messages.text(
+          'quotation',
+          { quotation: ref, total: currency(quote.total), valid_until: date(quote.validUntil) },
+          quote.customerName,
+        ),
         phone: quote.customerPhone,
+        mode: messages.mode('quotation'),
       });
       const note = shareResult(result);
       if (note) notify(note, 'success');

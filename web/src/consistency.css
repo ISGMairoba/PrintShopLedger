@@ -3828,3 +3828,119 @@ textarea {
   display: grid;
   gap: 8px;
 }
+
+/* Business Settings → Messages */
+.message-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+.message-item {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.message-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: transparent;
+  color: var(--ink);
+  border: 0;
+  border-radius: 0;
+  text-align: left;
+}
+.message-head > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.message-head small {
+  font-weight: 400;
+  opacity: 0.75;
+}
+.message-body {
+  padding: 4px 14px 14px;
+  border-top: 1px solid var(--line);
+}
+.placeholder-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 12px;
+}
+.placeholder-chips .chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 5px 9px;
+  min-height: 0;
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: color-mix(in srgb, var(--brand-primary, #124b40) 10%, transparent);
+  color: var(--ink);
+  border: 1px solid color-mix(in srgb, var(--brand-primary, #124b40) 25%, transparent);
+  border-radius: 8px;
+}
+.placeholder-chips .chip small {
+  font-family: inherit;
+  font-size: 10px;
+  font-family: system-ui, sans-serif;
+  opacity: 0.7;
+  font-weight: 400;
+}
+.message-preview {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, #25d366 12%, transparent);
+  border: 1px solid color-mix(in srgb, #25d366 30%, transparent);
+}
+.message-preview p {
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+}
+.message-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+}
+.message-controls label {
+  flex: 1 1 220px;
+}
+/* Round buttons stay perfect circles whatever the button defaults around them. */
+.page-title .help-button,
+.header-tools .avatar-button,
+.sidebar-user .user-avatar {
+  flex: none;
+  aspect-ratio: 1;
+  min-width: 0;
+  padding: 0;
+  border-radius: 50%;
+  line-height: 1;
+}
+.page-title .help-button {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+}
+.header-tools .avatar-button,
+.sidebar-user .user-avatar {
+  width: 38px;
+  height: 38px;
+  min-height: 38px;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+.mobile-app-bar .header-tools .avatar-button {
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  font-size: 12px;
+}

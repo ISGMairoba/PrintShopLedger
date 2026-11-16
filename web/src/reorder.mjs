@@ -41,6 +41,9 @@ export function reorderList(ledger, now = new Date().toISOString()) {
 }
 
 /** A plain list to send to a supplier. */
+/** The items to order, one per line ("- SAV paper: 10 rolls"). */
+export const reorderLines = (rows) => rows.map((r) => `- ${r.name}: ${r.quantity} ${r.unit}`).join('\n');
+
 export function reorderText(rows, business) {
   return [
     `Order${business ? ` from ${business}` : ''}:`,

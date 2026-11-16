@@ -2,18 +2,25 @@ import type { jsPDF } from 'jspdf';
 import { whatsappLink } from './share.mjs';
 
 /**
- * Share a PDF. Phones (and browsers that can share files) open the share sheet with the PDF
- * attached, so it can go straight to WhatsApp. Otherwise the PDF downloads and WhatsApp opens on
- * the customer's chat with the message, ready to attach it.
+ * Share a PDF. In "share" mode, phones (and browsers that can share files) open the share sheet
+ * with the PDF attached. Otherwise (and always in "whatsapp" mode) the PDF downloads and WhatsApp
+ * opens on the customer's chat with the message, ready to attach it.
  */
 export async function sharePdf(
   doc: jsPDF,
   fileName: string,
-  { title, text, phone }: { title: string; text: string; phone?: string },
+  {
+    title,
+    text,
+    phone,
+    mode = 'share',
+  }: { title: string; text: string; phone?: string; mode?: 'whatsapp' | 'share' },
 ): Promise<'shared' | 'cancelled' | 'downloaded'> {
   const name = fileName.endsWith('.pdf') ? fileName : fileName + '.pdf';
   const file = new File([doc.output('blob')], name, { type: 'application/pdf' });
-  if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
+  // "WhatsApp" (Business Settings → Messages): straight to the customer's chat; the PDF downloads
+  // to attach. "Share": the share sheet with the PDF, where the device can share files.
+  if (mode === 'share' && typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title, text });
       return 'shared';
