@@ -1,3 +1,4 @@
+import { PERIOD_CHOICES, PERIOD_MONTHS, coversFor } from './expense-periods.mjs';
 import DialogActions from './DialogActions';
 import { orderMethods } from './business-options.mjs';
 import { useFeedbackMessage } from './Feedback';
@@ -155,6 +156,24 @@ export default function ExpenseEditor({
           ? 'Other'
           : expenseCategories[0]),
   );
+  // The period it covers (profit & loss spreads it by day): months from the expense date, or own dates.
+  const initialPeriod = (): number | 'custom' => {
+    if (!expense) return options.categoryPeriods?.[category] ?? 0;
+    if (!expense.covers) return 0;
+    const match = PERIOD_MONTHS.find(
+      (n) => n > 0 && JSON.stringify(coversFor(expense.incurredOn, n)) === JSON.stringify(expense.covers),
+    );
+    return match ?? 'custom';
+  };
+  const [period, setPeriod] = useState<number | 'custom'>(initialPeriod);
+  const [periodTouched, setPeriodTouched] = useState(false);
+  const [coverFrom, setCoverFrom] = useState(expense?.covers?.from ?? when.slice(0, 10));
+  const [coverTo, setCoverTo] = useState(expense?.covers?.to ?? when.slice(0, 10));
+  const chooseCategory = (next: string) => {
+    setCategory(next);
+    // A new expense starts with its category's usual period, until the period is chosen by hand.
+    if (!expense && !periodTouched) setPeriod(options.categoryPeriods?.[next] ?? 0);
+  };
   const correctOnly = mode === 'correct';
   const paymentOnly = mode === 'payment' || correctOnly;
   const [error, setError] = useFeedbackMessage('error');
@@ -244,6 +263,15 @@ export default function ExpenseEditor({
             receiptReference: String(f.get('receiptReference')),
             jobIds: stock ? [] : jobIds,
             restockIds: stock ? [] : restockIds,
+            covers:
+              stock || restockIds.length || jobIds.length || period === 0
+                ? null
+                : period === 'custom'
+                  ? { from: coverFrom, to: coverTo }
+                  : coversFor(
+                      expense && !expense.incurredAt && !whenTouched ? expense.incurredOn : when.slice(0, 10),
+                      period,
+                    ),
             materials: stock ? lines : [],
             ...(payment ? { payment } : {}),
             ...(newId && !expense ? { id: newId } : {}),
@@ -320,7 +348,7 @@ export default function ExpenseEditor({
                   name="category"
                   options={categoryOptions}
                   value={category}
-                  onChange={setCategory}
+                  onChange={chooseCategory}
                 />
                 <label>
                   Date and time
@@ -339,6 +367,47 @@ export default function ExpenseEditor({
                   Total cost (₦)
                   <CurrencyInput name="amount" value={total} onValueChange={setTotal} required />
                 </label>
+                {!stock && !restockIds.length && !jobIds.length && (
+                  <label>
+                    Covers
+                    <select
+                      value={String(period)}
+                      onChange={(e) => {
+                        setPeriodTouched(true);
+                        setPeriod(e.target.value === 'custom' ? 'custom' : Number(e.target.value));
+                      }}
+                    >
+                      {PERIOD_CHOICES.map(([n, text]) => (
+                        <option key={n} value={String(n)}>
+                          {text}
+                        </option>
+                      ))}
+                      <option value="custom">Choose dates…</option>
+                    </select>
+                    <small>
+                      {period === 0
+                        ? 'Counted in profit on the day it was incurred.'
+                        : period === 'custom'
+                          ? 'Profit counts it evenly, day by day, over these dates.'
+                          : (() => {
+                              const c = coversFor(when.slice(0, 10), period);
+                              return `Profit counts it evenly, day by day, ${c?.from} to ${c?.to}.`;
+                            })()}
+                    </small>
+                  </label>
+                )}
+                {!stock && !restockIds.length && !jobIds.length && period === 'custom' && (
+                  <div className="form-grid">
+                    <label>
+                      Covers from
+                      <input type="date" value={coverFrom} onChange={(e) => setCoverFrom(e.target.value)} required />
+                    </label>
+                    <label>
+                      Covers to
+                      <input type="date" value={coverTo} onChange={(e) => setCoverTo(e.target.value)} required />
+                    </label>
+                  </div>
+                )}
                 <div className="payee-pick">
                   <label>
                     Payee

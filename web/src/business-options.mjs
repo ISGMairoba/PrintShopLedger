@@ -1,3 +1,4 @@
+import { validCategoryPeriods } from './expense-periods.mjs';
 import { validStageHours } from './stage-time.mjs';
 import { fallbackSteps, stagesToSteps, stepsWorkflow, validSteps } from './workflow-steps.mjs';
 export const defaultOptions = () => ({
@@ -18,6 +19,8 @@ export const defaultOptions = () => ({
     'Internet / phone',
     'Other',
   ],
+  /** Usual period each expense category covers, in months (expense-periods.mjs); not listed: its day. */
+  categoryPeriods: /** @type {Record<string, number>} */ ({ Rent: 12, Wages: 1, Electricity: 1, 'Internet / phone': 1 }),
   jobSources: ['In shop / USB', 'Shop network', 'WhatsApp', 'Email', 'Other'],
   stockReasons: ['Restocking', 'Stock Count Correction', 'Returned Stock', 'Damaged Stock'],
   materialUnits: ['sheet', 'piece', 'metre', 'square metre', 'roll', 'kilogram', 'litre'],
@@ -126,6 +129,7 @@ export function validateOptions(input) {
   ])
     value[key] = validateList(value[key], label, max);
   value.workflows = validateWorkflows(value.workflows);
+  value.categoryPeriods = validCategoryPeriods(value.categoryPeriods);
   // Before saved workflows, a business had one list of stages: it becomes the saved workflow
   // "Our current stages", followed by items without their own steps, so nothing changes.
   if (input?.defaultWorkflowId === undefined && !value.workflows.some((w) => w.id === CURRENT_STAGES_ID)) {
