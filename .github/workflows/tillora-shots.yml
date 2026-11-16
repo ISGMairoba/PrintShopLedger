@@ -1,0 +1,26 @@
+name: Tillora screenshots (temporary)
+on:
+  push:
+    branches: ['claude/tillora*']
+permissions:
+  contents: write
+jobs:
+  shots:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - run: cd tillora-shots && npm init -y >/dev/null && npm i playwright@1.56.1 --no-audit --no-fund && npx playwright install --with-deps chromium
+      - run: mkdir -p /tmp/out && node tillora-shots/shots.mjs /tmp/out | tee /tmp/out/result.txt
+      - name: Save
+        if: always()
+        run: |
+          cd /tmp/out
+          git init -q -b tillora-shots-output
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add -A
+          git commit -qm "Tillora shots"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" tillora-shots-output
