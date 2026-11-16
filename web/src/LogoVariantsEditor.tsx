@@ -214,7 +214,9 @@ function AppIconEditor({
                 src={icon.png}
                 alt="App icon"
               />
-              {!clear && <img className="app-icon-preview app-icon-round" src={icon.png} alt="App icon, round" />}
+              {!clear && (
+                <img className="app-icon-preview app-icon-round" src={icon.png} alt="App icon, round" />
+              )}
             </>
           ) : (
             <img className="app-icon-preview app-icon-square" src="/icon.svg" alt="PrintShopLedger icon" />

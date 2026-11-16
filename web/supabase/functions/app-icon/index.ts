@@ -22,7 +22,9 @@ Deno.serve(async (request: Request) => {
   });
   const { data, error } = await admin
     .from('business_settings')
-    .select('name:settings->>businessName, primary:settings->>primary, png:settings->appIcon->>png, background:settings->appIcon->>background, version')
+    .select(
+      'name:settings->>businessName, primary:settings->>primary, png:settings->appIcon->>png, background:settings->appIcon->>background, version',
+    )
     .eq('shop_id', shop)
     .maybeSingle();
   if (error) return fail(500, 'Could not load the app icon.');
