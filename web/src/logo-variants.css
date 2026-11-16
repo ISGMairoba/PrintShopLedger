@@ -35,3 +35,37 @@
   width: auto;
   height: auto;
 }
+.app-icon-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem 1.5rem;
+  align-items: center;
+  margin: 0.5rem 0 0.75rem;
+}
+.app-icon-editor input[type="color"] {
+  width: 100%;
+  min-height: 44px;
+  padding: 4px;
+}
+.app-icon-previews {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.app-icon-preview {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+}
+.app-icon-square {
+  border-radius: 18px;
+}
+.app-icon-round {
+  border-radius: 50%;
+}
+@media (max-width: 640px) {
+  .app-icon-editor {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

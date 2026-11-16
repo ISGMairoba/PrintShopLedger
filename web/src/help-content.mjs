@@ -656,6 +656,10 @@ export const helpTopics = [
       'Enter the business name, address, phone or WhatsApp numbers, email, website and social handles. Press Save business details.',
       'Upload a logo (PNG or JPEG). For a wider choice, upload logo variants for light and dark backgrounds.',
       'Choose which layout shows in the sidebar and as the browser tab icon, then press Save logo.',
+      'Under Installed app icon, choose the logo and background for the icon on phones and computers, then press Save logo.',
+    ],
+    notes: [
+      'A new app icon shows on copies installed after you save it. On each phone or computer, remove the installed app and install it again from the browser to get the new icon.',
     ],
     pages: ['Business Settings'],
     rank: 3,

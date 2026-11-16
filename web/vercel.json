@@ -5,6 +5,14 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
+      "source": "/b/:shop/manifest.webmanifest",
+      "destination": "https://wxggsackpbqyixkznpez.supabase.co/functions/v1/app-icon?b=:shop&f=manifest"
+    },
+    {
+      "source": "/b/:shop/icon.png",
+      "destination": "https://wxggsackpbqyixkznpez.supabase.co/functions/v1/app-icon?b=:shop&f=png"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

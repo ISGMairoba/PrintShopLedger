@@ -371,7 +371,7 @@ export default function BusinessSettingsPage({
                   </button>
                 )}
                 <LogoVariantsEditor value={draft} onChange={field} onUpload={logo} busy={busy} />
-                {sectionSave('Logo', ['logo', 'logoVariants', 'logoUsage'])}
+                {sectionSave('Logo', ['logo', 'logoVariants', 'logoUsage', 'appIcon'])}
               </fieldset>
               <fieldset hidden={tab !== 'Appearance'} disabled={busy || !ready}>
                 <legend>Appearance</legend>

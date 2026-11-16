@@ -1,3 +1,4 @@
+import { appIconDefaults, validateAppIcon } from './app-icon.mjs';
 import { validDocumentTerms } from './document-terms.mjs';
 import { validProductionSettings } from './production-materials.mjs';
 import { logoPositions } from './document-logos.mjs';
@@ -123,6 +124,8 @@ export const defaultBranding = () => ({
   socials: '',
   logo: '',
   logoVariants: logoVariantsDefaults(),
+  /** The installed app's icon (app-icon.mjs). */
+  appIcon: appIconDefaults(),
   logoUsage: logoUsageDefaults(),
   primary: '#124b40',
   accent: '#d9a126',
@@ -228,6 +231,7 @@ export function validateBranding(input) {
   if (!validLogo(value.logo)) throw Error('Choose a PNG or JPEG logo (up to 250 KB after processing).');
   value.logoVariants = validateLogoVariants(value.logoVariants);
   value.logoUsage = validateLogoUsage(value.logoUsage);
+  value.appIcon = validateAppIcon(value.appIcon);
   // Leave room for JSONB whitespace in the database's 4 MB payload budget.
   if (new TextEncoder().encode(JSON.stringify(value)).length > 3900000)
     throw Error('Business settings are too large. Use smaller logos or remove unused logo variants.');
