@@ -1178,6 +1178,8 @@ export default function App() {
               setSession(null);
               setBusinessSession(null);
               setShop(null);
+              // Start the next sign-in on the usual first page, not on Settings.
+              setPage('Point of Service');
               setMessage('Business signed out.');
             }
           }}
