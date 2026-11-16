@@ -24,15 +24,15 @@ export function useMessages() {
   };
   return {
     /** The text, with the business name and the customer's names filled in. */
-    text: (key: string, values: Record<string, string | number>, customerName?: string) =>
+    text: (
+      key: string,
+      values: Record<string, string | number>,
+      who?: { id?: string | null; name?: string | null },
+    ) =>
       messageText(
         settings,
         key,
-        {
-          business: business || 'our shop',
-          ...(customerName !== undefined ? customerNames(customerName) : {}),
-          ...values,
-        },
+        { business: business || 'our shop', ...(who ? names(who) : {}), ...values },
         legacyReady,
       ),
     mode: (key: string) => messageMode(settings, key) as 'whatsapp' | 'share',
