@@ -57,6 +57,7 @@ import PointOfServicePage from './PointOfServicePage';
 import CheckoutEditor, { type HeldSale } from './CheckoutEditor';
 import ReceiptView from './ReceiptView';
 import PaymentCorrectionDialog from './PaymentCorrectionDialog';
+import SplitCorrectionDialog from './SplitCorrectionDialog';
 import DeviceStorageCard, { LOW_SPACE } from './DeviceStorageCard';
 import { MyCorrectionsPanel, PendingRequestsPanel } from './CorrectionRequests';
 import { receiptPayments } from './payment-correction.mjs';
@@ -3023,7 +3024,23 @@ export default function App() {
                           onSave={sendCorrectionRequest}
                         />
                       )}
-                      {correctingPayment && (
+                      {correctingPayment &&
+                        // A part of a split sale: the whole sale is corrected together.
+                        receiptPayments(ledger, correctingPayment.checkoutId ?? correctingPayment.id).length > 1 && (
+                          <SplitCorrectionDialog
+                            ledger={ledger}
+                            payments={receiptPayments(
+                              ledger,
+                              correctingPayment.checkoutId ?? correctingPayment.id,
+                            )}
+                            busy={busy}
+                            actor={salesActor}
+                            onClose={() => setCorrectingPayment(null)}
+                            onSave={approveOperation}
+                          />
+                        )}
+                      {correctingPayment &&
+                        receiptPayments(ledger, correctingPayment.checkoutId ?? correctingPayment.id).length <= 1 && (
                         <PaymentCorrectionDialog
                           ledger={ledger}
                           payment={

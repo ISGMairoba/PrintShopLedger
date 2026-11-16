@@ -70,3 +70,37 @@ export function paymentCorrectionEvent(
 
 /** The ledger after the correction, for the before/after preview (throws what saving would). */
 export const previewPaymentCorrection = (ledger, event) => applySaleAdjustment(ledger, event);
+
+/**
+ * Correct a split sale as one: each part's new amount and method, with the date, reference and reason
+ * shared. Returns the corrections for the parts that change, in order, each made against the ledger as
+ * the ones before it leave it (so the server takes them one after another), and the ledger after all.
+ * `changes`: [{ paymentId, amount (kobo), method, methodLabel }]; `shared`: { paidOn, reference, reason }.
+ * @returns {{ events: import('./types').SupervisedEvent[], after: import('./types').Ledger }}
+ */
+export function splitCorrectionEvents(ledger, changes, shared, actor, now = new Date().toISOString()) {
+  let working = ledger;
+  const events = [];
+  for (const change of changes) {
+    const payment = working.payments.find((p) => p.id === change.paymentId);
+    if (!correctablePayment(payment)) throw Error('A part of this sale cannot be corrected here.');
+    const same =
+      payment.amount === change.amount &&
+      (payment.methodLabel || payment.method) === change.methodLabel &&
+      payment.paidOn === shared.paidOn &&
+      (payment.reference ?? '') === shared.reference.trim();
+    if (same) continue;
+    const event = paymentCorrectionEvent(
+      working,
+      payment,
+      { ...change, paidOn: shared.paidOn, reference: shared.reference, reason: shared.reason },
+      actor,
+      crypto.randomUUID(),
+      now,
+    );
+    working = applySaleAdjustment(working, event);
+    events.push(event);
+  }
+  if (!events.length) throw Error('Nothing changed.');
+  return { events, after: working };
+}
