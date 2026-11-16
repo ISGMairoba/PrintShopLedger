@@ -20,11 +20,7 @@ export async function sharePdf(
   const file = new File([doc.output('blob')], name, { type: 'application/pdf' });
   // "WhatsApp" (Business Settings → Messages): straight to the customer's chat; the PDF downloads
   // to attach. "Share": the share sheet with the PDF, where the device can share files.
-  if (
-    mode === 'share' &&
-    typeof navigator.canShare === 'function' &&
-    navigator.canShare({ files: [file] })
-  ) {
+  if (mode === 'share' && typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title, text });
       return 'shared';

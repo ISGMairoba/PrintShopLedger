@@ -35,7 +35,8 @@ export default function MessagesSettings({
     onChange({ ...value, items: all });
   };
   const wording = (key: string) =>
-    items[key]?.text ?? (key === 'ready' && legacyReady.trim() ? legacyReady : (messageKind(key)?.text ?? ''));
+    items[key]?.text ??
+    (key === 'ready' && legacyReady.trim() ? legacyReady : (messageKind(key)?.text ?? ''));
   const insert = (key: string, holder: string) => {
     const box = boxes.current[key];
     const text = wording(key);
@@ -86,7 +87,9 @@ export default function MessagesSettings({
                 <span>
                   <strong>{kind.name}</strong>
                   <small>
-                    {own?.text || (kind.key === 'ready' && legacyReady.trim()) ? 'Your wording' : 'App wording'}
+                    {own?.text || (kind.key === 'ready' && legacyReady.trim())
+                      ? 'Your wording'
+                      : 'App wording'}
                     {' · '}
                     {own?.send === 'share'
                       ? 'Share'

@@ -28,11 +28,21 @@ test('a business wording with full names, and the app wording when there is none
     items: { receipt: { text: 'Hi {customer_full}, receipt {receipt} from {business}.', send: 'whatsapp' } },
   });
   assert.equal(
-    messageText(settings, 'receipt', { ...customerNames('Baban Suhaila'), receipt: 'AB12', business: 'Mairoba' }),
+    messageText(settings, 'receipt', {
+      ...customerNames('Baban Suhaila'),
+      receipt: 'AB12',
+      business: 'Mairoba',
+    }),
     'Hi Baban Suhaila, receipt AB12 from Mairoba.',
   );
   assert.match(
-    messageText(settings, 'quotation', { ...customerNames('Ada'), quotation: 'Q1', total: '₦5', valid_until: 'x', business: 'M' }),
+    messageText(settings, 'quotation', {
+      ...customerNames('Ada'),
+      quotation: 'Q1',
+      total: '₦5',
+      valid_until: 'x',
+      business: 'M',
+    }),
     /^Hello Ada, here is quotation Q1 from M/,
   );
   assert.equal(messageMode(settings, 'receipt'), 'whatsapp');
@@ -41,23 +51,44 @@ test('a business wording with full names, and the app wording when there is none
 });
 
 test('unknown placeholders stay, empty ones leave no gaps; long or odd text is refused', () => {
-  assert.equal(fillMessage('Hi {customer} ({items}) {unknown} .', { customer: 'A', items: '' }), 'Hi A {unknown}.');
+  assert.equal(
+    fillMessage('Hi {customer} ({items}) {unknown} .', { customer: 'A', items: '' }),
+    'Hi A {unknown}.',
+  );
   assert.throws(() => validateMessages({ items: { ready: { text: 'x'.repeat(1001) } } }), /1,000/);
-  assert.deepEqual(validateMessages({ items: { nope: { text: 'x' }, ready: { send: 'default' } } }).items, {});
+  assert.deepEqual(
+    validateMessages({ items: { nope: { text: 'x' }, ready: { send: 'default' } } }).items,
+    {},
+  );
 });
 
 test('the ready message keeps the old Jobs & payments wording until Messages has its own', () => {
   const ledger = {
     customers: [{ id: 'c', name: 'Baban Suhaila', phone: '08031234567' }],
-    jobs: [{ id: 'abcdef12-0000', customerId: 'c', description: 'Flyers', quantity: 100, amount: 0, productionStatus: 'Completed' }],
+    jobs: [
+      {
+        id: 'abcdef12-0000',
+        customerId: 'c',
+        description: 'Flyers',
+        quantity: 100,
+        amount: 0,
+        productionStatus: 'Completed',
+      },
+    ],
     payments: [],
   };
-  const legacy = readyMessage(ledger, ledger.jobs[0], { business: 'M', template: 'Yo {customer}, {items} ready.' });
+  const legacy = readyMessage(ledger, ledger.jobs[0], {
+    business: 'M',
+    template: 'Yo {customer}, {items} ready.',
+  });
   assert.equal(legacy.text, 'Yo Baban, Flyers × 100 ready.');
   const own = readyMessage(ledger, ledger.jobs[0], {
     business: 'M',
     template: 'Yo {customer}',
-    messages: validateMessages({ send: 'share', items: { ready: { text: 'Dear {customer_full}, {job} {is} ready.' } } }),
+    messages: validateMessages({
+      send: 'share',
+      items: { ready: { text: 'Dear {customer_full}, {job} {is} ready.' } },
+    }),
   });
   assert.equal(own.text, 'Dear Baban Suhaila, job is ready.');
   assert.equal(own.mode, 'share');

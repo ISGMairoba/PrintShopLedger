@@ -906,7 +906,9 @@ export default function BusinessSettingsPage({
                   out by then, it waits in the conflict inbox until the stock is updated.
                 </p>
                 <p className="muted">
-                  {w('The "order ready" message and every other message the app sends are now in the Messages tab.')}
+                  {w(
+                    'The "order ready" message and every other message the app sends are now in the Messages tab.',
+                  )}
                 </p>
                 {sectionSave('Job and payment settings', ['jobs'])}
               </fieldset>

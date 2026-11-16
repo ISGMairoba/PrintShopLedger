@@ -213,6 +213,10 @@ export const sampleMessage = (settings, key, business, legacyReady = '') =>
   messageText(
     settings,
     key,
-    { ...customerNames('Sara Aminu Bello'), business: business || 'Your business', ...messageKind(key)?.sample },
+    {
+      ...customerNames('Sara Aminu Bello'),
+      business: business || 'Your business',
+      ...messageKind(key)?.sample,
+    },
     legacyReady,
   );

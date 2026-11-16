@@ -18,7 +18,11 @@ export function useMessages() {
       messageText(
         settings,
         key,
-        { business: business || 'our shop', ...(customerName !== undefined ? customerNames(customerName) : {}), ...values },
+        {
+          business: business || 'our shop',
+          ...(customerName !== undefined ? customerNames(customerName) : {}),
+          ...values,
+        },
         legacyReady,
       ),
     mode: (key: string) => messageMode(settings, key) as 'whatsapp' | 'share',
