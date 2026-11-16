@@ -52,6 +52,11 @@ import {
   faScaleBalanced,
   faPause,
   faBullhorn,
+  faArrowLeft,
+  faMagnifyingGlass,
+  faBasketShopping,
+  faUserPlus,
+  faListCheck,
 } from '@fortawesome/free-solid-svg-icons';
 const icons = {
   import: faFileImport,
@@ -109,6 +114,11 @@ const icons = {
   logout: faRightFromBracket,
   login: faRightToBracket,
   switchUser: faArrowRightArrowLeft,
+  back: faArrowLeft,
+  search: faMagnifyingGlass,
+  basket: faBasketShopping,
+  addUser: faUserPlus,
+  orders: faListCheck,
 };
 export type IconName = keyof typeof icons;
 export default function Icon({ name }: { name: IconName }) {

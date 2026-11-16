@@ -248,6 +248,9 @@ try {
           .catch(() => {});
         await delay(300);
       }
+      // Quick sale's full-page screen (not a <dialog>) closes with Back.
+      const back = page.locator('.pos-overlay .pos-back');
+      if (await back.count()) await back.click().catch(() => {});
     };
     // Every text box, date box and dropdown on screen should be one height.
     const fieldHeights = async (where) => {
@@ -319,10 +322,17 @@ try {
       await nav('Point of Service');
       await page.getByRole('button', { name: 'Quick sale', exact: true }).click();
       const q = page.getByRole('dialog', { name: 'Quick sale' });
-      await q.locator('.quick-product').first().click();
-      await q.getByRole('spinbutton').first().fill('');
-      await q.getByLabel('Discount', { exact: true }).selectOption('percent');
-      await shot('95-quick-sale-discount', false);
+      await q.locator('.pos-tile').first().click();
+      await q.locator('.pos-tile').first().click();
+      await shot('95-quick-sale-basket', false);
+      await q.getByRole('button', { name: /^Pay ₦/ }).click();
+      const pay = page.getByRole('dialog', { name: 'Payment' });
+      await shot('95-quick-sale-payment', false);
+      await fieldHeights('quick sale payment');
+      await pay.getByLabel('Collected now').uncheck();
+      if (await pay.getByLabel('Discount', { exact: true }).count())
+        await pay.getByLabel('Discount', { exact: true }).selectOption('percent');
+      await pay.screenshot({ path: `${out}/${mode}-95-quick-sale-payment-later.png` });
       await closeDialogs();
     } catch (e) {
       failures.push(`${mode} quick sale discount: ${e.message.split('\n')[0]}`);
@@ -517,7 +527,8 @@ try {
       await nav('Point of Service');
       await page.getByRole('button', { name: 'Quick sale', exact: true }).click();
       const q = page.getByRole('dialog', { name: 'Quick sale' });
-      await q.getByRole('button', { name: /^Add Envelope — Blue/ }).click();
+      await q.getByRole('button', { name: /^Envelope,/ }).click();
+      await page.getByRole('dialog', { name: 'Envelope' }).getByRole('button', { name: /Blue/ }).click();
       await shot('97-quick-sale-variants', false);
       await closeDialogs();
       await nav('Products');

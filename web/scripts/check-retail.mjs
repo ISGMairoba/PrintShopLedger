@@ -73,24 +73,50 @@ try {
   await nav('Materials');
   assert.match(await page.locator('table').innerText(), /Blue pen[\s\S]*\b7\b/);
 
-  // Quick sale: tap the product twice, take ₦2,000, give ₦1,000 change.
+  // Quick sale: tap the product twice, hold the basket and resume it, then take ₦2,000 and give ₦1,000 change.
   await nav('Point of Service');
   await page.getByRole('button', { name: 'Quick sale', exact: true }).click();
   d = page.getByRole('dialog', { name: 'Quick sale' });
-  const tile = d.getByRole('group', { name: 'Products' }).getByRole('button', { name: /Blue pen/ });
-  await tile.click();
-  await tile.click();
+  const items = () => d.getByRole('group', { name: 'Items' }).getByRole('button', { name: /Blue pen/ });
+  await items().click();
+  await items().click();
   assert.equal(await d.getByLabel('Quantity of Blue pen').inputValue(), '2');
-  await d.getByLabel('Money received (₦)').fill('2000');
-  assert.match(
-    await d.locator('.cart-total').innerText(),
-    /Total ₦1,000\.00[\s\S]*Change to give: ₦1,000\.00/,
-  );
-  await d.getByRole('button', { name: /Complete sale/ }).click();
+  assert.match(await items().getAttribute('aria-label'), /2 in the basket/);
+  await d.getByRole('button', { name: 'Hold basket', exact: true }).click();
+  await d.waitFor({ state: 'detached' });
+  await page.getByRole('button', { name: 'Quick sale', exact: true }).click();
+  d = page.getByRole('dialog', { name: 'Quick sale' });
+  await d.getByRole('button', { name: 'Held baskets (1)', exact: true }).click();
+  const heldDialog = page.getByRole('dialog', { name: 'Held baskets (1)' });
+  await heldDialog.getByRole('button', { name: 'Resume', exact: true }).click();
+  await heldDialog.waitFor({ state: 'detached' });
+  assert.equal(await d.getByLabel('Quantity of Blue pen').inputValue(), '2');
+  await d.getByRole('button', { name: /^Pay ₦1,000\.00/ }).click();
+  let pay = page.getByRole('dialog', { name: 'Payment' });
+  assert.match(await pay.locator('.pos-pay-total').innerText(), /Total to pay\s*₦1,000\.00/);
+  await pay.getByLabel('Money received (₦)').fill('2000');
+  assert.match(await pay.locator('.pos-pay-change').innerText(), /Change to give\s*₦1,000\.00/);
+  await pay.getByRole('button', { name: /Complete sale/ }).click();
   await d.waitFor({ state: 'detached' });
   await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
+
+  // Collected later: needs a saved customer; the item follows a workflow and stock is taken now.
+  await page.getByRole('button', { name: 'Quick sale', exact: true }).click();
+  d = page.getByRole('dialog', { name: 'Quick sale' });
+  await items().click();
+  await d.getByRole('button', { name: /^Pay ₦500\.00/ }).click();
+  pay = page.getByRole('dialog', { name: 'Payment' });
+  await pay.getByLabel('Collected now').uncheck();
+  await pay.getByLabel('Due').waitFor();
+  await pay.getByRole('button', { name: /Complete sale/ }).click();
+  assert.match(await pay.getByRole('alert').innerText(), /saved customer/);
+  await pay.getByRole('combobox', { name: 'Customer', exact: true }).fill('Walk-in — 080222');
+  await pay.getByRole('button', { name: /Complete sale/ }).click();
+  await d.waitFor({ state: 'detached' });
+  await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
+  assert.match(await page.locator('table').first().innerText(), /Blue pen[\s\S]*Stage: Added/);
   await nav('Materials');
-  assert.match(await page.locator('table').innerText(), /Blue pen[\s\S]*\b5\b/);
+  assert.match(await page.locator('table').innerText(), /Blue pen[\s\S]*\b4\b/);
   await nav('Customers');
   assert.match(await page.locator('table').innerText(), /Walk-in customer/);
 

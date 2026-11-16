@@ -245,6 +245,9 @@ export default function App() {
   }, [page]);
   const [batchToAdvance, setBatchToAdvance] = useState<{ jobs: Job[]; mode: ProgressMode } | null>(null);
   const [quickSale, setQuickSale] = useState(false);
+  // Retail shops: Point of Service is the selling screen; this shows the orders list instead.
+  const [posOrders, setPosOrders] = useState(false);
+  useEffect(() => setPosOrders(false), [page]);
   /** The product being edited ('' = choose one), or null when closed. */
   const [productEdit, setProductEdit] = useState<string | null>(null);
   const [jobToAdvance, setJobToAdvance] = useState<{ job: Job; mode: ProgressMode } | null>(null);
@@ -305,7 +308,9 @@ export default function App() {
       setForm(null);
       setQuickSale(false);
       setMessage(
-        `Sale held${sale.customerName ? ` for ${sale.customerName}` : ''}. Resume it from Point of Service.`,
+        sale.kind === 'quick'
+          ? `Basket held${sale.customerName ? ` for ${sale.customerName}` : ''}. Resume it from Held on Quick sale.`
+          : `Sale held${sale.customerName ? ` for ${sale.customerName}` : ''}. Resume it from Point of Service.`,
         'success',
       );
     } catch (cause) {
@@ -2539,6 +2544,33 @@ export default function App() {
                               }}
                               start={quotationStart}
                             />
+                          ) : page === 'Point of Service' &&
+                            branding.settings.businessType === 'retail' &&
+                            !posOrders ? (
+                            <QuickSale
+                              key={resuming?.kind === 'quick' ? resuming.id : 'pos'}
+                              embedded
+                              ledger={ledger}
+                              actor={salesActor}
+                              busy={busy || legacyConflict}
+                              held={resuming?.kind === 'quick' ? resuming : undefined}
+                              onHold={holdCurrentSale}
+                              heldList={held}
+                              onResumeHeld={(sale) => setResuming(sale)}
+                              onDiscardHeld={(sale) =>
+                                scope && setHeld(removeHeld(deviceStorage(), scope, sale.id))
+                              }
+                              onOrders={() => setPosOrders(true)}
+                              onSave={completeHeldCheckout}
+                              onClose={() => setResuming(null)}
+                              onReceipt={setReceipt}
+                              jobSettings={branding.settings.jobs}
+                              canChooseWorkflow={demo || (shop?.accessLevel ?? 0) >= 2}
+                              discountPolicy={discountPolicy(
+                                branding.settings.discounts,
+                                demo ? 5 : (shop?.accessLevel ?? 0),
+                              )}
+                            />
                           ) : page === 'Point of Service' ? (
                             <PointOfServicePage
                               ledger={ledger}
@@ -2555,7 +2587,8 @@ export default function App() {
                               onPayment={() => openPayment()}
                               onQuickSale={() => {
                                 setForm(null);
-                                setQuickSale(true);
+                                if (branding.settings.businessType === 'retail') setPosOrders(false);
+                                else setQuickSale(true);
                               }}
                               onJob={setSelectedJob}
                               onNext={(job, mode) => setJobToAdvance({ job, mode })}
@@ -2569,7 +2602,8 @@ export default function App() {
                                 setResuming(sale);
                                 if (sale.kind === 'quick') {
                                   setForm(null);
-                                  setQuickSale(true);
+                                  if (branding.settings.businessType === 'retail') setPosOrders(false);
+                                  else setQuickSale(true);
                                 } else {
                                   setQuickSale(false);
                                   setForm('job');
@@ -2883,12 +2917,17 @@ export default function App() {
                           busy={busy}
                           held={resuming?.kind === 'quick' ? resuming : undefined}
                           onHold={holdCurrentSale}
+                          heldList={held}
+                          onResumeHeld={(sale) => setResuming(sale)}
+                          onDiscardHeld={(sale) => scope && setHeld(removeHeld(deviceStorage(), scope, sale.id))}
                           onSave={completeHeldCheckout}
                           onClose={() => {
                             setQuickSale(false);
                             setResuming(null);
                           }}
                           onReceipt={setReceipt}
+                          jobSettings={branding.settings.jobs}
+                          canChooseWorkflow={demo || (shop?.accessLevel ?? 0) >= 2}
                           discountPolicy={discountPolicy(
                             branding.settings.discounts,
                             demo ? 5 : (shop?.accessLevel ?? 0),

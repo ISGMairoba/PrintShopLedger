@@ -222,3 +222,64 @@ test('A collected shelf sale is still Collected straight away', () => {
   const after = applyCheckout(ledger, prepareCheckout(ledger, input, actor, 's-now', '2026-10-13T09:00:00Z'));
   assert.equal(after.jobs.find((j) => j.checkoutId === 's-now').productionStatus, 'Collected');
 });
+
+test('Categories, "from" prices and the Collected default for the selling screen', async () => {
+  const { productCategories, tilePrice, collectedByDefault, productTiles } = await import('../src/quick-sale.mjs');
+  const items = [
+    { id: 'a', name: 'Pen', productName: 'Pen', category: 'Stationery', price: 200, variantGroup: null, variantName: null },
+    { id: 'b', name: 'Ruler', productName: 'Ruler', category: 'Stationery', price: 300, variantGroup: null, variantName: null },
+    { id: 'c', name: 'Mug', productName: 'Mug', category: 'Gifts', price: 900, variantGroup: null, variantName: null },
+  ];
+  assert.deepEqual(productCategories(items), [
+    { name: 'Stationery', count: 2 },
+    { name: 'Gifts', count: 1 },
+  ]);
+  assert.deepEqual(
+    productTiles(items, '', 'Gifts').map((t) => t.product.id),
+    ['c'],
+  );
+  assert.deepEqual(productTiles(items, 'station').length, 2, 'search also matches the category');
+  assert.deepEqual(tilePrice([{ price: 500, priceTiers: [], packPrices: [] }]), { price: 500, from: false });
+  assert.deepEqual(tilePrice([{ price: 500, priceTiers: [{ from: 10, price: 400 }], packPrices: [] }]), {
+    price: 400,
+    from: true,
+  });
+  assert.equal(collectedByDefault({ defaultShelfWorkflowId: null }), true);
+  assert.equal(collectedByDefault({ defaultShelfWorkflowId: 'wf1' }), false);
+});
+
+test('Collected later: a chosen workflow covers the whole sale; a customer added at the sale buys it', async () => {
+  const { laterWorkflow } = await import('../src/quick-sale.mjs');
+  const { createCustomerEvent } = await import('../src/customers.mjs');
+  let ledger = shop();
+  const options = {
+    workflows: [{ id: 'wf1', name: 'Packaging', steps: [{ name: 'Packaging', minutes: 120, unit: 'h' }] }],
+    defaultShelfWorkflowId: null,
+    defaultWorkflowId: null,
+  };
+  assert.deepEqual(laterWorkflow(ledger, options, 'pen-s').workflow, ['Added', 'Processing', 'Completed', 'Collected']);
+  const chosen = laterWorkflow(ledger, options, 'pen-s', 'wf1');
+  assert.deepEqual(chosen.workflow, ['Added', 'Packaging', 'Completed', 'Collected']);
+  assert.equal(chosen.workflowName, 'Packaging');
+  assert.deepEqual(chosen.stageHours, { Packaging: 2 });
+  const added = createCustomerEvent(
+    { name: 'Zainab', phone: '08031234567', address: '', creditLimit: 0 },
+    actor,
+  );
+  const { input } = quickSaleInput(
+    ledger,
+    [{ serviceId: 'pen-s', quantity: 1 }],
+    opts({
+      customerId: null,
+      newCustomer: added,
+      tendered: 0,
+      collected: false,
+      workflowFor: (id) => laterWorkflow(ledger, options, id, 'wf1'),
+    }),
+  );
+  assert.equal(input.customerId, added.data.id);
+  ledger = applyCheckout(ledger, prepareCheckout(ledger, input, actor, 'sale-z', '2026-10-13T09:00:00Z'));
+  const job = ledger.jobs.find((j) => j.checkoutId === 'sale-z');
+  assert.deepEqual([job.productionStatus, job.workflowName, job.amount], ['Added', 'Packaging', 20000]);
+  assert.equal(ledger.customers.find((c) => c.id === added.data.id).name, 'Zainab');
+});

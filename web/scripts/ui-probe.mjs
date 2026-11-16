@@ -265,7 +265,7 @@ try {
       await shot('02-quick-sale');
       // Overlap check: no two product tiles may share pixels.
       const overlaps = await page.evaluate(() => {
-        const tiles = [...document.querySelectorAll('.quick-products > *')].map((el) =>
+        const tiles = [...document.querySelectorAll('.pos-grid > *')].map((el) =>
           el.getBoundingClientRect(),
         );
         let n = 0;
@@ -275,7 +275,7 @@ try {
               n++;
           }),
         );
-        const spill = [...document.querySelectorAll('.quick-products > *')].filter(
+        const spill = [...document.querySelectorAll('.pos-grid > *')].filter(
           (el) => el.scrollHeight > el.clientHeight + 2,
         ).length;
         return { n, spill };

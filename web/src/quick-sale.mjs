@@ -5,6 +5,7 @@ import { quoteLine } from './checkout.mjs';
 import { applyOrderDiscount, validDiscount } from './discounts.mjs';
 import { countPrice } from './price-tiers.mjs';
 import { variantBase } from './variants.mjs';
+import { itemSteps, stepsWorkflow } from './workflow-steps.mjs';
 
 export const WALK_IN_NAME = 'Walk-in customer';
 /** A phone value with no digits: it never clashes with a real customer's number. */
@@ -22,6 +23,8 @@ export function shelfProducts(ledger) {
       return {
         id: s.id,
         name: s.description,
+        icon: s.icon ?? null,
+        category: s.category ?? '',
         price: s.price,
         packPrices: s.packPrices ?? [],
         priceTiers: s.priceTiers ?? [],
@@ -47,12 +50,13 @@ export function shelfProducts(ledger) {
  * @param {string} [query]
  * @returns {({ kind: 'single', product: P } | { kind: 'group', id: string, name: string, variants: P[] })[]}
  */
-export function productTiles(products, query = '') {
+export function productTiles(products, query = '', category = '') {
   const q = query.trim().toLowerCase();
   const tiles = [];
   const groups = new Map();
   for (const p of products) {
-    if (q && !p.name.toLowerCase().includes(q)) continue;
+    if (q && !p.name.toLowerCase().includes(q) && !String(p.category ?? '').toLowerCase().includes(q)) continue;
+    if (category && (p.category ?? '') !== category) continue;
     if (!p.variantGroup) {
       tiles.push({ kind: 'single', product: p, sortName: p.name });
       continue;
@@ -76,6 +80,51 @@ export function productTiles(products, query = '') {
   return tiles
     .sort((a, b) => a.sortName.localeCompare(b.sortName))
     .map(({ sortName: _sort, ...tile }) => tile);
+}
+
+/** The categories of the shelf items, for the chips above the grid (most items first, then A–Z). */
+export function productCategories(products) {
+  const count = new Map();
+  for (const p of products) if (p.category) count.set(p.category, (count.get(p.category) ?? 0) + 1);
+  return [...count.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([name, n]) => ({ name, count: n }));
+}
+
+/** The lowest price a tile can sell at ("from ₦…" when packs, tiers or variants make it vary). */
+export function tilePrice(variants) {
+  const prices = variants.flatMap((p) => [
+    p.price,
+    ...(p.priceTiers ?? []).map((t) => t.price),
+    ...(p.packPrices ?? []).map((pk) => Math.round(pk.price / pk.quantity)),
+  ]);
+  const low = Math.min(...prices.filter((n) => Number.isFinite(n)));
+  return { price: low, from: new Set(prices).size > 1 };
+}
+
+/**
+ * Whether the Collected tick starts ticked: yes, unless the business set a workflow for shelf items
+ * (Business Settings → Dropdowns & workflow), in which case its shelf sales usually go through it.
+ */
+export const collectedByDefault = (options) => !options?.defaultShelfWorkflowId;
+
+/**
+ * The workflow fields for a shelf item sold now and collected later: a saved workflow chosen at the
+ * sale (for the whole sale), else the item's own steps, else the business's steps for shelf items.
+ * @param {any} ledger
+ * @param {any} options business options
+ * @param {string} serviceId
+ * @param {string} [chosenId] a saved workflow's id, or '' for each item's usual steps
+ */
+export function laterWorkflow(ledger, options, serviceId, chosenId = '') {
+  const chosen = chosenId ? (options.workflows ?? []).find((w) => w.id === chosenId) : null;
+  const service = ledger.services.find((s) => s.id === serviceId);
+  const flow = stepsWorkflow(chosen ? chosen.steps : itemSteps(options, service?.production, 'shelf'));
+  return {
+    workflow: flow.stages,
+    ...(chosen ? { workflowName: chosen.name, workflowId: chosen.id } : {}),
+    ...(Object.keys(flow.hours).length ? { stageHours: flow.hours } : {}),
+  };
 }
 
 /** The shared walk-in customer, if the business has one. */
@@ -182,9 +231,11 @@ export function pricedCart(ledger, cart, { discount = null, policy = null, sourc
  * Returns { input, total, change }.
  * @param {any} ledger
  * @param {{ serviceId: string, quantity: number }[]} cart
- * Not collected now: the items follow `steps` (workflow fields from workflow-steps.mjs) with an
- * optional deadline, and a saved customer is needed.
- * @param {{ customerId: string | null, tendered: number, method: string, methodLabel: string, paidOn: string, source: string, actor: { id: string, label: string }, now: string, discount?: { kind: string, value: number, reason?: string } | null, policy?: { maxPercent: number, canFlat: boolean } | null, collected?: boolean, dueAt?: string, steps?: Record<string, unknown> | null }} options
+ * Not collected now: each item follows `workflowFor(serviceId)` (workflow fields, see laterWorkflow)
+ * with an optional deadline, and a saved customer is needed.
+ * newCustomer: a customer.created event for a customer added during the sale (they buy it).
+ * useWallet: a saved customer's wallet credit pays first.
+ * @param {{ customerId: string | null, tendered: number, method: string, methodLabel: string, paidOn: string, source: string, actor: { id: string, label: string }, now: string, discount?: { kind: string, value: number, reason?: string } | null, policy?: { maxPercent: number, canFlat: boolean } | null, collected?: boolean, dueAt?: string, workflowFor?: ((serviceId: string) => Record<string, unknown>) | null, newCustomer?: any, useWallet?: boolean, reference?: string }} options
  */
 export function quickSaleInput(
   ledger,
@@ -202,7 +253,10 @@ export function quickSaleInput(
     policy = null,
     collected = true,
     dueAt = '',
-    steps = null,
+    workflowFor = null,
+    newCustomer: added = null,
+    useWallet = false,
+    reference = '',
   },
 ) {
   if (!cart.length) throw Error('Add at least one product.');
@@ -211,10 +265,12 @@ export function quickSaleInput(
       throw Error('Quantities must be more than zero, with up to three decimal places.');
   if (!Number.isSafeInteger(tendered) || tendered < 0) throw Error('Enter the money received.');
   const { lines, orderDiscount, total } = pricedCart(ledger, cart, { discount, policy, source });
-  const walkIn = customerId ? null : walkInCustomer(ledger);
-  const newCustomer = customerId || walkIn ? null : walkInEvent(actor, now);
-  const buyer = customerId || walkIn?.id || newCustomer.data.id;
-  const isWalkIn = !customerId;
+  if (added && added.kind !== 'customer.created') throw Error('Add a new customer.');
+  const named = added?.data.id ?? customerId;
+  const walkIn = named ? null : walkInCustomer(ledger);
+  const newCustomer = added ?? (named || walkIn ? null : walkInEvent(actor, now));
+  const buyer = named || walkIn?.id || newCustomer.data.id;
+  const isWalkIn = !named;
   if (!collected && isWalkIn) throw Error('Choose a saved customer for a sale that is collected later.');
   if (isWalkIn && tendered < total)
     throw Error('Walk-in sales are paid in full. Choose a customer to sell on credit.');
@@ -227,17 +283,21 @@ export function quickSaleInput(
       newCustomer,
       lines: collected
         ? lines
-        : lines.map((line) => ({ ...line, ...(dueAt ? { dueAt } : {}), ...(steps ?? {}) })),
+        : lines.map((line) => ({
+            ...line,
+            ...(dueAt ? { dueAt } : {}),
+            ...(workflowFor ? workflowFor(line.serviceId) : {}),
+          })),
       ...(collected ? {} : { collected: false }),
       ...(orderDiscount ? { orderDiscount } : {}),
       ...(policy ? { discountPolicy: policy } : {}),
       cashReceived,
-      useWallet: false,
+      useWallet: !isWalkIn && !!useWallet,
       override: null,
       method,
       methodLabel,
       paidOn,
-      reference: '',
+      reference: String(reference ?? '').trim().slice(0, 120),
     },
   };
 }
