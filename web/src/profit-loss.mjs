@@ -22,7 +22,7 @@ function period(ledger, from, to) {
   const sales = jobs.jobs.reduce((n, r) => n + r.revenue, 0);
   // Actual cost of goods used: the stock jobs really took at actual cost (the estimate for jobs that
   // took no stock), plus expenses linked to them. Every known part counts.
-  const jobCost = jobs.totals.actualCost;
+  const jobCost = jobs.totals.actualCostAll;
   const estimatedJobCost = jobs.totals.cost + jobs.totals.partialCost;
   const waste = wasteCost(ledger, from, to);
   const lateCost = Math.round(lateCostsIn(ledger, from, to).reduce((n, c) => n + c.amount, 0));

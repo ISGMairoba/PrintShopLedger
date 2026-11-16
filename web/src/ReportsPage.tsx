@@ -1473,7 +1473,7 @@ function ProfitTab({ ledger, freshness, busy, error, pdf, csv }: TabProps) {
                 {currency(t.actualProfit)}
               </strong>
               <small>
-                All {t.jobs} jobs: actual cost {currency(t.actualCost)}
+                {t.actualJobs} jobs with a cost: actual cost {currency(t.actualCost)}
                 {t.provisionalJobs ? ` · ${t.provisionalJobs} provisional` : ''}
               </small>
             </article>
@@ -1804,6 +1804,8 @@ type ProfitReport = {
     otherIncome?: number;
     actualCost: number;
     actualProfit: number;
+    actualJobs: number;
+    actualCostAll: number;
     actualUnknownJobs: number;
     provisionalJobs: number;
   };

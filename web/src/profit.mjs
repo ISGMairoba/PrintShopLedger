@@ -145,6 +145,7 @@ export function profitReport(ledger, from, to) {
   rows.sort((a, b) => a.day.localeCompare(b.day) || a.item.localeCompare(b.item));
   const sum = (list, key) => list.reduce((n, r) => n + r[key], 0);
   const knownRows = rows.filter((r) => r.known);
+  const actualRows = rows.filter((r) => r.actualKnown);
   const byItem = new Map();
   for (const r of rows) {
     const g = byItem.get(r.item) ?? { item: r.item, jobs: 0, revenue: 0, cost: 0, profit: 0, unknown: 0 };
@@ -171,10 +172,13 @@ export function profitReport(ledger, from, to) {
       unknownRevenue: sum(rows, 'revenue') - revenue,
       // The part of those jobs' cost that is known (a job can be partly costed).
       partialCost: sum(rows, 'cost') - sum(knownRows, 'cost'),
-      // Actual cost: every known part, of every job (the estimate where a job took no stock).
-      actualCost: sum(rows, 'actualCost'),
-      actualProfit: sum(rows, 'revenue') - sum(rows, 'actualCost'),
-      actualUnknownJobs: rows.filter((r) => !r.actualKnown).length,
+      // Actual cost and profit of the jobs whose cost is known (the estimate where a job took no stock),
+      // and every known part of every job (profit & loss counts those, as it does for estimates).
+      actualCost: sum(actualRows, 'actualCost'),
+      actualProfit: sum(actualRows, 'revenue') - sum(actualRows, 'actualCost'),
+      actualJobs: actualRows.length,
+      actualCostAll: sum(rows, 'actualCost'),
+      actualUnknownJobs: rows.length - actualRows.length,
       provisionalJobs: rows.filter((r) => r.provisional).length,
       // Gifts, grants and other money that is not a sale (Accounts → Money in / out).
       otherIncome: moneyMoveTotals(ledger, from, to).other_income,
@@ -199,8 +203,8 @@ export function profitSections(report, { money, unit = ' (NGN)' }) {
         [`Sales with a known cost${unit}`, money(t.revenue)],
         [`Estimated cost${unit}`, money(t.cost)],
         [`Estimated profit${unit}`, money(t.profit)],
-        [`Actual cost, all jobs${unit}`, money(t.actualCost ?? 0)],
-        [`Actual profit, all jobs${unit}`, money(t.actualProfit ?? 0)],
+        [`Actual cost of jobs with a cost${unit}`, money(t.actualCost ?? 0)],
+        [`Actual profit of jobs with a cost${unit}`, money(t.actualProfit ?? 0)],
         ['Jobs with materials not yet confirmed (actual is provisional)', t.provisionalJobs ?? 0],
         ['Margin', t.margin === null ? '—' : `${t.margin}%`],
         ['Jobs with no cost set', t.unknownJobs],
