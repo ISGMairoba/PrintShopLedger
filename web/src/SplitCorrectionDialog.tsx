@@ -37,7 +37,11 @@ export default function SplitCorrectionDialog({
   const methods = useBusinessOptions().paymentMethods.filter((m) => m.enabled);
   const first = payments[0];
   const [parts, setParts] = useState<Part[]>(() =>
-    payments.map((p) => ({ paymentId: p.id, amount: String(p.amount / 100), method: p.methodLabel ?? p.method })),
+    payments.map((p) => ({
+      paymentId: p.id,
+      amount: String(p.amount / 100),
+      method: p.methodLabel ?? p.method,
+    })),
   );
   const [paidOn, setPaidOn] = useState(first.paidOn),
     [reference, setReference] = useState(first.reference),
@@ -60,8 +64,12 @@ export default function SplitCorrectionDialog({
   let after: Ledger | null = null,
     notice = '';
   try {
-    after = splitCorrectionEvents(ledger, changes(), { paidOn, reference, reason: reason.trim() || 'Preview' }, actor)
-      .after;
+    after = splitCorrectionEvents(
+      ledger,
+      changes(),
+      { paidOn, reference, reason: reason.trim() || 'Preview' },
+      actor,
+    ).after;
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : String(cause);
     if (message !== 'Nothing changed.') notice = message;
@@ -73,7 +81,9 @@ export default function SplitCorrectionDialog({
     return [
       `Part ${i + 1}`,
       `${p.methodLabel ?? p.method} ${currency(p.amount)}`,
-      now ? `${now.methodLabel ?? now.method} ${currency(now.amount)}` : `${p.methodLabel ?? p.method} ${currency(p.amount)}`,
+      now
+        ? `${now.methodLabel ?? now.method} ${currency(now.amount)}`
+        : `${p.methodLabel ?? p.method} ${currency(p.amount)}`,
     ];
   });
   if (after) {
@@ -135,7 +145,9 @@ export default function SplitCorrectionDialog({
           } catch (cause) {
             const message = cause instanceof Error ? cause.message : String(cause);
             setSaved((n) => n + done);
-            setError(done ? `${done} of ${count} parts were saved. ${message} Review and save the rest.` : message);
+            setError(
+              done ? `${done} of ${count} parts were saved. ${message} Review and save the rest.` : message,
+            );
           }
         }}
       >

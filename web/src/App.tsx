@@ -3026,7 +3026,8 @@ export default function App() {
                       )}
                       {correctingPayment &&
                         // A part of a split sale: the whole sale is corrected together.
-                        receiptPayments(ledger, correctingPayment.checkoutId ?? correctingPayment.id).length > 1 && (
+                        receiptPayments(ledger, correctingPayment.checkoutId ?? correctingPayment.id).length >
+                          1 && (
                           <SplitCorrectionDialog
                             ledger={ledger}
                             payments={receiptPayments(
@@ -3040,18 +3041,19 @@ export default function App() {
                           />
                         )}
                       {correctingPayment &&
-                        receiptPayments(ledger, correctingPayment.checkoutId ?? correctingPayment.id).length <= 1 && (
-                        <PaymentCorrectionDialog
-                          ledger={ledger}
-                          payment={
-                            ledger.payments.find((p) => p.id === correctingPayment.id) ?? correctingPayment
-                          }
-                          busy={busy}
-                          actor={salesActor}
-                          onClose={() => setCorrectingPayment(null)}
-                          onSave={approveOperation}
-                        />
-                      )}
+                        receiptPayments(ledger, correctingPayment.checkoutId ?? correctingPayment.id)
+                          .length <= 1 && (
+                          <PaymentCorrectionDialog
+                            ledger={ledger}
+                            payment={
+                              ledger.payments.find((p) => p.id === correctingPayment.id) ?? correctingPayment
+                            }
+                            busy={busy}
+                            actor={salesActor}
+                            onClose={() => setCorrectingPayment(null)}
+                            onSave={approveOperation}
+                          />
+                        )}
                       {receipt && (
                         <ReceiptView
                           ledger={ledger}
