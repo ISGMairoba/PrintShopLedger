@@ -41,7 +41,7 @@ export function readyMessage(ledger, job, { business, template, terms, messages 
   const owed = jobs.reduce((n, j) => n + jobBalanceFast(ledger, j).outstanding, 0);
   const word = jobs.length > 1 ? (terms?.jobs ?? 'jobs') : (terms?.job ?? 'job');
   const values = {
-    ...customerNames(customer?.name),
+    ...customerNames(customer?.name, customer?.calledAs),
     job: word,
     jobs: word,
     is: jobs.length > 1 ? 'are' : 'is',

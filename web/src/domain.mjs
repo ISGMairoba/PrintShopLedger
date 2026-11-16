@@ -1,3 +1,4 @@
+import { applyFieldEvent } from './item-fields.mjs';
 import { applyMaterialsCheck } from './material-check.mjs';
 import { routeMoneyEvent, routeMoneyResult } from './account-methods.mjs';
 import { applyJobExtraMaterials } from './production-materials.mjs';
@@ -100,6 +101,8 @@ function applyEventCore(ledger, event) {
   if (event.kind.startsWith('expense.')) return applyExpenseEvent(ledger, event);
   if (event.kind.startsWith('quotation.')) return applyQuotationEvent(ledger, event);
   if (event.kind === 'customer.reminded') return applyReminderEvent(ledger, event);
+  if (event.kind === 'service.display_set' || event.kind === 'customer.called_as_set')
+    return applyFieldEvent(ledger, event);
   if (event.kind.startsWith('customer.')) return applyCustomerEvent(ledger, event);
   if (event.kind.startsWith('service.')) return applyServiceEvent(ledger, event);
   if (event.kind.startsWith('material.')) return applyMaterialEvent(ledger, event);

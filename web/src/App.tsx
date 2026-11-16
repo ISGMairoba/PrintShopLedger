@@ -11,7 +11,11 @@ import { setRequestBranch, storeBranch, storedBranch } from './device-branch';
 import PayeesPage from './PayeesPage';
 import AccountsPage from './AccountsPage';
 import { defaultMoneyAccount } from './operations.mjs';
-import type { Ledger, OperationsEvent } from './types';
+import type {
+  Ledger,
+  OperationsEvent,
+  FieldEvent,
+} from './types';
 import DueDateDialog from './DueDateDialog';
 import useSubscription, { subscriptionNotice } from './useSubscription';
 import { setWritesBlocked } from './subscription-rule.mjs';
@@ -86,6 +90,7 @@ import { PeriodDefaultsContext } from './PeriodFilter';
 import { TermsProvider } from './Words';
 import { ReadyMessageContext } from './ReadyMessage';
 import { MessagesContext } from './MessagesContext';
+import { initialsFor } from './item-fields.mjs';
 import { readyMessage } from './ready-message.mjs';
 import { TemplateAuditContext, TemplateDocumentContext, type TemplateStart } from './TemplateFields';
 import { canSeeTemplateCosts } from './pricing-templates.mjs';
@@ -186,17 +191,6 @@ const deviceStorage = () => {
   }
 };
 
-/** Two letters for the round avatar: first and last word of the name (Mairoba Studio → MS). */
-const initialOf = (name: string) => {
-  const words = name
-    .trim()
-    .split(/\s+/)
-    .filter((w) => /\p{L}|\d/u.test(w));
-  if (!words.length) return '?';
-  const first = [...words[0]].find((c) => /\p{L}|\d/u.test(c)) ?? '';
-  const last = words.length > 1 ? ([...words[words.length - 1]].find((c) => /\p{L}|\d/u.test(c)) ?? '') : '';
-  return (first + last).toUpperCase();
-};
 
 export default function App() {
   const mobileLayout = useMobileLayout();
@@ -639,7 +633,8 @@ export default function App() {
       | ExpenseEvent
       | QuotationEvent
       | ReminderEvent
-      | OperationsEvent,
+      | OperationsEvent
+      | FieldEvent,
   ) {
     if (
       busy ||
@@ -659,7 +654,7 @@ export default function App() {
     }
   }
   // Several catalogue events saved together, applied in order (a new product: stock item, then service).
-  async function saveCatalogueMany(operations: (MaterialEvent | ServiceEvent)[]) {
+  async function saveCatalogueMany(operations: (MaterialEvent | ServiceEvent | FieldEvent)[]) {
     if (
       busy ||
       !ready ||
@@ -1228,7 +1223,7 @@ export default function App() {
           setPage('My Account');
         }}
       >
-        {initialOf(demo ? 'Trial' : shop?.staffName || '?')}
+        {initialsFor(demo ? 'Trial' : shop?.staffName || '?', shop?.initials)}
       </button>
     </div>
   );
@@ -1626,6 +1621,7 @@ export default function App() {
               settings: branding.settings.messages,
               business: businessName,
               legacyReady: branding.settings.jobs.readyMessage ?? '',
+              customers: state.ledger.customers,
             }}
           >
             <TemplateAuditContext.Provider
@@ -1658,7 +1654,7 @@ export default function App() {
                       footer={
                         <div className="sidebar-user">
                           <span className="user-avatar" aria-hidden="true">
-                            {initialOf(demo ? 'Trial' : shop?.staffName || '?')}
+                            {initialsFor(demo ? 'Trial' : shop?.staffName || '?', shop?.initials)}
                           </span>
                           <span className="sidebar-user-text">
                             <strong>
@@ -2301,7 +2297,7 @@ export default function App() {
                                   <section className="panel device-sign-out">{businessSignOut}</section>
                                 )}
                               <AccountPage
-                                key={`${scope}:${shop?.username}`}
+                                key={`${scope}:${shop?.username}:${shop?.initials ?? ''}`}
                                 shopId={shop?.id ?? ''}
                                 userId={session?.user.id ?? ''}
                                 businessAccount={!!session && session.user.id === businessSession?.user.id}
@@ -2310,6 +2306,8 @@ export default function App() {
                                 demo={demo}
                                 themePreference={branding.preference}
                                 setThemePreference={branding.setTheme}
+                                staffName={shop?.staffName ?? ''}
+                                initials={shop?.initials ?? ''}
                                 onChanged={(message) => {
                                   setMessage(message);
                                   setStaffEpoch((value) => value + 1);
@@ -2627,6 +2625,7 @@ export default function App() {
                               busy={busy || hasConflict}
                               actor={catalogueActor}
                               onSave={saveCatalogue}
+                              onSaveField={saveCatalogue}
                               onRecordPayment={(id) => openPayment(id)}
                             />
                           ) : page === 'Materials' ? (

@@ -1,6 +1,8 @@
 export interface Customer {
   id: string;
   name: string;
+  /** The name messages greet them by ({customer}); empty: their first name. */
+  calledAs?: string;
   phone: string;
   address: string;
   creditLimit: number;
@@ -402,6 +404,9 @@ export interface MaterialHistoryEntry {
   detailsComplete: boolean;
 }
 export interface Service {
+  /** Its icon on the Quick sale screen (ItemIcon names) and its category. */
+  icon?: string;
+  category?: string;
   id: string;
   description: string;
   materialId: string | null;
@@ -475,6 +480,20 @@ export type JobMaterialsCheckEvent = {
     mode: 'confirm' | 'request';
     usages: { id: string; line: string; materialId: string; quantity: number }[];
     stockIds?: Record<string, string>;
+    modifiedBy: string;
+    modifiedByLabel: string;
+    modifiedAt: string;
+  };
+};
+export type FieldEvent = {
+  id: string;
+  kind: 'service.display_set' | 'customer.called_as_set';
+  data: {
+    id: string;
+    baseVersion: number;
+    icon?: string;
+    category?: string;
+    calledAs?: string;
     modifiedBy: string;
     modifiedByLabel: string;
     modifiedAt: string;
@@ -787,6 +806,7 @@ export type LedgerEvent =
   | JobMaterialsCheckEvent
   | JobHoldEvent
   | JobHandoverEvent
+  | FieldEvent
   | CustomerEvent
   | { id: string; kind: 'job.created'; data: Job }
   | { id: string; kind: 'payment.recorded'; data: Payment }

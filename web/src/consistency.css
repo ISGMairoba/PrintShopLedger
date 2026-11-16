@@ -3944,3 +3944,94 @@ textarea {
   min-height: 34px;
   font-size: 12px;
 }
+
+/* My Account → Initials: the avatar beside the field. */
+.initials-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+}
+.initials-form label {
+  flex: 1 1 200px;
+}
+.initials-form .user-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  aspect-ratio: 1;
+  display: inline-grid;
+  place-items: center;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--brand-primary, #124b40) 14%, transparent);
+}
+
+/* Products → Icon & category */
+.item-look-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.item-look-preview > span:last-child {
+  display: flex;
+  flex-direction: column;
+}
+.item-look-preview small {
+  opacity: 0.7;
+  font-size: 12px;
+}
+.item-look-tile {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  display: inline-grid;
+  place-items: center;
+  font-size: 24px;
+  background: color-mix(in srgb, var(--brand-primary, #124b40) 12%, transparent);
+  color: var(--brand-primary, #124b40);
+}
+.item-look-tile .item-icon {
+  width: 26px;
+  height: 26px;
+}
+.icon-picker {
+  margin-top: 14px;
+}
+.icon-picker [role='radiogroup'] {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+.icon-picker [role='radio'] {
+  width: 100%;
+  aspect-ratio: 1;
+  min-height: 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.icon-picker [role='radio'] .app-icon {
+  width: 18px;
+  height: 18px;
+}
+.icon-picker [role='radio'].chosen {
+  border-color: var(--brand-primary, #124b40);
+  background: color-mix(in srgb, var(--brand-primary, #124b40) 14%, transparent);
+  color: var(--brand-primary, #124b40);
+}
+.product-name-with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.product-name-with-icon .item-icon {
+  width: 14px;
+  height: 14px;
+  opacity: 0.75;
+}

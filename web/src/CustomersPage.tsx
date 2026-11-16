@@ -15,7 +15,7 @@ import { customerSummary } from './customer-summary.mjs';
 import { currency } from './receipts.mjs';
 import { servicePrice } from './services.mjs';
 import { SortHeader, useTableSort } from './TableSort';
-import type { Customer, CustomerEvent, Ledger } from './types';
+import type { Customer, CustomerEvent, Ledger, FieldEvent } from './types';
 import { useWords } from './Words';
 type Props = {
   ledger: Ledger;
@@ -23,6 +23,8 @@ type Props = {
   busy: boolean;
   actor: { id: string; label: string };
   onSave: (event: CustomerEvent) => Promise<void>;
+  /** Saves a customer's "Called as" name. */
+  onSaveField?: (event: FieldEvent) => Promise<void>;
   onRecordPayment: (id: string) => void;
   onStatement?: (id: string) => void;
   /** The owner's view: each branch's records (customer accounts in every branch). */
@@ -37,6 +39,7 @@ export default function CustomersPage({
   busy,
   actor,
   onSave,
+  onSaveField,
   onRecordPayment,
   onStatement,
   branches,
@@ -355,6 +358,7 @@ export default function CustomersPage({
           actor={actor}
           busy={busy}
           onSave={onSave}
+          onSaveCalledAs={onSaveField}
           onClose={() => setEditor(null)}
         />
       )}
