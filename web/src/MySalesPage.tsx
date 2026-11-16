@@ -192,7 +192,7 @@ export default function MySalesPage({
             {snapshot.refunds.map((r: SaleAdjustment) => (
               <p key={r.id}>
                 {ledger.customers.find((c) => c.id === r.customerId)?.name} · {currency(r.refundAmount)} ·{' '}
-                {r.methodLabel ?? r.method}
+                {paymentName(r)}
                 <small>
                   {r.reason} · {date(r.changedAt)}
                 </small>

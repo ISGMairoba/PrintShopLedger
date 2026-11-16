@@ -1,3 +1,4 @@
+import { paymentName } from './business-options.mjs';
 import { useState } from 'react';
 import Modal from './Modal';
 import Icon from './Icon';
@@ -185,7 +186,7 @@ export default function DrawerReviews({
                     <td>
                       {currency(r.cashReceived)}
                       <small>
-                        {r.methodLabel || r.method}
+                        {paymentName(r)}
                         {r.walletUsed > 0 ? ` · wallet ${currency(r.walletUsed)}` : ''}
                       </small>
                     </td>

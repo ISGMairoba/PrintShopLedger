@@ -1,5 +1,6 @@
 import { resolveWatermark, logoPosition, documentHeaderHtml } from './document-logos.mjs';
 import { paymentName } from './business-options.mjs';
+import { partsLabel } from './checkout.mjs';
 import { templateSpecLines } from './pricing-templates.mjs';
 import { escapeHtml } from './print-settings.mjs';
 import { receiptBusiness, validLogo, poweredByLine } from './business-branding.mjs';
@@ -149,7 +150,9 @@ export function receiptModel(record, business, pending = false, adjustments = []
       value: balancedTotal ? currency(record.total) : 'Needs verification',
     });
   totals.push({
-    label: o.showPaymentMethod ? `Paid now (${paymentName(record)})` : 'Paid now',
+    label: o.showPaymentMethod
+      ? `Paid now (${record.splits?.length ? partsLabel(record, currency) : paymentName(record)})`
+      : 'Paid now',
     value: currency(record.cashReceived),
     strong: true,
   });
@@ -205,7 +208,7 @@ export function receiptModel(record, business, pending = false, adjustments = []
     paidOn: record.paidOn,
     customer: { name: c?.name ?? record.customerId, phone: o.showCustomerPhone ? (c?.phone ?? '') : '' },
     cashier: o.showCashier ? record.createdByLabel : '',
-    method: paymentName(record),
+    method: record.splits?.length ? partsLabel(record, currency) : paymentName(record),
     meta,
     show,
     notices,
@@ -310,7 +313,13 @@ export const receiptLayout = (paperWidth) =>
 
 export function correctedReceipt(record, ledger) {
   const jobs = record.jobs.map((j) => ({ ...j, ...(ledger.jobs.find((x) => x.id === j.id) ?? {}) }));
-  const payment = ledger.payments.find((p) => p.id === record.id || p.checkoutId === record.id);
+  const paidHere = ledger.payments.filter((p) => p.id === record.id || p.checkoutId === record.id);
+  const payment = paidHere.find((p) => p.id === record.id) ?? paidHere[0];
+  // A split sale: every part, as corrected.
+  const splits = record.splits?.map((part) => {
+    const p = paidHere.find((x) => x.id === part.id);
+    return p ? { ...part, amount: p.amount, method: p.method, methodLabel: p.methodLabel || part.methodLabel } : part;
+  });
   const jobBalances = record.jobBalances.map((balance) => {
     const job = ledger.jobs.find((j) => j.id === balance.id);
     if (!job) return balance;
@@ -318,7 +327,10 @@ export function correctedReceipt(record, ledger) {
       .flatMap((p) => p.allocations)
       .filter((a) => a.jobId === job.id)
       .reduce((n, a) => n + a.amount, 0);
-    const paidThisCheckout = payment?.allocations.find((a) => a.jobId === job.id)?.amount ?? 0;
+    const paidThisCheckout = paidHere
+      .flatMap((p) => p.allocations)
+      .filter((a) => a.jobId === job.id)
+      .reduce((n, a) => n + a.amount, 0);
     return {
       ...balance,
       description: job.description,
@@ -335,11 +347,14 @@ export function correctedReceipt(record, ledger) {
     jobs,
     jobBalances,
     total: jobs.reduce((n, j) => n + j.amount, 0),
-    cashReceived: payment?.amount ?? record.cashReceived,
+    cashReceived: splits ? splits.reduce((n, part) => n + part.amount, 0) : (payment?.amount ?? record.cashReceived),
     method: payment?.method ?? record.method,
     methodLabel: payment?.methodLabel ?? record.methodLabel,
+    ...(splits ? { splits } : {}),
     walletUsed: payment?.walletUsed ?? record.walletUsed,
-    walletAdded: payment?.walletAdded ?? record.walletAdded,
+    walletAdded: paidHere.length
+      ? paidHere.reduce((n, p) => n + (p.walletAdded ?? 0), 0)
+      : record.walletAdded,
     reference: payment?.reference ?? record.reference,
     walletAfter: ledger.payments
       .filter((p) => p.customerId === record.customerId)

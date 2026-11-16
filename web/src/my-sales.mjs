@@ -1,10 +1,12 @@
+import { partsByMethod } from './checkout.mjs';
 export const saleDay = (value) => new Date(value).toLocaleDateString('en-CA', { timeZone: 'Africa/Lagos' });
 export function myTransactions(ledger, userId, corrected = false) {
   return (ledger.checkouts ?? [])
     .filter((r) => r.createdBy === userId)
     .map((r) => {
       if (!corrected) return r;
-      const payment = (ledger.payments ?? []).find((p) => p.id === r.id || p.checkoutId === r.id);
+      const paid = (ledger.payments ?? []).filter((p) => p.id === r.id || p.checkoutId === r.id);
+      const payment = paid.find((p) => p.id === r.id) ?? paid[0];
       const jobs = (r.jobs ?? []).map((j) => ({
         ...j,
         ...((ledger.jobs ?? []).find((x) => x.id === j.id) ?? {}),
@@ -18,6 +20,18 @@ export function myTransactions(ledger, userId, corrected = false) {
         methodLabel: payment?.methodLabel ?? r.methodLabel,
         walletUsed: payment?.walletUsed ?? r.walletUsed,
         reference: payment?.reference ?? r.reference,
+        // A split sale: each part as corrected.
+        ...(r.splits
+          ? (() => {
+              const splits = r.splits.map((part) => {
+                const p = paid.find((x) => x.id === part.id);
+                return p
+                  ? { ...part, amount: p.amount, method: p.method, methodLabel: p.methodLabel || part.methodLabel }
+                  : part;
+              });
+              return { splits, cashReceived: splits.reduce((n, part) => n + part.amount, 0) };
+            })()
+          : {}),
       };
     });
 }
@@ -32,9 +46,9 @@ export function salesSummary(records) {
   return records.reduce(
     (s, r) => ({
       ...s,
-      cash: s.cash + (r.method === 'Cash' ? r.cashReceived : 0),
-      pos: s.pos + (r.method === 'POS' ? r.cashReceived : 0),
-      transfer: s.transfer + (r.method === 'Transfer' ? r.cashReceived : 0),
+      cash: s.cash + partsByMethod(r, 'Cash'),
+      pos: s.pos + partsByMethod(r, 'POS'),
+      transfer: s.transfer + partsByMethod(r, 'Transfer'),
       collected: s.collected + r.cashReceived,
       sales: s.sales + r.total,
       walletUsed: s.walletUsed + r.walletUsed,

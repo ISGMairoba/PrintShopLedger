@@ -8,6 +8,7 @@ import Icon from './Icon';
 import ItemIcon from './ItemIcon';
 import HeldSales from './HeldSales';
 import CustomerEditor from './CustomerEditor';
+import SplitPayment, { SPLIT, splitParts, splitTotal, startSplit, type SplitRow } from './SplitPayment';
 import CurrencyInput from './CurrencyInput';
 import ListedCombobox from './ListedCombobox';
 import { useFeedbackMessage } from './Feedback';
@@ -629,6 +630,7 @@ function PayDialog({
     defaultMethod(methods, options.defaultIncomeMethod)?.label ?? methods[0]?.label ?? 'Cash',
   );
   const [received, setReceived] = useState<string | null>(null);
+  const [splitRows, setSplitRows] = useState<SplitRow[] | null>(null);
   const [collected, setCollected] = useState(() => collectedByDefault(options));
   const [workflowId, setWorkflowId] = useState('');
   const [dueAt, setDueAt] = useState(() => defaultDueAt(jobSettings.defaultDuration));
@@ -640,13 +642,15 @@ function PayDialog({
   const owes = customer ? customerBalance(working, customer.id) : 0;
   const walletUsed = customer && useWallet ? Math.min(wallet, total) : 0;
   const due = total - walletUsed;
-  const tendered = (() => {
-    try {
-      return received === null ? due : money(received || '0');
-    } catch {
-      return null;
-    }
-  })();
+  const tendered = splitRows
+    ? splitTotal(splitRows)
+    : (() => {
+        try {
+          return received === null ? due : money(received || '0');
+        } catch {
+          return null;
+        }
+      })();
   const change = !customer && tendered !== null && tendered > total ? tendered - total : 0;
   const delivered = stageName('Collected');
   async function complete() {
@@ -654,7 +658,10 @@ function PayDialog({
     setError('');
     try {
       if (tendered === null) throw Error('Enter the money received.');
-      const method = methods.find((m) => m.label === methodLabel);
+      const parts = splitRows ? splitParts(ledger, splitRows, methods) : null;
+      const method = parts
+        ? { kind: parts[0].method, label: parts[0].methodLabel }
+        : methods.find((m) => m.label === methodLabel);
       if (!method) throw Error('Choose a payment method.');
       if (customerText.trim() && customerText !== WALK_IN_NAME && !customer)
         throw Error('Choose a customer from the list, add a new one, or use Walk-in customer.');
@@ -676,6 +683,7 @@ function PayDialog({
         workflowFor: collected ? null : (id: string) => laterWorkflow(ledger, options, id, workflowId),
         useWallet: wallet > 0 && useWallet,
         reference,
+        splits: parts,
       });
       await onComplete(prepareCheckout(ledger, input, actor) as CheckoutEvent);
     } catch (cause) {
@@ -753,13 +761,32 @@ function PayDialog({
           </label>
           <label>
             Payment method
-            <select value={methodLabel} onChange={(e) => setMethodLabel(e.target.value)}>
+            <select
+              value={splitRows ? SPLIT : methodLabel}
+              onChange={(e) => {
+                if (e.target.value !== SPLIT) {
+                  setSplitRows(null);
+                  return setMethodLabel(e.target.value);
+                }
+                setSplitRows(startSplit(methods, methodLabel, ((tendered ?? due) / 100).toFixed(2)));
+              }}
+            >
               {alphabetical(methods, (m) => m.label).map((m) => (
                 <option key={m.label}>{m.label}</option>
               ))}
+              {methods.length > 1 && <option value={SPLIT}>Split between methods…</option>}
             </select>
           </label>
         </div>
+        {splitRows && (
+          <SplitPayment
+            rows={splitRows}
+            methods={methods}
+            target={customer ? undefined : due}
+            onChange={setSplitRows}
+            onCancel={() => setSplitRows(null)}
+          />
+        )}
         {(discountPolicy.maxPercent > 0 || discountPolicy.canFlat) && (
           <DiscountFields
             label="Discount"
@@ -818,9 +845,11 @@ function PayDialog({
             Money received (₦)
             <CurrencyInput
               aria-label="Money received (₦)"
-              value={received ?? (due / 100).toFixed(2)}
+              disabled={!!splitRows}
+              value={splitRows ? ((tendered ?? 0) / 100).toFixed(2) : (received ?? (due / 100).toFixed(2))}
               onValueChange={setReceived}
             />
+            {splitRows && <small>The total of the split.</small>}
           </label>
           <div className="pos-pay-change" role="status">
             {change > 0 ? (

@@ -303,7 +303,10 @@ export function moneyTransactions(ledger) {
       method: p.methodLabel || p.method,
       accountId:
         p.accountId ||
-        checkoutMap.get(p.checkoutId || p.id)?.accountId ||
+        // A split sale's part has its own account; others take the sale's.
+        (checkoutMap.get(p.checkoutId || p.id)?.splits
+          ? checkoutMap.get(p.checkoutId || p.id)?.splits?.find((s) => s.id === p.id)?.accountId
+          : checkoutMap.get(p.checkoutId || p.id)?.accountId) ||
         assignments.get('payment:' + p.id) ||
         '',
       source: p,
