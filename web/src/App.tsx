@@ -85,6 +85,7 @@ import { discountPolicy } from './discounts.mjs';
 import { PeriodDefaultsContext } from './PeriodFilter';
 import { TermsProvider } from './Words';
 import { ReadyMessageContext } from './ReadyMessage';
+import { MessagesContext } from './MessagesContext';
 import { readyMessage } from './ready-message.mjs';
 import { TemplateAuditContext, TemplateDocumentContext, type TemplateStart } from './TemplateFields';
 import { canSeeTemplateCosts } from './pricing-templates.mjs';
@@ -185,8 +186,14 @@ const deviceStorage = () => {
   }
 };
 
-/** The first letter of a name, for the round avatar. */
-const initialOf = (name: string) => (name.trim()[0] ?? '?').toUpperCase();
+/** Two letters for the round avatar: first and last word of the name (Mairoba Studio → MS). */
+const initialOf = (name: string) => {
+  const words = name.trim().split(/\s+/).filter((w) => /\p{L}|\d/u.test(w));
+  if (!words.length) return '?';
+  const first = [...words[0]].find((c) => /\p{L}|\d/u.test(c)) ?? '';
+  const last = words.length > 1 ? ([...words[words.length - 1]].find((c) => /\p{L}|\d/u.test(c)) ?? '') : '';
+  return (first + last).toUpperCase();
+};
 
 export default function App() {
   const mobileLayout = useMobileLayout();
@@ -1458,8 +1465,15 @@ export default function App() {
         business: businessName,
         template: branding.settings.jobs.readyMessage,
         terms: branding.settings.terms,
+        messages: branding.settings.messages,
       }),
-    [ledger, businessName, branding.settings.jobs.readyMessage, branding.settings.terms],
+    [
+      ledger,
+      businessName,
+      branding.settings.jobs.readyMessage,
+      branding.settings.terms,
+      branding.settings.messages,
+    ],
   );
   if (validActivationToken(activationToken))
     return <DeveloperActivation key={activationToken} token={activationToken} online={online} />;
@@ -1604,6 +1618,13 @@ export default function App() {
     >
       <TermsProvider value={branding.settings.terms}>
         <ReadyMessageContext.Provider value={tellCustomer}>
+          <MessagesContext.Provider
+            value={{
+              settings: branding.settings.messages,
+              business: businessName,
+              legacyReady: branding.settings.jobs.readyMessage ?? '',
+            }}
+          >
           <TemplateAuditContext.Provider
             value={demo || canSeeTemplateCosts(branding.settings.pricing, shop?.accessLevel ?? 0)}
           >
@@ -3091,6 +3112,7 @@ export default function App() {
               </PeriodDefaultsContext.Provider>
             </TemplateDocumentContext.Provider>
           </TemplateAuditContext.Provider>
+          </MessagesContext.Provider>
         </ReadyMessageContext.Provider>
       </TermsProvider>
     </BusinessOptionsContext.Provider>

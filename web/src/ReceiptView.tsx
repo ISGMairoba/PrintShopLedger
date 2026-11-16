@@ -1,13 +1,19 @@
+import { useMessages } from './MessagesContext';
 import { AdjustmentHistory } from './SaleAdjustmentsPage';
 import { useFeedbackMessage, FeedbackBanner } from './Feedback';
 import { useEffect, useState } from 'react';
 import Modal from './Modal';
 import Icon from './Icon';
-import { receiptHtml, receiptIntegrityError, correctedReceipt, receiptLayout } from './receipts.mjs';
+import {
+  receiptHtml,
+  receiptIntegrityError,
+  correctedReceipt,
+  receiptLayout,
+  currency,
+} from './receipts.mjs';
 import { loadPrintSettings } from './print-settings.mjs';
 import { printReceipt } from './printing';
 import type { CheckoutRecord } from './types';
-import { receiptMessage } from './share.mjs';
 export default function ReceiptView({
   record: originalRecord,
   ledger,
@@ -33,6 +39,7 @@ export default function ReceiptView({
     void import('./receipt-pdf');
     void import('./share-pdf');
   }, []);
+  const messages = useMessages();
   const [busy, setBusy] = useState(false),
     [message, setMessage, messageTone] = useFeedbackMessage('success');
   const [corrected, setCorrected] = useState(false);
@@ -69,8 +76,21 @@ export default function ReceiptView({
         `Receipt-${record.id.slice(0, 8).toUpperCase()}`,
         {
           title: `Receipt ${record.id.slice(0, 8).toUpperCase()}`,
-          text: receiptMessage(record, name),
+          text: messages.text(
+            'receipt',
+            {
+              receipt: record.id.slice(0, 8).toUpperCase(),
+              paid: currency(record.cashReceived ?? 0),
+              balance:
+                (record.outstandingAfter ?? 0) > 0
+                  ? `Balance on your account: ${currency(record.outstandingAfter ?? 0)}.`
+                  : 'Thank you for your payment.',
+              business: name,
+            },
+            record.customerSnapshot?.name ?? '',
+          ),
           phone: record.customerSnapshot?.phone,
+          mode: messages.mode('receipt'),
         },
       );
       setMessage(shareResult(result));

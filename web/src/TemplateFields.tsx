@@ -1,5 +1,6 @@
+import { useMessages } from './MessagesContext';
 import { Fragment, createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { comparisonMessage, comparisonText } from './comparison-doc.mjs';
+import { comparisonText } from './comparison-doc.mjs';
 import { copyText, shareText } from './share-text';
 import type { Branding } from './useBusinessBranding';
 import {
@@ -820,6 +821,7 @@ export function CompareOptions({
   }[];
   const headings = !!grouping && groups.some((g) => g.rows.length > 1);
   const doc = useContext(TemplateDocumentContext);
+  const messages = useMessages();
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [working, setWorking] = useState(false);
@@ -859,8 +861,9 @@ export function CompareOptions({
         const business = typeof doc.business === 'string' ? doc.business : doc.business.businessName;
         const result = await sharePdf(pdf, fileName, {
           title: `${template.name} options`,
-          text: comparisonMessage(template, ordered(), business),
+          text: messages.text('options', { template: template.name, count: ordered().length, business }),
           phone: customerPhone.trim() || undefined,
+          mode: messages.mode('options'),
         });
         setNotice(shareResult(result));
       } else if (action === 'open') {
@@ -896,6 +899,7 @@ export function CompareOptions({
         const result = await shareText(text, {
           title: `${template.name} options`,
           phone: customerPhone.trim() || undefined,
+          mode: messages.mode('options'),
         });
         setNotice(result === 'whatsapp' ? 'WhatsApp is open with the text ready to send.' : '');
       }

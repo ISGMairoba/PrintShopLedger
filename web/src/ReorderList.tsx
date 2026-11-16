@@ -5,8 +5,9 @@ import Icon from './Icon';
 import ExpenseEditor from './ExpenseEditor';
 import { useFeedback } from './Feedback';
 import { useWords } from './Words';
-import { reorderList, reorderText } from './reorder.mjs';
-import { whatsappLink } from './share.mjs';
+import { reorderLines, reorderList } from './reorder.mjs';
+import { shareText } from './share-text';
+import { useMessages } from './MessagesContext';
 import type { Expense, ExpenseEvent, Ledger } from './types';
 
 /** Stock items at or near their minimum: choose quantities, send the list, record the purchase. */
@@ -30,6 +31,7 @@ export default function ReorderList({
   onSaveExpense: (event: ExpenseEvent) => Promise<void>;
   onClose: () => void;
 }) {
+  const messages = useMessages();
   const { w } = useWords();
   const notify = useFeedback();
   const rows = reorderList(ledger as Ledger);
@@ -41,17 +43,13 @@ export default function ReorderList({
     .filter((r) => chosen[r.materialId] !== undefined && Number(chosen[r.materialId]) > 0)
     .map((r) => ({ ...r, quantity: Math.round(Number(chosen[r.materialId]) * 1000) / 1000 }));
   async function share() {
-    const text = reorderText(selected, businessName);
-    try {
-      if (typeof navigator.share === 'function') {
-        await navigator.share({ title: 'Order list', text });
-        return;
-      }
-    } catch (cause) {
-      if (cause instanceof DOMException && cause.name === 'AbortError') return;
-    }
-    window.open(whatsappLink('', text), '_blank', 'noopener');
-    notify('WhatsApp is open with the order list: choose your supplier and send.', 'success');
+    const text = messages.text('reorder', {
+      list: reorderLines(selected),
+      business: businessName,
+    });
+    const result = await shareText(text, { title: 'Order list', mode: messages.mode('reorder') });
+    if (result === 'whatsapp')
+      notify('WhatsApp is open with the order list: choose your supplier and send.', 'success');
   }
   if (purchase)
     return (

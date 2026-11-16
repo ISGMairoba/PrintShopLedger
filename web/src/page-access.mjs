@@ -58,6 +58,7 @@ export const settingsTabs = [
   'Jobs & payments',
   'Default time frames',
   'Words',
+  'Messages',
   'Pricing templates',
   'Corrections',
   'Security',
@@ -84,6 +85,7 @@ export const settingsTabKeys = {
   'Jobs & payments': ['jobs', 'discounts'],
   'Default time frames': ['periods'],
   Words: ['terms'],
+  Messages: ['messages'],
   'Pricing templates': ['pricing'],
   Corrections: ['corrections'],
   Security: ['security'],
@@ -226,7 +228,7 @@ export function canAccessPage(page, access, configured) {
   return (own ?? defaultPageAccess()[String(access)]).includes(page) ?? false;
 }
 
-export const SETTINGS_TABS_VERSION = 3;
+export const SETTINGS_TABS_VERSION = 4;
 export function upgradeSettingsTabs(input, version = 0) {
   if (version >= SETTINGS_TABS_VERSION || !input) return input;
   const next = structuredClone(input);
@@ -237,6 +239,8 @@ export function upgradeSettingsTabs(input, version = 0) {
       tabs.push('Payment methods');
     if (version < 2 && tabs.includes('Jobs & payments'))
       for (const tab of ['Default time frames', 'Words']) if (!tabs.includes(tab)) tabs.push(tab);
+    // Messages came from Jobs & payments (its "order ready" wording).
+    if (version < 4 && tabs.includes('Jobs & payments') && !tabs.includes('Messages')) tabs.push('Messages');
   }
   for (const rank of ['2', '3', '4'])
     if (Array.isArray(next[rank])) next[rank] = next[rank].filter((t) => t !== 'Payment methods');

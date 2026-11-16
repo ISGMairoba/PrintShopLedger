@@ -1,3 +1,4 @@
+import { useMessages } from './MessagesContext';
 import {
   createContext,
   Fragment,
@@ -33,7 +34,6 @@ import type { Ledger } from './types';
 import './dashboard.css';
 import './reports.css';
 import { useWords } from './Words';
-import { statementMessage } from './share.mjs';
 import { useFeedback } from './Feedback';
 import Icon from './Icon';
 import ListedCombobox from './ListedCombobox';
@@ -458,7 +458,7 @@ export default function ReportsPage({
     title: string,
     subtitle: string[],
     sections: ReportSection[],
-    to: { text: string; phone?: string },
+    to: { text: string; phone?: string; mode?: 'whatsapp' | 'share' },
   ) {
     if (busy) return;
     setBusy(true);
@@ -533,7 +533,7 @@ type TabProps = {
     title: string,
     subtitle: string[],
     sections: ReportSection[],
-    to: { text: string; phone?: string },
+    to: { text: string; phone?: string; mode?: 'whatsapp' | 'share' },
   ) => Promise<void>;
 };
 
@@ -829,6 +829,7 @@ function StatementTab({
   customerId,
   onCustomerChange,
 }: TabProps & { customerId: string; onCustomerChange: (id: string) => void }) {
+  const messages = useMessages();
   const { w, stage: stageLabel } = useWords();
   const { range, valid, controls } = useRange();
   const [query, setQuery] = useState(''),
@@ -947,8 +948,19 @@ function StatementTab({
                   subtitle,
                   statementSections(statement, { money: currency, unit: '' }),
                   {
-                    text: statementMessage(statement.customer.name, t.owedNow, company),
+                    text: messages.text(
+                      'statement',
+                      {
+                        owed: currency(t.owedNow),
+                        owed_line:
+                          t.owedNow > 0
+                            ? `Amount owed: ${currency(t.owedNow)}. Thank you.`
+                            : 'Thank you for your business.',
+                      },
+                      statement.customer.name,
+                    ),
                     phone: statement.customer.phone,
+                    mode: messages.mode('statement'),
                   },
                 )
               }

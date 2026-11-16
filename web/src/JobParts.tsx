@@ -1,3 +1,4 @@
+import { useMessages } from './MessagesContext';
 import { useContext, useEffect, useState } from 'react';
 import Icon from './Icon';
 import Modal from './Modal';
@@ -5,7 +6,7 @@ import { jobBalanceFast } from './balances.mjs';
 import { useBusinessOptions } from './BusinessOptionsContext';
 import { TemplateDocumentContext } from './TemplateFields';
 import { currency } from './app/shared';
-import { deliveryMessage, deliveryRef } from './delivery-note.mjs';
+import { deliveryRef } from './delivery-note.mjs';
 import {
   doneEvent,
   doneProblem,
@@ -70,6 +71,7 @@ export default function JobParts({
   canRemove?: boolean;
 }) {
   const options = useBusinessOptions();
+  const messages = useMessages();
   const doc = useContext(TemplateDocumentContext);
   const [dialog, setDialog] = useState<'done' | 'handover' | null>(null);
   const [count, setCount] = useState('');
@@ -160,8 +162,13 @@ export default function JobParts({
         const name = typeof doc.business === 'string' ? doc.business : doc.business.businessName;
         const result = await sharePdf(pdf, `${deliveryRef(h.id)}.pdf`, {
           title: `Delivery note ${deliveryRef(h.id)}`,
-          text: deliveryMessage(job, h, name),
+          text: messages.text(
+            'delivery',
+            { note: deliveryRef(h.id), quantity: h.quantity, item: job.description, business: name },
+            customer?.name ?? '',
+          ),
           phone: customer?.phone || undefined,
+          mode: messages.mode('delivery'),
         });
         setNotice(shareResult(result));
       } else window.open(String(pdf.output('bloburl')), '_blank', 'noopener');

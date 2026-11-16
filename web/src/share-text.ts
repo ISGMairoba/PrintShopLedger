@@ -35,9 +35,9 @@ export async function copyText(text: string): Promise<boolean> {
  */
 export async function shareText(
   text: string,
-  { title, phone }: { title: string; phone?: string },
+  { title, phone, mode = 'share' }: { title: string; phone?: string; mode?: 'whatsapp' | 'share' },
 ): Promise<'shared' | 'cancelled' | 'whatsapp'> {
-  if (typeof navigator.share === 'function') {
+  if (mode === 'share' && typeof navigator.share === 'function') {
     try {
       await navigator.share({ title, text });
       return 'shared';
