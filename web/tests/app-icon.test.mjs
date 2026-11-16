@@ -34,3 +34,12 @@ test('branding saved before the app icon existed still loads', () => {
   delete old.appIcon;
   assert.equal(validateBranding(old).appIcon.layout, 'none');
 });
+
+test('the icon may have no background', () => {
+  assert.equal(validateAppIcon({ layout: 'icon', background: 'transparent', png: '' }).background, 'transparent');
+  const settings = {
+    ...defaultBranding(),
+    logoVariants: { ...defaultBranding().logoVariants, icon: { light: 'L', dark: 'D' } },
+  };
+  assert.equal(appIconSource(settings, 'icon', 'transparent'), 'L');
+});

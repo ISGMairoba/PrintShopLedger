@@ -8,12 +8,13 @@ import { resolveLogo } from './logo-variants.mjs';
 export const APP_ICON_SIZE = 512;
 export const appIconDefaults = () => ({ layout: 'none', background: '#ffffff', png: '' });
 
-/** Settings from storage: a layout name, a #rrggbb background and the drawn PNG ('' for none). */
+/** Settings from storage: a layout name, a #rrggbb or 'transparent' background and the drawn PNG ('' for none). */
 export function validateAppIcon(input) {
   const value = { ...appIconDefaults(), ...(input && typeof input === 'object' ? input : {}) };
   if (!['none', 'complete', 'stacked', 'horizontal', 'wordmark', 'icon'].includes(value.layout))
     throw Error('Choose a valid app icon layout.');
-  if (!/^#[0-9a-f]{6}$/i.test(value.background)) throw Error('Choose a valid app icon background.');
+  if (value.background !== 'transparent' && !/^#[0-9a-f]{6}$/i.test(value.background))
+    throw Error('Choose a valid app icon background.');
   if (
     value.png !== '' &&
     !(
@@ -30,7 +31,8 @@ export function validateAppIcon(input) {
 /** The logo the icon is drawn from: the chosen layout on a light or dark background. */
 export function appIconSource(settings, layout, background) {
   if (layout === 'none') return '';
-  const dark = luminance(background) < 0.5;
+  // A see-through icon sits on the phone's own wallpaper or tile: use the light-background version.
+  const dark = background !== 'transparent' && luminance(background) < 0.5;
   return resolveLogo(
     { ...settings, logoUsage: { ...settings.logoUsage, app: layout } },
     'app',
@@ -53,9 +55,14 @@ export async function drawAppIcon(source, background) {
   canvas.width = canvas.height = APP_ICON_SIZE;
   const context = canvas.getContext('2d');
   if (!context) throw Error('This browser cannot draw the app icon.');
-  context.fillStyle = background;
-  context.fillRect(0, 0, APP_ICON_SIZE, APP_ICON_SIZE);
-  const room = APP_ICON_SIZE * 0.72;
+  const clear = background === 'transparent';
+  if (!clear) {
+    context.fillStyle = background;
+    context.fillRect(0, 0, APP_ICON_SIZE, APP_ICON_SIZE);
+  }
+  // With a background the logo keeps inside the safe zone of round and squircle masks; a
+  // see-through icon is never masked, so the logo can fill more of it.
+  const room = APP_ICON_SIZE * (clear ? 0.9 : 0.72);
   const scale = Math.min(room / image.naturalWidth, room / image.naturalHeight);
   const w = image.naturalWidth * scale,
     h = image.naturalHeight * scale;

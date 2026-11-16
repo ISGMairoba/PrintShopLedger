@@ -128,6 +128,7 @@ function AppIconEditor({
   busy: boolean;
 }) {
   const icon = value.appIcon;
+  const clear = icon.background === 'transparent';
   const [error, setError] = useState('');
   const source = appIconSource(value, icon.layout, icon.background);
   const first = useRef(true);
@@ -177,20 +178,43 @@ function AppIconEditor({
           </label>
           <label>
             Background
-            <input
-              type="color"
-              aria-label="App icon background"
+            <select
+              aria-label="App icon background type"
               disabled={busy || icon.layout === 'none'}
-              value={icon.background}
-              onChange={(event) => onChange('appIcon', { ...icon, background: event.target.value })}
-            />
+              value={clear ? 'transparent' : 'colour'}
+              onChange={(event) =>
+                onChange('appIcon', {
+                  ...icon,
+                  background: event.target.value === 'transparent' ? 'transparent' : '#ffffff',
+                })
+              }
+            >
+              <option value="colour">Colour</option>
+              <option value="transparent">Transparent (no background)</option>
+            </select>
           </label>
+          {!clear && (
+            <label>
+              Background colour
+              <input
+                type="color"
+                aria-label="App icon background"
+                disabled={busy || icon.layout === 'none'}
+                value={icon.background}
+                onChange={(event) => onChange('appIcon', { ...icon, background: event.target.value })}
+              />
+            </label>
+          )}
         </div>
         <div className="app-icon-previews" aria-label="App icon preview">
           {icon.png ? (
             <>
-              <img className="app-icon-preview app-icon-square" src={icon.png} alt="App icon" />
-              <img className="app-icon-preview app-icon-round" src={icon.png} alt="App icon, round" />
+              <img
+                className={`app-icon-preview app-icon-square${clear ? ' app-icon-clear' : ''}`}
+                src={icon.png}
+                alt="App icon"
+              />
+              {!clear && <img className="app-icon-preview app-icon-round" src={icon.png} alt="App icon, round" />}
             </>
           ) : (
             <img className="app-icon-preview app-icon-square" src="/icon.svg" alt="PrintShopLedger icon" />
@@ -199,6 +223,8 @@ function AppIconEditor({
       </div>
       {error && <p className="danger-text">{error}</p>}
       <small>
+        {clear &&
+          'Transparent icons show as they are on computers and iPhones; some Android phones put them on a white tile. '}
         After saving, install the app again on each phone or computer (remove the old copy first) to see the
         new icon. Copies installed before keep the icon they were installed with.
       </small>

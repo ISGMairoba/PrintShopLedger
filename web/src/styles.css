@@ -281,8 +281,10 @@ td small {
   margin-top: 4px;
 }
 .badge {
-  padding: 6px 9px;
+  display: inline-block;
+  padding: 3px 7px;
   border-radius: 6px;
+  line-height: 1.35;
   font-size: 10px;
   font-weight: 700;
 }
