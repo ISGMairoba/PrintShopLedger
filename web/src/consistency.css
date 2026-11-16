@@ -3596,3 +3596,12 @@ label.checkbox input[type="checkbox"],
   margin: 6px 0 0;
   padding-left: 18px;
 }
+
+/* "Use current default terms" with its explanation beside or under it. */
+.default-terms {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin: 8px 0 0;
+}

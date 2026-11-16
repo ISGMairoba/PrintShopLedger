@@ -1,3 +1,4 @@
+import DefaultTermsButton from './DefaultTermsButton';
 import TemplateDiscountWarning from './TemplateDiscountWarning';
 import CurrencyInput from './CurrencyInput';
 import { phoneProblem } from './input-guard.mjs';
@@ -920,9 +921,12 @@ function QuotationEditor({
               onChange={(e) => setTermsAndConditions(e.target.value)}
             />
           </label>
-          <button type="button" className="text-button" onClick={() => setTermsAndConditions(defaultTerms)}>
-            Use current default terms
-          </button>
+          <DefaultTermsButton
+            value={termsAndConditions}
+            defaults={defaultTerms}
+            kind="quotation"
+            onUse={setTermsAndConditions}
+          />
           <TemplateDiscountWarning jobs={priced.ok?.lines ?? []} allowed={discountPolicy.canFlat} />
           <div className="cart-total" role="status">
             {priced.ok ? (
