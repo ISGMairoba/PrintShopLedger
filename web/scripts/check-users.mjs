@@ -336,8 +336,15 @@ try {
       .count(),
     0,
   );
-  assert.match(await page.locator('.sidebar-header .connection').innerText(), /Online.*pending changes/);
-  assert.equal(await page.locator('.sidebar-bottom .connection').count(), 0);
+  assert.match(
+    await page.locator('.header-tools .sync-status').innerText(),
+    /Connected[\s\S]*pending change/,
+  );
+  // Sign out business is in Business Settings now (My Account for managers who can't open it).
+  await page
+    .getByRole('navigation', { name: 'Main' })
+    .getByRole('button', { name: 'My Account', exact: true })
+    .click();
   assert.equal(await page.getByRole('button', { name: 'Sign out business', exact: true }).count(), 1);
   await page.setViewportSize({ width: 1280, height: 600 });
   const wide = await sidebarScrollCheck();
@@ -531,15 +538,8 @@ try {
     await switchDialog.getByLabel('Password', { exact: true }).fill('test-only-password');
     await switchDialog.getByRole('button', { name: 'Sign in user', exact: true }).click();
     await switchDialog.waitFor({ state: 'detached' });
-    await page
-      .locator('.sidebar-user strong')
-      .filter({ hasText: '(' + username + ')' })
-      .waitFor();
-    assert.equal(
-      await page.getByRole('button', { name: 'Sign out business', exact: true }).count(),
-      username === 'admin' ? 0 : 1,
-      username + ' business sign out permission',
-    );
+    await page.locator('.sidebar-user').filter({ hasText: username }).waitFor();
+    // Sign out business now lives in Business Settings (anyone allowed there).
     assert.equal(await page.getByRole('button', { name: 'Logout', exact: true }).count(), 1);
   }
   // My Sales uses receipt records, not jobs/payment rows, and always isolates the current user.
@@ -682,6 +682,10 @@ try {
   await page.getByLabel('Period', { exact: true }).selectOption('all');
   await page.locator('tbody tr').filter({ hasText: 'Manager print' }).waitFor();
   assert.equal(await page.locator('tbody tr').count(), 3, 'Closed receipts remain viewable');
+  await page
+    .getByRole('navigation', { name: 'Main' })
+    .getByRole('button', { name: 'My Account', exact: true })
+    .click();
   await page.getByRole('button', { name: 'Sign out business', exact: true }).click();
   await page.getByLabel('Business email', { exact: true }).waitFor();
   console.log(

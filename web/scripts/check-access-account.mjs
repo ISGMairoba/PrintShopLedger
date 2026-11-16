@@ -156,7 +156,8 @@ try {
               canAccessPage(p, rank) &&
               !(p === 'Material Waste' && canAccessPage('Materials', rank)),
           )
-          .map((p) => pageName(p)),
+          .map((p) => pageName(p))
+          .concat('Help'),
       );
       await nav.getByRole('button', { name: 'My Account', exact: true }).click();
       await page.getByLabel('Username', { exact: true }).fill('bad name');
@@ -216,7 +217,8 @@ try {
               canAccessPage(p, rank, customSettings.pageAccess) &&
               !(p === 'Material Waste' && canAccessPage('Materials', rank, customSettings.pageAccess)),
           )
-          .map((p) => pageName(p)),
+          .map((p) => pageName(p))
+          .concat('Help'),
       );
       assert.ok(
         await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),

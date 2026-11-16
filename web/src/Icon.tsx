@@ -1,4 +1,8 @@
 import {
+  faWifi,
+  faRightFromBracket,
+  faRightToBracket,
+  faArrowRightArrowLeft,
   faCircleQuestion,
   faCalendarDays,
   faFileImport,
@@ -101,6 +105,10 @@ const icons = {
   hide: faEyeSlash,
   pause: faPause,
   notice: faBullhorn,
+  wifi: faWifi,
+  logout: faRightFromBracket,
+  login: faRightToBracket,
+  switchUser: faArrowRightArrowLeft,
 };
 export type IconName = keyof typeof icons;
 export default function Icon({ name }: { name: IconName }) {

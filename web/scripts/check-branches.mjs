@@ -148,7 +148,7 @@ try {
   await page.getByRole('heading', { name: 'Choose your branch', exact: true }).waitFor();
   assert.equal(await page.locator('.branch-choices button').count(), 2);
   await page.getByRole('button', { name: /Zoo Road/ }).click();
-  await page.locator('.eyebrow').filter({ hasText: 'Mairoba Studios · Zoo Road' }).waitFor();
+  await page.locator('.eyebrow').filter({ hasText: 'PrintShopLedger · Zoo Road' }).waitFor();
   // Requests after the choice say the branch.
   const before = sent.length;
   await page.reload();
@@ -169,7 +169,7 @@ try {
   // My Account switches the device back to the main branch.
   await nav.getByRole('button', { name: 'My Account', exact: true }).click();
   await page.getByLabel('Switch this device to').selectOption('main');
-  await page.locator('.eyebrow').filter({ hasText: 'Mairoba Studios · Kano Road' }).waitFor();
+  await page.locator('.eyebrow').filter({ hasText: 'PrintShopLedger · Kano Road' }).waitFor();
   await nav.getByRole('button', { name: 'Jobs', exact: true }).click();
   await page.getByText('Kano job', { exact: true }).first().waitFor();
   assert.equal(await page.getByText('Zoo job', { exact: true }).count(), 0);

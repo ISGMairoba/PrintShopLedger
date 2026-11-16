@@ -46,8 +46,11 @@ export default function BusinessSettingsPage({
   onReload,
   loadStaff,
   accountSettings,
+  deviceSignOut,
 }: {
   accountSettings?: ReactNode;
+  /** "Sign out business" for this device (anyone allowed in Business Settings). */
+  deviceSignOut?: ReactNode;
   settings: Branding;
   version: number;
   ready: boolean;
@@ -290,6 +293,7 @@ export default function BusinessSettingsPage({
               </button>
             ))}
           </div>
+          {deviceSignOut && <div className="device-sign-out">{deviceSignOut}</div>}
         </div>
         <div
           role="tabpanel"

@@ -285,6 +285,10 @@ try {
     // A successful create followed by a failed read must offer lookup retry,
     // and must not invite a second workspace creation.
     if (mobile) await openMenu();
+    await page
+      .getByRole('navigation', { name: 'Main' })
+      .getByRole('button', { name: 'My Account', exact: true })
+      .click();
     await page.getByRole('button', { name: 'Sign out business', exact: true }).click();
     await page.getByLabel('Business email', { exact: true }).waitFor();
     noBusiness = true;
