@@ -75,12 +75,9 @@ begin
   def := replace(def, t, r);
 
   -- 2. One payment per part.
-  t := $t$ if cash>0 or wu>0 then
-  insert into public.payments(shop_id,id,customer_id,amount,method,paid_on,reference,created_at,wallet_used,wallet_added,checkout_id)$t$;
-  r := $r$ if d ? 'splits' then
-  perform private.insert_split_payments(p_shop,e,c,d,wu::bigint);
- elsif cash>0 or wu>0 then
-  insert into public.payments(shop_id,id,customer_id,amount,method,paid_on,reference,created_at,wallet_used,wallet_added,checkout_id)$r$;
+  -- (one line only: the SQL editor may send Windows line endings)
+  t := $t$ if cash>0 or wu>0 then$t$;
+  r := $r$ if d ? 'splits' then perform private.insert_split_payments(p_shop,e,c,d,wu::bigint); elsif cash>0 or wu>0 then$r$;
   cnt := (length(def) - length(replace(def, t, ''))) / length(t);
   if cnt <> 1 then raise exception 'apply_checkout_event: payment insert found % times', cnt; end if;
   def := replace(def, t, r);
