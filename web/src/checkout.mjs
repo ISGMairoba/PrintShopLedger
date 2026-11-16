@@ -279,6 +279,103 @@ export function paymentPlan(ledger, customerId, cash, useWallet, override = null
     outstandingAfter: debt - allocated,
   };
 }
+// Split payment: one sale paid with more than one method at the same moment (₦5,000 cash + ₦20,000
+// transfer). The checkout keeps `splits` (2–6 parts: id, method, methodLabel, accountId, amount); each
+// part is its own payment, so drawers, money accounts and reports by method work per part. The first
+// part's payment keeps the checkout's ID. Jobs are paid in order: the first part (with any wallet
+// credit used) pays the first jobs, and so on; money a part doesn't need is that part's wallet top-up.
+export const MAX_SPLITS = 6;
+/**
+ * Checked split parts for a checkout (the first gets the checkout's ID).
+ * @returns {{ id: string, method: string, methodLabel: string, accountId?: string, amount: number }[]}
+ */
+export function validSplits(splits, cashReceived, checkoutId) {
+  if (!Array.isArray(splits) || splits.length < 2 || splits.length > MAX_SPLITS)
+    throw Error(`Split a payment into 2 to ${MAX_SPLITS} methods.`);
+  const labels = new Set(),
+    ids = new Set();
+  const parts = splits.map((s, index) => {
+    const methodLabel = String(s?.methodLabel ?? '').trim();
+    if (!['Cash', 'POS', 'Transfer', 'Other'].includes(s?.method) || !methodLabel || methodLabel.length > 80)
+      throw Error('Choose a payment method for each part.');
+    if (labels.has(methodLabel.toLowerCase())) throw Error(`${methodLabel} is in the split twice.`);
+    labels.add(methodLabel.toLowerCase());
+    if (!Number.isSafeInteger(s.amount) || s.amount <= 0 || s.amount > maxMoney)
+      throw Error('Enter an amount for each part of the split.');
+    const id = index === 0 ? checkoutId : String(s.id ?? crypto.randomUUID());
+    if (!id || ids.has(id)) throw Error('Each part of the split needs its own ID.');
+    ids.add(id);
+    return {
+      id,
+      method: s.method,
+      methodLabel,
+      ...(s.accountId ? { accountId: String(s.accountId) } : {}),
+      amount: s.amount,
+    };
+  });
+  const sum = parts.reduce((n, s) => n + s.amount, 0);
+  if (sum !== cashReceived) throw Error('The split parts must add up to the money received.');
+  return parts;
+}
+/** A sale's payment parts: its split, or the one method it was paid by (none when nothing was paid). */
+export function checkoutParts(record) {
+  if (Array.isArray(record?.splits) && record.splits.length) return record.splits;
+  return (record?.cashReceived ?? 0) > 0
+    ? [
+        {
+          id: record.id,
+          method: record.method,
+          methodLabel: record.methodLabel || record.method,
+          ...(record.accountId ? { accountId: record.accountId } : {}),
+          amount: record.cashReceived,
+        },
+      ]
+    : [];
+}
+/** How much of a sale was paid by a method kind (Cash, POS, Transfer, Other). */
+export const partsByMethod = (record, method) =>
+  checkoutParts(record)
+    .filter((s) => s.method === method)
+    .reduce((n, s) => n + s.amount, 0);
+/** "Cash ₦5,000.00 · OPay ₦20,000.00", for receipts and lists. */
+export const partsLabel = (record, format) =>
+  checkoutParts(record)
+    .map((s) => `${s.methodLabel} ${format(s.amount)}`)
+    .join(' · ');
+/**
+ * The payments a split checkout makes: the allocations poured into the parts in order (the first
+ * part also carries the wallet credit used); what a part doesn't need is its wallet top-up.
+ */
+export function splitPayments(data) {
+  const queue = data.allocations.map((a) => ({ ...a }));
+  return data.splits.map((part, index) => {
+    let room = part.amount + (index === 0 ? data.walletUsed : 0);
+    const allocations = [];
+    while (room > 0 && queue.length) {
+      const next = queue[0];
+      const n = Math.min(room, next.amount);
+      allocations.push({ jobId: next.jobId, amount: n });
+      next.amount -= n;
+      room -= n;
+      if (next.amount === 0) queue.shift();
+    }
+    return {
+      id: part.id,
+      checkoutId: data.id,
+      customerId: data.customerId,
+      amount: part.amount,
+      walletUsed: index === 0 ? data.walletUsed : 0,
+      walletAdded: room,
+      method: part.method,
+      methodLabel: part.methodLabel,
+      ...(part.accountId ? { accountId: part.accountId } : {}),
+      paidOn: data.paidOn,
+      reference: data.reference,
+      allocations,
+      createdAt: data.createdAt,
+    };
+  });
+}
 export function prepareCheckout(
   ledger,
   input,
@@ -387,6 +484,18 @@ export function prepareCheckout(
     throw Error('Only jobs with a reviewed stock count can skip a stock deduction.');
   const total = jobs.reduce((sum, j) => sum + j.amount, 0);
   amount(total);
+  const splits =
+    input.splits === undefined || input.splits === null
+      ? null
+      : validSplits(input.splits, input.cashReceived, id);
+  if (
+    splits &&
+    (input.method !== splits[0].method ||
+      (input.methodLabel ?? input.method).trim() !== splits[0].methodLabel)
+  )
+    throw Error('The payment method must be the first part of the split.');
+  if (splits && splits.some((s) => s.id !== id && working.payments.some((p) => p.id === s.id)))
+    throw Error('Each part of the split needs its own ID.');
   const jobBalances = working.jobs
     .filter((j) => jobs.some((n) => n.id === j.id) || plan.allocations.some((a) => a.jobId === j.id))
     .map((j) => ({
@@ -426,6 +535,7 @@ export function prepareCheckout(
       override: input.override ?? null,
       method: input.method,
       ...(input.methodLabel ? { methodLabel: input.methodLabel.trim() } : {}),
+      ...(splits ? { splits } : {}),
       paidOn: input.paidOn,
       reference: input.reference ?? '',
       createdBy: actor.id,
@@ -458,6 +568,7 @@ export function applyCheckout(ledger, event) {
       override: data.override,
       method: data.method,
       ...(data.methodLabel ? { methodLabel: data.methodLabel } : {}),
+      ...(data.splits ? { splits: data.splits } : {}),
       paidOn: data.paidOn,
       reference: data.reference,
       orderDiscount: data.orderDiscount ?? null,
@@ -507,6 +618,8 @@ export function applyCheckout(ledger, event) {
     if (data[key] !== rebuilt.data[key]) throw Error('Checkout amounts changed. Review the checkout.');
   if (JSON.stringify(data.allocations) !== JSON.stringify(rebuilt.data.allocations))
     throw Error('Checkout allocations changed.');
+  if (JSON.stringify(data.splits ?? null) !== JSON.stringify(rebuilt.data.splits ?? null))
+    throw Error('Checkout payment parts changed.');
   let next = data.newCustomer ? applyCustomerEvent(ledger, data.newCustomer) : ledger;
   const materials = next.materials.map((m) => ({ ...m })),
     history = [...next.materialHistory];
@@ -563,8 +676,9 @@ export function applyCheckout(ledger, event) {
       });
     }
   }
+  const payments = rebuilt.data.splits ? splitPayments(rebuilt.data) : null;
   const payment =
-    data.cashReceived > 0 || data.walletUsed > 0
+    !payments && (data.cashReceived > 0 || data.walletUsed > 0)
       ? {
           id: data.id,
           checkoutId: data.id,
@@ -585,7 +699,11 @@ export function applyCheckout(ledger, event) {
     materials,
     materialHistory: history,
     jobs: [...next.jobs, ...rebuilt.data.jobs],
-    payments: payment ? [...next.payments, payment] : next.payments,
+    payments: payments
+      ? [...next.payments, ...payments]
+      : payment
+        ? [...next.payments, payment]
+        : next.payments,
     checkouts: [...(next.checkouts ?? []), rebuilt.data],
   };
 }

@@ -115,8 +115,25 @@ try {
   await d.waitFor({ state: 'detached' });
   await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
   assert.match(await page.locator('table').first().innerText(), /Blue pen[\s\S]*Stage: Added/);
+
+  // Split payment: ₦500 as ₦200 cash + ₦300 transfer; the receipt shows both parts.
+  await page.getByRole('button', { name: 'Quick sale', exact: true }).click();
+  d = page.getByRole('dialog', { name: 'Quick sale' });
+  await items().click();
+  await d.getByRole('button', { name: /^Pay ₦500\.00/ }).click();
+  pay = page.getByRole('dialog', { name: 'Payment' });
+  await pay.getByLabel('Payment method').selectOption('__split');
+  await pay.getByLabel('Split amount 1').fill('200');
+  await pay.getByLabel('Split method 2').selectOption('Transfer');
+  await pay.getByLabel('Split amount 2').fill('300');
+  assert.match(await pay.locator('.split-foot').innerText(), /Total of the parts ₦500\.00/);
+  assert.equal(await pay.getByLabel('Money received (₦)').inputValue(), '500.00');
+  await pay.getByRole('button', { name: /Complete sale/ }).click();
+  await d.waitFor({ state: 'detached' });
+  await page.getByRole('dialog').getByText('Cash ₦200.00 · Transfer ₦300.00', { exact: false }).waitFor();
+  await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
   await nav('Materials');
-  assert.match(await page.locator('table').innerText(), /Blue pen[\s\S]*\b4\b/);
+  assert.match(await page.locator('table').innerText(), /Blue pen[\s\S]*\b3\b/);
   await nav('Customers');
   assert.match(await page.locator('table').innerText(), /Walk-in customer/);
 

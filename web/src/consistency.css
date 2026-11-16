@@ -4627,3 +4627,50 @@ button.pos-variant small {
   margin: 0;
   align-items: center;
 }
+
+/* ---- Split payment (SplitPayment.tsx): rows of method + amount ---- */
+.split-payment {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+.split-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.split-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+}
+.split-row > label + label {
+  margin-top: 0;
+}
+.split-remove {
+  width: var(--control-h);
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+}
+.split-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 14px;
+}
+@media (max-width: 560px) {
+  .split-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .split-row > label:first-child {
+    grid-column: 1 / -1;
+  }
+}

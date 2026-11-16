@@ -34,6 +34,8 @@ export function replacePendingCheckout(state, cloud, eventId, replacement) {
           override: d.override,
           method: d.method,
           ...(d.methodLabel ? { methodLabel: d.methodLabel } : {}),
+          ...(d.splits ? { splits: d.splits } : {}),
+          ...(d.collected === false ? { collected: false } : {}),
           paidOn: d.paidOn,
           reference: d.reference,
         },

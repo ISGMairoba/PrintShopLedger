@@ -2,6 +2,7 @@ import DefaultTermsButton from './DefaultTermsButton';
 import TemplateDiscountWarning from './TemplateDiscountWarning';
 import { defaultMethod, defaultSource } from './business-options.mjs';
 import { defaultMoneyAccount } from './operations.mjs';
+import SplitPayment, { SPLIT, splitParts, splitTotal, startSplit, type SplitRow } from './SplitPayment';
 import { notEnoughStock } from './stock-rule.mjs';
 import DialogActions from './DialogActions';
 import { TemplateInputs, TemplateEstimate, tryTemplate } from './TemplateFields';
@@ -544,7 +545,21 @@ export default function CheckoutEditor({
   const recommended = cartTotal === null ? null : Math.max(0, cartTotal + previousBalance - availableWallet);
   // The business chooses whether the amount starts at the recommended payment or at zero.
   const prefill = jobSettings.paymentPrefill === 'zero' ? 0 : (recommended ?? 0);
-  const cash = cashOverride ?? (prefill / 100).toFixed(2);
+  // Split payment: the money received is the total of the parts.
+  const [splitRows, setSplitRows] = useState<SplitRow[] | null>(null);
+  const cash = splitRows
+    ? (splitTotal(splitRows) / 100).toFixed(2)
+    : (cashOverride ?? (prefill / 100).toFixed(2));
+  const parts = (() => {
+    if (!splitRows) return null;
+    try {
+      return splitParts(ledger, splitRows, paymentMethods);
+    } catch {
+      return [];
+    }
+  })();
+  const payMethod = parts?.length ? parts[0].method : method;
+  const payLabel = parts?.length ? parts[0].methodLabel : methodLabel;
   let preview: CheckoutEvent | null = null,
     previewError = '';
   try {
@@ -566,9 +581,10 @@ export default function CheckoutEditor({
                 .filter(([, n]) => money(n || '0') > 0)
                 .map(([jobId, n]) => ({ jobId, amount: money(n) }))
             : null,
-          method,
-          methodLabel,
-          accountId: selectedAccount,
+          method: payMethod,
+          methodLabel: payLabel,
+          accountId: parts?.length ? (defaultMoneyAccount(ledger, payLabel) ?? undefined) : selectedAccount,
+          ...(splitRows ? { splits: splitParts(ledger, splitRows, paymentMethods) } : {}),
           paidOn,
           reference,
         },
@@ -774,9 +790,12 @@ export default function CheckoutEditor({
                         .filter(([, n]) => money(n || '0') > 0)
                         .map(([jobId, n]) => ({ jobId, amount: money(n) }))
                     : null,
-                  method,
-                  methodLabel,
-                  accountId: selectedAccount,
+                  method: payMethod,
+                  methodLabel: payLabel,
+                  accountId: parts?.length
+                    ? (defaultMoneyAccount(ledger, payLabel) ?? undefined)
+                    : selectedAccount,
+                  ...(splitRows ? { splits: splitParts(ledger, splitRows, paymentMethods) } : {}),
                   paidOn,
                   reference,
                 },
@@ -1361,11 +1380,12 @@ export default function CheckoutEditor({
             <div className="form-grid">
               <label>
                 Money received (₦)
-                <CurrencyInput required value={cash} onValueChange={setCashOverride} />
+                <CurrencyInput required value={cash} disabled={!!splitRows} onValueChange={setCashOverride} />
+                {splitRows && <small>The total of the split.</small>}
               </label>
               <label>
                 Payment method
-                {money(cash || '0') === 0 ? (
+                {money(cash || '0') === 0 && !splitRows ? (
                   // No money taken: wallet credit (if it covers anything) or nothing.
                   <select aria-label="Payment method" disabled value="none">
                     <option value="none">{preview?.data.walletUsed ? 'Wallet' : 'None'}</option>
@@ -1373,14 +1393,23 @@ export default function CheckoutEditor({
                 ) : (
                   <select
                     aria-label="Payment method"
-                    value={methodLabel}
-                    onChange={(e) => setMethodLabel(e.target.value)}
+                    value={splitRows ? SPLIT : methodLabel}
+                    onChange={(e) => {
+                      if (e.target.value !== SPLIT) {
+                        setSplitRows(null);
+                        return setMethodLabel(e.target.value);
+                      }
+                      setSplitRows(startSplit(paymentMethods, methodLabel, cash));
+                    }}
                   >
                     {paymentMethods.map((item) => (
                       <option key={item.label} value={item.label}>
                         {('displayLabel' in item && item.displayLabel) || item.label}
                       </option>
                     ))}
+                    {!initialCheckout && paymentMethods.length > 1 && (
+                      <option value={SPLIT}>Split between methods…</option>
+                    )}
                   </select>
                 )}
               </label>
@@ -1393,6 +1422,17 @@ export default function CheckoutEditor({
                 <input maxLength={200} value={reference} onChange={(e) => setReference(e.target.value)} />
               </label>
             </div>
+            {splitRows && (
+              <SplitPayment
+                rows={splitRows}
+                methods={paymentMethods}
+                onChange={setSplitRows}
+                onCancel={() => {
+                  setCashOverride(cash);
+                  setSplitRows(null);
+                }}
+              />
+            )}
             <details>
               <summary>Terms &amp; conditions</summary>
               <label>
@@ -1421,7 +1461,7 @@ export default function CheckoutEditor({
                     {currency(Math.min(Math.max(0, availableWallet), (cartTotal ?? 0) + previousBalance))}
                   </small>
                 </p>
-                {(cashOverride !== null || jobSettings.paymentPrefill === 'zero') && (
+                {!splitRows && (cashOverride !== null || jobSettings.paymentPrefill === 'zero') && (
                   <button
                     type="button"
                     className="secondary"

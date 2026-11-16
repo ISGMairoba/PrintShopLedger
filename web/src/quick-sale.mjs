@@ -242,7 +242,7 @@ export function pricedCart(ledger, cart, { discount = null, policy = null, sourc
  * with an optional deadline, and a saved customer is needed.
  * newCustomer: a customer.created event for a customer added during the sale (they buy it).
  * useWallet: a saved customer's wallet credit pays first.
- * @param {{ customerId: string | null, tendered: number, method: string, methodLabel: string, paidOn: string, source: string, actor: { id: string, label: string }, now: string, discount?: { kind: string, value: number, reason?: string } | null, policy?: { maxPercent: number, canFlat: boolean } | null, collected?: boolean, dueAt?: string, workflowFor?: ((serviceId: string) => Record<string, unknown>) | null, newCustomer?: any, useWallet?: boolean, reference?: string }} options
+ * @param {{ customerId: string | null, tendered: number, method: string, methodLabel: string, paidOn: string, source: string, actor: { id: string, label: string }, now: string, discount?: { kind: string, value: number, reason?: string } | null, policy?: { maxPercent: number, canFlat: boolean } | null, collected?: boolean, dueAt?: string, workflowFor?: ((serviceId: string) => Record<string, unknown>) | null, newCustomer?: any, useWallet?: boolean, reference?: string, splits?: { method: string, methodLabel: string, accountId?: string, amount: number }[] | null }} options
  */
 export function quickSaleInput(
   ledger,
@@ -264,6 +264,7 @@ export function quickSaleInput(
     newCustomer: added = null,
     useWallet = false,
     reference = '',
+    splits = null,
   },
 ) {
   if (!cart.length) throw Error('Add at least one product.');
@@ -282,6 +283,13 @@ export function quickSaleInput(
   if (isWalkIn && tendered < total)
     throw Error('Walk-in sales are paid in full. Choose a customer to sell on credit.');
   const cashReceived = isWalkIn ? total : tendered;
+  // Split, walk-in: change comes out of the cash part (the rest must add up to the total).
+  let parts = splits;
+  if (parts && isWalkIn && tendered > total) {
+    const cash = parts.findIndex((p) => p.method === 'Cash' && p.amount > tendered - total);
+    if (cash < 0) throw Error('Walk-in split payments must add up to the total; change comes from cash.');
+    parts = parts.map((p, i) => (i === cash ? { ...p, amount: p.amount - (tendered - total) } : p));
+  }
   return {
     total,
     change: isWalkIn ? tendered - total : 0,
@@ -307,6 +315,7 @@ export function quickSaleInput(
       reference: String(reference ?? '')
         .trim()
         .slice(0, 120),
+      ...(parts ? { splits: parts } : {}),
     },
   };
 }

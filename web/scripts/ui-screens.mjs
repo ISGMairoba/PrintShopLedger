@@ -343,6 +343,11 @@ try {
       if (await pay.getByLabel('Discount', { exact: true }).count())
         await pay.getByLabel('Discount', { exact: true }).selectOption('percent');
       await pay.screenshot({ path: `${out}/${mode}-95-quick-sale-payment-later.png` });
+      await pay.getByLabel('Payment method').selectOption('__split');
+      await pay.getByLabel('Split amount 2').fill('100');
+      await pay.locator('.split-payment').scrollIntoViewIfNeeded();
+      await pay.screenshot({ path: `${out}/${mode}-95-quick-sale-payment-split.png` });
+      await fieldHeights('quick sale split');
       await closeDialogs();
     } catch (e) {
       failures.push(`${mode} quick sale discount: ${e.message.split('\n')[0]}`);

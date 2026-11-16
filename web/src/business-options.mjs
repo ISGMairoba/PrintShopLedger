@@ -183,5 +183,8 @@ export const paymentName = (record) => {
   const money = record.cashReceived ?? record.amount;
   // Refunds carry the money paid out in walletUsed, so they keep their method.
   if (money === 0 && !record.refundId) return record.walletUsed ? 'Wallet' : 'None';
+  // A split sale: its methods, e.g. "Cash + OPay".
+  if (Array.isArray(record.splits) && record.splits.length)
+    return record.splits.map((s) => s.methodLabel || s.method).join(' + ');
   return record.methodLabel || record.method;
 };
