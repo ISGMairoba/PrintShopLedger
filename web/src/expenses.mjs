@@ -253,9 +253,7 @@ export function applyExpenseEvent(input, event) {
       ),
       // The period it covers (profit & loss spreads it by day; expense-periods.mjs); null: its own day.
       covers:
-        data.covers === undefined
-          ? (existing?.covers ?? null)
-          : validCovers(data.covers, data.incurredOn),
+        data.covers === undefined ? (existing?.covers ?? null) : validCovers(data.covers, data.incurredOn),
       restockIds: expenseRestockIds(
         ledger,
         data.restockIds === undefined ? (existing?.restockIds ?? []) : data.restockIds,

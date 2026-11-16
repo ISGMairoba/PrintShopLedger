@@ -400,11 +400,21 @@ export default function ExpenseEditor({
                   <div className="form-grid">
                     <label>
                       Covers from
-                      <input type="date" value={coverFrom} onChange={(e) => setCoverFrom(e.target.value)} required />
+                      <input
+                        type="date"
+                        value={coverFrom}
+                        onChange={(e) => setCoverFrom(e.target.value)}
+                        required
+                      />
                     </label>
                     <label>
                       Covers to
-                      <input type="date" value={coverTo} onChange={(e) => setCoverTo(e.target.value)} required />
+                      <input
+                        type="date"
+                        value={coverTo}
+                        onChange={(e) => setCoverTo(e.target.value)}
+                        required
+                      />
                     </label>
                   </div>
                 )}

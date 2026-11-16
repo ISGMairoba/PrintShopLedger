@@ -20,7 +20,12 @@ export const defaultOptions = () => ({
     'Other',
   ],
   /** Usual period each expense category covers, in months (expense-periods.mjs); not listed: its day. */
-  categoryPeriods: /** @type {Record<string, number>} */ ({ Rent: 12, Wages: 1, Electricity: 1, 'Internet / phone': 1 }),
+  categoryPeriods: /** @type {Record<string, number>} */ ({
+    Rent: 12,
+    Wages: 1,
+    Electricity: 1,
+    'Internet / phone': 1,
+  }),
   jobSources: ['In shop / USB', 'Shop network', 'WhatsApp', 'Email', 'Other'],
   stockReasons: ['Restocking', 'Stock Count Correction', 'Returned Stock', 'Damaged Stock'],
   materialUnits: ['sheet', 'piece', 'metre', 'square metre', 'roll', 'kilogram', 'litre'],

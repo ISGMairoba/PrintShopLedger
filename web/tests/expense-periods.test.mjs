@@ -22,7 +22,11 @@ test('Periods: a year from 1 Jan ends 31 Dec; a month from 31 Jan ends 28 Feb', 
 
 test('Profit spreads an expense by day over what it covers; the parts add up exactly', () => {
   // ₦365,000 rent for 2026: ₦1,000 a day.
-  const rent = { amount: 36500000, incurredOn: '2026-01-01', covers: { from: '2026-01-01', to: '2026-12-31' } };
+  const rent = {
+    amount: 36500000,
+    incurredOn: '2026-01-01',
+    covers: { from: '2026-01-01', to: '2026-12-31' },
+  };
   assert.equal(expenseShare(rent, '2026-01-01', '2026-01-31'), 3100000);
   assert.equal(expenseShare(rent, '2026-02-01', '2026-02-28'), 2800000);
   assert.equal(expenseShare(rent, '2025-12-01', '2025-12-31'), 0);
@@ -51,5 +55,8 @@ test('Usual period per category: starter defaults, only allowed choices', () => 
   const o = validateOptions({});
   assert.equal(o.categoryPeriods.Rent, 12);
   assert.equal(o.categoryPeriods.Wages, 1);
-  assert.deepEqual(validCategoryPeriods({ Rent: 12, Fuel: 0, Odd: 5, Salaries: 1 }), { Rent: 12, Salaries: 1 });
+  assert.deepEqual(validCategoryPeriods({ Rent: 12, Fuel: 0, Odd: 5, Salaries: 1 }), {
+    Rent: 12,
+    Salaries: 1,
+  });
 });

@@ -197,8 +197,9 @@ export default function BusinessOptionsEditor({
           <fieldset className="category-periods">
             <legend>{w('Usual period each expense category covers')}</legend>
             <p className="muted">
-              Profit spreads an expense evenly, day by day, over the period it covers (rent for a year, salaries
-              for a month). New expenses start with their category's period; it can be changed on each expense.
+              Profit spreads an expense evenly, day by day, over the period it covers (rent for a year,
+              salaries for a month). New expenses start with their category's period; it can be changed on
+              each expense.
             </p>
             <div className="form-grid">
               {value.expenseCategories
