@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import Modal from './Modal';
-import Icon from './Icon';
+import Icon, { type IconName } from './Icon';
 import { supabase } from './cloud';
 
 /** A notice as the business sends it (get_notices). */
@@ -18,6 +18,14 @@ export type Notice = {
   readAt: string | null;
   /** Who has read it (Managers and above only). */
   readers: { name: string; at: string }[] | null;
+};
+/** Something that needs attention (repeating expenses due, late jobs…), shown above the notices. */
+export type NoticeAlert = {
+  key: string;
+  text: string;
+  action?: { label: string; icon: IconName; run: () => void };
+  /** "Not now": hide it for this session (or today, for daily reminders). */
+  dismiss?: () => void;
 };
 const audiences: [number, string][] = [
   [1, 'Everyone'],
@@ -68,7 +76,9 @@ export default function NoticeBoard({
   online,
   onChanged,
   onClose,
+  alerts = [],
 }: {
+  alerts?: NoticeAlert[];
   shopId: string;
   canPost: boolean;
   notices: Notice[];
@@ -99,7 +109,32 @@ export default function NoticeBoard({
       if (error) throw failure(error);
     });
   return (
-    <Modal title="Notice board" wide busy={busy} onClose={onClose}>
+    <Modal title="Notices" wide busy={busy} onClose={onClose}>
+      {alerts.length > 0 && (
+        <section className="notice-alerts" aria-label="Needs attention">
+          <h3>Needs attention</h3>
+          <ul>
+            {alerts.map((a) => (
+              <li key={a.key}>
+                <span>{a.text}</span>
+                <span className="notice-alert-actions">
+                  {a.action && (
+                    <button type="button" className="secondary" onClick={a.action.run}>
+                      <Icon name={a.action.icon} /> {a.action.label}
+                    </button>
+                  )}
+                  {a.dismiss && (
+                    <button type="button" className="text-button" onClick={a.dismiss}>
+                      Not now
+                    </button>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {shopId && <h3>Notice board</h3>}
       {!online && (
         <p className="notice notice-warning">You're offline. Notices update when you're back online.</p>
       )}
@@ -172,7 +207,7 @@ export default function NoticeBoard({
           </div>
         </form>
       )}
-      {!notices.length ? (
+      {!shopId ? null : !notices.length ? (
         <p className="empty">No notices yet.</p>
       ) : (
         <ul className="notice-list">

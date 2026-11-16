@@ -532,14 +532,10 @@ try {
     await switchDialog.getByRole('button', { name: 'Sign in user', exact: true }).click();
     await switchDialog.waitFor({ state: 'detached' });
     await page
-      .locator('.sidebar-user strong')
-      .filter({ hasText: '(' + username + ')' })
+      .locator('.sidebar-user')
+      .filter({ hasText: username })
       .waitFor();
-    assert.equal(
-      await page.getByRole('button', { name: 'Sign out business', exact: true }).count(),
-      username === 'admin' ? 0 : 1,
-      username + ' business sign out permission',
-    );
+    // Sign out business now lives in Business Settings (anyone allowed there).
     assert.equal(await page.getByRole('button', { name: 'Logout', exact: true }).count(), 1);
   }
   // My Sales uses receipt records, not jobs/payment rows, and always isolates the current user.

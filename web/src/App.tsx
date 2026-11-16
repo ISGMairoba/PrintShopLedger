@@ -138,7 +138,7 @@ import {
 } from './cloud';
 import { readState, saveEvent, saveEvents, mutateState, storageHealth } from './storage';
 import { holdSale, listHeld, removeHeld } from './held-sales.mjs';
-import NoticeBoard, { useNotices } from './NoticeBoard';
+import NoticeBoard, { useNotices, type NoticeAlert } from './NoticeBoard';
 import MaterialsPage from './MaterialsPage';
 import CustomersPage from './CustomersPage';
 import UsersPage from './UsersPage';
@@ -184,6 +184,9 @@ const deviceStorage = () => {
     return null;
   }
 };
+
+/** The first letter of a name, for the round avatar. */
+const initialOf = (name: string) => (name.trim()[0] ?? '?').toUpperCase();
 
 export default function App() {
   const mobileLayout = useMobileLayout();
@@ -1049,11 +1052,141 @@ export default function App() {
         : state.pending.length
           ? 'pending'
           : 'ok';
+  // Connection and sync state: the Wi-Fi icon with Connected / Offline and the changes waiting.
   const syncIndicator = !demo && scope && (
     <span className="sync-status" data-tone={syncTone} role="status" aria-live="polite" title={syncLabel}>
-      <Icon name="sync" /> <span className="sync-label">{syncLabel}</span>
-      {state.pending.length > 0 && <span className="sync-count"> ({state.pending.length})</span>}
+      <Icon name={online ? 'wifi' : 'sync'} />{' '}
+      <span className="sync-label">
+        {online ? 'Connected' : 'Offline'}
+        <small>
+          {syncLabel} · {state.pending.length} pending change{state.pending.length === 1 ? '' : 's'}
+        </small>
+      </span>
     </span>
+  );
+  // Alerts that used to sit above every page (repeating expenses, loans, late jobs, low stock
+  // elsewhere, drawers to review) now wait in the Notices panel with the notice board.
+  const autoClosedDrawers =
+    !demo && (shop?.accessLevel ?? 0) >= 2 && allowed('Conflict Inbox')
+      ? state.ledger.drawerClosings.filter((d) => d.autoClosed && d.reviewStatus !== 'reviewed').length
+      : 0;
+  const goTo = (target: Page) => {
+    setNoticesOpen(false);
+    setPage(target);
+  };
+  const alerts: NoticeAlert[] = [
+    ...(loansDue.length
+      ? [
+          {
+            key: 'loans',
+            text: `Loan repayment${loansDue.length === 1 ? '' : 's'} ${loansDue
+              .map((l) => `${l.name} (${l.overdue ? 'overdue since' : 'due'} ${l.due}, owed ${currency(l.owed)})`)
+              .join(', ')}.`,
+            action: { label: 'Accounts', icon: 'payments' as const, run: () => goTo('Accounts') },
+            dismiss: () => setLoansSeen(true),
+          },
+        ]
+      : []),
+    ...(dueRepeatCount
+      ? [
+          {
+            key: 'repeats',
+            text: `${dueRepeatCount} repeating expense${dueRepeatCount === 1 ? ' is' : 's are'} due to record.`,
+            action: { label: 'Review', icon: 'expenses' as const, run: () => goTo('Expenses') },
+            dismiss: () => setRepeatsSeen(true),
+          },
+        ]
+      : []),
+    ...(lateJobs
+      ? [
+          {
+            key: 'late',
+            text: `${lateJobs} job(s) have been at a stage too long.`,
+            action: {
+              label: 'Show them',
+              icon: 'jobs' as const,
+              run: () => {
+                dismissLateReminder(scope, businessDay(new Date().toISOString()));
+                setLateSeen(true);
+                try {
+                  sessionStorage.setItem(LATE_FILTER_KEY, 'late');
+                } catch {}
+                goTo('Jobs');
+              },
+            },
+            dismiss: () => {
+              dismissLateReminder(scope, businessDay(new Date().toISOString()));
+              setLateSeen(true);
+            },
+          },
+        ]
+      : []),
+    ...(lowElsewhereCount
+      ? [
+          {
+            key: 'low',
+            text: `${lowElsewhereCount} item(s) are running low at other locations.`,
+            action: {
+              label: 'Open Materials',
+              icon: 'materials' as const,
+              run: () => {
+                dismissLowStockReminder(scope, businessDay(new Date().toISOString()));
+                setLowStockSeen(true);
+                goTo('Materials');
+              },
+            },
+            dismiss: () => {
+              dismissLowStockReminder(scope, businessDay(new Date().toISOString()));
+              setLowStockSeen(true);
+            },
+          },
+        ]
+      : []),
+    ...(autoClosedDrawers
+      ? [
+          {
+            key: 'drawers',
+            text: `${autoClosedDrawers} drawer(s) were closed automatically and need a review.`,
+            action: { label: 'Review drawers', icon: 'inbox' as const, run: () => goTo('Conflict Inbox') },
+          },
+        ]
+      : []),
+  ];
+  const noticeCount = noticeBoard.unread + alerts.length;
+  const canSeeNotices = (!demo && !!scope && !!shop?.id) || alerts.length > 0;
+  // Top right of every page (in the title bar on phones): Notices, connection, the person.
+  const headerTools = (
+    <div className="header-tools">
+      {canSeeNotices && (
+        <button
+          type="button"
+          className={`secondary notice-button${noticeCount ? ' has-unread' : ''}`}
+          aria-label={`Notices${noticeCount ? `, ${noticeCount} new` : ''}`}
+          title="Notices"
+          onClick={() => {
+            void noticeBoard.refresh();
+            setNoticesOpen(true);
+          }}
+        >
+          <Icon name="notice" />
+          <span className="notice-label"> Notices</span>
+          {noticeCount > 0 && <span className="badge">{noticeCount}</span>}
+        </button>
+      )}
+      {syncIndicator}
+      <button
+        type="button"
+        className="avatar-button"
+        aria-label="My Account"
+        title={`${demo ? 'Local trial user' : shop?.staffName || 'Not signed in'}: My Account`}
+        onClick={() => {
+          setNoticesOpen(false);
+          setPage('My Account');
+        }}
+      >
+        {initialOf(demo ? 'Trial' : shop?.staffName || '?')}
+      </button>
+    </div>
   );
   function openPayment(customerId = '') {
     setSelectedJob(null);
@@ -1450,95 +1583,80 @@ export default function App() {
                 <div className="app">
                   <Sidebar
                     title={businessName}
-                    trailing={mobileLayout ? syncIndicator : null}
+                    trailing={mobileLayout ? headerTools : null}
                     header={
-                      <>
-                        <div className="brand">
-                          {branding.sidebarLogo && (
-                            <img
-                              className="sidebar-business-logo"
-                              src={branding.sidebarLogo}
-                              alt={businessName + ' logo'}
-                            />
-                          )}
-                          <div className="brand-copy">
-                            {!branding.sidebarLogo && <strong className="brand-title">{businessName}</strong>}
-                            <span className={`connection ${online ? 'online' : ''}`} role="status">
-                              {online ? 'Online' : 'Offline'} · {state.pending.length} pending changes
-                            </span>
-                          </div>
-                        </div>
-                        <div className="sidebar-user">
-                          <strong>
-                            {demo ? 'Local trial user' : shop?.staffName || 'Not signed in'}
-                            {(demo || shop?.username) && ` (${demo ? 'trial' : shop?.username})`}
-                          </strong>
-                          <small className="staff-rank">{demo ? 'Trial' : shop?.role}</small>
-                        </div>
-                      </>
+                      <div className="brand">
+                        {branding.sidebarLogo ? (
+                          <img
+                            className="sidebar-business-logo"
+                            src={branding.sidebarLogo}
+                            alt={businessName + ' logo'}
+                          />
+                        ) : (
+                          <strong className="brand-title">{businessName}</strong>
+                        )}
+                      </div>
                     }
                     footer={
-                      <>
-                        <button className="secondary" onClick={() => setHelpFor(null)}>
-                          <Icon name="help" /> Help
-                        </button>
-                        {!demo && (
-                          <button
-                            className="secondary"
-                            disabled={busy || !online}
-                            onClick={() => {
-                              setSwitchUser(true);
-                              setMessage('');
-                            }}
-                          >
-                            <Icon name="users" /> Switch user
-                          </button>
-                        )}
-                        {!demo && (
-                          <button
-                            className="secondary"
-                            disabled={busy}
-                            onClick={async () => {
-                              const { error } = await supabase!.auth.signOut({ scope: 'local' });
-                              if (error) setMessage(error.message, 'error');
-                              else {
-                                setSession(null);
-                                setMessage('User signed out. Business remains signed in.');
-                              }
-                            }}
-                          >
-                            <Icon name="account" /> Logout
-                          </button>
-                        )}
-                        {supabase && (demo || (shop?.accessLevel ?? 0) >= 3) && (
-                          <button
-                            className="secondary"
-                            disabled={busy}
-                            onClick={async () => {
-                              if (demo) {
-                                setDemo(false);
-                                return;
-                              }
-                              if ((shop?.accessLevel ?? 0) < 3) return;
-                              const results = await Promise.all([
-                                supabase!.auth.signOut({ scope: 'local' }),
-                                businessAuth!.auth.signOut({ scope: 'local' }),
-                              ]);
-                              const failure = results.find((result) => result.error)?.error;
-                              if (failure) setMessage(failure.message, 'error');
-                              else {
-                                setSession(null);
-                                setBusinessSession(null);
-                                setShop(null);
-                                setMessage('Business signed out.');
-                              }
-                            }}
-                          >
-                            <Icon name={demo ? 'account' : 'close'} />{' '}
-                            {demo ? 'Business sign in' : 'Sign out business'}
-                          </button>
-                        )}
-                      </>
+                      <div className="sidebar-user">
+                        <span className="user-avatar" aria-hidden="true">
+                          {initialOf(demo ? 'Trial' : shop?.staffName || '?')}
+                        </span>
+                        <span className="sidebar-user-text">
+                          <strong>{demo ? 'Local trial user' : shop?.staffName || 'Not signed in'}</strong>
+                          <small className="staff-rank">
+                            {demo ? 'Trial' : [shop?.role, shop?.username].filter(Boolean).join(' · ')}
+                          </small>
+                        </span>
+                        <span className="sidebar-user-actions">
+                          {demo && supabase && (
+                            <button
+                              type="button"
+                              className="icon-button"
+                              aria-label="Business sign in"
+                              title="Business sign in"
+                              disabled={busy}
+                              onClick={() => setDemo(false)}
+                            >
+                              <Icon name="login" />
+                            </button>
+                          )}
+                          {!demo && (
+                            <button
+                              type="button"
+                              className="icon-button"
+                              aria-label="Switch user"
+                              title="Switch user"
+                              disabled={busy || !online}
+                              onClick={() => {
+                                setSwitchUser(true);
+                                setMessage('');
+                              }}
+                            >
+                              <Icon name="switchUser" />
+                            </button>
+                          )}
+                          {!demo && (
+                            <button
+                              type="button"
+                              className="icon-button"
+                              aria-label="Logout"
+                              title="Logout (the business stays signed in)"
+                              disabled={busy}
+                              onClick={async () => {
+                                const { error } = await supabase!.auth.signOut({ scope: 'local' });
+                                if (error) setMessage(error.message, 'error');
+                                else {
+                                  setSession(null);
+                                  setMessage('User signed out. Business remains signed in.');
+                                }
+                              }}
+                            >
+                              <Icon name="logout" />
+                            </button>
+                          )}
+                        </span>
+                      </div>
                     }
                   >
                     <nav aria-label="Main">
@@ -1575,14 +1693,18 @@ export default function App() {
                             </button>
                           </Fragment>
                         ))}
+                      <button className={helpFor !== undefined ? 'active' : ''} onClick={() => setHelpFor(null)}>
+                        <Icon name="help" />
+                        Help
+                      </button>
                     </nav>
                   </Sidebar>
                   <main>
                     <header>
                       <div>
                         <span className="eyebrow">
-                          {demo ? 'LOCAL TRIAL' : businessName}
-                          {multiBranch && activeBranch && ` · ${activeBranch.name}`}
+                          PrintShopLedger
+                          {demo ? ' · Local trial' : multiBranch && activeBranch ? ` · ${activeBranch.name}` : ''}
                         </span>
                         <div className="page-title">
                           <h1>{pageName(page, branding.settings.terms)}</h1>
@@ -1598,22 +1720,7 @@ export default function App() {
                         </div>
                         <p>{renameTerms(pageDescriptions[page], branding.settings.terms)}</p>
                       </div>
-                      {!demo && scope && shop?.id && (
-                        <button
-                          type="button"
-                          className={`secondary notice-button${noticeBoard.unread ? ' has-unread' : ''}`}
-                          aria-label={`Notice board${noticeBoard.unread ? `, ${noticeBoard.unread} unread` : ''}`}
-                          onClick={() => {
-                            void noticeBoard.refresh();
-                            setNoticesOpen(true);
-                          }}
-                        >
-                          <Icon name="notice" /> Notices
-                          {noticeBoard.unread > 0 && <span className="badge">{noticeBoard.unread}</span>}
-                        </button>
-                      )}
-                      {/* On phones the sync state sits in the title bar instead (Sidebar trailing). */}
-                      {!mobileLayout && syncIndicator}
+                      {!mobileLayout && headerTools}
                     </header>
                     {subscriptionBanner && (
                       <p
@@ -1623,10 +1730,11 @@ export default function App() {
                         {subscriptionBanner.text}
                       </p>
                     )}
-                    {noticesOpen && shop?.id && (
+                    {noticesOpen && (
                       <NoticeBoard
-                        shopId={shop.id}
-                        canPost={(shop.accessLevel ?? 0) >= 3}
+                        shopId={shop?.id ?? ''}
+                        canPost={!demo && (shop?.accessLevel ?? 0) >= 3}
+                        alerts={alerts}
                         notices={noticeBoard.notices}
                         online={online}
                         onChanged={noticeBoard.refresh}
@@ -1726,106 +1834,6 @@ export default function App() {
                         </button>
                       </div>
                     )}
-                    {loansDue.length > 0 && page !== 'Accounts' && (
-                      <div className="notice">
-                        Loan repayment{loansDue.length === 1 ? '' : 's'}{' '}
-                        {loansDue
-                          .map(
-                            (l) =>
-                              `${l.name} (${l.overdue ? 'overdue since' : 'due'} ${l.due}, owed ${currency(l.owed)})`,
-                          )
-                          .join(', ')}
-                        .{' '}
-                        <button className="secondary" onClick={() => setPage('Accounts')}>
-                          <Icon name="payments" /> Accounts
-                        </button>{' '}
-                        <button className="text-button" onClick={() => setLoansSeen(true)}>
-                          Not now
-                        </button>
-                      </div>
-                    )}
-                    {dueRepeatCount > 0 && page !== 'Expenses' && (
-                      <div className="notice">
-                        {dueRepeatCount} repeating expense{dueRepeatCount === 1 ? ' is' : 's are'} due to
-                        record.{' '}
-                        <button className="secondary" onClick={() => setPage('Expenses')}>
-                          <Icon name="expenses" /> Review
-                        </button>{' '}
-                        <button className="text-button" onClick={() => setRepeatsSeen(true)}>
-                          Not now
-                        </button>
-                      </div>
-                    )}
-                    {lateJobs > 0 && page !== 'Jobs' && (
-                      <div className="notice">
-                        {lateJobs} job(s) have been at a stage too long.{' '}
-                        <button
-                          className="secondary"
-                          onClick={() => {
-                            dismissLateReminder(scope, businessDay(new Date().toISOString()));
-                            setLateSeen(true);
-                            try {
-                              sessionStorage.setItem(LATE_FILTER_KEY, 'late');
-                            } catch {}
-                            setPage('Jobs');
-                          }}
-                        >
-                          <Icon name="jobs" /> Show them
-                        </button>{' '}
-                        <button
-                          className="text-button"
-                          onClick={() => {
-                            dismissLateReminder(scope, businessDay(new Date().toISOString()));
-                            setLateSeen(true);
-                          }}
-                        >
-                          Not now
-                        </button>
-                      </div>
-                    )}
-                    {lowElsewhereCount > 0 && page !== 'Materials' && (
-                      <div className="notice">
-                        {lowElsewhereCount} item(s) are running low at other locations.{' '}
-                        <button
-                          className="secondary"
-                          onClick={() => {
-                            dismissLowStockReminder(scope, businessDay(new Date().toISOString()));
-                            setLowStockSeen(true);
-                            setPage('Materials');
-                          }}
-                        >
-                          <Icon name="materials" /> Open Materials
-                        </button>{' '}
-                        <button
-                          className="text-button"
-                          onClick={() => {
-                            dismissLowStockReminder(scope, businessDay(new Date().toISOString()));
-                            setLowStockSeen(true);
-                          }}
-                        >
-                          Not now
-                        </button>
-                      </div>
-                    )}
-                    {!demo &&
-                      (shop?.accessLevel ?? 0) >= 2 &&
-                      page !== 'Conflict Inbox' &&
-                      allowed('Conflict Inbox') &&
-                      state.ledger.drawerClosings.some(
-                        (d) => d.autoClosed && d.reviewStatus !== 'reviewed',
-                      ) && (
-                        <div className="notice">
-                          {
-                            state.ledger.drawerClosings.filter(
-                              (d) => d.autoClosed && d.reviewStatus !== 'reviewed',
-                            ).length
-                          }{' '}
-                          drawer(s) were closed automatically and need a review.{' '}
-                          <button className="secondary" onClick={() => setPage('Conflict Inbox')}>
-                            <Icon name="inbox" /> Review drawers
-                          </button>
-                        </div>
-                      )}
                     {hasConflict && supervisor && (
                       <div className="notice">
                         Supervisor review: {supervisor}. The cashier remains signed in.
@@ -2313,6 +2321,34 @@ export default function App() {
                             accessLevel={demo ? 5 : (shop?.accessLevel ?? 0)}
                             onSave={branding.save}
                             onReload={branding.reload}
+                            deviceSignOut={
+                              supabase && !demo ? (
+                                <>
+                                  <small>This device is signed in to {businessName}.</small>
+                                  <button
+                                    type="button"
+                                    className="secondary danger-text"
+                                    disabled={busy}
+                                    onClick={async () => {
+                                      const results = await Promise.all([
+                                        supabase!.auth.signOut({ scope: 'local' }),
+                                        businessAuth!.auth.signOut({ scope: 'local' }),
+                                      ]);
+                                      const failure = results.find((result) => result.error)?.error;
+                                      if (failure) setMessage(failure.message, 'error');
+                                      else {
+                                        setSession(null);
+                                        setBusinessSession(null);
+                                        setShop(null);
+                                        setMessage('Business signed out.');
+                                      }
+                                    }}
+                                  >
+                                    <Icon name="logout" /> Sign out business
+                                  </button>
+                                </>
+                              ) : undefined
+                            }
                             accountSettings={
                               <AccountsPage
                                 configurationOnly
