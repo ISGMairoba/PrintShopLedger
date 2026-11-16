@@ -22,7 +22,9 @@ Deno.serve(async (request: Request) => {
   });
   const { data, error } = await admin
     .from('business_settings')
-    .select('name:settings->>businessName, primary:settings->>primary, png:settings->appIcon->>png, version')
+    .select(
+      'name:settings->>businessName, primary:settings->>primary, png:settings->appIcon->>png, background:settings->appIcon->>background, version',
+    )
     .eq('shop_id', shop)
     .maybeSingle();
   if (error) return fail(500, 'Could not load the app icon.');
@@ -49,10 +51,14 @@ Deno.serve(async (request: Request) => {
     display: 'standalone',
     theme_color: color,
     background_color: '#f4f6f3',
-    icons: [
-      { src: icon, sizes: '512x512', type: 'image/png', purpose: 'any' },
-      { src: icon, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-    ],
+    // A see-through icon is offered as-is only: masking it (round, squircle) would cut the logo.
+    icons:
+      data.background === 'transparent'
+        ? [{ src: icon, sizes: '512x512', type: 'image/png', purpose: 'any' }]
+        : [
+            { src: icon, sizes: '512x512', type: 'image/png', purpose: 'any' },
+            { src: icon, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          ],
   };
   return new Response(JSON.stringify(manifest), {
     headers: { ...base, 'Content-Type': 'application/manifest+json' },
