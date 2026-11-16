@@ -17,10 +17,14 @@ import SplitStock from './SplitStock';
 import StockAdjustDialog from './StockAdjustDialog';
 import { RequestStockModal, StockRequestsPanel } from './StockRequests';
 import { reorderList } from './reorder.mjs';
+import { stockValuation } from './actual-cost.mjs';
+import { currency } from './receipts.mjs';
 import { renameActive as wt } from './Words';
 
 type Props = {
   history: MaterialHistoryEntry[];
+  /** Stock at actual cost (actual-cost.mjs), when known. */
+  valuation?: ReturnType<typeof stockValuation>;
   materials: Material[];
   ready: boolean;
   busy: boolean;
@@ -62,6 +66,7 @@ const timestamp = (value: string) => new Date(value).toLocaleString();
 export default function MaterialsPage({
   materials,
   history,
+  valuation,
   ready,
   busy,
   actor,
@@ -366,6 +371,17 @@ export default function MaterialsPage({
                               .join(' · ')}
                           </small>
                         )}
+                        {(() => {
+                          const v = valuation?.get(material.id);
+                          if (!v || v.average === null) return null;
+                          return (
+                            <small className="actual-cost">
+                              {v.restocks ? 'Actual cost' : 'Estimated cost'} {currency(Math.round(v.average))} per{' '}
+                              {material.measurementUnit} · value {currency(v.value)}
+                              {v.noCost > 0 && ` · ${v.noCost.toLocaleString()} added with no cost`}
+                            </small>
+                          );
+                        })()}
                         {stockLevel(material) && (
                           <small
                             className={
