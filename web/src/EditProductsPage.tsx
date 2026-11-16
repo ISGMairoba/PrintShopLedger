@@ -183,7 +183,7 @@ export default function EditProductsPage({
                           </button>
                           {onSaveMany && actor && (
                             <button className="text-button" disabled={busy} onClick={() => setLook(service)}>
-                              <Icon name="edit" /> Icon & category
+                              <Icon name="edit" /> Icon, code & tags
                             </button>
                           )}
                           {material && onSaveStock && actor && (

@@ -25,6 +25,8 @@ export function shelfProducts(ledger) {
         name: s.description,
         icon: s.icon ?? null,
         category: s.category ?? '',
+        code: s.code ?? '',
+        tags: s.tags ?? [],
         price: s.price,
         packPrices: s.packPrices ?? [],
         priceTiers: s.priceTiers ?? [],
@@ -33,6 +35,7 @@ export function shelfProducts(ledger) {
         productName: variantBase(s),
         material,
         stock: material ? material.available : null,
+        minimum: material?.minimumStock ?? 0,
         unit: material?.measurementUnit ?? 'item',
         // Sized materials need width and height, which a quick sale does not ask for.
         sellable: !s.materialId || (!!material && !material.archived && !material.requireSize),
@@ -55,12 +58,12 @@ export function productTiles(products, query = '', category = '') {
   const tiles = [];
   const groups = new Map();
   for (const p of products) {
+    // Search: name, category, item code or a tag.
     if (
       q &&
-      !p.name.toLowerCase().includes(q) &&
-      !String(p.category ?? '')
-        .toLowerCase()
-        .includes(q)
+      ![p.name, p.category ?? '', p.code ?? '', ...(p.tags ?? [])].some((text) =>
+        String(text).toLowerCase().includes(q),
+      )
     )
       continue;
     if (category && (p.category ?? '') !== category) continue;

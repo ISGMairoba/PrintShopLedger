@@ -416,6 +416,10 @@ export interface Service {
   /** Its icon on the Quick sale screen (ItemIcon names) and its category. */
   icon?: string;
   category?: string;
+  /** Optional item code (unique in the business), e.g. STA-001. */
+  code?: string;
+  /** Up to 10 tags, for search and the Quick sale tiles. */
+  tags?: string[];
   id: string;
   description: string;
   materialId: string | null;
@@ -502,6 +506,8 @@ export type FieldEvent = {
     baseVersion: number;
     icon?: string;
     category?: string;
+    code?: string;
+    tags?: string[];
     calledAs?: string;
     modifiedBy: string;
     modifiedByLabel: string;

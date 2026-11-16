@@ -1,3 +1,4 @@
+import ItemTilesSettings from './ItemTilesSettings';
 import { mergeOptionsSection } from './options-sections.mjs';
 import BranchesSettings, { type BranchStaff } from './BranchesSettings';
 import { logoPositions, resolveWatermark } from './document-logos.mjs';
@@ -440,6 +441,12 @@ export default function BusinessSettingsPage({
                   Brand preview · {draft.businessName || 'Business'}
                 </div>
                 <ThemeBackgroundEditor value={draft} onChange={(value) => field('backgrounds', value)} />
+                <ItemTilesSettings
+                  value={draft.tiles}
+                  primary={draft.primary}
+                  accent={draft.accent}
+                  onChange={(next) => field('tiles', next)}
+                />
                 <div className="action-row">
                   <button
                     type="button"
@@ -453,7 +460,7 @@ export default function BusinessSettingsPage({
                   >
                     <Icon name="restore" /> Restore default colors
                   </button>
-                  {sectionSave('Appearance', ['primary', 'accent', 'theme', 'backgrounds'])}
+                  {sectionSave('Appearance', ['primary', 'accent', 'theme', 'backgrounds', 'tiles'])}
                 </div>
               </fieldset>
               <fieldset hidden={tab !== 'Receipts'} disabled={busy || !ready} className="receipt-settings">

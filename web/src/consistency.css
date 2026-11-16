@@ -4674,3 +4674,201 @@ button.pos-variant small {
     grid-column: 1 / -1;
   }
 }
+
+/* ---- Quick sale tiles (item-tiles.mjs): a theme-coloured card with a coloured icon area ---- */
+button.pos-tile {
+  gap: 0;
+  padding: 0;
+  align-items: stretch;
+  overflow: hidden;
+}
+.pos-tile-art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 96px;
+  margin: 8px 8px 0;
+  border-radius: calc(var(--radius-md) - 4px);
+  background: var(--tile-bg, color-mix(in srgb, var(--brand-primary) 11%, transparent));
+  color: var(--tile-ink, var(--brand-primary));
+}
+[data-theme="dark"] .pos-tile-art {
+  background: var(--tile-bg-dark, color-mix(in srgb, var(--brand-link) 16%, transparent));
+  color: var(--tile-ink-dark, var(--brand-link));
+}
+.pos-tile-art .app-icon {
+  width: 34px;
+  height: 34px;
+}
+.pos-tile .pos-tile-count {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  min-width: 0;
+  height: auto;
+  padding: 3px 9px;
+  border-radius: 999px;
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+.pos-tile-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 10px 12px 12px;
+  text-align: left;
+}
+.pos-tile-top,
+.pos-tile-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+.pos-tile-top .pos-tile-category {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pos-tile .pos-tile-stock {
+  flex: none;
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--subtle);
+}
+.pos-tile .pos-tile-stock.low {
+  color: #805300;
+  border-color: color-mix(in srgb, #805300 40%, transparent);
+}
+.pos-tile .pos-tile-stock.out {
+  color: #b42318;
+  border-color: color-mix(in srgb, #b42318 40%, transparent);
+}
+[data-theme="dark"] .pos-tile .pos-tile-stock.low {
+  color: #f1c46b;
+}
+[data-theme="dark"] .pos-tile .pos-tile-stock.out {
+  color: #ff9c8f;
+}
+.pos-tile .pos-tile-name {
+  margin-top: 2px;
+  font-size: 15px;
+}
+.pos-tile-code {
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--subtle);
+}
+.pos-tile-bottom {
+  align-items: flex-end;
+  margin-top: 6px;
+}
+.pos-tile .pos-tile-price {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.pos-tile-tags {
+  min-width: 0;
+  max-width: 55%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--subtle);
+}
+@media (max-width: 760px) {
+  .pos-tile-art {
+    height: 76px;
+  }
+  .pos-tile .pos-tile-price {
+    font-size: 15px;
+  }
+}
+
+/* Item dialog: code with Suggest, tag chips. */
+.code-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+.tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+.tag-chips li {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  font-size: 13px;
+}
+.tag-chips .text-button {
+  min-height: 0;
+  padding: 2px;
+}
+
+/* Appearance → Item tiles: swatches. */
+.item-tiles-settings {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.item-tiles-settings h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+.tile-swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 10px;
+  margin: 14px 0 10px;
+}
+.tile-swatch {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 16px 8px 10px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.tile-swatch .app-icon {
+  width: 24px;
+  height: 24px;
+}
+.tile-swatch small {
+  font-size: 11px;
+  font-weight: 600;
+  color: inherit;
+}
+.tile-swatch input[type="color"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.item-tiles-settings > .form-grid + .tile-swatches,
+.item-tiles-settings > p + .form-grid {
+  margin-top: 12px;
+}
