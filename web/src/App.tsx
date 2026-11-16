@@ -2919,7 +2919,9 @@ export default function App() {
                           onHold={holdCurrentSale}
                           heldList={held}
                           onResumeHeld={(sale) => setResuming(sale)}
-                          onDiscardHeld={(sale) => scope && setHeld(removeHeld(deviceStorage(), scope, sale.id))}
+                          onDiscardHeld={(sale) =>
+                            scope && setHeld(removeHeld(deviceStorage(), scope, sale.id))
+                          }
                           onSave={completeHeldCheckout}
                           onClose={() => {
                             setQuickSale(false);

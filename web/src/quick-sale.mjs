@@ -55,7 +55,14 @@ export function productTiles(products, query = '', category = '') {
   const tiles = [];
   const groups = new Map();
   for (const p of products) {
-    if (q && !p.name.toLowerCase().includes(q) && !String(p.category ?? '').toLowerCase().includes(q)) continue;
+    if (
+      q &&
+      !p.name.toLowerCase().includes(q) &&
+      !String(p.category ?? '')
+        .toLowerCase()
+        .includes(q)
+    )
+      continue;
     if (category && (p.category ?? '') !== category) continue;
     if (!p.variantGroup) {
       tiles.push({ kind: 'single', product: p, sortName: p.name });
@@ -297,7 +304,9 @@ export function quickSaleInput(
       method,
       methodLabel,
       paidOn,
-      reference: String(reference ?? '').trim().slice(0, 120),
+      reference: String(reference ?? '')
+        .trim()
+        .slice(0, 120),
     },
   };
 }

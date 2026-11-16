@@ -224,11 +224,37 @@ test('A collected shelf sale is still Collected straight away', () => {
 });
 
 test('Categories, "from" prices and the Collected default for the selling screen', async () => {
-  const { productCategories, tilePrice, collectedByDefault, productTiles } = await import('../src/quick-sale.mjs');
+  const { productCategories, tilePrice, collectedByDefault, productTiles } = await import(
+    '../src/quick-sale.mjs'
+  );
   const items = [
-    { id: 'a', name: 'Pen', productName: 'Pen', category: 'Stationery', price: 200, variantGroup: null, variantName: null },
-    { id: 'b', name: 'Ruler', productName: 'Ruler', category: 'Stationery', price: 300, variantGroup: null, variantName: null },
-    { id: 'c', name: 'Mug', productName: 'Mug', category: 'Gifts', price: 900, variantGroup: null, variantName: null },
+    {
+      id: 'a',
+      name: 'Pen',
+      productName: 'Pen',
+      category: 'Stationery',
+      price: 200,
+      variantGroup: null,
+      variantName: null,
+    },
+    {
+      id: 'b',
+      name: 'Ruler',
+      productName: 'Ruler',
+      category: 'Stationery',
+      price: 300,
+      variantGroup: null,
+      variantName: null,
+    },
+    {
+      id: 'c',
+      name: 'Mug',
+      productName: 'Mug',
+      category: 'Gifts',
+      price: 900,
+      variantGroup: null,
+      variantName: null,
+    },
   ];
   assert.deepEqual(productCategories(items), [
     { name: 'Stationery', count: 2 },
@@ -257,7 +283,12 @@ test('Collected later: a chosen workflow covers the whole sale; a customer added
     defaultShelfWorkflowId: null,
     defaultWorkflowId: null,
   };
-  assert.deepEqual(laterWorkflow(ledger, options, 'pen-s').workflow, ['Added', 'Processing', 'Completed', 'Collected']);
+  assert.deepEqual(laterWorkflow(ledger, options, 'pen-s').workflow, [
+    'Added',
+    'Processing',
+    'Completed',
+    'Collected',
+  ]);
   const chosen = laterWorkflow(ledger, options, 'pen-s', 'wf1');
   assert.deepEqual(chosen.workflow, ['Added', 'Packaging', 'Completed', 'Collected']);
   assert.equal(chosen.workflowName, 'Packaging');

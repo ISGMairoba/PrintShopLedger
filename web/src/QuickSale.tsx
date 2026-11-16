@@ -803,7 +803,9 @@ function PayDialog({
             </div>
           )}
           {!collected && !customer && (
-            <small className="stock-near-text">Choose or add a saved customer for a sale collected later.</small>
+            <small className="stock-near-text">
+              Choose or add a saved customer for a sale collected later.
+            </small>
           )}
         </div>
         <div className="form-grid">
