@@ -11,11 +11,7 @@ import { setRequestBranch, storeBranch, storedBranch } from './device-branch';
 import PayeesPage from './PayeesPage';
 import AccountsPage from './AccountsPage';
 import { defaultMoneyAccount } from './operations.mjs';
-import type {
-  Ledger,
-  OperationsEvent,
-  FieldEvent,
-} from './types';
+import type { Ledger, OperationsEvent, FieldEvent } from './types';
 import DueDateDialog from './DueDateDialog';
 import useSubscription, { subscriptionNotice } from './useSubscription';
 import { setWritesBlocked } from './subscription-rule.mjs';
@@ -190,7 +186,6 @@ const deviceStorage = () => {
     return null;
   }
 };
-
 
 export default function App() {
   const mobileLayout = useMobileLayout();

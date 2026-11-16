@@ -57,7 +57,8 @@ export function applyFieldEvent(ledger, event) {
     if (s.lastEventId === event.id) return ledger;
     if ((s.version ?? 1) !== d.baseVersion) throw Error('Item changed elsewhere. Review the latest version.');
     if (!/^([a-z][a-zA-Z0-9]{0,39})?$/.test(d.icon)) throw Error('Choose an icon from the list.');
-    if (d.category.length > 60 || control.test(d.category)) throw Error('Keep the category to 60 characters.');
+    if (d.category.length > 60 || control.test(d.category))
+      throw Error('Keep the category to 60 characters.');
     const next = { ...bump(s, d, event.id), icon: d.icon, category: d.category };
     return { ...ledger, services: ledger.services.map((x) => (x.id === s.id ? next : x)) };
   }
@@ -65,7 +66,8 @@ export function applyFieldEvent(ledger, event) {
     const c = ledger.customers.find((x) => x.id === d.id);
     if (!c) throw Error('Customer not found.');
     if (c.lastEventId === event.id) return ledger;
-    if ((c.version ?? 1) !== d.baseVersion) throw Error('Customer changed elsewhere. Review the latest version.');
+    if ((c.version ?? 1) !== d.baseVersion)
+      throw Error('Customer changed elsewhere. Review the latest version.');
     if (d.calledAs.length > 80 || control.test(d.calledAs)) throw Error('Keep "Called as" to 80 characters.');
     const next = { ...bump(c, d, event.id), calledAs: d.calledAs };
     return { ...ledger, customers: ledger.customers.map((x) => (x.id === c.id ? next : x)) };
@@ -85,9 +87,14 @@ export function itemCategories(services) {
 
 /** Initials for a round avatar: the person's own (up to 2), else first and last word of the name. */
 export function initialsFor(name, own = '') {
-  const set = String(own ?? '').trim().toUpperCase();
+  const set = String(own ?? '')
+    .trim()
+    .toUpperCase();
   if (/^[\p{L}\p{N}]{1,2}$/u.test(set)) return set;
-  const words = String(name ?? '').trim().split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w));
+  const words = String(name ?? '')
+    .trim()
+    .split(/\s+/)
+    .filter((w) => /[\p{L}\p{N}]/u.test(w));
   if (!words.length) return '?';
   const first = (w) => [...w].find((c) => /[\p{L}\p{N}]/u.test(c)) ?? '';
   return (first(words[0]) + (words.length > 1 ? first(words[words.length - 1]) : '')).toUpperCase();

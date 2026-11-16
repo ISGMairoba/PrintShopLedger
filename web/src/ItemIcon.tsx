@@ -152,7 +152,12 @@ export const isItemIcon = (name: unknown): name is ItemIconName =>
 export default function ItemIcon({ name }: { name?: string | null }) {
   const [width, height, , , paths] = (isItemIcon(name) ? ITEM_ICONS[name] : faBox).icon;
   return (
-    <svg className="app-icon item-icon" viewBox={`0 0 ${width} ${height}`} aria-hidden="true" focusable="false">
+    <svg
+      className="app-icon item-icon"
+      viewBox={`0 0 ${width} ${height}`}
+      aria-hidden="true"
+      focusable="false"
+    >
       {(Array.isArray(paths) ? paths : [paths]).map((path, index) => (
         <path d={path} key={index} />
       ))}

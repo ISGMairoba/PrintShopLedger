@@ -12,7 +12,15 @@ import SplitStock from './SplitStock';
 import StockAdjustDialog from './StockAdjustDialog';
 import ReorderList from './ReorderList';
 import { reorderList } from './reorder.mjs';
-import type { ExpenseEvent, Ledger, Material, MaterialEvent, ServiceEvent, FieldEvent, Service } from './types';
+import type {
+  ExpenseEvent,
+  Ledger,
+  Material,
+  MaterialEvent,
+  ServiceEvent,
+  FieldEvent,
+  Service,
+} from './types';
 
 /**
  * Products: every product and service with its stock. Edit changes name, price and minimum stock;

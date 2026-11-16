@@ -14,9 +14,18 @@ const base = () => ({
 test('an item gets an icon and a category; bad icons are refused', () => {
   let l = base();
   l = applyEvent(l, displayEvent(l.services[0], { icon: 'book', category: ' Stationery ' }, actor));
-  assert.deepEqual([l.services[0].icon, l.services[0].category, l.services[0].version], ['book', 'Stationery', 3]);
-  assert.throws(() => applyEvent(l, displayEvent(l.services[0], { icon: 'Bad icon', category: '' }, actor)), /icon/);
-  assert.throws(() => applyEvent(l, displayEvent({ ...l.services[0], version: 1 }, { icon: '', category: '' }, actor)), /changed/);
+  assert.deepEqual(
+    [l.services[0].icon, l.services[0].category, l.services[0].version],
+    ['book', 'Stationery', 3],
+  );
+  assert.throws(
+    () => applyEvent(l, displayEvent(l.services[0], { icon: 'Bad icon', category: '' }, actor)),
+    /icon/,
+  );
+  assert.throws(
+    () => applyEvent(l, displayEvent({ ...l.services[0], version: 1 }, { icon: '', category: '' }, actor)),
+    /changed/,
+  );
 });
 
 test('"Called as" greets the customer by that name; full name stays as saved', () => {
@@ -43,7 +52,13 @@ test('initials: own letters first, else first and last word', () => {
 
 test('categories in use, most used first', () => {
   assert.deepEqual(
-    itemCategories([{ category: 'Bags' }, { category: 'Books' }, { category: 'Bags' }, { category: '', archived: false }, { category: 'Old', archived: true }]),
+    itemCategories([
+      { category: 'Bags' },
+      { category: 'Books' },
+      { category: 'Bags' },
+      { category: '', archived: false },
+      { category: 'Old', archived: true },
+    ]),
     ['Bags', 'Books'],
   );
 });

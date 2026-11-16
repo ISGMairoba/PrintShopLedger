@@ -3998,13 +3998,13 @@ textarea {
 .icon-picker {
   margin-top: 14px;
 }
-.icon-picker [role='radiogroup'] {
+.icon-picker [role="radiogroup"] {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
   gap: 6px;
   margin-top: 8px;
 }
-.icon-picker [role='radio'] {
+.icon-picker [role="radio"] {
   width: 100%;
   aspect-ratio: 1;
   min-height: 0;
@@ -4016,11 +4016,11 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 10px;
 }
-.icon-picker [role='radio'] .app-icon {
+.icon-picker [role="radio"] .app-icon {
   width: 18px;
   height: 18px;
 }
-.icon-picker [role='radio'].chosen {
+.icon-picker [role="radio"].chosen {
   border-color: var(--brand-primary, #124b40);
   background: color-mix(in srgb, var(--brand-primary, #124b40) 14%, transparent);
   color: var(--brand-primary, #124b40);

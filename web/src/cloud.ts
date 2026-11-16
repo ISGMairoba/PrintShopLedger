@@ -182,13 +182,13 @@ async function synchronize(scope: string, shopId: string) {
                                 ? 'apply_service_display_event'
                                 : event.kind === 'customer.called_as_set'
                                   ? 'apply_customer_called_as_event'
-                              : event.kind.startsWith('customer.')
-                                ? 'apply_customer_event'
-                                : event.kind.startsWith('material.')
-                                  ? 'apply_material_event'
-                                  : event.kind.startsWith('service.')
-                                    ? 'apply_service_event'
-                                    : 'apply_ledger_event',
+                                  : event.kind.startsWith('customer.')
+                                    ? 'apply_customer_event'
+                                    : event.kind.startsWith('material.')
+                                      ? 'apply_material_event'
+                                      : event.kind.startsWith('service.')
+                                        ? 'apply_service_event'
+                                        : 'apply_ledger_event',
         { p_shop: shopId, p_event: event },
       )
       .abortSignal(AbortSignal.timeout(30000));
