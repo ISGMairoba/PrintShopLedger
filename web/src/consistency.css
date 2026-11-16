@@ -4622,7 +4622,8 @@ button.pos-variant small {
     grid-template-columns: 1fr;
   }
 }
-/* The items and the basket meet the toolbar with no gap. */
-.pos-screen .pos-body > section {
+/* The items and the basket meet the toolbar with no gap (pages' headers keep a gap below them). */
+.pos-screen > header.pos-toolbar {
   margin: 0;
+  align-items: center;
 }
