@@ -481,7 +481,7 @@ select:focus-visible {
   height: 42px;
   border-radius: 10px;
 }
-.auth-story-kicker {
+.auth-split .auth-story .auth-story-kicker {
   color: color-mix(in srgb, var(--brand-accent) 70%, white);
   font-size: 13px;
   font-weight: 600;
@@ -495,12 +495,12 @@ select:focus-visible {
   margin: 0 0 22px;
   color: inherit;
 }
-.auth-story-text > p:last-child {
+.auth-split .auth-story .auth-story-text > p:last-child {
   font-size: 16px;
   line-height: 1.8;
   max-width: 34ch;
   margin: 0;
-  opacity: 0.78;
+  color: color-mix(in srgb, var(--brand-on-primary) 78%, transparent);
 }
 .auth-feature {
   display: flex;
@@ -516,10 +516,10 @@ select:focus-visible {
 .auth-feature strong {
   font-size: 14px;
 }
-.auth-feature p {
+.auth-split .auth-feature p {
   font-size: 12px;
   margin: 4px 0 0;
-  opacity: 0.72;
+  color: color-mix(in srgb, var(--brand-on-primary) 70%, transparent);
 }
 .auth-form {
   display: grid;
@@ -551,6 +551,10 @@ select:focus-visible {
   margin-bottom: 22px;
   background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
   color: var(--brand-primary);
+}
+:root[data-theme="dark"] .auth-badge {
+  background: color-mix(in srgb, var(--brand-accent) 16%, transparent);
+  color: var(--brand-accent);
 }
 .auth-inner form input,
 .auth-inner form select {
