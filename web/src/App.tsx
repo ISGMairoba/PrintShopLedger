@@ -3202,15 +3202,19 @@ export default function App() {
                         )}
                       {soldAsk && (
                         <Modal
-                          title={soldAsk.items.length > 1 ? 'Where are these items sold?' : 'Where is this item sold?'}
+                          title={
+                            soldAsk.items.length > 1
+                              ? 'Where are these items sold?'
+                              : 'Where is this item sold?'
+                          }
                           onClose={() => soldAsk.resolve(null)}
                         >
                           <p>
                             <strong>{soldAsk.items.join(', ')}</strong>
                           </p>
                           <p>
-                            Branches that sell every item sell it anyway. Tick the branches that sell only chosen
-                            items and should sell it too.
+                            Branches that sell every item sell it anyway. Tick the branches that sell only
+                            chosen items and should sell it too.
                           </p>
                           {chosenBranches.map((b) => (
                             <label key={b.id} className="check-label">

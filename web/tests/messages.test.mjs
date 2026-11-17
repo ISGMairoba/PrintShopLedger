@@ -114,7 +114,6 @@ test('Messages tab: saves the messages setting; ranks with Jobs & payments get i
   assert.ok(!up[3].includes('Messages'));
 });
 
-
 test('branch name, address and phone placeholders; no stray comma without an address', async () => {
   const { messageText, setMessageSender } = await import('../src/messages.mjs');
   const settings = {

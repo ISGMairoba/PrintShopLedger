@@ -235,17 +235,19 @@ export function setMessageSender(next) {
 
 /** Fill a template: known {placeholders} are replaced; tidy spaces around what came out empty. */
 export function fillMessage(template, values) {
-  return String(template)
-    .replace(/\{(\w+)\}/g, (found, key) => (key in values ? String(values[key] ?? '') : found))
-    .replace(/\(\)\s?/g, '')
-    .replace(/[ \t]+([.,])/g, '$1')
-    // "at {business}, {address}." with no address: no stray comma.
-    .replace(/,[ \t]*(?=[.,!?]|$)/gm, '')
-    .replace(/[ \t]{2,}/g, ' ')
-    .split('\n')
-    .map((line) => line.trim())
-    .join('\n')
-    .trim();
+  return (
+    String(template)
+      .replace(/\{(\w+)\}/g, (found, key) => (key in values ? String(values[key] ?? '') : found))
+      .replace(/\(\)\s?/g, '')
+      .replace(/[ \t]+([.,])/g, '$1')
+      // "at {business}, {address}." with no address: no stray comma.
+      .replace(/,[ \t]*(?=[.,!?]|$)/gm, '')
+      .replace(/[ \t]{2,}/g, ' ')
+      .split('\n')
+      .map((line) => line.trim())
+      .join('\n')
+      .trim()
+  );
 }
 
 /**
