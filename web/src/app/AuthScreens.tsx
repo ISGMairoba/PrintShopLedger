@@ -388,3 +388,90 @@ export function SupervisorLogin({
     </Modal>
   );
 }
+
+/**
+ * The screen after auto-lock for someone with a PIN: their username and PIN unlock it on this
+ * device (no internet needed). Switch user signs them out for someone else; Managers and above can
+ * also sign the business out of this device.
+ */
+export function PinLockScreen({
+  name,
+  username,
+  minutes,
+  onUnlock,
+  onSwitchUser,
+  onSignOutBusiness,
+}: {
+  name: string;
+  username: string;
+  minutes: number;
+  /** '' when unlocked, else the message to show. */
+  onUnlock: (pin: string) => Promise<string>;
+  onSwitchUser: () => void;
+  /** Managers and above only. */
+  onSignOutBusiness?: () => void;
+}) {
+  const [pin, setPin] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  return (
+    <AuthShell>
+      <span className="badge auth-badge">Locked</span>
+      <h1>Welcome back{name ? `, ${name.split(/\s+/)[0]}` : ''}.</h1>
+      <p className="muted">
+        This device locked after {minutes} minute{minutes === 1 ? '' : 's'} without use. Enter your PIN to
+        carry on where you left off.
+      </p>
+      <form
+        onSubmit={async (event) => {
+          event.preventDefault();
+          if (busy) return;
+          setBusy(true);
+          const problem = await onUnlock(pin);
+          setBusy(false);
+          setPin('');
+          setError(problem);
+        }}
+      >
+        <label>
+          Username
+          <input value={username} readOnly aria-readonly="true" />
+        </label>
+        <label>
+          PIN
+          <SharedDeviceInput
+            type="password"
+            inputMode="numeric"
+            pattern="[0-9]{4,6}"
+            minLength={4}
+            maxLength={6}
+            required
+            autoFocus
+            aria-invalid={!!error}
+            value={pin}
+            onChange={(e) => setPin(e.target.value.replace(/[^0-9]/g, ''))}
+          />
+        </label>
+        <button className="auth-submit" disabled={busy || pin.length < 4}>
+          {busy ? 'Checking…' : 'Unlock'} <Icon name="next" />
+        </button>
+      </form>
+      {error && (
+        <p role="alert" className="notice">
+          {error}
+        </p>
+      )}
+      <div className="auth-divider" role="separator">
+        Not you?
+      </div>
+      <button type="button" className="secondary auth-demo" onClick={onSwitchUser}>
+        <Icon name="switchUser" /> Switch user
+      </button>
+      {onSignOutBusiness && (
+        <button type="button" className="text-button auth-register danger-text" onClick={onSignOutBusiness}>
+          Sign out business on this device
+        </button>
+      )}
+    </AuthShell>
+  );
+}

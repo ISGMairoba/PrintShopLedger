@@ -107,9 +107,11 @@ import {
 } from './ConflictReviews';
 import { useAuthSessions, useOnline, useWorkspaces } from './app/useSessions';
 import { useAutoLock } from './app/useAutoLock';
+import usePinLock from './app/usePinLock';
 import HelpPanel from './HelpPanel';
 import {
   AuthShell,
+  PinLockScreen,
   BusinessLogin,
   PasswordRecovery,
   StaffLoginForm,
@@ -497,7 +499,8 @@ export default function App() {
     demo,
     scope,
     level: shop?.accessLevel ?? 0,
-    ledger: state.ledger,
+    // This branch's jobs, loans and repeating expenses (other branches' would vanish when opened).
+    ledger,
     multiBranch,
     activeBranch,
     openBranches,
@@ -1187,11 +1190,13 @@ export default function App() {
       </span>
     </span>
   );
+  // Drawers to review: every branch's from the main branch (General Manager), else this branch's.
+  const drawerView = !multiBranch || (activeBranch?.id ?? MAIN) === MAIN ? state.ledger : ledger;
   // Alerts that used to sit above every page (repeating expenses, loans, late jobs, low stock
   // elsewhere, drawers to review) now wait in the Notices panel with the notice board.
   const autoClosedDrawers =
     !demo && (shop?.accessLevel ?? 0) >= 2 && allowed('Conflict Inbox')
-      ? state.ledger.drawerClosings.filter((d) => d.autoClosed && d.reviewStatus !== 'reviewed').length
+      ? drawerView.drawerClosings.filter((d) => d.autoClosed && d.reviewStatus !== 'reviewed').length
       : 0;
   const goTo = (target: Page) => {
     setNoticesOpen(false);
@@ -1556,12 +1561,40 @@ export default function App() {
   // Saving refuses work that takes stock below zero when the business blocks it.
   setStockBelowZeroBlocked(branding.settings.jobs.stockBelowZero === 'block');
   const lockMinutes = branding.settings.security.autoLockMinutes;
+  // PIN lock (My Account → PIN): the screen locks without signing out, and the PIN unlocks it on
+  // this device, online or not. People without a PIN are signed out as before.
+  const signOutStaff = (text: string) => {
+    void supabase!.auth.signOut({ scope: 'local' }).then(({ error }: { error: unknown }) => {
+      if (error) return;
+      setSwitchUser(false);
+      setSession(null);
+      setMessage(text, 'info');
+    });
+  };
+  const pinLock = usePinLock({
+    scope: demo ? '' : scope,
+    userId: !demo && shop && session && shop.userId === session.user.id ? session.user.id : '',
+    online,
+    fetchHash: async () => {
+      const { data, error } = await supabase!.rpc('my_pin', { p_shop: shop!.id });
+      if (error) throw Error(error.message);
+      return (data as string | null) ?? null;
+    },
+    signOut: signOutStaff,
+  });
+  const savePin = async (hash: string | null) => {
+    const { error } = await supabase!.rpc('set_my_pin', { p_shop: shop!.id, p_hash: hash });
+    if (error) throw Error(error.message);
+    await pinLock.saved(hash);
+  };
   useAutoLock({
     minutes: lockMinutes,
-    active: !demo && !!session && !!supabase,
-    online,
+    active: !demo && !!session && !!supabase && !pinLock.locked,
+    // With a PIN the lock needs no connection to undo, so it locks offline too.
+    online: online || pinLock.hasPin,
     busy,
-    onLock: () => {
+    onLock: async () => {
+      if (await pinLock.lock()) return;
       void supabase!.auth.signOut({ scope: 'local' }).then(({ error }: { error: unknown }) => {
         if (error) return;
         setSwitchUser(false);
@@ -1674,6 +1707,39 @@ export default function App() {
       />
     );
 
+  if (!demo && session && pinLock.locked)
+    return (
+      <PinLockScreen
+        name={shop?.staffName ?? ''}
+        username={shop?.username ?? ''}
+        minutes={lockMinutes}
+        onUnlock={pinLock.unlock}
+        onSwitchUser={async () => {
+          await pinLock.clear();
+          signOutStaff('Signed out. The next person can sign in.');
+        }}
+        onSignOutBusiness={
+          (shop?.accessLevel ?? 0) >= 3
+            ? async () => {
+                await pinLock.clear();
+                const results = await Promise.all([
+                  supabase!.auth.signOut({ scope: 'local' }),
+                  businessAuth!.auth.signOut({ scope: 'local' }),
+                ]);
+                const failure = results.find((result) => result.error)?.error;
+                if (failure) setMessage(failure.message, 'error');
+                else {
+                  setSession(null);
+                  setBusinessSession(null);
+                  setShop(null);
+                  setPage('Point of Service');
+                  setMessage('Business signed out.');
+                }
+              }
+            : undefined
+        }
+      />
+    );
   if (needBranchChoice)
     return (
       <AuthShell>
@@ -2388,8 +2454,13 @@ export default function App() {
                               <>
                                 {(shop?.accessLevel ?? 0) >= 2 && (
                                   <DrawerReviews
-                                    closings={state.ledger.drawerClosings}
-                                    ledger={state.ledger}
+                                    closings={drawerView.drawerClosings}
+                                    ledger={drawerView}
+                                    branchName={
+                                      multiBranch && drawerView === state.ledger
+                                        ? (id) => branchNames[id ?? MAIN] ?? branchNames[MAIN] ?? 'Main branch'
+                                        : undefined
+                                    }
                                     online={online}
                                     onReview={reviewDrawer}
                                   />
@@ -2431,6 +2502,7 @@ export default function App() {
                                 setThemePreference={branding.setTheme}
                                 staffName={shop?.staffName ?? ''}
                                 initials={shop?.initials ?? ''}
+                                pin={!demo && supabase ? { has: pinLock.hasPin, save: savePin } : undefined}
                                 onChanged={(message) => {
                                   setMessage(message);
                                   setStaffEpoch((value) => value + 1);

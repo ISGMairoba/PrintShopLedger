@@ -653,6 +653,8 @@ export type JobStatusEvent = {
   };
 };
 export interface DrawerClosing {
+  /** The branch it was closed in (left out = main). */
+  branchId?: string | null;
   cashCorrection?: number;
   refundIds?: string[];
   cashRefunded?: number;
