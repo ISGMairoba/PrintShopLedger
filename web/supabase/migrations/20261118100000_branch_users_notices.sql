@@ -61,15 +61,15 @@ end; $function$;
 -- Who works where: the General Manager and Developer list every staff member from any branch.
 create or replace function public.list_all_staff(p_shop uuid) returns jsonb
 language plpgsql security definer set search_path to '' as $function$
-declare out jsonb;
+declare result jsonb;
 begin
   if not exists (select 1 from public.shop_members where shop_id = p_shop and user_id = auth.uid() and not archived and rank >= 4) then
     raise exception 'Only the General Manager or Developer sets who works where' using errcode = '42501';
   end if;
   perform set_config('psl.all_staff', p_shop::text, true);
-  out := public.list_shop_users(p_shop);
+  result := public.list_shop_users(p_shop);
   perform set_config('psl.all_staff', '', true);
-  return out;
+  return result;
 end; $function$;
 revoke all on function public.list_all_staff(uuid) from public, anon;
 grant execute on function public.list_all_staff(uuid) to authenticated;
