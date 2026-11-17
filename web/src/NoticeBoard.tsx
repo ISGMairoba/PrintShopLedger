@@ -10,6 +10,8 @@ export type Notice = {
   body: string;
   pinned: boolean;
   minLevel: number;
+  /** Where it was posted: a branch id ('main' for the main branch) or '*' for every branch. */
+  branchId?: string;
   createdBy: string;
   createdByLabel: string;
   createdAt: string;
@@ -77,7 +79,13 @@ export default function NoticeBoard({
   onChanged,
   onClose,
   alerts = [],
+  branch,
 }: {
+  /**
+   * With branches: this device's branch, each branch's name, and whether the poster can send a
+   * notice to every branch (General Manager and Developer).
+   */
+  branch?: { id: string; names: Record<string, string>; everywhere: boolean };
   alerts?: NoticeAlert[];
   shopId: string;
   canPost: boolean;
@@ -168,6 +176,7 @@ export default function NoticeBoard({
                 p_body: String(form.get('body') ?? ''),
                 p_pinned: form.get('pinned') === 'on',
                 p_min_level: Number(form.get('audience') ?? 1),
+                ...(branch?.everywhere ? { p_everywhere: form.get('everywhere') === 'on' } : {}),
               });
               if (error) throw failure(error);
               setEditing(null);
@@ -196,6 +205,16 @@ export default function NoticeBoard({
             <label className="check-label">
               <input type="checkbox" name="pinned" defaultChecked={!!editing.pinned} /> Pin to the top
             </label>
+            {branch?.everywhere && (
+              <label className="check-label">
+                <input
+                  type="checkbox"
+                  name="everywhere"
+                  defaultChecked={editing.id ? editing.branchId === '*' : true}
+                />{' '}
+                Every branch (otherwise {branch.names[editing.branchId ?? branch.id] ?? 'this branch'} only)
+              </label>
+            )}
           </div>
           <div className="dialog-action-buttons">
             <button type="button" className="secondary" disabled={busy} onClick={() => setEditing(null)}>
@@ -216,6 +235,12 @@ export default function NoticeBoard({
               <h3>
                 {n.pinned && <span className="badge">Pinned</span>} {n.title}
                 {!n.readAt && <span className="badge badge-new">New</span>}
+                {branch && n.branchId === '*' && <span className="badge">All branches</span>}
+                {branch && n.branchId && n.branchId !== '*' && n.branchId !== branch.id && (
+                  <span className="badge badge-branch">
+                    From {branch.names[n.branchId] ?? 'another branch'}
+                  </span>
+                )}
               </h3>
               <small className="muted">
                 {n.createdByLabel} · {when(n.createdAt)}

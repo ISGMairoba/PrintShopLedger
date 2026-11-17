@@ -422,3 +422,23 @@ select:focus-visible {
 .branch-row .form-grid {
   margin-bottom: 4px;
 }
+
+/* Business Settings → Branches → Choose items. */
+.branch-items {
+  display: grid;
+  gap: 12px;
+  max-height: 55vh;
+  overflow: auto;
+}
+.branch-items-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 4px 16px;
+  border: 1px solid var(--line, #d9dee5);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 0;
+}
+.branch-items-group legend {
+  padding: 0 4px;
+}

@@ -13,8 +13,14 @@ Deno.serve(async (request: Request) => {
   if (request.method !== 'POST') return reply(405, { error: 'Use POST.' });
   const authorization = request.headers.get('Authorization') ?? '';
   if (!authorization.startsWith('Bearer ')) return reply(401, { error: 'Sign in first.' });
+  // The branch the app is working in (x-psl-branch): the Users list is that branch's staff, and a
+  // user added there works in that branch.
+  const branch = (request.headers.get('x-psl-branch') ?? '').trim();
+  const branchHeaders: Record<string, string> = /^b-[a-z0-9]{6,20}$/.test(branch)
+    ? { 'x-psl-branch': branch }
+    : {};
   const client = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
-    global: { headers: { Authorization: authorization } },
+    global: { headers: { Authorization: authorization, ...branchHeaders } },
     auth: { persistSession: false },
   });
   const { data: auth, error: authError } = await client.auth.getUser(authorization.slice(7));
@@ -72,6 +78,7 @@ Deno.serve(async (request: Request) => {
       return reply(400, { error: 'This username is already used in this business.' });
     const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
       auth: { persistSession: false },
+      global: { headers: branchHeaders },
     });
     // Authentication identifier is internal; staff use only business-scoped usernames.
     const { data: created, error: createError } = await admin.auth.admin.createUser({
@@ -92,7 +99,9 @@ Deno.serve(async (request: Request) => {
       return reply(400, {
         error: cleanupError
           ? 'Business linking failed. An administrator must review the unused account before retrying.'
-          : saveError.message,
+          : saveError.code === '23505'
+            ? 'This username is already used in this business.'
+            : saveError.message,
       });
     }
     return reply(200, { success: true });
