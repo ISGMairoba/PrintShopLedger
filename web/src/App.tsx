@@ -310,7 +310,7 @@ export default function App() {
   const holdCurrentSale = (sale: HeldSale) => {
     if (!scope) return;
     try {
-      setHeld(holdSale(deviceStorage(), scope, sale));
+      setHeld(holdSale(deviceStorage(), scope, { ...sale, branchId: activeBranch?.id ?? MAIN }));
       setResuming(null);
       setForm(null);
       setQuickSale(false);
@@ -341,6 +341,12 @@ export default function App() {
     const settings = settingsForBranch(businessBranding.settings, activeBranch?.id ?? MAIN);
     return settings === businessBranding.settings ? businessBranding : { ...businessBranding, settings };
   }, [businessBranding, activeBranch?.id]);
+  // Held sales of this device's branch only (a sale held in another branch is resumed there; ones
+  // held before branches were recorded show everywhere).
+  const heldHere = useMemo(
+    () => held.filter((h) => !h.branchId || h.branchId === (activeBranch?.id ?? MAIN)),
+    [held, activeBranch?.id],
+  );
   const needBranchChoice = !demo && !!shop && branding.ready && !activeBranch;
   // Until the business's branches are known, keep sending the branch this device last chose.
   setRequestBranch(
@@ -1087,6 +1093,22 @@ export default function App() {
     if (setBusinessKeep(scope, businessKeep)) void downloadAgain(scope);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scope, businessKeep, brandingReadyForKeep]);
+  // A branch switching between the main prices and its own: its devices receive every item priced
+  // afresh (the items themselves did not change, so a normal sync would not bring them).
+  const branchPriceMode =
+    multiBranch && activeBranch ? `${activeBranch.id}:${ownPrices(branding.settings, activeBranch.id)}` : '';
+  useEffect(() => {
+    if (demo || !scope || !brandingReadyForKeep || !branchPriceMode) return;
+    const key = `printshopledger:branch-prices:v1:${scope}`;
+    let before: string | null = null;
+    try {
+      before = localStorage.getItem(key);
+      localStorage.setItem(key, branchPriceMode);
+    } catch {}
+    if (before !== null && before !== branchPriceMode && before.split(':')[0] === activeBranch?.id)
+      void downloadAgain(scope);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scope, branchPriceMode, brandingReadyForKeep]);
   const syncLabel = !ready
     ? 'Loading'
     : hasConflict
@@ -2622,7 +2644,7 @@ export default function App() {
                               busy={busy || legacyConflict}
                               held={resuming?.kind === 'quick' ? resuming : undefined}
                               onHold={holdCurrentSale}
-                              heldList={held}
+                              heldList={heldHere}
                               onResumeHeld={(sale) => setResuming(sale)}
                               onDiscardHeld={(sale) =>
                                 scope && setHeld(removeHeld(deviceStorage(), scope, sale.id))
@@ -2664,7 +2686,7 @@ export default function App() {
                               onBulkAction={(jobs, mode) => setBatchToAdvance({ jobs, mode })}
                               onDue={canChangeDue ? setDeadlineJobs : undefined}
                               onReceipt={setReceipt}
-                              held={held}
+                              held={heldHere}
                               onResumeHeld={(sale) => {
                                 setPaymentCustomer('');
                                 setCheckoutStart(null);
@@ -3001,7 +3023,7 @@ export default function App() {
                           busy={busy}
                           held={resuming?.kind === 'quick' ? resuming : undefined}
                           onHold={holdCurrentSale}
-                          heldList={held}
+                          heldList={heldHere}
                           onResumeHeld={(sale) => setResuming(sale)}
                           onDiscardHeld={(sale) =>
                             scope && setHeld(removeHeld(deviceStorage(), scope, sale.id))

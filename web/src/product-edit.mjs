@@ -20,7 +20,10 @@ export function editableProducts(ledger) {
         material,
         /** Other active services that use the same stock item. */
         sharedWith: material
-          ? ledger.services.filter((o) => o.id !== s.id && !o.archived && o.materialId === material.id)
+          ? ledger.services.filter(
+              // Items another branch sells (put aside here) still share the stock item.
+              (o) => o.id !== s.id && (!o.archived || o.notSoldHere) && o.materialId === material.id,
+            )
           : [],
       };
     })

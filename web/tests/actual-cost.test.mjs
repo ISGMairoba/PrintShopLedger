@@ -215,3 +215,30 @@ test('A cost linked late, after the stock was used, is a late cost adjustment', 
     [50000],
   );
 });
+
+test('Every branch together: each location keeps its own average, and the totals add up', () => {
+  const line = (id, branchId, minute, before, after, cost) => ({
+    id,
+    materialId: 'paper',
+    action: 'material.stock_added',
+    beforeAvailable: before,
+    afterAvailable: after,
+    changedAt: at(minute),
+    ...(branchId ? { branchId } : {}),
+    after: cost ? { cost: { supplierPrice: cost } } : {},
+  });
+  const ledger = {
+    materials: [{ id: 'paper', name: 'Paper', available: 100, measurementUnit: 'sheet' }],
+    services: [],
+    expenses: [],
+    materialHistory: [
+      line('a', null, 1, 0, 100, 100000), // main: 100 at ₦10
+      line('b', 'b-shop000001', 2, 0, 10, 50000), // branch: 10 at ₦50
+      line('c', null, 3, 100, 200, 100000), // main: 100 more at ₦10
+    ],
+  };
+  const v = materialValuation(ledger, 'paper');
+  assert.equal(v.quantity, 210);
+  assert.equal(v.value, 250000);
+  assert.equal(v.unitCost.get('c'), 1000, 'the main branch average is not mixed with the branch’s');
+});

@@ -78,6 +78,8 @@ export type HeldSale = {
   items: string[];
   total: number | null;
   data: Record<string, unknown>;
+  /** The branch it was held in (left out = main): it is resumed only there. */
+  branchId?: string;
 };
 type HeldCheckout = {
   lines: CartLine[];
