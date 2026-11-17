@@ -162,7 +162,12 @@ export function BusinessLogin({
           Forgot password?
         </button>
       </form>
-      <button type="button" className="text-button auth-register" disabled={busy || !online} onClick={onRegister}>
+      <button
+        type="button"
+        className="text-button auth-register"
+        disabled={busy || !online}
+        onClick={onRegister}
+      >
         New here? Register your business
       </button>
       <div className="auth-divider" role="separator">
