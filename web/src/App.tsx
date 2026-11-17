@@ -2510,10 +2510,13 @@ export default function App() {
                                   ? undefined
                                   : async () => {
                                       // The owner sees every branch's staff here, from any branch.
-                                      const { data, error } = await supabase!.rpc(
+                                      let { data, error } = await supabase!.rpc(
                                         (shop.accessLevel ?? 0) >= 4 ? 'list_all_staff' : 'list_shop_users',
                                         { p_shop: shop.id },
                                       );
+                                      // Until the server has list_all_staff: this branch's staff.
+                                      if (error?.code === 'PGRST202')
+                                        ({ data, error } = await supabase!.rpc('list_shop_users', { p_shop: shop.id }));
                                       if (error) throw error;
                                       return data ?? [];
                                     }
