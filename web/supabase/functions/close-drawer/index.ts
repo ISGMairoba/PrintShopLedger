@@ -124,7 +124,11 @@ Deno.serve(async (request: Request) => {
       const access = settings.branchAccess?.[auth.user.id] ?? [];
       const works = (actor.rank ?? 0) >= 4 || access.includes(branch) || access.includes('*');
       if (open && works)
-        await server.from('drawer_closings').update({ branch_id: branch }).eq('shop_id', body.shopId).eq('id', body.id);
+        await server
+          .from('drawer_closings')
+          .update({ branch_id: branch })
+          .eq('shop_id', body.shopId)
+          .eq('id', body.id);
     }
     return reply(200, {
       closing,
