@@ -39,6 +39,15 @@ type Props = {
   onEditProduct?: (serviceId: string) => void;
   /** Branch prices on, and this device works in a branch other than the main one. */
   branchPrice?: { branchName: string; set: (serviceId: string, price: number | null) => Promise<void> };
+  /**
+   * General Manager and Developer: the branches that sell only chosen items, and saving which of
+   * them sell an item. current: this device's branch.
+   */
+  soldAt?: {
+    branches: { id: string; name: string }[];
+    current: string;
+    set: (serviceId: string, branchIds: string[]) => Promise<void>;
+  };
 };
 const timestamp = (value: string) => new Date(value).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' });
 /** The material select's value for a choice of materials. */
@@ -65,8 +74,12 @@ export default function ServicesPage({
   onSaveMany,
   onEditProduct,
   branchPrice,
+  soldAt,
 }: Props) {
   const [priceHere, setPriceHere] = useState<Service | null>(null);
+  const [whereSold, setWhereSold] = useState<Service | null>(null);
+  const [soldPicks, setSoldPicks] = useState<string[]>([]);
+  const chosenHere = soldAt?.branches.some((b) => b.id === soldAt.current) ?? false;
   const [branchPriceText, setBranchPriceText] = useState('');
   const formId = useId();
   const { w } = useWords();
@@ -442,6 +455,20 @@ export default function ServicesPage({
                             <small>Ranges: {tierList(service.price, service.priceTiers)}</small>
                           ) : null}
                           {service.customPrice && <small>Price entered at each sale</small>}
+                          {soldAt && soldAt.branches.length > 0 && !service.private && (
+                            <small>
+                              {chosenHere && !service.soldAt?.includes(soldAt.current) && (
+                                <span className="badge unpaid">Not sold here</span>
+                              )}{' '}
+                              Sold at:{' '}
+                              {[
+                                'branches selling every item',
+                                ...soldAt.branches
+                                  .filter((b) => service.soldAt?.includes(b.id))
+                                  .map((b) => b.name),
+                              ].join(', ')}
+                            </small>
+                          )}
                           {service.costing && (
                             <small>
                               In templates as <code>{service.costing.key}</code>
@@ -517,6 +544,21 @@ export default function ServicesPage({
                                 <Icon name="payments" /> Price here
                               </button>
                             )}
+                            {!service.archived && soldAt && soldAt.branches.length > 0 && !service.private && (
+                              <button
+                                className="text-button"
+                                disabled={busy}
+                                onClick={() => {
+                                  setWhereSold(service);
+                                  setSoldPicks(
+                                    soldAt.branches.filter((b) => service.soldAt?.includes(b.id)).map((b) => b.id),
+                                  );
+                                  setError('');
+                                }}
+                              >
+                                <Icon name="sales" /> Sold at
+                              </button>
+                            )}
                             {!service.archived && service.materialId && onEditProduct && (
                               <button
                                 className="text-button"
@@ -584,6 +626,47 @@ export default function ServicesPage({
             </button>
             <button className="secondary" disabled={busy} onClick={() => setConfirmation(null)}>
               <Icon name="close" /> Cancel
+            </button>
+          </div>
+        </Modal>
+      )}
+      {whereSold && soldAt && (
+        <Modal title={`Where ${whereSold.description} is sold`} busy={busy} onClose={() => setWhereSold(null)}>
+          <p>
+            Branches that sell every item always sell it. Tick the branches that sell only chosen items and
+            should sell this one.
+          </p>
+          {error && (
+            <p role="alert" className="notice">
+              {error}
+            </p>
+          )}
+          {soldAt.branches.map((b) => (
+            <label key={b.id} className="check-label">
+              <input
+                type="checkbox"
+                checked={soldPicks.includes(b.id)}
+                onChange={(e) =>
+                  setSoldPicks(e.target.checked ? [...soldPicks, b.id] : soldPicks.filter((id) => id !== b.id))
+                }
+              />
+              {b.name}
+            </label>
+          ))}
+          <div className="material-actions">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={async () => {
+                try {
+                  await soldAt.set(whereSold.id, soldPicks);
+                  setWhereSold(null);
+                } catch (cause) {
+                  setError(cause instanceof Error ? cause.message : String(cause));
+                }
+              }}
+            >
+              <Icon name="save" /> Save
             </button>
           </div>
         </Modal>

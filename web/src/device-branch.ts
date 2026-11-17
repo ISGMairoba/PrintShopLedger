@@ -7,9 +7,10 @@ let current = MAIN;
 
 /** The branch requests are sent for now. */
 export const requestBranch = () => current;
-export function setRequestBranch(id: string | null | undefined) {
+/** chosen: the branch sells only the items chosen for it (items added here are sold here). */
+export function setRequestBranch(id: string | null | undefined, chosen = false) {
   current = id || MAIN;
-  setLocalBranch(current);
+  setLocalBranch(current, chosen);
 }
 export function storedBranch(scope: string): string | null {
   try {

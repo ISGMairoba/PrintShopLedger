@@ -315,6 +315,8 @@ export interface Payment {
   checkoutId?: string;
 }
 export interface Material {
+  /** None of the items this device's branch sells use it, and the branch holds none. */
+  hiddenHere?: boolean;
   minimumStock?: number;
   id: string;
   name: string;
@@ -420,6 +422,10 @@ export interface Service {
   code?: string;
   /** Up to 10 tags, for search and the Quick sale tiles. */
   tags?: string[];
+  /** Branches that sell only chosen items and sell this one (branches.mjs soldAt). */
+  soldAt?: string[];
+  /** Put aside on this device: its branch does not sell it (branches.mjs chosenItemsLedger). */
+  notSoldHere?: boolean;
   id: string;
   description: string;
   materialId: string | null;

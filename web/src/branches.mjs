@@ -1,7 +1,13 @@
 // Branches of one business (see the project plan plans/branches.md). The business keeps one set of
 // records; every record made at a branch is tagged with it on the server. A business without
 // branches has one implicit "Main branch" (id 'main'), so nothing changes until a second is added.
-/** @typedef {{ id: string, name: string, address: string, phone: string, archived: boolean, kind?: 'branch' | 'store' }} Branch */
+/**
+ * A branch or store. type: what the branch does (retail, print or both; left out = the business's
+ * type). prices: 'own' = the branch sets its own prices, 'main' = it uses the main branch's (left out
+ * = the business's older branchPricing setting). sells: 'chosen' = only the items picked for it
+ * (each item lists the branches in soldAt), 'all' or left out = every item.
+ * @typedef {{ id: string, name: string, address: string, phone: string, archived: boolean, kind?: 'branch' | 'store', type?: 'both' | 'print' | 'retail', prices?: 'main' | 'own', sells?: 'all' | 'chosen' }} Branch
+ */
 export const MAIN = 'main';
 const ID = /^(main|b-[a-z0-9]{6,20})$/;
 
@@ -28,8 +34,18 @@ export function validateBranches(input) {
     if (archived && id === MAIN) throw Error('The main branch cannot be archived.');
     const kind = b.kind === 'store' ? 'store' : 'branch';
     if (kind === 'store' && id === MAIN) throw Error('The main branch cannot be a store.');
+    if (b.type !== undefined && !['both', 'print', 'retail'].includes(b.type))
+      throw Error('Choose what each branch does.');
+    if (b.prices !== undefined && !['main', 'own'].includes(b.prices))
+      throw Error('Choose how each branch prices items.');
+    if (b.sells !== undefined && !['all', 'chosen'].includes(b.sells))
+      throw Error('Choose which items each branch sells.');
+    const sales = kind === 'branch';
     return {
       ...(kind === 'store' ? { kind } : {}),
+      ...(sales && b.type ? { type: b.type } : {}),
+      ...(sales && id !== MAIN && b.prices ? { prices: b.prices } : {}),
+      ...(sales && id !== MAIN && b.sells === 'chosen' ? { sells: 'chosen' } : {}),
       id,
       name,
       address: String(b.address ?? '')
@@ -91,6 +107,71 @@ export function allowedBranches(settings, memberId, accessLevel = 0) {
 export const seesAllBranches = (settings, memberId, accessLevel = 0) =>
   accessLevel >= 4 || !!settings?.branchAccess?.[memberId]?.includes('*');
 
+/** The branch record (null when the id is unknown). */
+export const branchOf = (settings, id) => branchesOf(settings).find((b) => b.id === (id || MAIN)) ?? null;
+
+/** Whether a branch (not main) sets its own prices: its own choice, or the business's older setting. */
+export function ownPrices(settings, id) {
+  if (!id || id === MAIN) return false;
+  const b = branchOf(settings, id);
+  if (!b || b.kind === 'store') return false;
+  return b.prices ? b.prices === 'own' : settings?.branchPricing === 'perBranch';
+}
+
+/** Whether a branch sells only the items chosen for it. */
+export const sellsChosen = (settings, id) => branchOf(settings, id)?.sells === 'chosen';
+
+/** Whether an item is sold at a branch. */
+export function soldAt(settings, service, id) {
+  if (!sellsChosen(settings, id)) return true;
+  return Array.isArray(service?.soldAt) && service.soldAt.includes(id);
+}
+
+/**
+ * The business settings as a device in this branch sees them: a branch with its own type (retail,
+ * print or both) shows the parts of the app for that type. Parts the business turned on or off stay
+ * as set when the branch's type is the business's own.
+ */
+export function settingsForBranch(settings, id) {
+  const b = branchOf(settings, id);
+  if (!b?.type || b.type === (settings?.businessType ?? 'both')) return settings;
+  return { ...settings, businessType: b.type, features: {} };
+}
+
+/** Materials used by the items a branch sells (fixed material, choices and production materials). */
+export function materialsUsed(services) {
+  const used = new Set();
+  for (const s of services ?? []) {
+    if (s.materialId) used.add(s.materialId);
+    for (const id of s.materialOptions ?? []) used.add(id);
+    const production = s.production ?? {};
+    for (const list of Object.values(production))
+      if (Array.isArray(list)) for (const line of list) if (line?.materialId) used.add(line.materialId);
+  }
+  return used;
+}
+
+/**
+ * The records as a branch that sells chosen items sees them: other items are put aside (marked
+ * archived and notSoldHere, so old sales still show their names but they cannot be sold), and
+ * materials none of its items use are marked hiddenHere unless the branch holds some.
+ * @template T
+ * @param {T} ledger
+ * @returns {T}
+ */
+export function chosenItemsLedger(ledger, settings, id) {
+  if (!sellsChosen(settings, id)) return ledger;
+  const l = /** @type {any} */ (ledger);
+  const services = (l.services ?? []).map((s) =>
+    soldAt(settings, s, id) ? s : { ...s, archived: true, notSoldHere: true },
+  );
+  const used = materialsUsed(services.filter((s) => !s.notSoldHere));
+  const materials = (l.materials ?? []).map((m) =>
+    used.has(m.id) || Number(m.available ?? 0) !== 0 ? m : { ...m, hiddenHere: true },
+  );
+  return /** @type {T} */ ({ ...l, services, materials });
+}
+
 /**
  * An item with the business's own prices: devices in a branch with its own prices receive items
  * priced for the branch, with the business values under base (used when editing the item).
@@ -110,8 +191,11 @@ export function baseService(service) {
 // server sends carry branchId (none = the main branch); records made on this device are tagged
 // with this branch as they are recorded.
 let localBranch = MAIN;
-export function setLocalBranch(id) {
+let localChosen = false;
+/** The device's branch; chosen = it sells only the items chosen for it (new items are sold there). */
+export function setLocalBranch(id, chosen = false) {
   localBranch = id || MAIN;
+  localChosen = !!chosen && localBranch !== MAIN;
 }
 export const localBranchId = () => localBranch;
 /** Whether a record belongs to the branch (this device's by default). */
@@ -172,6 +256,16 @@ export function branchLedger(ledger, id = localBranch) {
 export function tagNewRecords(before, after, id = localBranch) {
   if (id === MAIN || before === after) return after;
   let out = after;
+  // An item added at a branch that sells chosen items is sold there (the server does the same).
+  if (localChosen && id === localBranch && Array.isArray(after?.services)) {
+    const known = new Set((before?.services ?? []).map((s) => s.id));
+    if (after.services.some((s) => !known.has(s.id) && !s.soldAt?.includes(id))) {
+      out = { ...after };
+      out.services = after.services.map((s) =>
+        known.has(s.id) || s.soldAt?.includes(id) ? s : { ...s, soldAt: [...(s.soldAt ?? []), id] },
+      );
+    }
+  }
   for (const key of BRANCH_KEYS) {
     const old = before?.[key] ?? [];
     const now = after?.[key];
