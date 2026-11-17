@@ -45,7 +45,7 @@ const flag = (scope: string) => `printshopledger:locked:v1:${scope}`;
 
 export async function readPin(scope: string, userId: string): Promise<PinRecord | null> {
   try {
-    const box = await run<{ iv: Uint8Array; data: ArrayBuffer } | undefined>('readonly', (s) =>
+    const box = await run<{ iv: Uint8Array<ArrayBuffer>; data: ArrayBuffer } | undefined>('readonly', (s) =>
       s.get(id(scope, userId)),
     );
     if (!box) return null;
