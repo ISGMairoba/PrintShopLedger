@@ -67,7 +67,7 @@ try {
       await settingsSection(page, 'Receipts');
       await page.getByRole('button', { name: 'Full page (A4 / A5)', exact: true }).click();
     };
-    await page.getByRole('button', { name: 'Try locally on this device' }).click();
+    await page.getByRole('button', { name: 'Explore demo' }).click();
     await nav();
     await page
       .getByLabel('Default invoice / sales document terms', { exact: true })
@@ -94,7 +94,7 @@ try {
     await page.getByRole('button', { name: 'Save receipt settings', exact: true }).click();
     await page.getByText('Receipt settings saved.', { exact: true }).waitFor();
     await page.reload();
-    await page.getByRole('button', { name: 'Try locally on this device' }).click();
+    await page.getByRole('button', { name: 'Explore demo' }).click();
     await nav();
     assert.equal(await page.getByLabel('Watermark logo', { exact: true }).inputValue(), 'icon');
     assert.equal(

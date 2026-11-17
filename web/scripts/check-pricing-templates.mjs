@@ -71,7 +71,7 @@ try {
       },
       { ledger, settings },
     );
-    await page.getByRole('button', { name: 'Try locally on this device' }).click();
+    await page.getByRole('button', { name: 'Explore demo' }).click();
     const nav = async (name) => {
       if (mobile) {
         await page.evaluate(() => window.scrollTo(0, 0));
@@ -378,7 +378,7 @@ try {
     assert.deepEqual(afterImport.ledger, beforeImport.ledger);
     assert.deepEqual(afterImport.pending, beforeImport.pending);
     await page.reload();
-    await page.getByRole('button', { name: 'Try locally on this device', exact: true }).click();
+    await page.getByRole('button', { name: 'Explore demo', exact: true }).click();
     await nav('Pricing Templates');
     await page.getByRole('tab', { name: 'Templates', exact: true }).click();
     await page.getByRole('heading', { name: 'Books (import 1)', exact: true }).waitFor();

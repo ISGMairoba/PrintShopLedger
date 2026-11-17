@@ -32,7 +32,7 @@ try {
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
     await page.goto('http://127.0.0.1:4179');
-    await page.getByRole('button', { name: 'Try locally on this device' }).click();
+    await page.getByRole('button', { name: 'Explore demo' }).click();
     const nav = async (name) => {
       if (mobile) {
         await page.evaluate(() => window.scrollTo(0, 0));
@@ -121,7 +121,7 @@ try {
     assert.equal(saved.checkouts[0].outstandingAfter, 220000);
     assert.equal(saved.jobs.find((j) => j.service === 'Cap pressing').materialId, null);
     await page.reload();
-    await page.getByRole('button', { name: 'Try locally on this device' }).click();
+    await page.getByRole('button', { name: 'Explore demo' }).click();
     saved = await state();
     assert.equal(saved.jobs.length, 2);
     assert.equal(saved.services.find((s) => s.description === 'Cap pressing').materialId, null);

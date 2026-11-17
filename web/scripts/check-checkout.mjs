@@ -27,7 +27,7 @@ try {
     console.error('Browser error:', e.message);
   });
   await page.goto('http://127.0.0.1:4175');
-  await page.getByRole('button', { name: 'Try locally on this device' }).click();
+  await page.getByRole('button', { name: 'Explore demo' }).click();
   const nav = (name) =>
     page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name, exact: true }).click();
   await useUsualSteps(page, nav);
@@ -359,7 +359,7 @@ try {
   );
   await d.getByRole('button', { name: 'Close', exact: true }).click();
   await page.reload();
-  await page.getByRole('button', { name: 'Try locally on this device' }).click();
+  await page.getByRole('button', { name: 'Explore demo' }).click();
   saved = await state();
   assert.equal(saved.ledger.jobs.length, 5, 'Reload preserves checkout');
   assert.equal(saved.ledger.checkouts.length, 5, 'Each checkout has one receipt');

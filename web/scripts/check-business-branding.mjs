@@ -41,7 +41,7 @@ try {
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
     await page.goto('http://127.0.0.1:4179');
-    await page.getByRole('button', { name: 'Try locally on this device' }).click();
+    await page.getByRole('button', { name: 'Explore demo' }).click();
     const nav = async (name) => {
       if (mobile) {
         await page.evaluate(() => window.scrollTo(0, 0));
@@ -149,7 +149,7 @@ try {
     }
     assert.equal(await page.locator('link[rel="icon"]').getAttribute('href'), darkPng);
     await page.reload();
-    await page.getByRole('button', { name: 'Try locally on this device' }).click();
+    await page.getByRole('button', { name: 'Explore demo' }).click();
     await nav('Business Settings');
     assert.equal(await page.getByLabel('Business name', { exact: true }).inputValue(), 'Mairoba Studio');
     assert.equal(await page.getByLabel('Address', { exact: true }).inputValue(), 'Kano, Nigeria');
@@ -194,7 +194,7 @@ try {
     await page.getByRole('button', { name: 'Save page access', exact: true }).click();
     await page.getByText('Page access saved.', { exact: true }).waitFor();
     await page.reload();
-    await page.getByRole('button', { name: 'Try locally on this device' }).click();
+    await page.getByRole('button', { name: 'Explore demo' }).click();
     await nav('Business Settings');
     await settingsSection(page, /Corrections/);
     assert.equal(await page.getByLabel('Recent jobs window (days)').inputValue(), '14');
@@ -220,7 +220,7 @@ try {
     assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'light');
     assert.equal(await page.locator('link[rel="icon"]').getAttribute('href'), png);
     await page.reload();
-    await page.getByRole('button', { name: 'Try locally on this device' }).click();
+    await page.getByRole('button', { name: 'Explore demo' }).click();
     await nav('My Account');
     assert.equal(await page.getByLabel('Appearance on this device', { exact: true }).inputValue(), 'light');
     await page.getByLabel('Appearance on this device', { exact: true }).selectOption('business');

@@ -76,7 +76,7 @@ try {
           { ledger, settings },
         );
         await page.reload();
-        await page.getByRole('button', { name: 'Try locally on this device', exact: true }).click();
+        await page.getByRole('button', { name: 'Explore demo', exact: true }).click();
         const nav = async (name) => {
           if (mobile) {
             await page.evaluate(() => window.scrollTo(0, 0));

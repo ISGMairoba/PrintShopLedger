@@ -51,7 +51,7 @@ try {
           1,
           'Persistent error remains after popup dismissal',
         );
-        await page.getByRole('button', { name: 'Try locally on this device' }).click();
+        await page.getByRole('button', { name: 'Explore demo' }).click();
         const nav = async (name) => {
           if (mobile) {
             await page.evaluate(() => scrollTo(0, 0));

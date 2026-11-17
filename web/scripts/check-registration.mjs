@@ -108,7 +108,7 @@ try {
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
     await page.goto('http://127.0.0.1:4182');
-    await page.getByRole('button', { name: 'Register your business', exact: true }).click();
+    await page.getByRole('button', { name: 'New here? Register your business', exact: true }).click();
     await page.getByLabel('Business name', { exact: true }).fill('New Print Shop');
     await page.getByLabel('Owner’s full name', { exact: true }).fill('Owner Name');
     await page.getByLabel('Business email', { exact: true }).fill('owner@example.invalid');

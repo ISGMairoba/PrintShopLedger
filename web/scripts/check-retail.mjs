@@ -31,7 +31,7 @@ try {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto(`http://127.0.0.1:${port}`);
-  await page.getByRole('button', { name: 'Try locally on this device' }).click();
+  await page.getByRole('button', { name: 'Explore demo' }).click();
   const menu = page.getByRole('navigation', { name: 'Main' });
   const nav = (name) => menu.getByRole('button', { name, exact: true }).click();
 

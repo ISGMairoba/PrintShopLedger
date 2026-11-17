@@ -44,7 +44,7 @@ try {
     const errors = [];
     page.on('pageerror', (error) => errors.push(error.message));
     await page.goto(`http://127.0.0.1:${port}`);
-    await page.getByRole('button', { name: 'Try locally on this device' }).click();
+    await page.getByRole('button', { name: 'Explore demo' }).click();
     const nav = async (name) => {
       if (mobile) {
         await page.evaluate(() => window.scrollTo(0, 0));
@@ -168,7 +168,7 @@ try {
     await page.getByLabel('Job description entry').selectOption('hidden');
     await page.getByRole('button', { name: 'Save job and payment settings', exact: true }).click();
     await page.reload();
-    await page.getByRole('button', { name: 'Try locally on this device', exact: true }).click();
+    await page.getByRole('button', { name: 'Explore demo', exact: true }).click();
     await page.getByRole('heading', { name: 'Point of Service', exact: true }).waitFor();
     await nav('Business Settings');
     await settingsSection(page, 'Jobs & payments');

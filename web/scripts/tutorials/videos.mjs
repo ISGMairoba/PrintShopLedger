@@ -28,7 +28,7 @@ export const videos = [
         do: async ({ page, tap }) => {
           await page.getByLabel('Business email').fill('');
           await page.getByLabel('Business password').fill('');
-          await tap(page.getByRole('button', { name: 'Try locally on this device' }));
+          await tap(page.getByRole('button', { name: 'Explore demo' }));
         },
       },
       {

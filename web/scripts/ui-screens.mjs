@@ -110,7 +110,7 @@ try {
       { ledger, settings },
     );
     await page.reload();
-    await page.getByRole('button', { name: 'Try locally on this device' }).click();
+    await page.getByRole('button', { name: 'Explore demo' }).click();
     await delay(500);
     const nav = async (name) => {
       if (mobile) {

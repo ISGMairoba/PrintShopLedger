@@ -19,7 +19,7 @@ try {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('http://127.0.0.1:4174');
-  await page.getByRole('button', { name: 'Try locally on this device' }).click();
+  await page.getByRole('button', { name: 'Explore demo' }).click();
   await page.getByRole('button', { name: 'Print Settings', exact: true }).click();
   await page.getByRole('button', { name: 'Edit settings', exact: true }).click();
   let dialog = page.getByRole('dialog', { name: 'Edit print settings' });
@@ -30,7 +30,7 @@ try {
   await dialog.getByRole('button', { name: 'Save settings' }).click();
   await assert.doesNotReject(() => dialog.waitFor({ state: 'detached' }));
   await page.reload();
-  await page.getByRole('button', { name: 'Try locally on this device' }).click();
+  await page.getByRole('button', { name: 'Explore demo' }).click();
   await page.getByRole('button', { name: 'Print Settings', exact: true }).click();
   assert.ok(await page.getByText('Receipt 80mm · 80 × 200 mm', { exact: true }).isVisible());
   assert.ok(await page.getByText('Arial · 12 pt · Bold', { exact: true }).isVisible());

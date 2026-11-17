@@ -155,18 +155,28 @@ export function BusinessLogin({
             required
           />
         </label>
-        <button disabled={busy || !online}>Sign in</button>
+        <button className="auth-submit" disabled={busy || !online}>
+          Sign in <Icon name="next" />
+        </button>
         <button type="button" className="text-button" onClick={() => setForgot(true)}>
           Forgot password?
         </button>
       </form>
-      <button className="secondary" disabled={busy || !online} onClick={onRegister}>
-        Register your business
+      <button
+        type="button"
+        className="text-button auth-register"
+        disabled={busy || !online}
+        onClick={onRegister}
+      >
+        New here? Register your business
       </button>
-      <button className="secondary" onClick={onTrial}>
-        Try locally on this device
+      <div className="auth-divider" role="separator">
+        Or take a look around
+      </div>
+      <button className="secondary auth-demo" onClick={onTrial}>
+        <Icon name="show" /> Explore demo
       </button>
-      <p className="muted">Local trial data stays separate from business workspaces.</p>
+      <p className="muted auth-demo-note">The demo runs on this device only, apart from any business.</p>
       <FeedbackBanner message={feedback.message} tone={feedback.tone} login />
     </AuthShell>
   );
