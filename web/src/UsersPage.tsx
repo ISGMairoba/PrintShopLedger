@@ -357,7 +357,7 @@ export default function UsersPage({
                 { index: 2, label: 'Rank' },
                 { index: -1, label: 'Actions', actions: true },
               ]}
-              labels={{ 3: 'Status', 4: 'Branches' }}
+              labels={branchNames ? { 3: 'Status', 4: 'Branches' } : { 3: 'Status' }}
               extraSortOptions={[
                 { key: 'id', label: 'User ID' },
                 { key: 'lastLogin', label: 'Last login' },

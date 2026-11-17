@@ -24,7 +24,7 @@ revoke all on function private.member_branches(uuid, uuid) from public, anon, au
 
 -- Whether the signed-in staff member sees this user on the Users page.
 create or replace function private.user_in_view(p_shop uuid, p_user uuid) returns boolean
-language plpgsql stable security definer set search_path to '' as $f$
+language plpgsql security definer set search_path to '' as $f$
 declare br text := coalesce(private.request_branch(p_shop), 'main'); theirs text[];
 begin
   if p_user = auth.uid() then return true; end if;
