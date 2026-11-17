@@ -35,7 +35,10 @@ test('After a handover, only what is waiting counts; a paid part says so; the bu
   const paid = [{ id: 'p', amount: 10000000, allocations: [{ jobId: job.id, amount: 10000000 }] }];
   const msg = readyMessage(ledger(job, paid), job, {
     business: 'Mairoba',
-    messages: { send: 'share', items: { part_ready: { text: '{ready}/{total} ready, {collected} taken. {to_pay}' } } },
+    messages: {
+      send: 'share',
+      items: { part_ready: { text: '{ready}/{total} ready, {collected} taken. {to_pay}' } },
+    },
   });
   assert.equal(msg.text, '40/200 ready, 60 taken. This part is paid.');
   assert.equal(msg.mode, 'share');

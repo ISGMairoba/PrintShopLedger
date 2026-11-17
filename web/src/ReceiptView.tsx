@@ -77,30 +77,31 @@ export default function ReceiptView({
       const file =
         kind === 'image'
           ? await createReceiptImage(record, business, pending, adjustments)
-          : new File([createReceiptPdf(record, business, pending, adjustments, 'a4').output('blob')], `${ref}.pdf`, {
-              type: 'application/pdf',
-            });
-      const result = await shareFile(
-        file,
-        {
-          title: `Receipt ${record.id.slice(0, 8).toUpperCase()}`,
-          text: messages.text(
-            'receipt',
-            {
-              receipt: record.id.slice(0, 8).toUpperCase(),
-              paid: currency(record.cashReceived ?? 0),
-              balance:
-                (record.outstandingAfter ?? 0) > 0
-                  ? `Balance on your account: ${currency(record.outstandingAfter ?? 0)}.`
-                  : 'Thank you for your payment.',
-              business: name,
-            },
-            { id: record.customerId, name: record.customerSnapshot?.name ?? '' },
-          ),
-          phone: record.customerSnapshot?.phone,
-          mode: messages.mode('receipt'),
-        },
-      );
+          : new File(
+              [createReceiptPdf(record, business, pending, adjustments, 'a4').output('blob')],
+              `${ref}.pdf`,
+              {
+                type: 'application/pdf',
+              },
+            );
+      const result = await shareFile(file, {
+        title: `Receipt ${record.id.slice(0, 8).toUpperCase()}`,
+        text: messages.text(
+          'receipt',
+          {
+            receipt: record.id.slice(0, 8).toUpperCase(),
+            paid: currency(record.cashReceived ?? 0),
+            balance:
+              (record.outstandingAfter ?? 0) > 0
+                ? `Balance on your account: ${currency(record.outstandingAfter ?? 0)}.`
+                : 'Thank you for your payment.',
+            business: name,
+          },
+          { id: record.customerId, name: record.customerSnapshot?.name ?? '' },
+        ),
+        phone: record.customerSnapshot?.phone,
+        mode: messages.mode('receipt'),
+      });
       setMessage(shareResult(result, kind === 'image' ? 'picture' : 'PDF'));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error), 'error');

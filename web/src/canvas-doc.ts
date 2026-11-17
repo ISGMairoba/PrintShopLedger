@@ -246,7 +246,10 @@ export class CanvasDoc {
 export const canvasPng = (canvas: HTMLCanvasElement, name: string) =>
   new Promise<File>((resolve, reject) =>
     canvas.toBlob(
-      (blob) => (blob ? resolve(new File([blob], name, { type: 'image/png' })) : reject(Error('Could not make the picture.'))),
+      (blob) =>
+        blob
+          ? resolve(new File([blob], name, { type: 'image/png' }))
+          : reject(Error('Could not make the picture.')),
       'image/png',
     ),
   );

@@ -59,7 +59,10 @@ export async function shareFile(
   return 'downloaded';
 }
 
-export const shareResult = (result: 'shared' | 'cancelled' | 'downloaded', kind: 'PDF' | 'picture' = 'PDF') =>
+export const shareResult = (
+  result: 'shared' | 'cancelled' | 'downloaded',
+  kind: 'PDF' | 'picture' = 'PDF',
+) =>
   result === 'shared'
     ? 'Shared.'
     : result === 'cancelled'

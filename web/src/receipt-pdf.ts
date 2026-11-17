@@ -496,7 +496,11 @@ export function createReceiptPdf(
  */
 type MakeDoc = (format: [number, number]) => jsPDF;
 const makePdf: MakeDoc = (format) => {
-  const doc = new jsPDF({ unit: 'mm', format, orientation: format[1] >= format[0] ? 'portrait' : 'landscape' });
+  const doc = new jsPDF({
+    unit: 'mm',
+    format,
+    orientation: format[1] >= format[0] ? 'portrait' : 'landscape',
+  });
   registerPdfFonts(doc);
   return doc;
 };

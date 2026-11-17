@@ -61,7 +61,10 @@ function partReadyMessage(ledger, job, { business, messages }) {
     are: ready === 1 ? 'is' : 'are',
     number: `#${job.id.slice(0, 8).toUpperCase()}`,
     to_pay: short > 0 ? `Amount to pay for this part: ${currency(short)}.` : 'This part is paid.',
-    balance: balance.outstanding > 0 ? `Balance on the order: ${currency(balance.outstanding)}.` : 'The order is fully paid. Thank you!',
+    balance:
+      balance.outstanding > 0
+        ? `Balance on the order: ${currency(balance.outstanding)}.`
+        : 'The order is fully paid. Thank you!',
     business: business || 'our shop',
   };
   const text = messageText(messages, 'part_ready', values);
