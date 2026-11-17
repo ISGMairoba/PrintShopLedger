@@ -2509,9 +2509,11 @@ export default function App() {
                                 demo || !shop
                                   ? undefined
                                   : async () => {
-                                      const { data, error } = await supabase!.rpc('list_shop_users', {
-                                        p_shop: shop.id,
-                                      });
+                                      // The owner sees every branch's staff here, from any branch.
+                                      const { data, error } = await supabase!.rpc(
+                                        (shop.accessLevel ?? 0) >= 4 ? 'list_all_staff' : 'list_shop_users',
+                                        { p_shop: shop.id },
+                                      );
                                       if (error) throw error;
                                       return data ?? [];
                                     }

@@ -28,6 +28,11 @@ language plpgsql security definer set search_path to '' as $f$
 declare br text := coalesce(private.request_branch(p_shop), 'main'); theirs text[];
 begin
   if p_user = auth.uid() then return true; end if;
+  -- Business Settings → Branches → Who works where (list_all_staff): the owner sees everyone.
+  if current_setting('psl.all_staff', true) = p_shop::text
+     and exists (select 1 from public.shop_members m where m.shop_id = p_shop and m.user_id = auth.uid() and m.rank >= 4) then
+    return true;
+  end if;
   if br = 'main' and '*' = any(private.member_branches(p_shop, auth.uid()))
      and exists (select 1 from public.shop_members m where m.shop_id = p_shop and m.user_id = auth.uid() and m.rank >= 4) then
     return true;
@@ -52,6 +57,22 @@ begin
  left join public.shop_members e on e.shop_id=m.shop_id and e.user_id=m.modified_by
  where m.shop_id=p_shop and private.user_in_view(p_shop, m.user_id));
 end; $function$;
+
+-- Who works where: the General Manager and Developer list every staff member from any branch.
+create or replace function public.list_all_staff(p_shop uuid) returns jsonb
+language plpgsql security definer set search_path to '' as $function$
+declare out jsonb;
+begin
+  if not exists (select 1 from public.shop_members where shop_id = p_shop and user_id = auth.uid() and not archived and rank >= 4) then
+    raise exception 'Only the General Manager or Developer sets who works where' using errcode = '42501';
+  end if;
+  perform set_config('psl.all_staff', p_shop::text, true);
+  out := public.list_shop_users(p_shop);
+  perform set_config('psl.all_staff', '', true);
+  return out;
+end; $function$;
+revoke all on function public.list_all_staff(uuid) from public, anon;
+grant execute on function public.list_all_staff(uuid) to authenticated;
 
 -- Editing, turning off and password resets: only users this person sees.
 create or replace function public.save_shop_user(p_shop uuid, p_action text, p_data jsonb) returns void
@@ -94,7 +115,13 @@ end; $function$;
 revoke all on function public.provision_shop_user(uuid, uuid, jsonb) from public, anon, authenticated;
 
 -- Notices by branch: branch_id null = main, '*' = every branch.
-alter table public.notices add column if not exists branch_id text;
+-- Notices posted before branches were taken into account were for everyone: they become "every branch".
+do $m$ begin
+  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'notices' and column_name = 'branch_id') then
+    alter table public.notices add column branch_id text;
+    update public.notices set branch_id = '*';
+  end if;
+end $m$;
 drop trigger if exists tag_branch on public.notices;
 create trigger tag_branch before insert on public.notices for each row execute function private.tag_branch();
 
