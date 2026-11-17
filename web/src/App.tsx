@@ -2458,7 +2458,8 @@ export default function App() {
                                     ledger={drawerView}
                                     branchName={
                                       multiBranch && drawerView === state.ledger
-                                        ? (id) => branchNames[id ?? MAIN] ?? branchNames[MAIN] ?? 'Main branch'
+                                        ? (id) =>
+                                            branchNames[id ?? MAIN] ?? branchNames[MAIN] ?? 'Main branch'
                                         : undefined
                                     }
                                     online={online}

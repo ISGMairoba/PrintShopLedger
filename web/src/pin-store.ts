@@ -33,7 +33,10 @@ async function run<T>(mode: IDBTransactionMode, work: (store: IDBObjectStore) =>
 async function deviceKey(): Promise<CryptoKey> {
   const saved = await run<CryptoKey | undefined>('readonly', (s) => s.get(KEY_ID));
   if (saved) return saved;
-  const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, [
+    'encrypt',
+    'decrypt',
+  ]);
   await run('readwrite', (s) => s.put(key, KEY_ID));
   return key;
 }
