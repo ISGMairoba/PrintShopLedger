@@ -109,6 +109,7 @@ import { useAuthSessions, useOnline, useWorkspaces } from './app/useSessions';
 import { useAutoLock } from './app/useAutoLock';
 import HelpPanel from './HelpPanel';
 import {
+  AuthShell,
   BusinessLogin,
   PasswordRecovery,
   StaffLoginForm,
@@ -1675,49 +1676,45 @@ export default function App() {
 
   if (needBranchChoice)
     return (
-      <main className="auth">
-        <section className="auth-card">
-          <h1>Choose your branch</h1>
-          <p>{businessName} has more than one branch. Which branch is this device in today?</p>
-          <div className="branch-choices">
-            {branchChoices.map((b) => (
-              <button key={b.id} type="button" onClick={() => void changeBranch(b.id)}>
-                <Icon name="customers" /> {b.name}
-                {b.address && <small>{b.address}</small>}
-              </button>
-            ))}
-          </div>
-        </section>
-      </main>
+      <AuthShell>
+        <h1>Choose your branch</h1>
+        <p>{businessName} has more than one branch. Which branch is this device in today?</p>
+        <div className="branch-choices">
+          {branchChoices.map((b) => (
+            <button key={b.id} type="button" onClick={() => void changeBranch(b.id)}>
+              <Icon name="customers" /> {b.name}
+              {b.address && <small>{b.address}</small>}
+            </button>
+          ))}
+        </div>
+      </AuthShell>
     );
 
   if (restriction === 'locked')
     return (
-      <main className="auth">
-        <section className="auth-card">
-          <h1>{shop?.name ?? 'PrintShopLedger'}</h1>
-          <p role="alert">
-            This business’s PrintShopLedger subscription has ended. Contact PrintShopLedger to renew; your
-            records are safe and come back as soon as it is renewed.
-          </p>
-          {subscription.message && <p>{subscription.message}</p>}
-          <button
-            type="button"
-            className="secondary"
-            onClick={async () => {
-              await Promise.all([
-                supabase!.auth.signOut({ scope: 'local' }),
-                businessAuth!.auth.signOut({ scope: 'local' }),
-              ]);
-              setSession(null);
-              setBusinessSession(null);
-              setShop(null);
-            }}
-          >
-            <Icon name="close" /> Sign out business
-          </button>
-        </section>
-      </main>
+      <AuthShell>
+        <h1>{shop?.name ?? 'PrintShopLedger'}</h1>
+        <p role="alert">
+          This business’s PrintShopLedger subscription has ended. Contact PrintShopLedger to renew; your
+          records are safe and come back as soon as it is renewed.
+        </p>
+        {subscription.message && <p>{subscription.message}</p>}
+        <button
+          type="button"
+          className="secondary"
+          onClick={async () => {
+            await Promise.all([
+              supabase!.auth.signOut({ scope: 'local' }),
+              businessAuth!.auth.signOut({ scope: 'local' }),
+            ]);
+            setSession(null);
+            setBusinessSession(null);
+            setShop(null);
+          }}
+        >
+          <Icon name="close" /> Sign out business
+        </button>
+      </AuthShell>
     );
 
   return (

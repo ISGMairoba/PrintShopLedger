@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react';
 import { businessAuth, supabase } from './cloud';
 import { validateSignup, validateNewPassword } from './registration.mjs';
 import { FeedbackBanner } from './Feedback';
+import { AuthShell } from './app/AuthScreens';
 export async function registrationError(error: unknown) {
   const response = (error as { context?: Response })?.context;
   if (response)
@@ -42,61 +43,59 @@ export function BusinessSignup({ online, onBack }: { online: boolean; onBack: ()
     }
   }
   return (
-    <main className="auth">
-      <section className="auth-card">
-        <h1>Register your business</h1>
-        <p>Your business will have its own customers, jobs, payments and stock.</p>
-        {!sent && (
-          <form onSubmit={submit}>
-            <label>
-              Business name
-              <input name="businessName" maxLength={160} required autoComplete="organization" />
-            </label>
-            <label>
-              Owner’s full name
-              <input name="ownerName" maxLength={160} required autoComplete="name" />
-            </label>
-            <label>
-              Business email
-              <input name="email" type="email" required autoComplete="email" maxLength={254} />
-            </label>
-            <label>
-              Password
-              <input
-                name="password"
-                type="password"
-                required
-                minLength={12}
-                maxLength={128}
-                autoComplete="new-password"
-              />
-            </label>
-            <label>
-              Confirm password
-              <input
-                name="confirmPassword"
-                type="password"
-                required
-                minLength={12}
-                maxLength={128}
-                autoComplete="new-password"
-              />
-            </label>
-            <small>
-              Use 12–128 characters. Your first staff account will be Manager. A separate Developer account
-              handles maintenance.
-            </small>
-            <button disabled={busy || !online}>
-              <Icon name="account" /> {busy ? 'Registering…' : 'Register business'}
-            </button>
-          </form>
-        )}
-        <FeedbackBanner message={message} tone={sent ? 'success' : 'error'} login />
-        <button className="secondary" disabled={busy} onClick={onBack}>
-          {sent ? 'Back to sign in' : 'Already registered? Sign in'}
-        </button>
-      </section>
-    </main>
+    <AuthShell>
+      <h1>Register your business</h1>
+      <p>Your business will have its own customers, jobs, payments and stock.</p>
+      {!sent && (
+        <form onSubmit={submit}>
+          <label>
+            Business name
+            <input name="businessName" maxLength={160} required autoComplete="organization" />
+          </label>
+          <label>
+            Owner’s full name
+            <input name="ownerName" maxLength={160} required autoComplete="name" />
+          </label>
+          <label>
+            Business email
+            <input name="email" type="email" required autoComplete="email" maxLength={254} />
+          </label>
+          <label>
+            Password
+            <input
+              name="password"
+              type="password"
+              required
+              minLength={12}
+              maxLength={128}
+              autoComplete="new-password"
+            />
+          </label>
+          <label>
+            Confirm password
+            <input
+              name="confirmPassword"
+              type="password"
+              required
+              minLength={12}
+              maxLength={128}
+              autoComplete="new-password"
+            />
+          </label>
+          <small>
+            Use 12–128 characters. Your first staff account will be Manager. A separate Developer account
+            handles maintenance.
+          </small>
+          <button disabled={busy || !online}>
+            <Icon name="account" /> {busy ? 'Registering…' : 'Register business'}
+          </button>
+        </form>
+      )}
+      <FeedbackBanner message={message} tone={sent ? 'success' : 'error'} login />
+      <button className="secondary" disabled={busy} onClick={onBack}>
+        {sent ? 'Back to sign in' : 'Already registered? Sign in'}
+      </button>
+    </AuthShell>
   );
 }
 export function DeveloperActivation({ token, online }: { token: string; online: boolean }) {
@@ -128,46 +127,44 @@ export function DeveloperActivation({ token, online }: { token: string; online: 
     }
   }
   return (
-    <main className="auth">
-      <section className="auth-card">
-        <h1>Activate Developer account</h1>
-        <p>Set a password for this business’s maintenance account.</p>
-        {!complete && (
-          <form onSubmit={submit}>
-            <label>
-              New password
-              <input
-                name="password"
-                type="password"
-                minLength={12}
-                maxLength={128}
-                autoComplete="new-password"
-                required
-              />
-            </label>
-            <label>
-              Confirm password
-              <input
-                name="confirmPassword"
-                type="password"
-                minLength={12}
-                maxLength={128}
-                autoComplete="new-password"
-                required
-              />
-            </label>
-            <button disabled={busy || !online}>
-              <Icon name="account" /> {busy ? 'Activating…' : 'Activate account'}
-            </button>
-          </form>
-        )}
-        <FeedbackBanner message={message} tone={complete ? 'success' : 'error'} login />
-        {complete && (
-          <button className="secondary" onClick={() => location.assign('/')}>
-            <Icon name="next" /> Open sign in
+    <AuthShell>
+      <h1>Activate Developer account</h1>
+      <p>Set a password for this business’s maintenance account.</p>
+      {!complete && (
+        <form onSubmit={submit}>
+          <label>
+            New password
+            <input
+              name="password"
+              type="password"
+              minLength={12}
+              maxLength={128}
+              autoComplete="new-password"
+              required
+            />
+          </label>
+          <label>
+            Confirm password
+            <input
+              name="confirmPassword"
+              type="password"
+              minLength={12}
+              maxLength={128}
+              autoComplete="new-password"
+              required
+            />
+          </label>
+          <button disabled={busy || !online}>
+            <Icon name="account" /> {busy ? 'Activating…' : 'Activate account'}
           </button>
-        )}
-      </section>
-    </main>
+        </form>
+      )}
+      <FeedbackBanner message={message} tone={complete ? 'success' : 'error'} login />
+      {complete && (
+        <button className="secondary" onClick={() => location.assign('/')}>
+          <Icon name="next" /> Open sign in
+        </button>
+      )}
+    </AuthShell>
   );
 }
