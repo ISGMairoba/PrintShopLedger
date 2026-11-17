@@ -1,0 +1,17 @@
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m4199[22m/[39m
+desktop-light jobs filter Printing: only 1, from 1, up to 3
+mobile-dark jobs filter Printing: only 1, from 1, up to 3
+desktop-dark jobs filter Printing: only 1, from 1, up to 3
+mobile-light jobs filter Printing: only 1, from 1, up to 3
+Touching:
+desktop-light 22-business-settings-tab-receipts: Highlighted lineJob descriptio | Service name below it (fields 6px apart at y 815)
+desktop-light 22-business-settings-tab-receipts: Receipt footer | Show a faint watermark on full (fields 6px apart at y 1853)
+mobile-dark 22-business-settings-section-receipts: Highlighted lineJob descriptio | Service name below it (fields 6px apart at y 1040)
+mobile-dark 22-business-settings-section-receipts: Receipt footer | Show a faint watermark on full (fields 6px apart at y 2077)
+desktop-dark 22-business-settings-tab-receipts: Highlighted lineJob descriptio | Service name below it (fields 6px apart at y 815)
+desktop-dark 22-business-settings-tab-receipts: Receipt footer | Show a faint watermark on full (fields 6px apart at y 1853)
+mobile-light 22-business-settings-section-receipts: Highlighted lineJob descriptio | Service name below it (fields 6px apart at y 1040)
+mobile-light 22-business-settings-section-receipts: Receipt footer | Show a faint watermark on full (fields 6px apart at y 2077)
+Not captured:
+mobile-dark item look: locator.click: Timeout 8000ms exceeded.
+mobile-light item look: locator.click: Timeout 8000ms exceeded.
