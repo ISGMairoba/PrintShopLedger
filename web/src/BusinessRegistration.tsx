@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react';
 import { businessAuth, supabase } from './cloud';
 import { validateSignup, validateNewPassword } from './registration.mjs';
 import { FeedbackBanner } from './Feedback';
+import { AuthShell } from './app/AuthScreens';
 export async function registrationError(error: unknown) {
   const response = (error as { context?: Response })?.context;
   if (response)
@@ -42,8 +43,7 @@ export function BusinessSignup({ online, onBack }: { online: boolean; onBack: ()
     }
   }
   return (
-    <main className="auth">
-      <section className="auth-card">
+    <AuthShell>
         <h1>Register your business</h1>
         <p>Your business will have its own customers, jobs, payments and stock.</p>
         {!sent && (
@@ -95,8 +95,7 @@ export function BusinessSignup({ online, onBack }: { online: boolean; onBack: ()
         <button className="secondary" disabled={busy} onClick={onBack}>
           {sent ? 'Back to sign in' : 'Already registered? Sign in'}
         </button>
-      </section>
-    </main>
+      </AuthShell>
   );
 }
 export function DeveloperActivation({ token, online }: { token: string; online: boolean }) {
@@ -128,8 +127,7 @@ export function DeveloperActivation({ token, online }: { token: string; online: 
     }
   }
   return (
-    <main className="auth">
-      <section className="auth-card">
+    <AuthShell>
         <h1>Activate Developer account</h1>
         <p>Set a password for this business’s maintenance account.</p>
         {!complete && (
@@ -167,7 +165,6 @@ export function DeveloperActivation({ token, online }: { token: string; online: 
             <Icon name="next" /> Open sign in
           </button>
         )}
-      </section>
-    </main>
+      </AuthShell>
   );
 }

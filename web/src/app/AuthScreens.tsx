@@ -1,4 +1,5 @@
-import { useState, type FormEvent, type InputHTMLAttributes } from 'react';
+import { useState, type FormEvent, type InputHTMLAttributes, type ReactNode } from 'react';
+import Icon from '../Icon';
 import Modal from '../Modal';
 import { FeedbackBanner, type FeedbackTone } from '../Feedback';
 import type { Shop } from './shared';
@@ -27,11 +28,46 @@ function SharedDeviceInput(props: InputHTMLAttributes<HTMLInputElement>) {
   );
 }
 
+/**
+ * The sign-in screens' layout (like Tillora's): the app's story on the left in the brand colour,
+ * the form on the right. On phones the story becomes a short band above the form.
+ */
+export function AuthShell({ children }: { children: ReactNode }) {
+  return (
+    <main className="auth auth-split">
+      <section className="auth-story" aria-label="About PrintShopLedger">
+        <div className="auth-story-brand">
+          <span className="brand-mark">P</span>
+          <strong>PrintShopLedger</strong>
+        </div>
+        <div className="auth-story-text">
+          <p className="auth-story-kicker">For print shops and the counters beside them</p>
+          <h2>
+            Every job.
+            <br />
+            Every payment.
+          </h2>
+          <p>Orders, money and stock for every branch, kept together in one place.</p>
+        </div>
+        <div className="auth-feature">
+          <Icon name="wifi" />
+          <div>
+            <strong>Keep taking orders, even offline.</strong>
+            <p>Your work sends as soon as you are connected again.</p>
+          </div>
+        </div>
+      </section>
+      <section className="auth-form">
+        <div className="auth-card auth-inner">{children}</div>
+      </section>
+    </main>
+  );
+}
+
 /** Shown while saved sign-ins load; offers a retry if loading stalls. */
 export function StartupScreen({ error, onRetry }: { error: string; onRetry: () => void }) {
   return (
-    <main className="auth">
-      <section className="auth-card">
+    <AuthShell>
         <h1>{error ? 'Could not restore your sign-in' : 'Opening PrintShopLedger…'}</h1>
         {error && (
           <>
@@ -39,8 +75,7 @@ export function StartupScreen({ error, onRetry }: { error: string; onRetry: () =
             <button onClick={onRetry}>Retry sign-in loading</button>
           </>
         )}
-      </section>
-    </main>
+      </AuthShell>
   );
 }
 
@@ -66,9 +101,7 @@ export function BusinessLogin({
   const [forgot, setForgot] = useState(false);
   if (forgot)
     return (
-      <main className="auth">
-        <div className="auth-card">
-          <div className="brand-mark">S</div>
+      <AuthShell>
           <h1>Reset business password</h1>
           <p>
             Enter the business email. We will email a link to set a new password. Open the link on the device
@@ -94,15 +127,13 @@ export function BusinessLogin({
             Staff who forget their password: ask a Manager to set a new one on the Users page.
           </p>
           <FeedbackBanner message={feedback.message} tone={feedback.tone} login />
-        </div>
-      </main>
+        </AuthShell>
     );
   return (
-    <main className="auth">
-      <div className="auth-card">
-        <div className="brand-mark">S</div>
-        <h1>PrintShopLedger</h1>
-        <p>Every job. Every payment. Clearly tracked.</p>
+    <AuthShell>
+        <span className="badge auth-badge">Business sign-in</span>
+        <h1>Welcome back.</h1>
+        <p className="muted">Sign in with your business email. Staff sign in with their own username next.</p>
         <form onSubmit={onSubmit}>
           <label>
             Business email
@@ -137,8 +168,7 @@ export function BusinessLogin({
         </button>
         <p className="muted">Local trial data stays separate from business workspaces.</p>
         <FeedbackBanner message={feedback.message} tone={feedback.tone} login />
-      </div>
-    </main>
+      </AuthShell>
   );
 }
 
@@ -163,9 +193,7 @@ export function PasswordRecovery({
   const [again, setAgain] = useState('');
   const mismatch = !!again && password !== again;
   return (
-    <main className="auth">
-      <div className="auth-card">
-        <div className="brand-mark">S</div>
+    <AuthShell>
         <h1>Set a new business password</h1>
         {!ready ? (
           <p role="alert">
@@ -211,8 +239,7 @@ export function PasswordRecovery({
           Back to sign in
         </button>
         <FeedbackBanner message={feedback.message} tone={feedback.tone} login />
-      </div>
-    </main>
+      </AuthShell>
   );
 }
 
@@ -231,8 +258,7 @@ export function WorkspaceLoading({
   onSignOut: () => void;
 }) {
   return (
-    <main className="auth">
-      <section className="auth-card">
+    <AuthShell>
         <h1>{failed ? 'Could not load your business' : 'Loading business workspace…'}</h1>
         {failed && (
           <>
@@ -249,8 +275,7 @@ export function WorkspaceLoading({
         <button className="secondary" onClick={onSignOut}>
           Sign out
         </button>
-      </section>
-    </main>
+      </AuthShell>
   );
 }
 
@@ -300,8 +325,7 @@ export function StaffSignIn({
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   return (
-    <main className="auth">
-      <section className="auth-card">
+    <AuthShell>
         <h1>Staff sign in</h1>
         <p>The business is signed in. Enter your username and password.</p>
         <label>
@@ -319,8 +343,7 @@ export function StaffSignIn({
         </label>
         <StaffLoginForm feedback={feedback} busy={busy} online={online} onSubmit={onSubmit} />
         <FeedbackBanner message={feedback.message} tone={feedback.tone} login />
-      </section>
-    </main>
+      </AuthShell>
   );
 }
 

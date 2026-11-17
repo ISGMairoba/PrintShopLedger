@@ -108,6 +108,7 @@ import { useAuthSessions, useOnline, useWorkspaces } from './app/useSessions';
 import { useAutoLock } from './app/useAutoLock';
 import HelpPanel from './HelpPanel';
 import {
+  AuthShell,
   BusinessLogin,
   PasswordRecovery,
   StaffLoginForm,
@@ -1665,8 +1666,7 @@ export default function App() {
 
   if (needBranchChoice)
     return (
-      <main className="auth">
-        <section className="auth-card">
+      <AuthShell>
           <h1>Choose your branch</h1>
           <p>{businessName} has more than one branch. Which branch is this device in today?</p>
           <div className="branch-choices">
@@ -1677,14 +1677,12 @@ export default function App() {
               </button>
             ))}
           </div>
-        </section>
-      </main>
+        </AuthShell>
     );
 
   if (restriction === 'locked')
     return (
-      <main className="auth">
-        <section className="auth-card">
+      <AuthShell>
           <h1>{shop?.name ?? 'PrintShopLedger'}</h1>
           <p role="alert">
             This business’s PrintShopLedger subscription has ended. Contact PrintShopLedger to renew; your
@@ -1706,8 +1704,7 @@ export default function App() {
           >
             <Icon name="close" /> Sign out business
           </button>
-        </section>
-      </main>
+        </AuthShell>
     );
 
   return (
