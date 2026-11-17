@@ -515,6 +515,11 @@ export default function App() {
     if (error) throw Error(error.message);
     syncNow();
   };
+  // Every branch's name (closed ones too), for notices and the Users page.
+  const branchNames = useMemo(
+    () => Object.fromEntries(branchesOf(branding.settings).map((b) => [b.id, b.name])),
+    [branding.settings],
+  );
   // Stores keep stock only, so the sales comparisons leave them out.
   const salesBranches = useMemo(() => openBranches.filter((b) => b.kind !== 'store'), [openBranches]);
   const masterLedger = useMemo(() => {
@@ -1849,6 +1854,15 @@ export default function App() {
                           online={online}
                           onChanged={noticeBoard.refresh}
                           onClose={() => setNoticesOpen(false)}
+                          branch={
+                            multiBranch
+                              ? {
+                                  id: activeBranch?.id ?? MAIN,
+                                  names: branchNames,
+                                  everywhere: (shop?.accessLevel ?? 0) >= 4,
+                                }
+                              : undefined
+                          }
                         />
                       )}
                       {!noticesOpen && noticeBoard.notices.some((n) => n.pinned && !n.readAt) && (
@@ -2678,6 +2692,8 @@ export default function App() {
                               online={online}
                               demo={demo}
                               onChanged={() => setStaffEpoch((value) => value + 1)}
+                              branchNames={multiBranch ? branchNames : undefined}
+                              branchName={multiBranch ? activeBranch?.name : undefined}
                             />
                           ) : page === 'Print Settings' ? (
                             <PrintSettingsPage

@@ -21,6 +21,8 @@ type Staff = {
   archived: boolean;
   version: number;
   lastLogin: string | null;
+  /** Branches they work in: ids, or '*' for every branch. */
+  branches?: string[];
   createdAt: string;
   createdByLabel: string;
   modifiedAt: string;
@@ -34,10 +36,29 @@ type Props = {
   online: boolean;
   demo: boolean;
   onChanged: () => void;
+  /** With branches: each branch's name (the Branches column), and this device's branch. */
+  branchNames?: Record<string, string>;
+  branchName?: string;
 };
 const date = (value: string | null) =>
   value ? new Date(value).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' }) : 'Never';
-export default function UsersPage({ shopId, actorId, businessUserId, role, online, demo, onChanged }: Props) {
+export default function UsersPage({
+  shopId,
+  actorId,
+  businessUserId,
+  role,
+  online,
+  demo,
+  onChanged,
+  branchNames,
+  branchName,
+}: Props) {
+  const worksIn = (user: { branches?: string[] }) =>
+    !user.branches?.length
+      ? (branchNames?.main ?? 'Main branch')
+      : user.branches.includes('*')
+        ? 'Every branch'
+        : user.branches.map((id) => branchNames?.[id] ?? 'Closed branch').join(', ');
   const { w } = useWords();
   const [users, setUsers] = useState<Staff[]>([]);
   const [ready, setReady] = useState(false);
@@ -236,6 +257,7 @@ export default function UsersPage({ shopId, actorId, businessUserId, role, onlin
           user.modifiedByLabel,
           date(user.modifiedAt),
           user.archived ? 'Archived' : 'Active',
+          branchNames ? worksIn(user) : '',
         ]
           .join(' ')
           .toLowerCase()
@@ -249,6 +271,7 @@ export default function UsersPage({ shopId, actorId, businessUserId, role, onlin
       role: (u) => u.accessLevel,
       lastLogin: (u) => (u.lastLogin ? Date.parse(u.lastLogin) : 0),
       status: (u) => u.archived,
+      branches: (u) => worksIn(u),
       createdBy: (u) => u.createdByLabel,
       createdAt: (u) => Date.parse(u.createdAt),
       modifiedBy: (u) => u.modifiedByLabel,
@@ -315,6 +338,12 @@ export default function UsersPage({ shopId, actorId, businessUserId, role, onlin
           </ToolbarActions>
         </div>
         {!online && <div className="notice">Connect to the internet to manage user accounts.</div>}
+        {branchNames && branchName && (
+          <p className="muted">
+            Showing the staff who work in {branchName}. Someone you add here works in {branchName}; the
+            General Manager sets who works where in Business Settings → Branches.
+          </p>
+        )}
         <FeedbackBanner message={error} tone={errorTone} />
         {!ready ? (
           <div className="empty">{online ? 'Loading users…' : 'User management is available online.'}</div>
@@ -324,11 +353,11 @@ export default function UsersPage({ shopId, actorId, businessUserId, role, onlin
           <div className="table-wrap">
             <ResponsiveTable
               columns={[
-                { index: 0, label: 'User', details: [1, 3] },
+                { index: 0, label: 'User', details: branchNames ? [1, 3, 4] : [1, 3] },
                 { index: 2, label: 'Rank' },
                 { index: -1, label: 'Actions', actions: true },
               ]}
-              labels={{ 3: 'Status' }}
+              labels={{ 3: 'Status', 4: 'Branches' }}
               extraSortOptions={[
                 { key: 'id', label: 'User ID' },
                 { key: 'lastLogin', label: 'Last login' },
@@ -341,6 +370,7 @@ export default function UsersPage({ shopId, actorId, businessUserId, role, onlin
                     {heading('username', 'Username')}
                     {heading('rank', 'Rank')}
                     {heading('status', 'Status · last login')}
+                    {branchNames && heading('branches', 'Branches')}
                     {audit && auditHeaders(sorting)}
                     <th>Actions</th>
                   </tr>
@@ -364,6 +394,7 @@ export default function UsersPage({ shopId, actorId, businessUserId, role, onlin
                         </span>
                         <small>Last login: {date(user.lastLogin)}</small>
                       </td>
+                      {branchNames && <td>{worksIn(user)}</td>}
                       {audit && auditCells(user, date)}
                       <td>
                         <div className="material-actions">

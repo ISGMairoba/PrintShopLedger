@@ -2387,6 +2387,11 @@ details.workflow-row[open] {
   background: var(--accent, #b4532a);
   color: #fff;
 }
+/* A notice posted in another branch. */
+.badge-branch {
+  background: color-mix(in srgb, var(--primary, #1f4e79) 14%, transparent);
+  color: var(--primary, #1f4e79);
+}
 
 /* Accounts → Savings card: the amount is hidden until the eye is tapped. */
 .savings-head {
