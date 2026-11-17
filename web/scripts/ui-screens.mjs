@@ -434,6 +434,18 @@ try {
         .first()
         .screenshot({ path: `${out}/${mode}-89-checkout-material-choice.png` });
       await c.getByRole('button', { name: 'Complete checkout' }).click();
+      // The receipt as a picture (desktop light only: one is enough to look at).
+      if (mode === 'desktop-light') {
+        const [picture] = await Promise.all([
+          page.waitForEvent('download'),
+          page
+            .getByRole('dialog')
+            .last()
+            .getByRole('button', { name: 'Download picture', exact: true })
+            .click(),
+        ]);
+        await picture.saveAs(`${out}/${mode}-90-receipt-picture.png`);
+      }
       await page.getByRole('dialog').last().getByRole('button', { name: 'Close', exact: true }).click();
       await nav('Jobs');
       await shot('89-jobs-material-to-confirm');

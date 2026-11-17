@@ -494,31 +494,56 @@ export function createReceiptPdf(
  * Draw a receipt-shaped model (a receipt, quotation or comparison) on a page or a roll, with the
  * business's watermark and, where Developer turned it on, the installer credit.
  */
-function modelPdf(m: Model, media: ReceiptMedia, business: string | Branding) {
+type MakeDoc = (format: [number, number]) => jsPDF;
+const makePdf: MakeDoc = (format) => {
+  const doc = new jsPDF({
+    unit: 'mm',
+    format,
+    orientation: format[1] >= format[0] ? 'portrait' : 'landscape',
+  });
+  registerPdfFonts(doc);
+  return doc;
+};
+function modelPdf(m: Model, media: ReceiptMedia, business: string | Branding, make: MakeDoc = makePdf) {
   const watermark = resolveWatermark(receiptBusiness(business));
   const credit = poweredByLine(business, media.layout === 'roll' ? 'receipts' : 'pages');
   if (media.layout === 'roll') {
     // Measure on a long strip, then draw again on a page exactly as tall as the content.
-    const probe = new jsPDF({ unit: 'mm', format: [media.width, 3000] });
-    registerPdfFonts(probe);
+    const probe = make([media.width, 3000]);
     const height = Math.max(media.width, Math.ceil(drawRoll(probe, m, media, credit)));
-    const doc = new jsPDF({
-      unit: 'mm',
-      format: [media.width, height],
-      orientation: height >= media.width ? 'portrait' : 'landscape',
-    });
-    registerPdfFonts(doc);
+    const doc = make([media.width, height]);
     drawRoll(doc, m, media, credit);
     return doc;
   }
-  const doc = new jsPDF({
-    unit: 'mm',
-    format: [media.width, media.height],
-    orientation: media.height >= media.width ? 'portrait' : 'landscape',
-  });
-  registerPdfFonts(doc);
+  const doc = make([media.width, media.height]);
   drawPage(doc, m, media, watermark, credit);
   return doc;
+}
+
+/**
+ * The receipt as a picture (PNG) to share on WhatsApp: the same layout as the PDF, drawn on the
+ * narrow roll (phone-shaped), at 10 pixels per millimetre.
+ */
+export async function createReceiptImage(
+  record: CheckoutRecord,
+  business: string | Branding,
+  pending = false,
+  adjustments: SaleAdjustment[] = [],
+) {
+  const warning = receiptIntegrityError(record);
+  if (warning) throw Error(warning);
+  const { CanvasDoc, canvasPng, loadCanvasFonts, loadImages } = await import('./canvas-doc');
+  const m = receiptModel(record, business, pending, adjustments, 'roll');
+  const media = { ...ROLL_80_RECEIPT, width: 90, margins: { top: 6, right: 6, bottom: 6, left: 6 } };
+  await loadCanvasFonts();
+  const images = await loadImages([m.business.logo ?? '', resolveWatermark(receiptBusiness(business)) ?? '']);
+  let last: InstanceType<typeof CanvasDoc> | null = null;
+  modelPdf(m, media, business, (format) => {
+    last = new CanvasDoc(format, images);
+    return last as unknown as jsPDF;
+  });
+  const name = `Receipt-${record.id.slice(0, 8).toUpperCase()}${record.corrected ? '-corrected' : ''}.png`;
+  return canvasPng((last as unknown as InstanceType<typeof CanvasDoc>).render(10), name);
 }
 /** A quotation as a PDF, on A4 or an 80 mm roll, with the business's receipt look. */
 export function createQuotationPdf(

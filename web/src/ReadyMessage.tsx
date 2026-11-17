@@ -1,3 +1,4 @@
+import { canTellCustomer } from './ready-message.mjs';
 import { createContext, useContext } from 'react';
 import Icon from './Icon';
 import { shareText } from './share-text';
@@ -9,11 +10,11 @@ export const ReadyMessageContext = createContext<
   ((job: Job) => { link: string; phone: string; text: string; mode: string }) | null
 >(null);
 
-/** "Tell customer": shown once a job is Completed (Ready). */
+/** "Tell customer": shown once a job is Completed (Ready), or part of a part order is ready. */
 export function TellCustomer({ job, busy }: { job: Job; busy?: boolean }) {
   const message = useContext(ReadyMessageContext);
   const { w } = useWords();
-  if (!message || job.productionStatus !== 'Completed') return null;
+  if (!message || !canTellCustomer(job)) return null;
   return (
     <button
       type="button"

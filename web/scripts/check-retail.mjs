@@ -131,6 +131,14 @@ try {
   await pay.getByRole('button', { name: /Complete sale/ }).click();
   await d.waitFor({ state: 'detached' });
   await page.getByRole('dialog').getByText('Cash ₦200.00 · Transfer ₦300.00', { exact: false }).waitFor();
+  // The receipt as a picture: a PNG of the same receipt.
+  const [picture] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('dialog').getByRole('button', { name: 'Download picture', exact: true }).click(),
+  ]);
+  assert.match(picture.suggestedFilename(), /^Receipt-[0-9A-F]{8}\.png$/);
+  const { statSync } = await import('node:fs');
+  assert.ok(statSync(await picture.path()).size > 20000, 'the receipt picture has content');
   await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
   await nav('Materials');
   assert.match(await page.locator('table').innerText(), /Blue pen[\s\S]*\b3\b/);

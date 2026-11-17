@@ -7,6 +7,19 @@ import { jobBalanceFast } from './balances.mjs';
 import { currency } from './receipts.mjs';
 import { whatsappLink } from './share.mjs';
 import { customerNames, messageMode, messageText } from './messages.mjs';
+import { jobParts, paymentNeeded } from './job-handover.mjs';
+
+/**
+ * Some of a part order is ready (made in batches, not yet all done): how many are ready to collect now.
+ * Zero when the job is finished or has nothing waiting.
+ */
+export function partReady(job) {
+  if (['Completed', 'Collected', 'Cancelled'].includes(job.productionStatus ?? 'Added')) return 0;
+  return jobParts(job).ready;
+}
+
+/** Whether "Tell customer" can be used: the job is ready, or part of it is. */
+export const canTellCustomer = (job) => job.productionStatus === 'Completed' || partReady(job) > 0;
 
 export const READY_PLACEHOLDERS = ['customer', 'job', 'number', 'items', 'is', 'business', 'balance'];
 export const DEFAULT_READY_MESSAGE =
@@ -19,7 +32,7 @@ export function readyJobs(ledger, job) {
     (j) =>
       j.checkoutId === job.checkoutId &&
       j.customerId === job.customerId &&
-      j.productionStatus === 'Completed',
+      (j.productionStatus === 'Completed' || partReady(j) > 0),
   );
   return same.some((j) => j.id === job.id) ? same : [job, ...same];
 }
@@ -27,8 +40,42 @@ export function readyJobs(ledger, job) {
 const itemText = (j) => {
   const name = (j.description || j.service || '').trim();
   const qty = Number(j.quantity);
+  // Part of a part order: how many of how many.
+  const part = partReady(j);
+  if (part > 0) return `${name} × ${part} of ${qty}`;
   return qty > 1 ? `${name} × ${qty}` : name;
 };
+
+/** The "part ready" message for a part order with some items ready (not all done yet). */
+function partReadyMessage(ledger, job, { business, messages }) {
+  const customer = ledger.customers.find((c) => c.id === job.customerId);
+  const { total, collected, ready } = jobParts(job);
+  const balance = jobBalanceFast(ledger, job);
+  const { short } = paymentNeeded(job, balance.paid, ready);
+  const values = {
+    ...customerNames(customer?.name, customer?.calledAs),
+    ready: String(ready),
+    total: String(total),
+    collected: String(collected),
+    item: (job.description || job.service || '').trim(),
+    are: ready === 1 ? 'is' : 'are',
+    number: `#${job.id.slice(0, 8).toUpperCase()}`,
+    to_pay: short > 0 ? `Amount to pay for this part: ${currency(short)}.` : 'This part is paid.',
+    balance:
+      balance.outstanding > 0
+        ? `Balance on the order: ${currency(balance.outstanding)}.`
+        : 'The order is fully paid. Thank you!',
+    business: business || 'our shop',
+  };
+  const text = messageText(messages, 'part_ready', values);
+  return {
+    text,
+    link: whatsappLink(customer?.phone, text),
+    phone: customer?.phone ?? '',
+    jobs: [job],
+    mode: messageMode(messages, 'part_ready'),
+  };
+}
 
 /**
  * The message and WhatsApp link for a ready job, in the business's wording (Business Settings →
@@ -36,6 +83,9 @@ const itemText = (j) => {
  * @param {{ business: string, template?: string, terms?: { job: string, jobs: string }, messages?: any }} options
  */
 export function readyMessage(ledger, job, { business, template, terms, messages }) {
+  // A part order with only some items ready: the "part ready" message.
+  if (job.productionStatus !== 'Completed' && partReady(job) > 0)
+    return partReadyMessage(ledger, job, { business, messages });
   const jobs = readyJobs(ledger, job);
   const customer = ledger.customers.find((c) => c.id === job.customerId);
   const owed = jobs.reduce((n, j) => n + jobBalanceFast(ledger, j).outstanding, 0);
