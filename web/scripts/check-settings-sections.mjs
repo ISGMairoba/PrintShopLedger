@@ -30,7 +30,7 @@ try {
       errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
     await page.goto(origin);
-    await page.getByRole('button', { name: 'Try locally on this device', exact: true }).click();
+    await page.getByRole('button', { name: 'Explore demo', exact: true }).click();
     if (mobile) await page.getByRole('button', { name: 'Menu', exact: true }).click();
     await page
       .getByRole('navigation', { name: 'Main' })

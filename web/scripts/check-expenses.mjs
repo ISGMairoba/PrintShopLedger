@@ -39,7 +39,7 @@ try {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('http://127.0.0.1:4178');
-  await page.getByRole('button', { name: 'Try locally on this device' }).click();
+  await page.getByRole('button', { name: 'Explore demo' }).click();
   const nav = (name) =>
     page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name, exact: true }).click();
   const state = () => readCopy(page, 'local-trial');
@@ -191,7 +191,7 @@ try {
   assert.equal(saved.ledger.materialHistory.length, 4);
   await page.context().setOffline(false);
   await page.reload();
-  await page.getByRole('button', { name: 'Try locally on this device' }).click();
+  await page.getByRole('button', { name: 'Explore demo' }).click();
   await nav('Expenses');
   await (await openFilters(page)).getByLabel('Expense status').selectOption('all');
   assert.equal(await page.locator('tbody tr').count(), 2);
@@ -205,7 +205,7 @@ try {
   });
   mobile.on('pageerror', (e) => errors.push(e.message));
   await mobile.goto('http://127.0.0.1:4178');
-  await mobile.getByRole('button', { name: 'Try locally on this device' }).click();
+  await mobile.getByRole('button', { name: 'Explore demo' }).click();
   await mobile.evaluate(
     (saved) =>
       new Promise((resolve, reject) => {
@@ -229,7 +229,7 @@ try {
     saved,
   );
   await mobile.reload();
-  await mobile.getByRole('button', { name: 'Try locally on this device' }).click();
+  await mobile.getByRole('button', { name: 'Explore demo' }).click();
   await mobile.getByRole('button', { name: 'Menu', exact: true }).click();
   await mobile
     .getByRole('navigation', { name: 'Main' })

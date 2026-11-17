@@ -57,7 +57,7 @@ try {
       },
       { ledger, settings },
     );
-    await page.getByRole('button', { name: 'Try locally on this device' }).click();
+    await page.getByRole('button', { name: 'Explore demo' }).click();
     if (mobile) await page.getByRole('button', { name: 'Menu', exact: true }).click();
     await page
       .getByRole('navigation', { name: 'Main' })

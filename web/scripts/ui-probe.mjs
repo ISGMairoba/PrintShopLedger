@@ -216,7 +216,7 @@ try {
       { ledger: { ...ledger, settings: undefined }, settings: { ...settings, theme } },
     );
     await page.reload();
-    await page.getByRole('button', { name: 'Try locally on this device' }).click();
+    await page.getByRole('button', { name: 'Explore demo' }).click();
     await delay(600);
     const nav = async (name) => {
       if (mobile) {

@@ -50,13 +50,13 @@ try {
     const errors = [];
     page.on('pageerror', (error) => errors.push(error.message));
     await page.goto(url);
-    const trial = page.getByRole('button', { name: 'Try locally on this device', exact: true });
+    const trial = page.getByRole('button', { name: 'Explore demo', exact: true });
     const enterTrial = async () => {
       await page.waitForFunction(
         () =>
           document.querySelector('.app') ||
           [...document.querySelectorAll('button')].some((button) =>
-            button.textContent.includes('Try locally on this device'),
+            button.textContent.includes('Explore demo'),
           ),
       );
       if (await trial.count()) await trial.click();

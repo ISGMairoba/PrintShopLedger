@@ -96,7 +96,7 @@ try {
   }
   await page.goto('http://127.0.0.1:4173');
   await fits('Business login');
-  await page.getByRole('button', { name: 'Try locally on this device' }).click();
+  await page.getByRole('button', { name: 'Explore demo' }).click();
   await fits('Empty jobs');
   await navigate('Materials');
   await page.getByRole('button', { name: 'Add material', exact: true }).click();

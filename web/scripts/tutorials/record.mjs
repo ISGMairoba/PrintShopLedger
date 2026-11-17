@@ -210,9 +210,9 @@ async function record(browser, video) {
   await page.goto(`http://127.0.0.1:${port}`);
   await seed(page);
   await page.reload();
-  await page.getByRole('button', { name: 'Try locally on this device' }).waitFor();
+  await page.getByRole('button', { name: 'Explore demo' }).waitFor();
   if (!video.startSignedOut) {
-    await page.getByRole('button', { name: 'Try locally on this device' }).click();
+    await page.getByRole('button', { name: 'Explore demo' }).click();
     await page.getByRole('navigation', { name: 'Main' }).waitFor();
   }
   await delay(600);

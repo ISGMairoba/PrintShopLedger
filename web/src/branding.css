@@ -597,3 +597,41 @@ select:focus-visible {
     font-size: 28px;
   }
 }
+.auth-inner .auth-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.auth-split .auth-inner > .auth-register {
+  display: block;
+  width: 100%;
+  text-align: center;
+  margin-top: 4px;
+}
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 26px 0 16px;
+  font-size: 12px;
+  color: var(--muted, #6b7280);
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--line);
+}
+.auth-split .auth-inner > .auth-demo {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 13px 16px;
+}
+.auth-demo-note {
+  text-align: center;
+  margin-top: 10px;
+}

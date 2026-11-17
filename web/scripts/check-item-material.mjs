@@ -70,7 +70,7 @@ try {
       },
       { ledger, settings },
     );
-    await page.getByRole('button', { name: 'Try locally on this device' }).click();
+    await page.getByRole('button', { name: 'Explore demo' }).click();
     const nav = async (name) => {
       if (mobile) {
         await page.evaluate(() => window.scrollTo(0, 0));
@@ -114,7 +114,7 @@ try {
     assert.equal(material.available, 15);
     assert.equal(material.name, 'Inline material updated');
     await page.reload();
-    await page.getByRole('button', { name: 'Try locally on this device' }).click();
+    await page.getByRole('button', { name: 'Explore demo' }).click();
     await nav('Services');
     await page.getByRole('row').filter({ hasText: 'Inline stock test' }).waitFor();
     await row.getByRole('button', { name: 'Edit', exact: true }).click();

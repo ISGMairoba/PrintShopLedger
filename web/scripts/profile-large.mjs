@@ -153,7 +153,7 @@ async function run(mode, port) {
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
     await page.goto(base, { timeout: 300000 });
-    await page.getByRole('button', { name: 'Try locally on this device' }).click({ timeout: 300000 });
+    await page.getByRole('button', { name: 'Explore demo' }).click({ timeout: 300000 });
     await page.getByRole('heading', { name: 'Point of Service', exact: true }).waitFor();
     const limit = (what, ms, promise) =>
       Promise.race([promise, delay(ms).then(() => Promise.reject(Error(`${what} took over ${ms} ms`)))]);
@@ -236,7 +236,7 @@ async function run(mode, port) {
       async () => {
         await page.goto(base);
         // Reopening shows the start screen first: go back into the trial (now with the large records).
-        const trial = page.getByRole('button', { name: 'Try locally on this device' });
+        const trial = page.getByRole('button', { name: 'Explore demo' });
         const pos = page.getByRole('heading', { name: 'Point of Service', exact: true });
         await trial.or(pos).first().waitFor();
         if (await trial.isVisible()) await trial.click();

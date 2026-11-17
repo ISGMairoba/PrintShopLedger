@@ -35,7 +35,7 @@ try {
     page.setDefaultTimeout(10000);
     page.on('pageerror', (e) => errors.push(e.message));
     await page.goto(base);
-    await page.getByRole('button', { name: 'Try locally on this device' }).click();
+    await page.getByRole('button', { name: 'Explore demo' }).click();
     const nav = async (name) => {
       if (mobile) {
         await page.evaluate(() => scrollTo(0, 0));
@@ -203,7 +203,7 @@ try {
       state,
     );
     await page.goto(base);
-    const trial = page.getByRole('button', { name: 'Try locally on this device' });
+    const trial = page.getByRole('button', { name: 'Explore demo' });
     await trial.or(page.getByRole('heading', { name: 'Point of Service', exact: true })).waitFor();
     if (await trial.isVisible()) await trial.click();
     await nav('Jobs');
