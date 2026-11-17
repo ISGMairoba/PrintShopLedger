@@ -207,8 +207,12 @@ export default function NoticeBoard({
             </label>
             {branch?.everywhere && (
               <label className="check-label">
-                <input type="checkbox" name="everywhere" defaultChecked={editing.id ? editing.branchId === '*' : true} /> Every
-                branch (otherwise {branch.names[editing.branchId ?? branch.id] ?? 'this branch'} only)
+                <input
+                  type="checkbox"
+                  name="everywhere"
+                  defaultChecked={editing.id ? editing.branchId === '*' : true}
+                />{' '}
+                Every branch (otherwise {branch.names[editing.branchId ?? branch.id] ?? 'this branch'} only)
               </label>
             )}
           </div>
