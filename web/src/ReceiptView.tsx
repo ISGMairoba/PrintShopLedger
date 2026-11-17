@@ -38,6 +38,7 @@ export default function ReceiptView({
   useEffect(() => {
     void import('./receipt-pdf');
     void import('./share-pdf');
+    void import('./canvas-doc').then((m) => m.loadCanvasFonts());
   }, []);
   const messages = useMessages();
   const [busy, setBusy] = useState(false),
@@ -63,17 +64,24 @@ export default function ReceiptView({
       setBusy(false);
     }
   }
-  async function share() {
+  /** Share the receipt as a PDF (A4) or a picture (phone-shaped), with the receipt message. */
+  async function share(kind: 'pdf' | 'image' = 'pdf') {
     setBusy(true);
     try {
-      const [{ createReceiptPdf }, { sharePdf, shareResult }] = await Promise.all([
+      const [{ createReceiptPdf, createReceiptImage }, { shareFile, shareResult }] = await Promise.all([
         import('./receipt-pdf'),
         import('./share-pdf'),
       ]);
       const name = typeof business === 'string' ? business : business.businessName;
-      const result = await sharePdf(
-        createReceiptPdf(record, business, pending, adjustments, 'a4'),
-        `Receipt-${record.id.slice(0, 8).toUpperCase()}`,
+      const ref = `Receipt-${record.id.slice(0, 8).toUpperCase()}`;
+      const file =
+        kind === 'image'
+          ? await createReceiptImage(record, business, pending, adjustments)
+          : new File([createReceiptPdf(record, business, pending, adjustments, 'a4').output('blob')], `${ref}.pdf`, {
+              type: 'application/pdf',
+            });
+      const result = await shareFile(
+        file,
         {
           title: `Receipt ${record.id.slice(0, 8).toUpperCase()}`,
           text: messages.text(
@@ -93,7 +101,7 @@ export default function ReceiptView({
           mode: messages.mode('receipt'),
         },
       );
-      setMessage(shareResult(result));
+      setMessage(shareResult(result, kind === 'image' ? 'picture' : 'PDF'));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error), 'error');
     } finally {
@@ -143,8 +151,32 @@ export default function ReceiptView({
         >
           <Icon name="services" /> {busy ? 'Printing…' : 'Print receipt'}
         </button>
-        <button className="secondary" disabled={busy || !!warning} onClick={() => void share()}>
-          <Icon name="share" /> Share
+        <button className="secondary" disabled={busy || !!warning} onClick={() => void share('pdf')}>
+          <Icon name="share" /> Share PDF
+        </button>
+        <button className="secondary" disabled={busy || !!warning} onClick={() => void share('image')}>
+          <Icon name="share" /> Share as picture
+        </button>
+        <button
+          className="secondary"
+          disabled={busy || !!warning}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              const [{ createReceiptImage }, { downloadFile }] = await Promise.all([
+                import('./receipt-pdf'),
+                import('./share-pdf'),
+              ]);
+              downloadFile(await createReceiptImage(record, business, pending, adjustments));
+              setMessage('Picture downloaded.');
+            } catch (error) {
+              setMessage(error instanceof Error ? error.message : String(error), 'error');
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <Icon name="export" /> Download picture
         </button>
         <button className="secondary" disabled={busy || !!warning} onClick={() => void pdf('a4')}>
           <Icon name="export" /> Download PDF (A4)
