@@ -16,7 +16,9 @@ Deno.serve(async (request: Request) => {
   // The branch the app is working in (x-psl-branch): the Users list is that branch's staff, and a
   // user added there works in that branch.
   const branch = (request.headers.get('x-psl-branch') ?? '').trim();
-  const branchHeaders: Record<string, string> = /^b-[a-z0-9]{6,20}$/.test(branch) ? { 'x-psl-branch': branch } : {};
+  const branchHeaders: Record<string, string> = /^b-[a-z0-9]{6,20}$/.test(branch)
+    ? { 'x-psl-branch': branch }
+    : {};
   const client = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
     global: { headers: { Authorization: authorization, ...branchHeaders } },
     auth: { persistSession: false },

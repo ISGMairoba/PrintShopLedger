@@ -233,7 +233,9 @@ export default function NoticeBoard({
                 {!n.readAt && <span className="badge badge-new">New</span>}
                 {branch && n.branchId === '*' && <span className="badge">All branches</span>}
                 {branch && n.branchId && n.branchId !== '*' && n.branchId !== branch.id && (
-                  <span className="badge badge-branch">From {branch.names[n.branchId] ?? 'another branch'}</span>
+                  <span className="badge badge-branch">
+                    From {branch.names[n.branchId] ?? 'another branch'}
+                  </span>
                 )}
               </h3>
               <small className="muted">
