@@ -448,7 +448,11 @@ export default function App() {
     () => ({
       ...(multiBranch && activeBranch
         ? withLocationMinimums(
-            chosenItemsLedger(branchLedger(state.ledger, activeBranch.id), branding.settings, activeBranch.id),
+            chosenItemsLedger(
+              branchLedger(state.ledger, activeBranch.id),
+              branding.settings,
+              activeBranch.id,
+            ),
             branding.settings,
             activeBranch.id,
           )
@@ -2835,14 +2839,18 @@ export default function App() {
                                           syncNow();
                                         },
                                         answer: async (id, send, quantity, reply) => {
-                                          const asked = (state.ledger.stockRequests ?? []).find((r) => r.id === id);
+                                          const asked = (state.ledger.stockRequests ?? []).find(
+                                            (r) => r.id === id,
+                                          );
                                           await answerStockRequest(
                                             shop!.id,
                                             id,
                                             send,
                                             quantity,
                                             reply,
-                                            asked ? locationUnitCost(state.ledger, asked.materialId, asked.from) : null,
+                                            asked
+                                              ? locationUnitCost(state.ledger, asked.materialId, asked.from)
+                                              : null,
                                           );
                                           setMessage(send ? 'Stock sent.' : 'Request declined.');
                                           syncNow();
@@ -2856,15 +2864,21 @@ export default function App() {
                                         setMinimum:
                                           activeBranch.id !== MAIN && (shop?.accessLevel ?? 0) >= 2
                                             ? async (materialId, minimum) => {
-                                                const { error } = await supabase!.rpc('set_location_minimum', {
-                                                  p_shop: shop!.id,
-                                                  p_location: activeBranch.id,
-                                                  p_material: materialId,
-                                                  p_minimum: minimum,
-                                                });
+                                                const { error } = await supabase!.rpc(
+                                                  'set_location_minimum',
+                                                  {
+                                                    p_shop: shop!.id,
+                                                    p_location: activeBranch.id,
+                                                    p_material: materialId,
+                                                    p_minimum: minimum,
+                                                  },
+                                                );
                                                 if (error) throw Error(error.message);
                                                 await businessBranding.reload();
-                                                setMessage(`Minimum saved for ${activeBranch.name}.`, 'success');
+                                                setMessage(
+                                                  `Minimum saved for ${activeBranch.name}.`,
+                                                  'success',
+                                                );
                                               }
                                             : undefined,
                                         transfer: async (materialId, from, to, quantity, reason) => {

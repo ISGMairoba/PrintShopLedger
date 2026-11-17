@@ -407,8 +407,8 @@ export default function DashboardPage({
                         <span>
                           {m.name}
                           <small>
-                            {stockLevel(m)} · Minimum: {m.minimumHere ?? m.minimumStock ?? 0} {m.measurementUnit} · ID{' '}
-                            {m.id.slice(0, 8).toUpperCase()}
+                            {stockLevel(m)} · Minimum: {m.minimumHere ?? m.minimumStock ?? 0}{' '}
+                            {m.measurementUnit} · ID {m.id.slice(0, 8).toUpperCase()}
                           </small>
                         </span>
                         <strong>

@@ -147,7 +147,8 @@ export function validateStockMinimums(input) {
   if (typeof input !== 'object' || Array.isArray(input)) throw Error('Invalid minimum stock levels.');
   const out = {};
   for (const [location, list] of Object.entries(input)) {
-    if (!/^b-[a-z0-9]{6,20}$/.test(location) || !list || typeof list !== 'object' || Array.isArray(list)) continue;
+    if (!/^b-[a-z0-9]{6,20}$/.test(location) || !list || typeof list !== 'object' || Array.isArray(list))
+      continue;
     const kept = {};
     for (const [material, value] of Object.entries(list))
       if (/^[0-9a-f-]{36}$/i.test(material) && Number.isFinite(value) && value >= 0 && value <= 1e12)
@@ -181,7 +182,9 @@ export function withLocationMinimums(ledger, settings, id) {
   const l = /** @type {any} */ (ledger);
   return /** @type {T} */ ({
     ...l,
-    materials: (l.materials ?? []).map((m) => (Number.isFinite(own[m.id]) ? { ...m, minimumHere: own[m.id] } : m)),
+    materials: (l.materials ?? []).map((m) =>
+      Number.isFinite(own[m.id]) ? { ...m, minimumHere: own[m.id] } : m,
+    ),
   });
 }
 

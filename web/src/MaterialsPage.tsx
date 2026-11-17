@@ -365,7 +365,8 @@ export default function MaterialsPage({
                       <td className="cell-fit">
                         {material.available.toLocaleString(undefined, { maximumFractionDigits: 3 })}
                         <small>
-                          Minimum: {material.minimumHere ?? material.minimumStock ?? 0} {material.measurementUnit}
+                          Minimum: {material.minimumHere ?? material.minimumStock ?? 0}{' '}
+                          {material.measurementUnit}
                           {material.minimumHere !== undefined && ` (set for ${hereName})`}
                         </small>
                         {locations?.stock && (
@@ -829,7 +830,11 @@ export default function MaterialsPage({
         />
       )}
       {minimumFor && locations?.setMinimum && (
-        <Modal title={`Minimum stock of ${minimumFor.name} at ${hereName}`} busy={busy} onClose={() => setMinimumFor(null)}>
+        <Modal
+          title={`Minimum stock of ${minimumFor.name} at ${hereName}`}
+          busy={busy}
+          onClose={() => setMinimumFor(null)}
+        >
           <form
             onSubmit={async (e) => {
               e.preventDefault();
