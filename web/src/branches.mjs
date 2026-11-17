@@ -138,6 +138,53 @@ export function settingsForBranch(settings, id) {
   return { ...settings, businessType: b.type, features: {} };
 }
 
+/**
+ * Minimum stock per location (branch or store), set there: { [locationId]: { [materialId]: number } }.
+ * The main branch uses each material's own minimum; a location without its own uses that too.
+ */
+export function validateStockMinimums(input) {
+  if (input === undefined || input === null) return {};
+  if (typeof input !== 'object' || Array.isArray(input)) throw Error('Invalid minimum stock levels.');
+  const out = {};
+  for (const [location, list] of Object.entries(input)) {
+    if (!/^b-[a-z0-9]{6,20}$/.test(location) || !list || typeof list !== 'object' || Array.isArray(list)) continue;
+    const kept = {};
+    for (const [material, value] of Object.entries(list))
+      if (/^[0-9a-f-]{36}$/i.test(material) && Number.isFinite(value) && value >= 0 && value <= 1e12)
+        kept[material] = value;
+    if (Object.keys(kept).length) out[location] = kept;
+  }
+  return out;
+}
+
+/** A material's minimum stock at a location (its own, else the material's). */
+export function minimumAt(settings, material, location) {
+  const base = material.minimumStock ?? 0;
+  if (!location || location === MAIN) return base;
+  const own = settings?.stockMinimums?.[location]?.[material.id];
+  return Number.isFinite(own) ? own : base;
+}
+
+/** The minimum that applies on this device: the location's own (minimumHere), else the material's. */
+export const minimumHere = (material) => material?.minimumHere ?? material?.minimumStock ?? 0;
+
+/**
+ * The records as a branch or store sees them: materials with a minimum set there carry it as
+ * minimumHere (minimumStock stays the material's own, which editing changes).
+ * @template T
+ * @param {T} ledger
+ * @returns {T}
+ */
+export function withLocationMinimums(ledger, settings, id) {
+  const own = settings?.stockMinimums?.[id];
+  if (!id || id === MAIN || !own || !Object.keys(own).length) return ledger;
+  const l = /** @type {any} */ (ledger);
+  return /** @type {T} */ ({
+    ...l,
+    materials: (l.materials ?? []).map((m) => (Number.isFinite(own[m.id]) ? { ...m, minimumHere: own[m.id] } : m)),
+  });
+}
+
 /** Materials used by the items a branch sells (fixed material, choices and production materials). */
 export function materialsUsed(services) {
   const used = new Set();

@@ -71,7 +71,8 @@ export function materialSnapshot(material) {
 export function stockLevel(material) {
   // Archived, or not used at this device's branch (branches.mjs chosenItemsLedger): no alert.
   if (material.archived || material.hiddenHere) return null;
-  const minimum = material.minimumStock ?? 0;
+  // A branch or store's own minimum (minimumHere), else the material's.
+  const minimum = material.minimumHere ?? material.minimumStock ?? 0;
   if (material.available <= minimum) return 'Critical';
   if (minimum > 0 && material.available <= Math.round(minimum * 1.2 * 1000) / 1000) return 'Near minimum';
   return null;

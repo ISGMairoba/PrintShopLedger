@@ -35,6 +35,19 @@ export function validRestockCost(input) {
 const byTime = (a, b) =>
   Date.parse(a.changedAt) - Date.parse(b.changedAt) || String(a.id).localeCompare(String(b.id));
 const valuationCache = new WeakMap();
+const placesCache = new WeakMap();
+
+/**
+ * What a unit of a material costs at one location now (its average), to send with a transfer so the
+ * receiving location values it the same. Null when this device does not hold that location's history.
+ * @returns {{ unitCost: number, actual: boolean } | null}
+ */
+export function locationUnitCost(ledger, materialId, location) {
+  stockValuation(ledger);
+  const place = placesCache.get(ledger)?.get(`${location || 'main'}|${materialId}`);
+  if (!place || place.average === null || !Number.isFinite(place.average)) return null;
+  return { unitCost: Math.round(place.average * 100) / 100, actual: place.restocks > 0 };
+}
 
 /**
  * Expenses for restocks (Expenses → For restocks), shared among their restocks by supplier price
@@ -136,7 +149,19 @@ export function stockValuation(ledger) {
     }
     const change = Math.round((after - before) * 1000) / 1000;
     const cost = entry.after?.cost;
-    if (entry.action === 'material.stock_added' && cost && change > 0) {
+    if (entry.action === 'material.transferred' && change > 0 && Number.isFinite(cost?.unitCost)) {
+      // Stock received from another location, at what it cost there (its average when sent).
+      const held = Math.max(0, m.quantity);
+      if (m.average === null) m.value = held * cost.unitCost;
+      m.value = (held > 0 ? m.value : 0) + cost.unitCost * change;
+      m.quantity = after;
+      m.average = held + change > 0 ? m.value / (held + change) : m.average;
+      m.unitCost.set(entry.id, cost.unitCost);
+      if (cost.actual) {
+        m.restocks += 1;
+        m.actual.add(entry.id);
+      }
+    } else if (entry.action === 'material.stock_added' && cost && change > 0) {
       // A restock: its price (and timely extras) join the stock at the average so far.
       const landed = cost.supplierPrice + (timely.get(entry.id) ?? 0);
       const held = Math.max(0, m.quantity);
@@ -158,6 +183,7 @@ export function stockValuation(ledger) {
       if (m.restocks) m.actual.add(entry.id);
     }
   }
+  placesCache.set(ledger, places);
   for (const m of places.values()) {
     const { materialId, ...place } = m;
     const total = result.get(materialId);

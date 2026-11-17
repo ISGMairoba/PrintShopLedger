@@ -6,6 +6,7 @@ import {
   branchLedger,
   chosenItemsLedger,
   hasBranches,
+  withLocationMinimums,
   MAIN,
   ownPrices,
   seesAllBranches,
@@ -16,7 +17,7 @@ import { setRequestBranch, storeBranch, storedBranch } from './device-branch';
 import PayeesPage from './PayeesPage';
 import AccountsPage from './AccountsPage';
 import { defaultMoneyAccount } from './operations.mjs';
-import { stockValuation } from './actual-cost.mjs';
+import { locationUnitCost, stockValuation } from './actual-cost.mjs';
 import type { Ledger, OperationsEvent, FieldEvent } from './types';
 import DueDateDialog from './DueDateDialog';
 import useSubscription, { subscriptionNotice } from './useSubscription';
@@ -446,7 +447,11 @@ export default function App() {
   const ledger = useMemo(
     () => ({
       ...(multiBranch && activeBranch
-        ? chosenItemsLedger(branchLedger(state.ledger, activeBranch.id), branding.settings, activeBranch.id)
+        ? withLocationMinimums(
+            chosenItemsLedger(branchLedger(state.ledger, activeBranch.id), branding.settings, activeBranch.id),
+            branding.settings,
+            activeBranch.id,
+          )
         : state.ledger),
       pricing: branding.settings.pricing,
     }),
@@ -492,6 +497,7 @@ export default function App() {
     activeBranch,
     openBranches,
     stageHours: branding.settings.options.stageHours,
+    settings: branding.settings,
   });
   // Branches that sell only chosen items: the General Manager and Developer choose them (Business
   // Settings → Branches, or Sold at on the Services page). Saved straight to the server.
@@ -2829,7 +2835,15 @@ export default function App() {
                                           syncNow();
                                         },
                                         answer: async (id, send, quantity, reply) => {
-                                          await answerStockRequest(shop!.id, id, send, quantity, reply);
+                                          const asked = (state.ledger.stockRequests ?? []).find((r) => r.id === id);
+                                          await answerStockRequest(
+                                            shop!.id,
+                                            id,
+                                            send,
+                                            quantity,
+                                            reply,
+                                            asked ? locationUnitCost(state.ledger, asked.materialId, asked.from) : null,
+                                          );
                                           setMessage(send ? 'Stock sent.' : 'Request declined.');
                                           syncNow();
                                         },
@@ -2838,6 +2852,21 @@ export default function App() {
                                           setMessage('Request withdrawn.');
                                           syncNow();
                                         },
+                                        minimums: branding.settings.stockMinimums,
+                                        setMinimum:
+                                          activeBranch.id !== MAIN && (shop?.accessLevel ?? 0) >= 2
+                                            ? async (materialId, minimum) => {
+                                                const { error } = await supabase!.rpc('set_location_minimum', {
+                                                  p_shop: shop!.id,
+                                                  p_location: activeBranch.id,
+                                                  p_material: materialId,
+                                                  p_minimum: minimum,
+                                                });
+                                                if (error) throw Error(error.message);
+                                                await businessBranding.reload();
+                                                setMessage(`Minimum saved for ${activeBranch.name}.`, 'success');
+                                              }
+                                            : undefined,
                                         transfer: async (materialId, from, to, quantity, reason) => {
                                           await transferStock(
                                             shop!.id,
@@ -2846,6 +2875,8 @@ export default function App() {
                                             to,
                                             quantity,
                                             reason,
+                                            // What it cost where it leaves, so it arrives at that value.
+                                            locationUnitCost(state.ledger, materialId, from),
                                           );
                                           setMessage(
                                             'Stock transferred. Quantities update with the next sync.',
