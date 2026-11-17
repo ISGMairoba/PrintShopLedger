@@ -17,7 +17,16 @@ const settings = {
   branchPricing: 'perBranch',
   branches: [
     { id: 'main', name: 'Main', address: '', phone: '', archived: false },
-    { id: 'b-shop000001', name: 'Shop', address: '', phone: '', archived: false, type: 'retail', prices: 'main', sells: 'chosen' },
+    {
+      id: 'b-shop000001',
+      name: 'Shop',
+      address: '',
+      phone: '',
+      archived: false,
+      type: 'retail',
+      prices: 'main',
+      sells: 'chosen',
+    },
     { id: 'b-press00001', name: 'Press', address: '', phone: '', archived: false },
   ],
 };
@@ -31,7 +40,10 @@ test('each branch keeps what it does, its prices and the items it sells', () => 
   assert.equal(out[2].sells, undefined);
   assert.throws(() => validateBranches([{ id: 'main', name: 'M', type: 'bakery' }]), /what each branch does/);
   // The main branch always uses the main prices and sells every item.
-  assert.deepEqual(validateBranches([{ id: 'main', name: 'M', prices: 'own', sells: 'chosen' }])[0].prices, undefined);
+  assert.deepEqual(
+    validateBranches([{ id: 'main', name: 'M', prices: 'own', sells: 'chosen' }])[0].prices,
+    undefined,
+  );
 });
 
 test('prices: the branch’s own choice, else the business’s older setting', () => {

@@ -490,7 +490,10 @@ export default function App() {
   // Settings → Branches, or Sold at on the Services page). Saved straight to the server.
   const chooseItems = !demo && multiBranch && (shop?.accessLevel ?? 0) >= 4;
   const chosenBranches = useMemo(
-    () => openBranches.filter((b) => b.kind !== 'store' && b.sells === 'chosen').map(({ id, name }) => ({ id, name })),
+    () =>
+      openBranches
+        .filter((b) => b.kind !== 'store' && b.sells === 'chosen')
+        .map(({ id, name }) => ({ id, name })),
     [openBranches],
   );
   const saveItemBranches = async (serviceId: string, branchIds: string[]) => {

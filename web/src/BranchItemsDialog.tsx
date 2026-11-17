@@ -50,8 +50,9 @@ export default function BranchItemsDialog({
   }, [items, query]);
   const toggle = (ids: string[], on: boolean) => {
     const next = new Set(picked);
-    for (const id of ids) if (on) next.add(id);
-    else next.delete(id);
+    for (const id of ids)
+      if (on) next.add(id);
+      else next.delete(id);
     setPicked(next);
   };
   return (
@@ -90,8 +91,8 @@ export default function BranchItemsDialog({
       }
     >
       <p>
-        Staff at this branch see and sell only the items ticked here, and its Materials page shows only
-        the materials those items use. Items an Admin adds at the branch are sold there too.
+        Staff at this branch see and sell only the items ticked here, and its Materials page shows only the
+        materials those items use. Items an Admin adds at the branch are sold there too.
         {!online && ' Connect to the internet to save.'}
       </p>
       {error && (
@@ -107,7 +108,16 @@ export default function BranchItemsDialog({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <button type="button" className="secondary" onClick={() => toggle(items.map((s) => s.id), true)}>
+        <button
+          type="button"
+          className="secondary"
+          onClick={() =>
+            toggle(
+              items.map((s) => s.id),
+              true,
+            )
+          }
+        >
           Select all
         </button>
         <button type="button" className="secondary" onClick={() => setPicked(new Set())}>

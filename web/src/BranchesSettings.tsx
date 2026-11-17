@@ -118,9 +118,7 @@ export default function BranchesSettings({
                   <select
                     aria-label={`Branch ${i + 1} type`}
                     value={b.type ?? ''}
-                    onChange={(e) =>
-                      change(b.id, { type: (e.target.value || undefined) as Branch['type'] })
-                    }
+                    onChange={(e) => change(b.id, { type: (e.target.value || undefined) as Branch['type'] })}
                   >
                     <option value="">Same as the business ({typeName(businessType)})</option>
                     {businessTypes.map(([value, label]) => (
@@ -168,8 +166,8 @@ export default function BranchesSettings({
                   <small className="muted">The General Manager chooses this branch's items.</small>
                 )}
                 <small className="muted">
-                  Items are saved straight away; save the branch settings too so the branch starts using
-                  the list.
+                  Items are saved straight away; save the branch settings too so the branch starts using the
+                  list.
                 </small>
               </div>
             )}

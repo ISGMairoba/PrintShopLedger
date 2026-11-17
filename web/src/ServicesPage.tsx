@@ -544,21 +544,26 @@ export default function ServicesPage({
                                 <Icon name="payments" /> Price here
                               </button>
                             )}
-                            {!service.archived && soldAt && soldAt.branches.length > 0 && !service.private && (
-                              <button
-                                className="text-button"
-                                disabled={busy}
-                                onClick={() => {
-                                  setWhereSold(service);
-                                  setSoldPicks(
-                                    soldAt.branches.filter((b) => service.soldAt?.includes(b.id)).map((b) => b.id),
-                                  );
-                                  setError('');
-                                }}
-                              >
-                                <Icon name="sales" /> Sold at
-                              </button>
-                            )}
+                            {!service.archived &&
+                              soldAt &&
+                              soldAt.branches.length > 0 &&
+                              !service.private && (
+                                <button
+                                  className="text-button"
+                                  disabled={busy}
+                                  onClick={() => {
+                                    setWhereSold(service);
+                                    setSoldPicks(
+                                      soldAt.branches
+                                        .filter((b) => service.soldAt?.includes(b.id))
+                                        .map((b) => b.id),
+                                    );
+                                    setError('');
+                                  }}
+                                >
+                                  <Icon name="sales" /> Sold at
+                                </button>
+                              )}
                             {!service.archived && service.materialId && onEditProduct && (
                               <button
                                 className="text-button"
@@ -631,7 +636,11 @@ export default function ServicesPage({
         </Modal>
       )}
       {whereSold && soldAt && (
-        <Modal title={`Where ${whereSold.description} is sold`} busy={busy} onClose={() => setWhereSold(null)}>
+        <Modal
+          title={`Where ${whereSold.description} is sold`}
+          busy={busy}
+          onClose={() => setWhereSold(null)}
+        >
           <p>
             Branches that sell every item always sell it. Tick the branches that sell only chosen items and
             should sell this one.
@@ -647,7 +656,9 @@ export default function ServicesPage({
                 type="checkbox"
                 checked={soldPicks.includes(b.id)}
                 onChange={(e) =>
-                  setSoldPicks(e.target.checked ? [...soldPicks, b.id] : soldPicks.filter((id) => id !== b.id))
+                  setSoldPicks(
+                    e.target.checked ? [...soldPicks, b.id] : soldPicks.filter((id) => id !== b.id),
+                  )
                 }
               />
               {b.name}
