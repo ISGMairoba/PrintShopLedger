@@ -1,7 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.57.4';
 const headers = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-psl-branch',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Content-Type': 'application/json',
 };
@@ -49,7 +49,7 @@ Deno.serve(async (request: Request) => {
       return reply(400, { error: 'Check the handover details.' });
     const { data: actor, error: actorError } = await server
       .from('shop_members')
-      .select('user_id,name,archived,access_level')
+      .select('user_id,name,archived,access_level,rank')
       .eq('shop_id', body.shopId)
       .eq('user_id', auth.user.id)
       .maybeSingle();
@@ -107,6 +107,29 @@ Deno.serve(async (request: Request) => {
     });
     if (error) return reply(['PT409', '40001'].includes(error.code) ? 409 : 400, { error: error.message });
     successful = true;
+    // At a branch (header x-psl-branch, as on the app's other requests): the closing belongs to that
+    // branch when it is open and the cashier works there (General Manager and Developer: anywhere).
+    const branch = (request.headers.get('x-psl-branch') ?? '').trim();
+    if (branch && branch !== 'main') {
+      const { data: row } = await server
+        .from('business_settings')
+        .select('settings')
+        .eq('shop_id', body.shopId)
+        .maybeSingle();
+      const settings = (row?.settings ?? {}) as {
+        branches?: { id: string; archived?: boolean }[];
+        branchAccess?: Record<string, string[]>;
+      };
+      const open = (settings.branches ?? []).some((b) => b.id === branch && !b.archived);
+      const access = settings.branchAccess?.[auth.user.id] ?? [];
+      const works = (actor.rank ?? 0) >= 4 || access.includes(branch) || access.includes('*');
+      if (open && works)
+        await server
+          .from('drawer_closings')
+          .update({ branch_id: branch })
+          .eq('shop_id', body.shopId)
+          .eq('id', body.id);
+    }
     return reply(200, {
       closing,
       access_token: next.data.session.access_token,

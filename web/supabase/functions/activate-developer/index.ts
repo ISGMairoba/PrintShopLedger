@@ -2,7 +2,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.57.4';
 import { validActivationToken, validateNewPassword } from '../../../src/registration.mjs';
 const headers = {
   'Access-Control-Allow-Origin': 'https://print-shop-ledger.vercel.app',
-  'Access-Control-Allow-Headers': 'authorization,apikey,content-type,x-client-info',
+  'Access-Control-Allow-Headers': 'authorization,apikey,content-type,x-client-info, x-psl-branch',
   'Content-Type': 'application/json',
 };
 Deno.serve(async (req) => {

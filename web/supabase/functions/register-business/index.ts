@@ -3,7 +3,7 @@ import { validateBusinessRegistration } from '../../../src/registration.mjs';
 import { deliverRegistrationMail } from '../_shared/registration-mail.ts';
 const headers = {
   'Access-Control-Allow-Origin': 'https://print-shop-ledger.vercel.app',
-  'Access-Control-Allow-Headers': 'authorization,apikey,content-type,x-client-info',
+  'Access-Control-Allow-Headers': 'authorization,apikey,content-type,x-client-info, x-psl-branch',
   'Content-Type': 'application/json',
 };
 const reply = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers });
