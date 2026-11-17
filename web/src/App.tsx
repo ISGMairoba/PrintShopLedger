@@ -2516,7 +2516,9 @@ export default function App() {
                                       );
                                       // Until the server has list_all_staff: this branch's staff.
                                       if (error?.code === 'PGRST202')
-                                        ({ data, error } = await supabase!.rpc('list_shop_users', { p_shop: shop.id }));
+                                        ({ data, error } = await supabase!.rpc('list_shop_users', {
+                                          p_shop: shop.id,
+                                        }));
                                       if (error) throw error;
                                       return data ?? [];
                                     }
