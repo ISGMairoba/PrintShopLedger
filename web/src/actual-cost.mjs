@@ -92,8 +92,12 @@ export function stockValuation(ledger) {
         changedAt: x.at,
       });
   }
+  // Each location (branch or store) keeps its own quantity and average: the owner's view of every
+  // branch together replays all their stock lines, so they are kept apart and added up at the end.
+  const where = (entry) => `${(entry.late ? entry.restock : entry)?.branchId ?? 'main'}|${entry.materialId}`;
+  const places = new Map();
   for (const entry of timeline.sort(byTime)) {
-    let m = result.get(entry.materialId);
+    let m = places.get(where(entry));
     if (!m) {
       const estimate = materialUnitCost(ledger, entry.materialId);
       m = {
@@ -104,8 +108,9 @@ export function stockValuation(ledger) {
         restocks: 0,
         unitCost: new Map(),
         actual: new Set(),
+        materialId: entry.materialId,
       };
-      result.set(entry.materialId, m);
+      places.set(where(entry), m);
     }
     if (entry.late) {
       const received = (entry.restock.afterAvailable ?? 0) - (entry.restock.beforeAvailable ?? 0);
@@ -152,6 +157,21 @@ export function stockValuation(ledger) {
       m.unitCost.set(entry.id, m.average);
       if (m.restocks) m.actual.add(entry.id);
     }
+  }
+  for (const m of places.values()) {
+    const { materialId, ...place } = m;
+    const total = result.get(materialId);
+    if (!total) {
+      result.set(materialId, place);
+      continue;
+    }
+    total.quantity += place.quantity;
+    total.value += place.value;
+    total.noCost += place.noCost;
+    total.restocks += place.restocks;
+    for (const [id, cost] of place.unitCost) total.unitCost.set(id, cost);
+    for (const id of place.actual) total.actual.add(id);
+    total.average = total.quantity > 0 ? total.value / total.quantity : (total.average ?? place.average);
   }
   // Materials with no history yet: their stock at the estimated cost.
   for (const material of ledger.materials ?? [])
