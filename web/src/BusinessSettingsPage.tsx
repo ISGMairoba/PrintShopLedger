@@ -29,6 +29,7 @@ import {
   POWERED_BY_MAX,
 } from './business-branding.mjs';
 import type { Branding } from './useBusinessBranding';
+import type { Service } from './types';
 import { termPresets } from './terms.mjs';
 import { businessTypes, featureOn, optionalFeatures, typeFeatures } from './business-type.mjs';
 import { useWords } from './Words';
@@ -48,7 +49,14 @@ export default function BusinessSettingsPage({
   loadStaff,
   accountSettings,
   deviceSignOut,
+  branchItems,
 }: {
+  /** Choosing the items a branch sells (General Manager and Developer). */
+  branchItems?: {
+    services: Service[];
+    save: (branchId: string, ids: string[]) => Promise<void>;
+    online: boolean;
+  };
   accountSettings?: ReactNode;
   /** "Sign out business" for this device (anyone allowed in Business Settings). */
   deviceSignOut?: ReactNode;
@@ -1268,7 +1276,8 @@ export default function BusinessSettingsPage({
                   onAccess={(next) => field('branchAccess', next)}
                   canSetAccess={accessLevel >= 4}
                   pricing={draft.branchPricing}
-                  onPricing={(next) => field('branchPricing', next)}
+                  businessType={draft.businessType ?? 'both'}
+                  items={branchItems}
                 />
                 {sectionSave('Branches', ['branches', 'branchAccess', 'branchPricing'])}
               </fieldset>

@@ -4,8 +4,13 @@ import {
   allowedBranches,
   branchesOf,
   branchLedger,
+  chosenItemsLedger,
   hasBranches,
+  MAIN,
+  ownPrices,
   seesAllBranches,
+  sellsChosen,
+  settingsForBranch,
 } from './branches.mjs';
 import { setRequestBranch, storeBranch, storedBranch } from './device-branch';
 import PayeesPage from './PayeesPage';
@@ -280,7 +285,7 @@ export default function App() {
         : null,
     );
   }, [signingShop]);
-  const branding = useBusinessBranding(
+  const businessBranding = useBusinessBranding(
     shop?.id ?? '',
     scope,
     demo ? 'Local trial' : (shop?.name ?? ''),
@@ -289,7 +294,7 @@ export default function App() {
   );
   // The branch this device works in (branches.mjs). One-branch businesses always use the main one.
   const branchChoices = allowedBranches(
-    branding.settings,
+    businessBranding.settings,
     shop?.userId ?? '',
     demo ? 5 : (shop?.accessLevel ?? 0),
   );
@@ -305,7 +310,7 @@ export default function App() {
   const holdCurrentSale = (sale: HeldSale) => {
     if (!scope) return;
     try {
-      setHeld(holdSale(deviceStorage(), scope, sale));
+      setHeld(holdSale(deviceStorage(), scope, { ...sale, branchId: activeBranch?.id ?? MAIN }));
       setResuming(null);
       setForm(null);
       setQuickSale(false);
@@ -330,9 +335,24 @@ export default function App() {
     branchChoices.length === 1
       ? branchChoices[0]
       : (branchChoices.find((b) => b.id === branchChoice) ?? null);
+  // The settings as this branch sees them: a branch's own type (retail, print or both) decides
+  // which parts of the app show. Business Settings edits the business's own (businessBranding).
+  const branding = useMemo(() => {
+    const settings = settingsForBranch(businessBranding.settings, activeBranch?.id ?? MAIN);
+    return settings === businessBranding.settings ? businessBranding : { ...businessBranding, settings };
+  }, [businessBranding, activeBranch?.id]);
+  // Held sales of this device's branch only (a sale held in another branch is resumed there; ones
+  // held before branches were recorded show everywhere).
+  const heldHere = useMemo(
+    () => held.filter((h) => !h.branchId || h.branchId === (activeBranch?.id ?? MAIN)),
+    [held, activeBranch?.id],
+  );
   const needBranchChoice = !demo && !!shop && branding.ready && !activeBranch;
   // Until the business's branches are known, keep sending the branch this device last chose.
-  setRequestBranch(branding.ready ? activeBranch?.id : branchChoice);
+  setRequestBranch(
+    branding.ready ? activeBranch?.id : branchChoice,
+    branding.ready && sellsChosen(branding.settings, activeBranch?.id ?? MAIN),
+  );
   const multiBranch = hasBranches(branding.settings);
   // The subscription set in the developer console: banners, pages turned off, read-only or locked.
   const subscription = useSubscription(scope, shop?.id, online, demo);
@@ -421,12 +441,15 @@ export default function App() {
     return () => window.removeEventListener(STALE_EVENT, flag);
   }, []);
   // With branches, pages show this device's branch only (the owner's master view comes later).
+  // A branch that sells chosen items sees only those (others are put aside, see chosenItemsLedger).
   const ledger = useMemo(
     () => ({
-      ...(multiBranch && activeBranch ? branchLedger(state.ledger, activeBranch.id) : state.ledger),
+      ...(multiBranch && activeBranch
+        ? chosenItemsLedger(branchLedger(state.ledger, activeBranch.id), branding.settings, activeBranch.id)
+        : state.ledger),
       pricing: branding.settings.pricing,
     }),
-    [state.ledger, branding.settings.pricing, multiBranch, activeBranch],
+    [state.ledger, branding.settings, multiBranch, activeBranch],
   );
   // A device that changes branch downloads that branch's records afresh.
   async function changeBranch(id: string) {
@@ -469,6 +492,35 @@ export default function App() {
     openBranches,
     stageHours: branding.settings.options.stageHours,
   });
+  // Branches that sell only chosen items: the General Manager and Developer choose them (Business
+  // Settings → Branches, or Sold at on the Services page). Saved straight to the server.
+  const chooseItems = !demo && multiBranch && (shop?.accessLevel ?? 0) >= 4;
+  const chosenBranches = useMemo(
+    () =>
+      openBranches
+        .filter((b) => b.kind !== 'store' && b.sells === 'chosen')
+        .map(({ id, name }) => ({ id, name })),
+    [openBranches],
+  );
+  const saveItemBranches = async (serviceId: string, branchIds: string[]) => {
+    const { error } = await supabase!.rpc('set_item_branches', {
+      p_shop: shop!.id,
+      p_service: serviceId,
+      p_branches: branchIds,
+    });
+    if (error) throw Error(error.message);
+    setMessage('Saved where the item is sold. It shows after the next sync.', 'success');
+    syncNow();
+  };
+  const saveBranchItems = async (branchId: string, serviceIds: string[]) => {
+    const { error } = await supabase!.rpc('set_branch_items', {
+      p_shop: shop!.id,
+      p_branch: branchId,
+      p_services: serviceIds,
+    });
+    if (error) throw Error(error.message);
+    syncNow();
+  };
   // Stores keep stock only, so the sales comparisons leave them out.
   const salesBranches = useMemo(() => openBranches.filter((b) => b.kind !== 'store'), [openBranches]);
   const masterLedger = useMemo(() => {
@@ -1036,6 +1088,22 @@ export default function App() {
     if (setBusinessKeep(scope, businessKeep)) void downloadAgain(scope);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scope, businessKeep, brandingReadyForKeep]);
+  // A branch switching between the main prices and its own: its devices receive every item priced
+  // afresh (the items themselves did not change, so a normal sync would not bring them).
+  const branchPriceMode =
+    multiBranch && activeBranch ? `${activeBranch.id}:${ownPrices(branding.settings, activeBranch.id)}` : '';
+  useEffect(() => {
+    if (demo || !scope || !brandingReadyForKeep || !branchPriceMode) return;
+    const key = `printshopledger:branch-prices:v1:${scope}`;
+    let before: string | null = null;
+    try {
+      before = localStorage.getItem(key);
+      localStorage.setItem(key, branchPriceMode);
+    } catch {}
+    if (before !== null && before !== branchPriceMode && before.split(':')[0] === activeBranch?.id)
+      void downloadAgain(scope);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scope, branchPriceMode, brandingReadyForKeep]);
   const syncLabel = !ready
     ? 'Loading'
     : hasConflict
@@ -2360,7 +2428,7 @@ export default function App() {
                           ) : page === 'Pricing Templates' ? (
                             <PricingTemplatesPage
                               key={scope}
-                              settings={branding.settings}
+                              settings={businessBranding.settings}
                               version={branding.version}
                               ledger={ledger}
                               ready={branding.ready && ready}
@@ -2392,7 +2460,12 @@ export default function App() {
                           ) : page === 'Business Settings' ? (
                             <BusinessSettingsPage
                               key={scope}
-                              settings={branding.settings}
+                              settings={businessBranding.settings}
+                              branchItems={
+                                chooseItems
+                                  ? { services: state.ledger.services, save: saveBranchItems, online }
+                                  : undefined
+                              }
                               version={branding.version}
                               ready={branding.ready}
                               online={online}
@@ -2557,7 +2630,7 @@ export default function App() {
                               busy={busy || legacyConflict}
                               held={resuming?.kind === 'quick' ? resuming : undefined}
                               onHold={holdCurrentSale}
-                              heldList={held}
+                              heldList={heldHere}
                               onResumeHeld={(sale) => setResuming(sale)}
                               onDiscardHeld={(sale) =>
                                 scope && setHeld(removeHeld(deviceStorage(), scope, sale.id))
@@ -2599,7 +2672,7 @@ export default function App() {
                               onBulkAction={(jobs, mode) => setBatchToAdvance({ jobs, mode })}
                               onDue={canChangeDue ? setDeadlineJobs : undefined}
                               onReceipt={setReceipt}
-                              held={held}
+                              held={heldHere}
                               onResumeHeld={(sale) => {
                                 setPaymentCustomer('');
                                 setCheckoutStart(null);
@@ -2666,7 +2739,7 @@ export default function App() {
                               {materialTabs}
                               <MaterialsPage
                                 key={scope}
-                                materials={ledger.materials}
+                                materials={ledger.materials.filter((m) => !m.hiddenHere)}
                                 history={ledger.materialHistory}
                                 valuation={stockValuation(ledger)}
                                 ready={ready}
@@ -2733,10 +2806,9 @@ export default function App() {
                             <ServicesPage
                               branchPrice={
                                 !demo &&
-                                branding.settings.branchPricing === 'perBranch' &&
                                 multiBranch &&
                                 activeBranch &&
-                                activeBranch.id !== 'main'
+                                ownPrices(branding.settings, activeBranch.id)
                                   ? {
                                       branchName: activeBranch.name,
                                       set: async (serviceId, price) => {
@@ -2757,7 +2829,20 @@ export default function App() {
                                   : undefined
                               }
                               key={scope}
-                              services={ledger.services}
+                              services={
+                                chooseItems
+                                  ? state.ledger.services
+                                  : ledger.services.filter((item) => !item.notSoldHere)
+                              }
+                              soldAt={
+                                chooseItems
+                                  ? {
+                                      branches: chosenBranches,
+                                      current: activeBranch?.id ?? MAIN,
+                                      set: saveItemBranches,
+                                    }
+                                  : undefined
+                              }
                               materials={ledger.materials}
                               ready={ready}
                               busy={(!demo && shop?.role === 'cashier') || busy || hasConflict}
@@ -2922,7 +3007,7 @@ export default function App() {
                           busy={busy}
                           held={resuming?.kind === 'quick' ? resuming : undefined}
                           onHold={holdCurrentSale}
-                          heldList={held}
+                          heldList={heldHere}
                           onResumeHeld={(sale) => setResuming(sale)}
                           onDiscardHeld={(sale) =>
                             scope && setHeld(removeHeld(deviceStorage(), scope, sale.id))

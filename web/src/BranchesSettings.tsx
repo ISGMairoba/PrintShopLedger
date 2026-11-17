@@ -1,5 +1,9 @@
+import { useState } from 'react';
+import BranchItemsDialog from './BranchItemsDialog';
 import Icon from './Icon';
 import { branchesOf, MAIN, newBranchId } from './branches.mjs';
+import { businessTypes } from './business-type.mjs';
+import type { Service } from './types';
 
 type Branch = {
   id: string;
@@ -8,6 +12,9 @@ type Branch = {
   phone: string;
   archived: boolean;
   kind?: 'branch' | 'store';
+  type?: 'both' | 'print' | 'retail';
+  prices?: 'main' | 'own';
+  sells?: 'all' | 'chosen';
 };
 export type BranchStaff = { userId: string; name: string; role: string; rank: number; archived?: boolean };
 
@@ -23,13 +30,17 @@ export default function BranchesSettings({
   onBranches,
   onAccess,
   pricing,
-  onPricing,
+  businessType,
+  items,
   canSetAccess,
 }: {
   /** Who works where: General Manager and Developer only. */
   canSetAccess: boolean;
+  /** The business's older setting: branches without their own choice follow it. */
   pricing: 'shared' | 'perBranch';
-  onPricing: (next: 'shared' | 'perBranch') => void;
+  businessType: 'both' | 'print' | 'retail';
+  /** Choosing the items a branch sells (General Manager and Developer, online). */
+  items?: { services: Service[]; save: (branchId: string, ids: string[]) => Promise<void>; online: boolean };
   branches: Branch[];
   access: Record<string, string[]>;
   /** null while loading or where the staff list is not available. */
@@ -38,6 +49,10 @@ export default function BranchesSettings({
   onAccess: (next: Record<string, string[]>) => void;
 }) {
   const list: Branch[] = branchesOf({ branches });
+  const [choosing, setChoosing] = useState<Branch | null>(null);
+  const typeName = (t: string) => businessTypes.find(([v]) => v === t)?.[1] ?? t;
+  const chosenCount = (id: string) =>
+    items?.services.filter((s) => !s.archived && !s.private && s.soldAt?.includes(id)).length ?? 0;
   const active = list.filter((b) => !b.archived);
   const change = (id: string, patch: Partial<Branch>) =>
     onBranches(list.map((b) => (b.id === id ? { ...b, ...patch } : b)));
@@ -96,6 +111,66 @@ export default function BranchesSettings({
                 </>
               )}
             </div>
+            {b.kind !== 'store' && (
+              <div className="form-grid">
+                <label>
+                  What it does
+                  <select
+                    aria-label={`Branch ${i + 1} type`}
+                    value={b.type ?? ''}
+                    onChange={(e) => change(b.id, { type: (e.target.value || undefined) as Branch['type'] })}
+                  >
+                    <option value="">Same as the business ({typeName(businessType)})</option>
+                    {businessTypes.map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {i > 0 && (
+                  <>
+                    <label>
+                      Prices
+                      <select
+                        aria-label={`Branch ${i + 1} prices`}
+                        value={b.prices ?? (pricing === 'perBranch' ? 'own' : 'main')}
+                        onChange={(e) => change(b.id, { prices: e.target.value as 'main' | 'own' })}
+                      >
+                        <option value="main">Main branch prices</option>
+                        <option value="own">Its own prices (Price here on the Services page)</option>
+                      </select>
+                    </label>
+                    <label>
+                      Items it sells
+                      <select
+                        aria-label={`Branch ${i + 1} items`}
+                        value={b.sells ?? 'all'}
+                        onChange={(e) => change(b.id, { sells: e.target.value as 'all' | 'chosen' })}
+                      >
+                        <option value="all">Every item</option>
+                        <option value="chosen">Only chosen items</option>
+                      </select>
+                    </label>
+                  </>
+                )}
+              </div>
+            )}
+            {i > 0 && b.kind !== 'store' && b.sells === 'chosen' && (
+              <div className="material-actions">
+                {items ? (
+                  <button type="button" className="secondary" onClick={() => setChoosing(b)}>
+                    <Icon name="services" /> Choose items ({chosenCount(b.id)})
+                  </button>
+                ) : (
+                  <small className="muted">The General Manager chooses this branch's items.</small>
+                )}
+                <small className="muted">
+                  Items are saved straight away; save the branch settings too so the branch starts using the
+                  list.
+                </small>
+              </div>
+            )}
             {b.kind === 'store' && (
               <small className="muted">
                 A store keeps stock only: no sales happen there, so it does not count towards your branch
@@ -140,29 +215,6 @@ export default function BranchesSettings({
       </div>
       {active.length > 1 && (
         <>
-          <h3>Prices</h3>
-          <label className="check-label">
-            <input
-              type="radio"
-              name="branchPricing"
-              checked={pricing === 'shared'}
-              onChange={() => onPricing('shared')}
-            />
-            Same prices in every branch
-          </label>
-          <label className="check-label">
-            <input
-              type="radio"
-              name="branchPricing"
-              checked={pricing === 'perBranch'}
-              onChange={() => onPricing('perBranch')}
-            />
-            Each branch can set its own prices
-          </label>
-          <p className="muted">
-            With its own prices, a branch other than the main one uses <strong>Price here</strong> on the
-            Services page for any item; items without a branch price use the business price.
-          </p>
           <h3>Who works where</h3>
           <p className="muted">
             Staff work in the branches ticked here; anyone not set works in the main branch.{' '}
@@ -231,6 +283,16 @@ export default function BranchesSettings({
             </div>
           )}
         </>
+      )}
+      {choosing && items && (
+        <BranchItemsDialog
+          branchId={choosing.id}
+          branchName={choosing.name}
+          services={items.services}
+          online={items.online}
+          onSave={items.save}
+          onClose={() => setChoosing(null)}
+        />
       )}
     </>
   );
