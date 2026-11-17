@@ -5,6 +5,8 @@
 // * 'share': the phone's share sheet (WhatsApp, SMS, email…), with the PDF attached when there is one.
 // Customer names: {customer} is the "Called as" name (else the first name), {customer_full} the name as saved,
 // {customer_first} / {customer_last} the first / last word of it.
+// Where from: {business} is the business name; {branch} the branch name, {address} and {phone} the
+// branch's address and phone (the business's when the branch has none, or without branches).
 
 export const SEND_MODES = ['whatsapp', 'share'];
 
@@ -13,6 +15,12 @@ const customerHolders = [
   ['customer_full', 'Full name'],
   ['customer_first', 'First word of the name'],
   ['customer_last', 'Last word of the name'],
+];
+
+const placeHolders = [
+  ['branch', 'Branch name (empty without branches)'],
+  ['address', 'Branch address (else the business address)'],
+  ['phone', 'Branch phone number (else the business number)'],
 ];
 
 /** Every message, in the order the settings show them. */
@@ -31,6 +39,7 @@ export const MESSAGE_KINDS = [
       ['items', 'Items and quantities'],
       ['balance', 'What is left to pay, or "fully paid"'],
       ['business', 'Business name'],
+      ...placeHolders,
     ],
     sample: {
       job: 'order',
@@ -57,6 +66,7 @@ export const MESSAGE_KINDS = [
       ['to_pay', 'What to pay before collecting this part, or "This part is paid."'],
       ['balance', 'Balance on the whole order, or "fully paid"'],
       ['business', 'Business name'],
+      ...placeHolders,
     ],
     sample: {
       ready: '60',
@@ -81,6 +91,7 @@ export const MESSAGE_KINDS = [
       ['paid', 'Amount paid now'],
       ['balance', 'Balance on the account, or a thank-you'],
       ['business', 'Business name'],
+      ...placeHolders,
     ],
     sample: { receipt: 'B8E634D3', paid: '₦23,000.00', balance: 'Balance on your account: ₦2,500.00.' },
   },
@@ -96,6 +107,7 @@ export const MESSAGE_KINDS = [
       ['total', 'Quotation total'],
       ['valid_until', 'Valid until'],
       ['business', 'Business name'],
+      ...placeHolders,
     ],
     sample: { quotation: 'Q-1042', total: '₦75,050.00', valid_until: '30 Nov 2026' },
   },
@@ -110,6 +122,7 @@ export const MESSAGE_KINDS = [
       ['owed', 'Amount owed'],
       ['oldest', 'Date of the oldest unpaid order'],
       ['business', 'Business name'],
+      ...placeHolders,
     ],
     sample: { owed: '₦104,000.00', oldest: '9 Nov 2026' },
   },
@@ -124,6 +137,7 @@ export const MESSAGE_KINDS = [
       ['owed', 'Amount owed'],
       ['owed_line', '"Amount owed: …" or a thank-you'],
       ['business', 'Business name'],
+      ...placeHolders,
     ],
     sample: { owed: '₦104,000.00', owed_line: 'Amount owed: ₦104,000.00. Thank you.' },
   },
@@ -139,6 +153,7 @@ export const MESSAGE_KINDS = [
       ['quantity', 'Quantity handed over'],
       ['item', 'Item'],
       ['business', 'Business name'],
+      ...placeHolders,
     ],
     sample: { note: 'DN-C8D2E3F4', quantity: '60', item: 'Jotter soft cover' },
   },
@@ -152,6 +167,7 @@ export const MESSAGE_KINDS = [
       ['template', 'Template name'],
       ['count', 'How many options'],
       ['business', 'Business name'],
+      ...placeHolders,
     ],
     sample: { template: 'Paper bag', count: '3' },
   },
@@ -164,6 +180,7 @@ export const MESSAGE_KINDS = [
     holders: [
       ['list', 'The items and quantities, one per line'],
       ['business', 'Business name'],
+      ...placeHolders,
     ],
     sample: { list: '- SAV paper: 10 rolls\n- Lamination film: 2 rolls' },
   },
@@ -206,12 +223,24 @@ export function customerNames(name, calledAs = '') {
   };
 }
 
+/** Where this device's messages come from: its branch's name, address and phone (App sets it). */
+let sender = { branch: '', address: '', phone: '' };
+export function setMessageSender(next) {
+  sender = {
+    branch: String(next?.branch ?? '').trim(),
+    address: String(next?.address ?? '').trim(),
+    phone: String(next?.phone ?? '').trim(),
+  };
+}
+
 /** Fill a template: known {placeholders} are replaced; tidy spaces around what came out empty. */
 export function fillMessage(template, values) {
   return String(template)
     .replace(/\{(\w+)\}/g, (found, key) => (key in values ? String(values[key] ?? '') : found))
     .replace(/\(\)\s?/g, '')
     .replace(/[ \t]+([.,])/g, '$1')
+    // "at {business}, {address}." with no address: no stray comma.
+    .replace(/,[ \t]*(?=[.,!?]|$)/gm, '')
     .replace(/[ \t]{2,}/g, ' ')
     .split('\n')
     .map((line) => line.trim())
@@ -228,7 +257,7 @@ export function messageText(settings, key, values, legacyReady = '') {
   if (!kind) throw Error('Unknown message.');
   const own = settings?.items?.[key]?.text;
   const template = own || (key === 'ready' && legacyReady.trim()) || kind.text;
-  return fillMessage(template, values);
+  return fillMessage(template, { ...sender, ...values });
 }
 
 /** How a message goes out: its own choice, else the business default. */
@@ -245,6 +274,9 @@ export const sampleMessage = (settings, key, business, legacyReady = '') =>
     {
       ...customerNames('Sara Aminu Bello'),
       business: business || 'Your business',
+      branch: sender.branch || 'Ikeja branch',
+      address: sender.address || '12 Allen Avenue, Ikeja',
+      phone: sender.phone || '0803 000 0000',
       ...messageKind(key)?.sample,
     },
     legacyReady,

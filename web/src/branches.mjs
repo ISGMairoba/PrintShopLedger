@@ -259,11 +259,10 @@ export function tagNewRecords(before, after, id = localBranch) {
   // An item added at a branch that sells chosen items is sold there (the server does the same).
   if (localChosen && id === localBranch && Array.isArray(after?.services)) {
     const known = new Set((before?.services ?? []).map((s) => s.id));
-    if (after.services.some((s) => !known.has(s.id) && !s.soldAt?.includes(id))) {
+    // (Unless the General Manager or Developer chose where it is sold: then soldAt is set.)
+    if (after.services.some((s) => !known.has(s.id) && !s.soldAt)) {
       out = { ...after };
-      out.services = after.services.map((s) =>
-        known.has(s.id) || s.soldAt?.includes(id) ? s : { ...s, soldAt: [...(s.soldAt ?? []), id] },
-      );
+      out.services = after.services.map((s) => (known.has(s.id) || s.soldAt ? s : { ...s, soldAt: [id] }));
     }
   }
   for (const key of BRANCH_KEYS) {
