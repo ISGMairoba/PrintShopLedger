@@ -6,7 +6,9 @@ import { PDF_FONT } from './pdf-common';
  * stand-in for the few jsPDF commands it uses, which records them; render() then paints every page,
  * one under the other, on a canvas. Sizes are in millimetres like the PDF; fonts are the PDF's own.
  */
-type Op = (ctx: CanvasRenderingContext2D) => void;
+// Each command draws in pixels: k pixels per millimetre, `top` millimetres down the picture. Text is
+// drawn and measured at full size (not scaled up from tiny sizes, which spaces letters unevenly).
+type Op = (ctx: CanvasRenderingContext2D, k: number, top: number) => void;
 type Page = { w: number; h: number; ops: Op[] };
 type Style = 'normal' | 'bold' | 'italic';
 const PT = 25.4 / 72; // one point in millimetres
@@ -112,8 +114,8 @@ export class CanvasDoc {
   }
   /** Width of text in millimetres at the current font. */
   getTextWidth(text: string) {
-    this.measure.font = this.font();
-    return this.measure.measureText(text).width;
+    this.measure.font = this.font(100);
+    return this.measure.measureText(text).width / 100;
   }
   splitTextToSize(text: string, width: number) {
     const out: string[] = [];
@@ -139,18 +141,19 @@ export class CanvasDoc {
   }
   text(text: string | string[], x: number, y: number, options: { align?: 'left' | 'right' | 'center' } = {}) {
     const lines = Array.isArray(text) ? text : [text];
-    const font = this.font(),
+    const size = this.size,
+      style = this.style,
       colour = this.text_,
       alpha = this.alpha,
       align = options.align ?? 'left',
       step = this.size * PT * 1.15;
-    this.push((ctx) => {
+    this.push((ctx, k, top) => {
       ctx.globalAlpha = alpha;
-      ctx.font = font;
+      ctx.font = `${style === 'italic' ? 'italic ' : ''}${style === 'bold' ? '700 ' : '400 '}${size * PT * k}px ${PDF_FONT}`;
       ctx.fillStyle = colour;
       ctx.textAlign = align;
       ctx.textBaseline = 'alphabetic';
-      lines.forEach((line, i) => ctx.fillText(line, x, y + i * step));
+      lines.forEach((line, i) => ctx.fillText(line, x * k, (top + y + i * step) * k));
     });
     return this;
   }
@@ -159,14 +162,14 @@ export class CanvasDoc {
       width = this.width_,
       dash = this.dash,
       alpha = this.alpha;
-    this.push((ctx) => {
+    this.push((ctx, k, top) => {
       ctx.globalAlpha = alpha;
       ctx.strokeStyle = colour;
-      ctx.lineWidth = width;
-      ctx.setLineDash(dash);
+      ctx.lineWidth = width * k;
+      ctx.setLineDash(dash.map((d) => d * k));
       ctx.beginPath();
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y2);
+      ctx.moveTo(x1 * k, (top + y1) * k);
+      ctx.lineTo(x2 * k, (top + y2) * k);
       ctx.stroke();
       ctx.setLineDash([]);
     });
@@ -177,16 +180,16 @@ export class CanvasDoc {
       stroke = this.draw_,
       width = this.width_,
       alpha = this.alpha;
-    this.push((ctx) => {
+    this.push((ctx, k, top) => {
       ctx.globalAlpha = alpha;
       if (style.includes('F')) {
         ctx.fillStyle = fill;
-        ctx.fillRect(x, y, w, h);
+        ctx.fillRect(x * k, (top + y) * k, w * k, h * k);
       }
       if (style.includes('D') || style === 'S') {
         ctx.strokeStyle = stroke;
-        ctx.lineWidth = width;
-        ctx.strokeRect(x, y, w, h);
+        ctx.lineWidth = width * k;
+        ctx.strokeRect(x * k, (top + y) * k, w * k, h * k);
       }
     });
     return this;
@@ -200,9 +203,9 @@ export class CanvasDoc {
     const img = this.images.get(data);
     if (!img) return this;
     const alpha = this.alpha;
-    this.push((ctx) => {
+    this.push((ctx, k, top) => {
       ctx.globalAlpha = alpha;
-      ctx.drawImage(img, x, y, w, h);
+      ctx.drawImage(img, x * k, (top + y) * k, w * k, h * k);
     });
     return this;
   }
@@ -231,13 +234,10 @@ export class CanvasDoc {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     let top = 0;
     for (const page of this.pages) {
-      ctx.save();
-      ctx.scale(pxPerMm, pxPerMm);
-      ctx.translate(0, top);
-      for (const op of page.ops) op(ctx);
-      ctx.restore();
+      for (const op of page.ops) op(ctx, pxPerMm, top);
       top += page.h;
     }
+    ctx.globalAlpha = 1;
     return canvas;
   }
 }
