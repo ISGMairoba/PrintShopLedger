@@ -179,6 +179,7 @@ import { featureOn } from './business-type.mjs';
 import RemindersPage from './RemindersPage';
 import { useMobileLayout } from './ResponsiveTable';
 import { PendingChecksBanner } from './MaterialCheckSection';
+import { setMessageSender } from './messages.mjs';
 
 const DashboardPage = lazy(() => import('./DashboardPage'));
 const ReportsPage = lazy(() => import('./ReportsPage'));
@@ -579,6 +580,12 @@ export default function App() {
     </label>
   ) : undefined;
   // Receipts and documents show the branch's own phone and address when it has them.
+  // Messages ({branch}, {address}, {phone}) come from this device's branch.
+  setMessageSender({
+    branch: multiBranch && activeBranch ? activeBranch.name : '',
+    address: (multiBranch && activeBranch?.address) || branding.settings.address,
+    phone: (multiBranch && activeBranch?.phone) || branding.settings.phones,
+  });
   const docBusiness = useMemo(
     () =>
       multiBranch && activeBranch
@@ -684,6 +691,31 @@ export default function App() {
       demo ? 'Saved on this device.' : 'Saved on this device. Changes sync automatically when connected.',
     );
   }
+  // A new item from the General Manager or Developer, with branches that sell only chosen items:
+  // they choose where it is sold before it is saved (Business Settings → Branches decides the rest).
+  const [soldAsk, setSoldAsk] = useState<{
+    items: string[];
+    picks: string[];
+    resolve: (picks: string[] | null) => void;
+  } | null>(null);
+  async function withWhereSold<T extends { kind: string }>(operations: T[]): Promise<T[]> {
+    if (!chooseItems || !chosenBranches.length) return operations;
+    const created = operations.filter((o) => o.kind === 'service.created') as unknown as {
+      data: { description?: string; private?: boolean };
+    }[];
+    if (!created.length || created.every((o) => o.data.private)) return operations;
+    const here = chosenBranches.some((b) => b.id === activeBranch?.id) ? [activeBranch!.id] : [];
+    const picks = await new Promise<string[] | null>((resolve) =>
+      setSoldAsk({ items: created.map((o) => o.data.description ?? 'New item'), picks: here, resolve }),
+    );
+    setSoldAsk(null);
+    if (picks === null) throw Error('Not saved: choose where the item is sold, then save again.');
+    return operations.map((o) =>
+      o.kind === 'service.created'
+        ? ({ ...o, data: { ...(o as unknown as { data: object }).data, soldAt: picks } } as T)
+        : o,
+    );
+  }
   async function saveCatalogue(
     operation:
       | MaterialEvent
@@ -707,7 +739,7 @@ export default function App() {
     setBusy(true);
     setMessage('');
     try {
-      await save(operation);
+      await save((await withWhereSold([operation]))[0]);
     } finally {
       setBusy(false);
     }
@@ -726,7 +758,7 @@ export default function App() {
     setBusy(true);
     setMessage('');
     try {
-      const next = await saveEvents(target, operations, !demo);
+      const next = await saveEvents(target, await withWhereSold(operations), !demo);
       if (activeScope.current !== target) return;
       setState(next);
       channel.current?.postMessage('changed');
@@ -3168,6 +3200,49 @@ export default function App() {
                             onSave={approveOperation}
                           />
                         )}
+                      {soldAsk && (
+                        <Modal
+                          title={
+                            soldAsk.items.length > 1
+                              ? 'Where are these items sold?'
+                              : 'Where is this item sold?'
+                          }
+                          onClose={() => soldAsk.resolve(null)}
+                        >
+                          <p>
+                            <strong>{soldAsk.items.join(', ')}</strong>
+                          </p>
+                          <p>
+                            Branches that sell every item sell it anyway. Tick the branches that sell only
+                            chosen items and should sell it too.
+                          </p>
+                          {chosenBranches.map((b) => (
+                            <label key={b.id} className="check-label">
+                              <input
+                                type="checkbox"
+                                checked={soldAsk.picks.includes(b.id)}
+                                onChange={(e) =>
+                                  setSoldAsk({
+                                    ...soldAsk,
+                                    picks: e.target.checked
+                                      ? [...soldAsk.picks, b.id]
+                                      : soldAsk.picks.filter((id) => id !== b.id),
+                                  })
+                                }
+                              />
+                              {b.name}
+                            </label>
+                          ))}
+                          <div className="material-actions">
+                            <button type="button" className="secondary" onClick={() => soldAsk.resolve(null)}>
+                              Cancel
+                            </button>
+                            <button type="button" onClick={() => soldAsk.resolve(soldAsk.picks)}>
+                              <Icon name="save" /> Save
+                            </button>
+                          </div>
+                        </Modal>
+                      )}
                       {receipt && (
                         <ReceiptView
                           ledger={ledger}

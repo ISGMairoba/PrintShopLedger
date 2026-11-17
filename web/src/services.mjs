@@ -151,6 +151,14 @@ export function applyServiceEvent(input, event) {
         : {}),
       ...choiceFields(ledger, data),
       production: validProduction(data.production) ?? {},
+      // Chosen by the General Manager or Developer: branches selling chosen items that sell it.
+      ...(Array.isArray(data.soldAt)
+        ? {
+            soldAt: [
+              ...new Set(data.soldAt.filter((id) => typeof id === 'string' && /^b-[a-z0-9]{6,20}$/.test(id))),
+            ],
+          }
+        : {}),
       archived: false,
       version: 1,
       createdBy: data.modifiedBy,
