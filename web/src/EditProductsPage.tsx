@@ -143,8 +143,8 @@ export default function EditProductsPage({
                 {shown.map(({ service, material, sharedWith }) => {
                   const low =
                     material &&
-                    material.available <= (material.minimumStock ?? 0) &&
-                    (material.minimumStock ?? 0) > 0;
+                    material.available <= (material.minimumHere ?? material.minimumStock ?? 0) &&
+                    (material.minimumHere ?? material.minimumStock ?? 0) > 0;
                   return (
                     <tr key={service.id}>
                       <td>

@@ -317,6 +317,8 @@ export interface Payment {
 export interface Material {
   /** None of the items this device's branch sells use it, and the branch holds none. */
   hiddenHere?: boolean;
+  /** The minimum set at this device's branch or store (branches.mjs withLocationMinimums). */
+  minimumHere?: number;
   minimumStock?: number;
   id: string;
   name: string;

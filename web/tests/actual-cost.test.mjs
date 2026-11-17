@@ -242,3 +242,37 @@ test('Every branch together: each location keeps its own average, and the totals
   assert.equal(v.value, 250000);
   assert.equal(v.unitCost.get('c'), 1000, 'the main branch average is not mixed with the branch’s');
 });
+
+test('Stock received from another location arrives at its cost there', async () => {
+  const { locationUnitCost } = await import('../src/actual-cost.mjs');
+  const ledger = {
+    materials: [{ id: 'paper', name: 'Paper', available: 0, measurementUnit: 'sheet' }],
+    services: [],
+    expenses: [],
+    materialHistory: [
+      {
+        id: 'r',
+        materialId: 'paper',
+        action: 'material.stock_added',
+        beforeAvailable: 0,
+        afterAvailable: 100,
+        changedAt: at(1),
+        after: { cost: { supplierPrice: 200000 } },
+      },
+      {
+        id: 't',
+        materialId: 'paper',
+        branchId: 'b-shop000001',
+        action: 'material.transferred',
+        beforeAvailable: 0,
+        afterAvailable: 10,
+        changedAt: at(2),
+        after: { cost: { unitCost: 2000, actual: true } },
+      },
+    ],
+  };
+  assert.deepEqual(locationUnitCost(ledger, 'paper', 'main'), { unitCost: 2000, actual: true });
+  const branch = locationUnitCost(ledger, 'paper', 'b-shop000001');
+  assert.deepEqual(branch, { unitCost: 2000, actual: true });
+  assert.equal(locationUnitCost(ledger, 'paper', 'b-other00001'), null);
+});

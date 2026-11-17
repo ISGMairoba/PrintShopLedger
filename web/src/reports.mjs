@@ -820,7 +820,7 @@ export function summaryReport(
             wasted: 0,
             added: 0,
             now: m.available,
-            minimum: m.minimumStock ?? 0,
+            minimum: m.minimumHere ?? m.minimumStock ?? 0,
             level: '',
           },
         ]),

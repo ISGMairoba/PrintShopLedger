@@ -1,5 +1,6 @@
 // Items running low at other locations (stores, other branches) this person can see: the Materials
 // page panel and the daily reminder at the top of the app.
+import { minimumAt } from './branches.mjs';
 import { stockLevel } from './material-display.mjs';
 
 /**
@@ -7,15 +8,19 @@ import { stockLevel } from './material-display.mjs';
  * @param {{ materialId: string, location: string, available: number }[]} stock
  * @param {string} here the location this device works in
  * @param {{ id: string, name: string }[]} list the locations this person can see
+ * @param {any} [settings] business settings: each location's own minimums (stockMinimums)
  */
-export function lowAtOtherLocations(materials, stock, here, list) {
+export function lowAtOtherLocations(materials, stock, here, list, settings = null) {
   const name = (id) => list.find((l) => l.id === id)?.name ?? '';
   return (stock ?? [])
     .filter((s) => s.location !== here && list.some((l) => l.id === s.location))
     .flatMap((s) => {
       const material = materials.find((m) => m.id === s.materialId && !m.archived);
-      const level = material && stockLevel({ ...material, available: s.available });
-      return material && level ? [{ material, location: s.location, available: s.available, level }] : [];
+      const minimum = material ? minimumAt(settings, material, s.location) : 0;
+      const level = material && stockLevel({ ...material, minimumHere: minimum, available: s.available });
+      return material && level
+        ? [{ material, location: s.location, available: s.available, level, minimum }]
+        : [];
     })
     .sort(
       (a, b) =>

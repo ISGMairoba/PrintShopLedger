@@ -22,6 +22,7 @@ export default function useAdminReminders({
   activeBranch,
   openBranches,
   stageHours,
+  settings,
 }: {
   demo: boolean;
   scope: string;
@@ -33,6 +34,8 @@ export default function useAdminReminders({
   activeBranch: Branch | null | undefined;
   openBranches: Branch[];
   stageHours?: Record<string, number>;
+  /** Business settings: each location's own minimum stock. */
+  settings?: unknown;
 }) {
   const today = () => businessDay(new Date().toISOString());
   // Items running low at other locations (a business with locations), once a day.
@@ -40,10 +43,15 @@ export default function useAdminReminders({
   const lowElsewhereCount = useMemo(() => {
     if (demo || !multiBranch || !activeBranch || !scope || lowStockSeen || level < 2) return 0;
     if (!lowStockReminderDue(scope, today())) return 0;
-    return lowAtOtherLocations(ledger.materials, ledger.locationStock ?? [], activeBranch.id, openBranches)
-      .length;
+    return lowAtOtherLocations(
+      ledger.materials,
+      ledger.locationStock ?? [],
+      activeBranch.id,
+      openBranches,
+      settings,
+    ).length;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [demo, multiBranch, activeBranch, scope, lowStockSeen, level, ledger, openBranches]);
+  }, [demo, multiBranch, activeBranch, scope, lowStockSeen, level, ledger, openBranches, settings]);
   // Repeating expenses due to record.
   const [repeatsSeen, setRepeatsSeen] = useState(false);
   const dueRepeatCount = useMemo(

@@ -96,3 +96,34 @@ test('an item added at a branch selling chosen items is sold there', () => {
   assert.deepEqual(tagNewRecords(before, after).services[1].soldAt, ['b-shop000001']);
   setLocalBranch('main');
 });
+
+test('each branch or store can have its own minimum stock', async () => {
+  const { minimumAt, withLocationMinimums, validateStockMinimums } = await import('../src/branches.mjs');
+  const { lowAtOtherLocations } = await import('../src/low-stock-locations.mjs');
+  const id = '11111111-1111-1111-1111-111111111111';
+  const s = { stockMinimums: validateStockMinimums({ 'b-shop000001': { [id]: 5 }, main: { [id]: 9 } }) };
+  assert.deepEqual(Object.keys(s.stockMinimums), ['b-shop000001']);
+  const paper = { id, name: 'Paper', minimumStock: 50, available: 8 };
+  assert.equal(minimumAt(s, paper, 'b-shop000001'), 5);
+  assert.equal(minimumAt(s, paper, 'main'), 50);
+  const view = withLocationMinimums({ materials: [paper] }, s, 'b-shop000001');
+  assert.equal(view.materials[0].minimumHere, 5);
+  assert.equal(view.materials[0].minimumStock, 50, 'the item’s own minimum is kept for editing');
+  const low = lowAtOtherLocations(
+    [paper],
+    [
+      { materialId: id, location: 'main', available: 40 },
+      { materialId: id, location: 'b-shop000001', available: 8 },
+    ],
+    'b-other00001',
+    [
+      { id: 'main', name: 'Main' },
+      { id: 'b-shop000001', name: 'Shop' },
+    ],
+    s,
+  );
+  assert.deepEqual(
+    low.map((r) => [r.location, r.minimum]),
+    [['main', 50]],
+  );
+});

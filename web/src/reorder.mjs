@@ -23,7 +23,7 @@ export function reorderList(ledger, now = new Date().toISOString()) {
         if (h.materialId === m.id && used.has(h.action) && Date.parse(h.changedAt) >= since)
           used30 -= (h.afterAvailable ?? 0) - (h.beforeAvailable ?? 0);
       used30 = Math.max(0, Math.round(used30 * 1000) / 1000);
-      const minimum = m.minimumStock ?? 0;
+      const minimum = m.minimumHere ?? m.minimumStock ?? 0;
       const target = Math.max(minimum * 2, minimum + used30);
       const suggested = Math.max(1, Math.ceil(target - m.available));
       return {

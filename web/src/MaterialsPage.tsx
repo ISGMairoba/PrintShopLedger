@@ -60,6 +60,10 @@ type Props = {
     request: (materialId: string, from: string, quantity: number, note: string) => Promise<void>;
     answer: (id: string, send: boolean, quantity: number | null, reply: string) => Promise<void>;
     cancel: (id: string) => Promise<void>;
+    /** Each branch or store's own minimum stock (business settings stockMinimums). */
+    minimums?: Record<string, Record<string, number>>;
+    /** Set (or clear, null) this location's own minimum for a material (Admin and higher, not main). */
+    setMinimum?: (materialId: string, minimum: number | null) => Promise<void>;
   };
 };
 const timestamp = (value: string) => new Date(value).toLocaleString();
@@ -90,8 +94,16 @@ export default function MaterialsPage({
   const [reorder, setReorder] = useState(false);
   const toReorder = reorderList({ materials, materialHistory: history } as never).length;
   // Other locations this person can see (stores, the owner every location) that are low on an item.
-  const lowElsewhere: { material: Material; location: string; available: number; level: string }[] = locations
-    ? lowAtOtherLocations(materials, locations.stock ?? [], locations.here, locations.list)
+  const lowElsewhere: {
+    material: Material;
+    location: string;
+    available: number;
+    level: string;
+    minimum: number;
+  }[] = locations
+    ? lowAtOtherLocations(materials, locations.stock ?? [], locations.here, locations.list, {
+        stockMinimums: locations.minimums,
+      })
     : [];
   const { w } = useWords();
   const { materialUnits } = useBusinessOptions();
@@ -103,6 +115,9 @@ export default function MaterialsPage({
   const [audit, setAudit] = useState(false);
   const [stock, setStock] = useState<{ material: Material; mode: 'add' | 'set' } | null>(null);
   const [splitting, setSplitting] = useState<Material | null>(null);
+  const [minimumFor, setMinimumFor] = useState<Material | null>(null);
+  const [minimumValue, setMinimumValue] = useState('');
+  const hereName = locations?.list.find((l) => l.id === locations.here)?.name ?? 'this location';
   const editing = editor && editor !== 'new' ? editor : null;
   const sorting = useTableSort<Material>('name');
   const visible = sorting.sortRows(
@@ -216,7 +231,7 @@ export default function MaterialsPage({
                       {row.available.toLocaleString(undefined, { maximumFractionDigits: 3 })}{' '}
                       {row.material.measurementUnit}
                     </td>
-                    <td className="cell-fit">{row.material.minimumStock ?? 0}</td>
+                    <td className="cell-fit">{row.minimum}</td>
                     <td className="cell-fit">
                       {locations.sendFrom.some((from) => from !== row.location) && (
                         <button
@@ -350,7 +365,9 @@ export default function MaterialsPage({
                       <td className="cell-fit">
                         {material.available.toLocaleString(undefined, { maximumFractionDigits: 3 })}
                         <small>
-                          Minimum: {material.minimumStock ?? 0} {material.measurementUnit}
+                          Minimum: {material.minimumHere ?? material.minimumStock ?? 0}{' '}
+                          {material.measurementUnit}
+                          {material.minimumHere !== undefined && ` (set for ${hereName})`}
                         </small>
                         {locations?.stock && (
                           <small>
@@ -419,6 +436,21 @@ export default function MaterialsPage({
                               >
                                 <Icon name="edit" /> Edit
                               </button>
+                              {locations?.setMinimum && (
+                                <button
+                                  className="text-button"
+                                  disabled={busy}
+                                  onClick={() => {
+                                    setMinimumFor(material);
+                                    setMinimumValue(
+                                      String(material.minimumHere ?? material.minimumStock ?? 0),
+                                    );
+                                    setError('');
+                                  }}
+                                >
+                                  <Icon name="reminder" /> Minimum here
+                                </button>
+                              )}
                               <button
                                 className="text-button"
                                 disabled={busy}
@@ -796,6 +828,71 @@ export default function MaterialsPage({
           }}
           onClose={() => setReorder(false)}
         />
+      )}
+      {minimumFor && locations?.setMinimum && (
+        <Modal
+          title={`Minimum stock of ${minimumFor.name} at ${hereName}`}
+          busy={busy}
+          onClose={() => setMinimumFor(null)}
+        >
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              try {
+                await locations.setMinimum!(minimumFor.id, Number(minimumValue));
+                setMinimumFor(null);
+              } catch (cause) {
+                setError(cause instanceof Error ? cause.message : String(cause));
+              }
+            }}
+          >
+            <p>
+              {hereName} is warned when its stock falls to this level. Other locations keep their own; without
+              one here, {hereName} uses the item's minimum ({minimumFor.minimumStock ?? 0}{' '}
+              {minimumFor.measurementUnit}).
+            </p>
+            {error && (
+              <p role="alert" className="notice">
+                {error}
+              </p>
+            )}
+            <label>
+              Minimum at {hereName} ({minimumFor.measurementUnit})
+              <input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                max="1000000000000"
+                step="0.001"
+                required
+                value={minimumValue}
+                onChange={(e) => setMinimumValue(e.target.value)}
+              />
+            </label>
+            <div className="material-actions">
+              {minimumFor.minimumHere !== undefined && (
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={busy}
+                  onClick={async () => {
+                    try {
+                      await locations.setMinimum!(minimumFor.id, null);
+                      setMinimumFor(null);
+                    } catch (cause) {
+                      setError(cause instanceof Error ? cause.message : String(cause));
+                    }
+                  }}
+                >
+                  Use the item's minimum
+                </button>
+              )}
+              <button type="submit" disabled={busy}>
+                <Icon name="save" /> Save
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
     </>
   );

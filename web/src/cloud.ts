@@ -294,6 +294,7 @@ export const answerStockRequest = (
   send: boolean,
   quantity: number | null,
   reply: string,
+  cost: { unitCost: number; actual: boolean } | null = null,
 ) =>
   stockCall('answer_stock_request', {
     p_shop: shopId,
@@ -301,6 +302,7 @@ export const answerStockRequest = (
     p_send: send,
     p_quantity: quantity,
     p_reply: reply,
+    ...(cost ? { p_unit_cost: cost.unitCost, p_actual_cost: cost.actual } : {}),
   });
 export const cancelStockRequest = (shopId: string, id: string) =>
   stockCall('cancel_stock_request', { p_shop: shopId, p_id: id });
@@ -311,6 +313,7 @@ export const transferStock = (
   to: string,
   quantity: number,
   reason: string,
+  cost: { unitCost: number; actual: boolean } | null = null,
 ) =>
   stockCall('transfer_stock', {
     p_shop: shopId,
@@ -319,6 +322,7 @@ export const transferStock = (
     p_to: to,
     p_quantity: quantity,
     p_reason: reason,
+    ...(cost ? { p_unit_cost: cost.unitCost, p_actual_cost: cost.actual } : {}),
   });
 
 /**
