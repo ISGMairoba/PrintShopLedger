@@ -529,7 +529,7 @@ select:focus-visible {
   color: var(--ink);
 }
 .auth-split .auth-card.auth-inner {
-  width: 380px;
+  width: min(380px, 100%);
   max-width: 100%;
   padding: 0;
   border: 0;
@@ -567,7 +567,7 @@ select:focus-visible {
 }
 @media (max-width: 740px) {
   .auth.auth-split {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto 1fr;
   }
   .auth-story {
