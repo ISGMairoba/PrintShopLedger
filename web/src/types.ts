@@ -970,6 +970,8 @@ export interface ExpenseHistoryEntry {
 }
 
 export interface SupervisedCommand {
+  /** A deposit with no job: the customer whose payment is corrected. */
+  customerId?: string;
   detailsId?: string;
   paymentEdits?: {
     eventId: string;
