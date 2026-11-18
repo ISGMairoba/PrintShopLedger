@@ -384,8 +384,13 @@ export const inBranch = (record, id = localBranch) => (record?.branchId ?? MAIN)
  * @returns {T}
  */
 export const allBranchesLedger = (ledger) => ({ ...ledger, branchScope: 'all' });
-/** Whether a record counts in this view of the records. */
-export const counts = (ledger, record) => ledger?.branchScope === 'all' || inBranch(record);
+/**
+ * Whether a record counts in this view of the records: every branch's ('all'), the branch the view
+ * was made for (branchLedger), or else this device's branch.
+ */
+export const counts = (ledger, record) =>
+  ledger?.branchScope === 'all' ||
+  inBranch(record, typeof ledger?.branchScope === 'string' ? ledger.branchScope : localBranch);
 /** The parts of the records that belong to one branch. */
 export const BRANCH_KEYS = [
   'jobs',
@@ -407,7 +412,8 @@ export const BRANCH_KEYS = [
  * @returns {T}
  */
 export function branchLedger(ledger, id = localBranch) {
-  const out = { ...ledger };
+  // Wallets and accounts in this view count the branch it is for, not this device's.
+  const out = { ...ledger, branchScope: id };
   for (const key of BRANCH_KEYS)
     if (Array.isArray(ledger?.[key])) out[key] = ledger[key].filter((r) => inBranch(r, id));
   // Money accounts: the branch's own and the shared ones. Account entries (transfers,
@@ -420,6 +426,17 @@ export function branchLedger(ledger, id = localBranch) {
       out.accountEntries = ledger.accountEntries.filter(
         (e) => own.has(e.accountId) || own.has(e.toAccountId),
       );
+    // Money moved to or from another branch: that account's name and branch, so the entry can say
+    // where the money went (it is not one of this branch's accounts to use).
+    const kept = new Set(out.moneyAccounts.map((a) => a.id));
+    const others = new Set(
+      (out.accountEntries ?? [])
+        .flatMap((e) => [e.accountId, e.toAccountId])
+        .filter((x) => x && !kept.has(x)),
+    );
+    out.otherBranchAccounts = ledger.moneyAccounts
+      .filter((a) => others.has(a.id))
+      .map((a) => ({ id: a.id, name: a.name, branch: branchOf(a) }));
   }
   // An expense's change history goes with the expense.
   if (Array.isArray(ledger?.expenseHistory) && Array.isArray(out.expenses)) {

@@ -96,6 +96,17 @@ export default function AccountsPage({
     setError('');
   };
   // With branches, the owner sees every branch's accounts: say whose each one is.
+  // An account in a transfer: this branch's, or another branch's (money moved between branches).
+  const accountLabel = (id: string) => {
+    const own = accounts.find((a) => a.id === id);
+    if (own) return own.name;
+    const other = (
+      ledger as { otherBranchAccounts?: { id: string; name: string; branch: string }[] }
+    ).otherBranchAccounts?.find((a) => a.id === id);
+    if (!other) return 'another account';
+    const where = branches?.find((b) => b.id === other.branch)?.name;
+    return `${other.name}${where ? ` (${where})` : ' (another branch)'}`;
+  };
   const whose = (a: MoneyAccount) => {
     if (!branches || !seesAll) return '';
     const b = accountBranch(a);
@@ -929,7 +940,7 @@ export default function AccountsPage({
                         : `${e.action} · `}
                     {currency(e.amount)}
                     {e.action === 'transfer'
-                      ? ` · ${accounts.find((a) => a.id === e.accountId)?.name} → ${accounts.find((a) => a.id === e.toAccountId)?.name}`
+                      ? ` · ${accountLabel(e.accountId)} → ${accountLabel(e.toAccountId)}`
                       : ''}
                     <br />
                     {e.reason} · {e.modifiedByLabel}
