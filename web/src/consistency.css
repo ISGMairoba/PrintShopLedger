@@ -4886,6 +4886,7 @@ button.pos-tile {
 }
 .page-limit-list > legend {
   grid-column: 1 / -1;
+}
 
 /* Customer form: a number that belongs to another branch's customer, with "Add them to this branch". */
 label .customer-elsewhere {
