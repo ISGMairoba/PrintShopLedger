@@ -56,8 +56,25 @@ export function itemTags(services) {
   return [...count.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([t]) => t);
 }
 
-/** The event setting an item's icon (a name from the icon set, or ''), category, code and tags. */
-export function displayEvent(service, { icon, category, code, tags }, actor, now = new Date().toISOString()) {
+/** An item's minimum order as typed: 0 (none) or a whole number up to 1,000,000. */
+export function cleanMinQuantity(value) {
+  const text = String(value ?? '').trim();
+  if (!text) return 0;
+  const n = Number(text);
+  if (!Number.isInteger(n) || n < 0 || n > 1000000) throw Error('Enter the minimum order as a whole number.');
+  return n;
+}
+
+/**
+ * The event setting an item's icon (a name from the icon set, or ''), category, code, tags and
+ * minimum order (0: none).
+ */
+export function displayEvent(
+  service,
+  { icon, category, code, tags, minQuantity },
+  actor,
+  now = new Date().toISOString(),
+) {
   return {
     id: crypto.randomUUID(),
     kind: 'service.display_set',
@@ -68,6 +85,7 @@ export function displayEvent(service, { icon, category, code, tags }, actor, now
       category: String(category ?? '').trim(),
       code: cleanCode(code ?? service.code ?? ''),
       tags: cleanTags(tags ?? service.tags ?? []),
+      minQuantity: cleanMinQuantity(minQuantity ?? service.minQuantity ?? 0),
       modifiedBy: actor.id,
       modifiedByLabel: actor.label,
       modifiedAt: now,
@@ -120,7 +138,8 @@ export function applyFieldEvent(ledger, event) {
       ledger.services.some((x) => x.id !== s.id && (x.code ?? '').toLowerCase() === code.toLowerCase())
     )
       throw Error(`Another item already has the code ${code}.`);
-    const next = { ...bump(s, d, event.id), icon: d.icon, category: d.category, code, tags };
+    const minQuantity = d.minQuantity === undefined ? (s.minQuantity ?? 0) : cleanMinQuantity(d.minQuantity);
+    const next = { ...bump(s, d, event.id), icon: d.icon, category: d.category, code, tags, minQuantity };
     return { ...ledger, services: ledger.services.map((x) => (x.id === s.id ? next : x)) };
   }
   if (event.kind === 'customer.called_as_set') {

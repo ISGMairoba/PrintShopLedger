@@ -23,6 +23,7 @@ export default function PaymentCorrectionDialog({
   actor,
   onClose,
   onSave,
+  request = false,
 }: {
   ledger: Ledger;
   payment: Payment;
@@ -30,6 +31,8 @@ export default function PaymentCorrectionDialog({
   actor: { id: string; label: string };
   onClose: () => void;
   onSave: (event: SupervisedEvent) => Promise<void>;
+  /** Send the correction as a request for someone allowed to approve it (a deposit with no job). */
+  request?: boolean;
 }) {
   const { w } = useWords();
   const methods = useBusinessOptions().paymentMethods.filter((m) => m.enabled);
@@ -104,12 +107,12 @@ export default function PaymentCorrectionDialog({
 
   return (
     <Modal
-      title="Correct payment"
+      title={request ? 'Request a payment correction' : 'Correct payment'}
       busy={busy}
       onClose={onClose}
       footer={
         <DialogActions form={formId} busy={busy} onCancel={onClose}>
-          {submitted ? 'Retry same correction' : 'Save correction'}
+          {request ? 'Send request' : submitted ? 'Retry same correction' : 'Save correction'}
         </DialogActions>
       }
     >

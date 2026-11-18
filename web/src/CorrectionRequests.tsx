@@ -3,6 +3,7 @@ import Icon from './Icon';
 import Modal from './Modal';
 import JobCorrectionPicker from './JobCorrectionPicker';
 import { useFeedbackMessage } from './Feedback';
+import { currency } from './receipts.mjs';
 import { AdjustmentHistory } from './SaleAdjustmentsPage';
 import { adjustmentLabels, applySaleAdjustment } from './sale-adjustments.mjs';
 import {
@@ -53,12 +54,10 @@ function RequestList({
   return (
     <ul className="request-list">
       {requests.map((r) => {
-        const job = ledger.jobs.find((j) => j.id === r.jobId);
         return (
           <li key={r.id} className={`request-item ${r.status}`}>
             <div>
-              <strong>{w(kindLabel(r.kind))}</strong> · {job?.description ?? w('Job')} #
-              {r.jobId.slice(0, 8).toUpperCase()}
+              <strong>{w(kindLabel(r.kind))}</strong> · {requestSubject(ledger, r, w)}
               <small>
                 {r.requestedByLabel} · {when(r.requestedAt)} · “{r.reason}”
               </small>
@@ -180,11 +179,14 @@ export function PendingRequestsPanel({
   load,
   onApprove,
   onReject,
+  canApproveDeposits = true,
 }: {
   ledger: Ledger;
   actor: { id: string; label: string };
   busy: boolean;
   canSave: boolean;
+  /** Whether this person may approve a deposit correction (Business Settings → Corrections). */
+  canApproveDeposits?: boolean;
   version: number;
   load: Load;
   onApprove: (event: SupervisedEvent, requestId: string) => Promise<void>;
@@ -225,6 +227,7 @@ export function PendingRequestsPanel({
           actor={actor}
           busy={busy}
           canSave={canSave}
+          canApproveDeposits={canApproveDeposits}
           onClose={() => setReviewing(null)}
           onApprove={async (event) => {
             await onApprove(event, reviewing.id);
@@ -243,6 +246,7 @@ function RequestReviewDialog({
   actor,
   busy,
   canSave,
+  canApproveDeposits,
   onClose,
   onApprove,
   onReject,
@@ -252,6 +256,7 @@ function RequestReviewDialog({
   actor: { id: string; label: string };
   busy: boolean;
   canSave: boolean;
+  canApproveDeposits: boolean;
   onClose: () => void;
   onApprove: (event: SupervisedEvent) => Promise<void>;
   onReject: (note: string) => Promise<void>;
@@ -271,11 +276,17 @@ function RequestReviewDialog({
     problem = '';
   try {
     if (!event) throw Error('This request no longer matches the records. Reject it and ask for a new one.');
-    rows = correctionChanges(ledger, applySaleAdjustment(ledger, event), request.jobId);
+    rows = correctionChanges(
+      ledger,
+      applySaleAdjustment(ledger, event),
+      request.jobId,
+      request.event.data.customerId ?? null,
+    );
+    if (!request.jobId && !canApproveDeposits)
+      throw Error('In this business only Managers and above approve a deposit correction.');
   } catch (cause) {
     problem = cause instanceof Error ? cause.message : String(cause);
   }
-  const job = ledger.jobs.find((j) => j.id === request.jobId);
   const run = async (action: () => Promise<void>) => {
     if (busy) return;
     setError('');
@@ -312,8 +323,7 @@ function RequestReviewDialog({
       }
     >
       <p>
-        <strong>{w(kindLabel(request.kind))}</strong> · {job?.description} #
-        {request.jobId.slice(0, 8).toUpperCase()}
+        <strong>{w(kindLabel(request.kind))}</strong> · {requestSubject(ledger, request, w)}
       </p>
       <p>
         {w('Requested by')} {request.requestedByLabel} · {when(request.requestedAt)}
@@ -372,4 +382,16 @@ function RequestReviewDialog({
       </form>
     </Modal>
   );
+}
+
+/** What a request is about: the job, or for a deposit with no job, the customer and amount. */
+function requestSubject(ledger: Ledger, r: CorrectionRequest, w: (text: string) => string) {
+  if (!r.jobId) {
+    const d = r.event.data as { customerId?: string; paymentId?: string };
+    const customer = ledger.customers.find((c) => c.id === d.customerId)?.name ?? w('Customer');
+    const payment = ledger.payments.find((p) => p.id === d.paymentId);
+    return `${w('Deposit')} · ${customer}${payment ? ` · ${currency(payment.amount)}` : ''}`;
+  }
+  const job = ledger.jobs.find((j) => j.id === r.jobId);
+  return `${job?.description ?? w('Job')} #${r.jobId.slice(0, 8).toUpperCase()}`;
 }

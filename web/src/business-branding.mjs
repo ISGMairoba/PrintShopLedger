@@ -65,6 +65,8 @@ export const jobSettingsDefaults = () => ({
   descriptionMode: 'required',
   // 'allow': stock may go below zero (with a warning); 'block': nothing takes more than is in stock.
   stockBelowZero: 'allow',
+  // Below an item's minimum order: 'block' (the sale cannot be saved) or 'warn' (it can, with a note).
+  minOrder: 'block',
   /** "Ready for collection" WhatsApp wording; '' uses the app's own (ready-message.mjs). */
   readyMessage: '',
 });
@@ -524,6 +526,8 @@ export function validateJobSettings(input) {
     throw Error('Choose whether job descriptions are required, optional or hidden.');
   if (!['allow', 'block'].includes(value.stockBelowZero))
     throw Error('Choose whether stock may go below zero.');
+  if (!['block', 'warn'].includes(value.minOrder))
+    throw Error('Choose what happens below an item’s minimum order.');
   if (
     typeof value.readyMessage !== 'string' ||
     value.readyMessage.length > 600 ||
@@ -533,6 +537,7 @@ export function validateJobSettings(input) {
   return {
     readyMessage: value.readyMessage.trim(),
     stockBelowZero: value.stockBelowZero,
+    minOrder: value.minOrder,
     descriptionMode: value.descriptionMode,
     defaultDuration: { value: duration.value, unit: duration.unit },
     paymentPrefill: value.paymentPrefill,

@@ -1,3 +1,4 @@
+import { belowMinimum, minOrderRule } from './min-order.mjs';
 import DefaultTermsButton from './DefaultTermsButton';
 import TemplateDiscountWarning from './TemplateDiscountWarning';
 import { defaultMethod, defaultSource } from './business-options.mjs';
@@ -970,6 +971,11 @@ export default function CheckoutEditor({
                           {templateCheck?.field === 'quantity' && (
                             <small className="danger-text" role="alert">
                               {templateCheck.error}
+                            </small>
+                          )}
+                          {!template && belowMinimum(service, item.quantity) && (
+                            <small className={minOrderRule() === 'block' ? 'danger-text' : 'stock-near-text'}>
+                              {belowMinimum(service, item.quantity)}
                             </small>
                           )}
                         </label>

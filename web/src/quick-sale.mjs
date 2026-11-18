@@ -36,6 +36,8 @@ export function shelfProducts(ledger) {
         material,
         stock: material ? material.available : null,
         minimum: material?.minimumStock ?? 0,
+        // The least sold in one sale (0: none); a first tap adds this many.
+        minOrder: s.minQuantity ?? 0,
         unit: material?.measurementUnit ?? 'item',
         // Sized materials need width and height, which a quick sale does not ask for.
         sellable: !s.materialId || (!!material && !material.archived && !material.requireSize),
@@ -164,10 +166,10 @@ export const walkInEvent = (actor, now = new Date().toISOString(), id = crypto.r
   },
 });
 
-/** Add one of a product to the cart (or one more). */
-export function addToCart(cart, productId, step = 1) {
+/** Add one of a product to the cart (or one more); the first adds `first` (the minimum order). */
+export function addToCart(cart, productId, step = 1, first = step) {
   const found = cart.find((l) => l.serviceId === productId);
-  if (!found) return [...cart, { serviceId: productId, quantity: step }];
+  if (!found) return [...cart, { serviceId: productId, quantity: Math.max(step, first) }];
   return cart.map((l) => (l.serviceId === productId ? { ...l, quantity: round(l.quantity + step) } : l));
 }
 const round = (n) => Math.round(n * 1000) / 1000;

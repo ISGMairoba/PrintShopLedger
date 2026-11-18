@@ -37,7 +37,7 @@ export function ownSaleJobs(ledger, userId) {
 export function ownSaleAdjustments(ledger, userId) {
   const jobs = new Set(ownSaleJobs(ledger, userId).map((j) => j.id));
   return (ledger.saleAdjustments ?? []).filter(
-    (r) => jobs.has(r.jobId) || r.event?.data?.requestedBy === userId,
+    (r) => (r.jobId && jobs.has(r.jobId)) || r.event?.data?.requestedBy === userId,
   );
 }
 
@@ -51,15 +51,16 @@ export function ownSaleAdjustments(ledger, userId) {
  */
 export function approvalEvent(ledger, request, approver, now = new Date().toISOString()) {
   const d = structuredClone(request.event.data);
-  const job = ledger.jobs.find((j) => j.id === d.jobId);
-  if (!job) throw Error('The job for this request is no longer here. Sync and try again.');
+  const job = d.jobId ? ledger.jobs.find((j) => j.id === d.jobId) : null;
+  if (d.jobId && !job) throw Error('The job for this request is no longer here. Sync and try again.');
   const paymentToken = (id) => {
     const payment = ledger.payments.find((p) => p.id === id);
     if (!payment) throw Error('A payment in this request is no longer here.');
     return paymentCorrectionToken(payment);
   };
-  d.baseVersion = job.version ?? 1;
-  d.expectedAccount = accountToken(ledger, job.customerId);
+  // A deposit with no job is checked against the customer's account only.
+  if (job) d.baseVersion = job.version ?? 1;
+  d.expectedAccount = accountToken(ledger, job ? job.customerId : d.customerId);
   if (d.paymentId && d.expectedPayment !== undefined) d.expectedPayment = paymentToken(d.paymentId);
   if (Array.isArray(d.paymentEdits))
     d.paymentEdits = d.paymentEdits.map((e) => ({ ...e, expectedPayment: paymentToken(e.paymentId) }));
@@ -72,7 +73,7 @@ export function approvalEvent(ledger, request, approver, now = new Date().toISOS
     );
   if (d.serviceVersion !== undefined && d.serviceId)
     d.serviceVersion = ledger.services.find((s) => s.id === d.serviceId)?.version ?? d.serviceVersion;
-  if (d.materialVersion !== undefined && job.materialId)
+  if (d.materialVersion !== undefined && job?.materialId)
     d.materialVersion = ledger.materials.find((m) => m.id === job.materialId)?.version ?? d.materialVersion;
   Object.assign(d, {
     requestId: request.id,
@@ -88,14 +89,36 @@ export function approvalEvent(ledger, request, approver, now = new Date().toISOS
 /**
  * What a correction changes, as [label, before, after] rows (changed rows only): the job, the
  * customer's payments, stock, and the customer's balance.
+ * @param {any} ledger
+ * @param {any} next
+ * @param {string | null} jobId
+ * @param {string | null} [customerId] a deposit with no job: its customer
  */
-export function correctionChanges(ledger, next, jobId) {
+export function correctionChanges(ledger, next, jobId, customerId = null) {
   const rows = [];
   const add = (label, before, after) => {
     const a = before === undefined || before === null || before === '' ? '—' : String(before),
       b = after === undefined || after === null || after === '' ? '—' : String(after);
     if (a !== b) rows.push([label, a, b]);
   };
+  // A deposit with no job: the customer's payments and credit only.
+  if (!jobId && customerId) {
+    for (const payment of ledger.payments.filter((p) => p.customerId === customerId)) {
+      const revised = next.payments.find((p) => p.id === payment.id);
+      if (!revised) continue;
+      const name = `Payment ${payment.id.slice(0, 8).toUpperCase()}`;
+      add(`${name} · amount`, currency(payment.amount), currency(revised.amount));
+      add(`${name} · method`, payment.methodLabel ?? payment.method, revised.methodLabel ?? revised.method);
+      add(`${name} · date`, payment.paidOn, revised.paidOn);
+      add(`${name} · reference`, payment.reference, revised.reference);
+    }
+    add(
+      'Customer credit',
+      currency(walletBalance(ledger, customerId)),
+      currency(walletBalance(next, customerId)),
+    );
+    return rows;
+  }
   const job = ledger.jobs.find((j) => j.id === jobId),
     after = next.jobs.find((j) => j.id === jobId);
   if (!job || !after) return rows;
@@ -142,3 +165,14 @@ export function correctionChanges(ledger, next, jobId) {
   if (refund) add('Money returned', currency(0), currency(refund));
   return rows;
 }
+
+/**
+ * A deposit with no job: a payment from a customer who has no jobs (credit paid ahead).
+ * @param {import('./types').Ledger} ledger
+ * @param {import('./types').Payment} payment
+ */
+export const isDepositWithoutJob = (ledger, payment) =>
+  !!payment && !payment.refundId && !ledger.jobs.some((j) => j.customerId === payment.customerId);
+
+/** Who may correct a deposit with no job (Business Settings → Corrections): the lowest rank. */
+export const depositCorrectionRank = (corrections) => (corrections?.depositCorrection === 'manager' ? 3 : 2);
