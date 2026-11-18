@@ -1366,12 +1366,31 @@ export default function BusinessSettingsPage({
                     max="365"
                     step="1"
                     value={draft.corrections.recentDays}
-                    onChange={(event) => field('corrections', { recentDays: Number(event.target.value) })}
+                    onChange={(event) =>
+                      field('corrections', { ...draft.corrections, recentDays: Number(event.target.value) })
+                    }
                   />
                 </label>
                 <p>
                   {w(
                     'Show jobs created within this window in the correction selector. Default: 7 days. Changing this does not delete records or adjustment history.',
+                  )}
+                </p>
+                <label>
+                  {w('Who can correct a deposit with no job')}
+                  <select
+                    value={draft.corrections.depositCorrection ?? 'admin'}
+                    onChange={(event) =>
+                      field('corrections', { ...draft.corrections, depositCorrection: event.target.value })
+                    }
+                  >
+                    <option value="admin">Admins and above (like any payment)</option>
+                    <option value="manager">Managers and above only</option>
+                  </select>
+                </label>
+                <p>
+                  {w(
+                    'A deposit with no job is money a customer paid ahead, before any job. Default: Admins and above, the same as correcting any other payment.',
                   )}
                 </p>
                 {sectionSave('Correction settings', ['corrections'])}

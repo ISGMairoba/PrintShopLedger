@@ -1059,7 +1059,8 @@ export interface SaleAdjustment {
   historicalClosingId?: string | null;
   paymentId?: string | null;
   id: string;
-  jobId: string;
+  /** The job it corrected; null for a deposit with no job (filed under the customer). */
+  jobId: string | null;
   customerId: string;
   action: string;
   reason: string;

@@ -145,7 +145,9 @@ export const defaultBranding = () => ({
   /** Quick sale item tiles: varied or one colour, by category or item, how many (item-tiles.mjs). */
   tiles: tileDefaults(),
   options: defaultOptions(),
-  corrections: { recentDays: 7 },
+  // depositCorrection: who corrects a deposit with no job ('admin': Admin and above, like any
+  // payment; 'manager': Manager and above only).
+  corrections: { recentDays: 7, depositCorrection: 'admin' },
   /** autoClose: drawers left open overnight are closed "not counted" for an Admin to review. */
   drawers: { autoClose: true },
   /**
@@ -334,6 +336,9 @@ export function validateBranding(input) {
     value.corrections.recentDays > 365
   )
     throw Error('Choose a correction history window from 1 to 365 days.');
+  value.corrections.depositCorrection ??= 'admin';
+  if (!['admin', 'manager'].includes(value.corrections.depositCorrection))
+    throw Error('Choose who can correct a deposit with no job.');
   value.security = { autoLockMinutes: 0, syncMinutes: 2, ...value.security };
   const lock = value.security.autoLockMinutes;
   const sync = value.security.syncMinutes;

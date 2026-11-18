@@ -32,7 +32,8 @@ export function AdjustmentHistory({ records }: { records: SaleAdjustment[] }) {
               {new Date(r.changedAt).toLocaleString()} · {r.changedByLabel}
             </summary>
             <p>{r.reason}</p>
-            <p>
+            {!r.jobId && <p>{w('A deposit with no job, corrected on the customer’s account.')}</p>}
+            <p hidden={!r.jobId}>
               Charge: {currency(r.before.amount)} → {currency(r.after.amount)}
               <br />
               Description: {r.before.description} → {r.after.description}
@@ -40,7 +41,7 @@ export function AdjustmentHistory({ records }: { records: SaleAdjustment[] }) {
               Stage: {stage(r.before.productionStatus ?? 'Added')} →{' '}
               {stage(r.after.productionStatus ?? 'Added')}
             </p>
-            <p>
+            <p hidden={!r.jobId}>
               Quantity: {r.before.quantity ?? '—'} → {r.after.quantity ?? '—'}
               <br />
               Size: {r.before.width ?? '—'} × {r.before.height ?? '—'} → {r.after.width ?? '—'} ×{' '}
