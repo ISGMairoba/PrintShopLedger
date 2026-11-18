@@ -93,7 +93,8 @@ Deno.serve(async (request: Request) => {
     });
     if (next.error || !next.data.session || next.data.user?.id !== receiver.user_id)
       return reply(401, { error: 'Check both users’ credentials.' });
-    // SQL rechecks active membership, locks the business and verifies the exact unclosed transactions.
+    // SQL rechecks active membership and the branch, locks the business and verifies the exact unclosed
+    // transactions.
     const { data: closing, error } = await server.rpc('finish_drawer_handover', {
       p_shop: body.shopId,
       p_actor: auth.user.id,
@@ -104,32 +105,12 @@ Deno.serve(async (request: Request) => {
       p_opening: body.openingId,
       p_note: body.note.trim(),
       p_refunds: body.refundIds,
+      // The device's branch (header x-psl-branch, as on the app's other requests). SQL checks it is
+      // open and the cashier works there, counts only that branch's drawer and saves it with it.
+      p_branch: (request.headers.get('x-psl-branch') ?? '').trim() || null,
     });
     if (error) return reply(['PT409', '40001'].includes(error.code) ? 409 : 400, { error: error.message });
     successful = true;
-    // At a branch (header x-psl-branch, as on the app's other requests): the closing belongs to that
-    // branch when it is open and the cashier works there (General Manager and Developer: anywhere).
-    const branch = (request.headers.get('x-psl-branch') ?? '').trim();
-    if (branch && branch !== 'main') {
-      const { data: row } = await server
-        .from('business_settings')
-        .select('settings')
-        .eq('shop_id', body.shopId)
-        .maybeSingle();
-      const settings = (row?.settings ?? {}) as {
-        branches?: { id: string; archived?: boolean }[];
-        branchAccess?: Record<string, string[]>;
-      };
-      const open = (settings.branches ?? []).some((b) => b.id === branch && !b.archived);
-      const access = settings.branchAccess?.[auth.user.id] ?? [];
-      const works = (actor.rank ?? 0) >= 4 || access.includes(branch) || access.includes('*');
-      if (open && works)
-        await server
-          .from('drawer_closings')
-          .update({ branch_id: branch })
-          .eq('shop_id', body.shopId)
-          .eq('id', body.id);
-    }
     return reply(200, {
       closing,
       access_token: next.data.session.access_token,
