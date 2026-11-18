@@ -89,6 +89,10 @@ export function approvalEvent(ledger, request, approver, now = new Date().toISOS
 /**
  * What a correction changes, as [label, before, after] rows (changed rows only): the job, the
  * customer's payments, stock, and the customer's balance.
+ * @param {any} ledger
+ * @param {any} next
+ * @param {string | null} jobId
+ * @param {string | null} [customerId] a deposit with no job: its customer
  */
 export function correctionChanges(ledger, next, jobId, customerId = null) {
   const rows = [];
