@@ -295,12 +295,15 @@ export default function App() {
         : null,
     );
   }, [signingShop]);
+  // The device's branch, once known: its own colours and logos (Business Settings → Settings for).
+  const [themeBranch, setThemeBranch] = useState(MAIN);
   const businessBranding = useBusinessBranding(
     shop?.id ?? '',
     scope,
     demo ? 'Local trial' : (shop?.name ?? ''),
     online,
     demo,
+    themeBranch,
   );
   // The branch this device works in (branches.mjs). One-branch businesses always use the main one.
   const branchChoices = allowedBranches(
@@ -351,6 +354,9 @@ export default function App() {
     const settings = settingsForBranch(businessBranding.settings, activeBranch?.id ?? MAIN);
     return settings === businessBranding.settings ? businessBranding : { ...businessBranding, settings };
   }, [businessBranding, activeBranch?.id]);
+  useEffect(() => {
+    setThemeBranch(activeBranch?.id ?? MAIN);
+  }, [activeBranch?.id]);
   // Held sales of this device's branch only (a sale held in another branch is resumed there; ones
   // held before branches were recorded show everywhere).
   const heldHere = useMemo(

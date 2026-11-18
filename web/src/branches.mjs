@@ -181,16 +181,23 @@ export function settingsForBranch(settings, id) {
 
 /**
  * Settings a branch keeps for itself (Business Settings → "Settings for" a branch), in
- * settings.branchSettings[branchId], by group. A group left out follows the whole business.
- * * receipts: receipt, receiptPage, documents (Receipts tab)
- * * workflow: every dropdown and workflow option except payment methods (Dropdowns & workflow tab;
- *   a branch's payment methods are those of its own money accounts)
- * * jobs: jobs, drawers, production (Jobs & payments tab)
+ * settings.branchSettings[branchId], by group (one per settings tab). A group left out follows the
+ * whole business. Everything can be a branch's own except the business name, the branches and who
+ * works where, page access, the business type and the Developer's items (decided 18 Nov 2026);
+ * a branch's payment methods are those of its own money accounts.
  */
 export const BRANCH_SETTING_GROUPS = {
+  profile: ['address', 'phones', 'email', 'website', 'socials', 'logo', 'logoVariants', 'logoUsage'],
+  appearance: ['primary', 'accent', 'theme', 'backgrounds', 'tiles'],
   receipts: ['receipt', 'receiptPage', 'documents'],
   workflow: ['options'],
-  jobs: ['jobs', 'drawers', 'production'],
+  jobs: ['jobs', 'drawers', 'production', 'discounts'],
+  words: ['terms'],
+  messages: ['messages'],
+  periods: ['periods'],
+  pricing: ['pricing'],
+  corrections: ['corrections'],
+  security: ['security'],
 };
 /** The group a business setting key belongs to (null: always the whole business's). */
 export const branchSettingGroup = (key) =>
