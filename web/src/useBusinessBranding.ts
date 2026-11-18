@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from './cloud';
 import { resolveLogo } from './logo-variants.mjs';
+import { withBranchSettings } from './branches.mjs';
 import { defaultBranding, validateBranding, themeVariables, themeColors } from './business-branding.mjs';
 export type Branding = ReturnType<typeof defaultBranding>;
 type Saved = { settings: Branding; version: number; modified_at?: string; modified_by?: string };
@@ -10,6 +11,8 @@ export default function useBusinessBranding(
   name: string,
   online: boolean,
   demo: boolean,
+  /** The device's branch: its own colours and logos, when it keeps them (branches.mjs). */
+  branchId = 'main',
 ) {
   const [saved, setSaved] = useState<Saved>({ settings: defaultBranding(), version: 0 }),
     [sidebarLogo, setSidebarLogo] = useState(''),
@@ -142,7 +145,7 @@ export default function useBusinessBranding(
     }
   }
   useEffect(() => {
-    const settings = scope ? saved.settings : defaultBranding(),
+    const settings = scope ? (withBranchSettings(saved.settings, branchId) as Branding) : defaultBranding(),
       media = matchMedia('(prefers-color-scheme: dark)');
     const mode = scope && preference !== 'business' ? preference : settings.theme;
     const favicon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
@@ -174,7 +177,7 @@ export default function useBusinessBranding(
         else favicon.removeAttribute('type');
       }
     };
-  }, [saved.settings, scope, preference]);
+  }, [saved.settings, scope, preference, branchId]);
   // The installed app's icon: point the manifest at this business's copy (served by the
   // app-icon function through /b/<business>/), so installing from here uses its icon and name.
   // iPhones read the apple-touch-icon instead.
