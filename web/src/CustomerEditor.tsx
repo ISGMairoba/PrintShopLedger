@@ -46,7 +46,10 @@ export default function CustomerEditor({
   const [elsewhere, setElsewhere] = useState<string | null>(null);
   const [linking, setLinking] = useState(false);
   const askServer =
-    !!link && !phoneTakenBy && !phoneProblem(phone) && !(customer && phoneKey(phone) === phoneKey(customer.phone));
+    !!link &&
+    !phoneTakenBy &&
+    !phoneProblem(phone) &&
+    !(customer && phoneKey(phone) === phoneKey(customer.phone));
   useEffect(() => {
     if (!askServer || !link) return;
     let live = true;
