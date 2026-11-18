@@ -83,7 +83,16 @@ test('Each branch may have its own account called Cash; a shared one is unique e
   const account = (id, branch, method = 'Cash') => ({
     id: crypto.randomUUID(),
     kind: 'account.created',
-    data: { id, name: 'Cash', accountType: 'cash', branch, openingDate: '2026-11-18', openingBalance: 0, methods: [method], ...audit },
+    data: {
+      id,
+      name: 'Cash',
+      accountType: 'cash',
+      branch,
+      openingDate: '2026-11-18',
+      openingBalance: 0,
+      methods: [method],
+      ...audit,
+    },
   });
   let ledger = { moneyAccounts: [], accountEntries: [], operationHistory: [], payees: [] };
   ledger = applyOperations(ledger, account('a1', 'main'));

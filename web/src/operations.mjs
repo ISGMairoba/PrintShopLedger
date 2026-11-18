@@ -126,7 +126,10 @@ export function applyOperation(ledger, event) {
     else {
       const name = text(d.name, 160, true);
       // Accounts are checked below, once their branch is known.
-      if (payee && rows.some((r) => r.id !== d.id && !r.archived && r.name.toLowerCase() === name.toLowerCase()))
+      if (
+        payee &&
+        rows.some((r) => r.id !== d.id && !r.archived && r.name.toLowerCase() === name.toLowerCase())
+      )
         throw Error('An active record already has that name.');
       after = {
         ...old,
@@ -192,7 +195,10 @@ export function applyOperation(ledger, event) {
           !r.archived &&
           r.name.toLowerCase() === after.name.toLowerCase() &&
           // Each branch may have its own "Cash"; a shared account's name is unique everywhere.
-          (payee || accountBranch(r) === '*' || accountBranch(after) === '*' || accountBranch(r) === accountBranch(after)),
+          (payee ||
+            accountBranch(r) === '*' ||
+            accountBranch(after) === '*' ||
+            accountBranch(r) === accountBranch(after)),
       )
     )
       throw Error('An active record already has that name.');
