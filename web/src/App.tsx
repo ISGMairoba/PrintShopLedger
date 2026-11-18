@@ -546,7 +546,9 @@ export default function App() {
   // Customers page: a branch lists the customers it worked with; the owner sees every shared customer.
   const customersPageLedger = useMemo(
     () =>
-      ownerView ? { ...ledger, customers: ledger.customers.map((c) => ({ ...c, workedHere: undefined })) } : ledger,
+      ownerView
+        ? { ...ledger, customers: ledger.customers.map((c) => ({ ...c, workedHere: undefined })) }
+        : ledger,
     [ownerView, ledger],
   );
   // Every branch's name (closed ones too), for notices and the Users page.

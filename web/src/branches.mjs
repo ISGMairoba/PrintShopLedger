@@ -350,7 +350,9 @@ export function tagNewRecords(before, after, id = localBranch) {
     const known = new Set((before?.customers ?? []).map((c) => c.id));
     if (after.customers.some((c) => !known.has(c.id) && !c.branchId)) {
       out = { ...out };
-      out.customers = after.customers.map((c) => (known.has(c.id) || c.branchId ? c : { ...c, branchId: id }));
+      out.customers = after.customers.map((c) =>
+        known.has(c.id) || c.branchId ? c : { ...c, branchId: id },
+      );
     }
   }
   // An item added at a branch that sells chosen items is sold there (the server does the same).
