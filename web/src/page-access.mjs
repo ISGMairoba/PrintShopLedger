@@ -256,7 +256,8 @@ export function upgradeSettingsTabs(input, version = 0) {
 export function limitedPageAccess(configured, access, limit) {
   if (!Array.isArray(limit) || access === 5 || !Number.isInteger(access) || access < 1) return configured;
   const rank = String(access);
-  const own = configured?.[rank] ?? (access === 4 ? configured?.['3'] : undefined) ?? defaultPageAccess()[rank] ?? [];
+  const own =
+    configured?.[rank] ?? (access === 4 ? configured?.['3'] : undefined) ?? defaultPageAccess()[rank] ?? [];
   return { ...configured, [rank]: own.filter((page) => page === 'My Account' || limit.includes(page)) };
 }
 /** The pages a rank may open (Developer's settings), for the limit editors. */

@@ -112,11 +112,16 @@ export function BranchPages({
   ) as Record<number, string[]>;
   const start = (id: string) =>
     Object.fromEntries(
-      RANKS.map((rank) => [rank, allowed[rank].filter((p) => !current[`${id}:${rank}`] || current[`${id}:${rank}`].includes(p))]),
+      RANKS.map((rank) => [
+        rank,
+        allowed[rank].filter((p) => !current[`${id}:${rank}`] || current[`${id}:${rank}`].includes(p)),
+      ]),
     ) as Record<number, string[]>;
   const [on, setOn] = useState<Record<number, string[]>>(() => start(branch));
   const [error, setError] = useState('');
-  const shown = pages.filter((page) => page !== 'My Account' && RANKS.some((rank) => allowed[rank].includes(page)));
+  const shown = pages.filter(
+    (page) => page !== 'My Account' && RANKS.some((rank) => allowed[rank].includes(page)),
+  );
   async function save() {
     setError('');
     try {
@@ -184,7 +189,9 @@ export function BranchPages({
                         onChange={(e) =>
                           setOn({
                             ...on,
-                            [rank]: e.target.checked ? [...on[rank], page] : on[rank].filter((p) => p !== page),
+                            [rank]: e.target.checked
+                              ? [...on[rank], page]
+                              : on[rank].filter((p) => p !== page),
                           })
                         }
                       />

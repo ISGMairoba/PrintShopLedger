@@ -2345,48 +2345,19 @@ export default function App() {
                                 onPayeeChange={setReportPayee}
                                 access={{
                                   customers:
-                                    demo ||
-                                    canAccessPage(
-                                      'Customers',
-                                      shop?.accessLevel ?? 0,
-                                      pageAccess,
-                                    ),
-                                  jobs:
-                                    demo ||
-                                    canAccessPage(
-                                      'Jobs',
-                                      shop?.accessLevel ?? 0,
-                                      pageAccess,
-                                    ),
+                                    demo || canAccessPage('Customers', shop?.accessLevel ?? 0, pageAccess),
+                                  jobs: demo || canAccessPage('Jobs', shop?.accessLevel ?? 0, pageAccess),
                                   payments:
-                                    demo ||
-                                    canAccessPage(
-                                      'Payments',
-                                      shop?.accessLevel ?? 0,
-                                      pageAccess,
-                                    ),
+                                    demo || canAccessPage('Payments', shop?.accessLevel ?? 0, pageAccess),
                                   expenses:
-                                    demo ||
-                                    canAccessPage(
-                                      'Expenses',
-                                      shop?.accessLevel ?? 0,
-                                      pageAccess,
-                                    ),
+                                    demo || canAccessPage('Expenses', shop?.accessLevel ?? 0, pageAccess),
                                   costs:
                                     demo ||
                                     canSeeTemplateCosts(branding.settings.pricing, shop?.accessLevel ?? 0),
                                   stock:
                                     demo ||
-                                    canAccessPage(
-                                      'Stock History',
-                                      shop?.accessLevel ?? 0,
-                                      pageAccess,
-                                    ) ||
-                                    canAccessPage(
-                                      'Materials',
-                                      shop?.accessLevel ?? 0,
-                                      pageAccess,
-                                    ),
+                                    canAccessPage('Stock History', shop?.accessLevel ?? 0, pageAccess) ||
+                                    canAccessPage('Materials', shop?.accessLevel ?? 0, pageAccess),
                                 }}
                               />
                             </Suspense>
@@ -2409,40 +2380,14 @@ export default function App() {
                                 lastSynced={state.lastSynced}
                                 access={{
                                   customers:
-                                    demo ||
-                                    canAccessPage(
-                                      'Customers',
-                                      shop?.accessLevel ?? 0,
-                                      pageAccess,
-                                    ),
-                                  sales:
-                                    demo ||
-                                    canAccessPage(
-                                      'Jobs',
-                                      shop?.accessLevel ?? 0,
-                                      pageAccess,
-                                    ),
+                                    demo || canAccessPage('Customers', shop?.accessLevel ?? 0, pageAccess),
+                                  sales: demo || canAccessPage('Jobs', shop?.accessLevel ?? 0, pageAccess),
                                   payments:
-                                    demo ||
-                                    canAccessPage(
-                                      'Payments',
-                                      shop?.accessLevel ?? 0,
-                                      pageAccess,
-                                    ),
+                                    demo || canAccessPage('Payments', shop?.accessLevel ?? 0, pageAccess),
                                   expenses:
-                                    demo ||
-                                    canAccessPage(
-                                      'Expenses',
-                                      shop?.accessLevel ?? 0,
-                                      pageAccess,
-                                    ),
+                                    demo || canAccessPage('Expenses', shop?.accessLevel ?? 0, pageAccess),
                                   materials:
-                                    demo ||
-                                    canAccessPage(
-                                      'Materials',
-                                      shop?.accessLevel ?? 0,
-                                      pageAccess,
-                                    ),
+                                    demo || canAccessPage('Materials', shop?.accessLevel ?? 0, pageAccess),
                                   costs:
                                     demo ||
                                     canSeeTemplateCosts(branding.settings.pricing, shop?.accessLevel ?? 0),
@@ -2688,8 +2633,7 @@ export default function App() {
                               ledger={ledger}
                               businessName={businessName}
                               onStatement={
-                                demo ||
-                                canAccessPage('Reports', shop?.accessLevel ?? 0, pageAccess)
+                                demo || canAccessPage('Reports', shop?.accessLevel ?? 0, pageAccess)
                                   ? (id) => {
                                       setReportPayee(id);
                                       setPage('Reports');
@@ -2766,12 +2710,7 @@ export default function App() {
                               onSave={saveCatalogue}
                               onReceivePayment={(id) => openPayment(id)}
                               onOpenCustomer={
-                                demo ||
-                                canAccessPage(
-                                  'Customers',
-                                  shop?.accessLevel ?? 0,
-                                  pageAccess,
-                                )
+                                demo || canAccessPage('Customers', shop?.accessLevel ?? 0, pageAccess)
                                   ? (id) => {
                                       setCustomerToOpen(id);
                                       setPage('Customers');
@@ -3139,12 +3078,7 @@ export default function App() {
                           legacyConflict={legacyConflict}
                           customerHeld={heldWork.resources.has('customer:' + currentJob.customerId)}
                           canAdjust={
-                            demo ||
-                            canAccessPage(
-                              'Sale Adjustments',
-                              shop?.accessLevel ?? 0,
-                              pageAccess,
-                            )
+                            demo || canAccessPage('Sale Adjustments', shop?.accessLevel ?? 0, pageAccess)
                           }
                           canSave={demo || online}
                           onClose={() => setSelectedJob(null)}
