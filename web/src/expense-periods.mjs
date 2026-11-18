@@ -84,14 +84,19 @@ export function expenseShare(expense, from, to) {
 }
 
 /**
- * Paid in advance at the end of `to`: what expenses incurred by then have not yet counted because
- * their period goes on after it (e.g. the rest of the year's rent).
+ * Paid in advance at the end of `to`: money actually paid by then (removed payments left out) for
+ * expenses whose period goes on after it, less the part already counted (e.g. the rest of the
+ * year's rent paid in January). An expense not paid yet is not paid in advance.
  */
 export function paidInAdvance(expenses, to) {
   let kobo = 0;
   for (const e of expenses) {
     if (e.voided || !e.covers || e.incurredOn > to || e.covers.to <= to) continue;
-    kobo += e.amount - expenseShare(e, e.covers.from, to);
+    const paid = Math.min(
+      e.amount,
+      (e.payments ?? []).filter((p) => !p.removedAt && p.paidOn <= to).reduce((sum, p) => sum + p.amount, 0),
+    );
+    kobo += Math.max(0, paid - expenseShare(e, e.covers.from, to));
   }
   return kobo;
 }

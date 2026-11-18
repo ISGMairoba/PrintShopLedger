@@ -15,11 +15,19 @@ export const partsAllowed = (job) =>
  * Where a job stands: items in all, done so far, collected so far, ready to hand over now.
  * @param {import('./types').Job} job
  */
+/**
+ * Items collected by handovers so far: the running count (progress.collected), so it stays right
+ * when only the latest 200 handovers are kept; jobs from before it add up their handovers.
+ */
+export const collectedSoFar = (progress) =>
+  Number.isInteger(progress?.collected)
+    ? Number(progress.collected)
+    : (progress?.handovers ?? []).reduce((sum, h) => sum + h.quantity, 0);
+
 export function jobParts(job) {
   const total = Number.isInteger(job.quantity) ? Number(job.quantity) : 1;
   const handovers = job.progress?.handovers ?? [];
-  const collected =
-    job.productionStatus === 'Collected' ? total : handovers.reduce((sum, h) => sum + h.quantity, 0);
+  const collected = job.productionStatus === 'Collected' ? total : collectedSoFar(job.progress);
   const finished = ['Completed', 'Collected'].includes(job.productionStatus ?? 'Added');
   const done = finished ? total : Math.max(job.progress?.done ?? 0, collected);
   return { total, done, collected, ready: Math.max(0, done - collected), handovers, finished };
@@ -119,8 +127,7 @@ export function removeProblem(job, handoverId, reason) {
   if (job.productionStatus === 'Cancelled') return 'This job is cancelled.';
   if (!list.length || list[list.length - 1].id !== handoverId)
     return 'Only the latest handover can be removed.';
-  const sum = list.reduce((total, h) => total + h.quantity, 0);
-  if (job.productionStatus === 'Collected' && sum !== job.quantity)
+  if (job.productionStatus === 'Collected' && collectedSoFar(job.progress) !== job.quantity)
     return 'This job was collected in full, not by handovers.';
   const why = String(reason ?? '').trim();
   if (!why || why.length > 200) return 'Give a short reason (up to 200 characters).';
@@ -170,6 +177,7 @@ export function applyJobHandover(ledger, event) {
             byLabel: d.modifiedByLabel,
           },
         ].slice(-200),
+        collected: collected + d.quantity,
       },
       ...(last ? { productionStatus: 'Collected', stageAt: d.modifiedAt, stageHeldMs: 0 } : {}),
     };
@@ -183,6 +191,7 @@ export function applyJobHandover(ledger, event) {
       progress: {
         ...progress,
         handovers: progress.handovers.slice(0, -1),
+        collected: collectedSoFar(progress) - gone.quantity,
         removed: [
           ...(progress.removed ?? []),
           {
