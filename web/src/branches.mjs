@@ -133,9 +133,88 @@ export function soldAt(settings, service, id) {
  * as set when the branch's type is the business's own.
  */
 export function settingsForBranch(settings, id) {
+  const typed = withBranchSettings(settings, id);
   const b = branchOf(settings, id);
-  if (!b?.type || b.type === (settings?.businessType ?? 'both')) return settings;
-  return { ...settings, businessType: b.type, features: {} };
+  if (!b?.type || b.type === (settings?.businessType ?? 'both')) return typed;
+  return { ...typed, businessType: b.type, features: {} };
+}
+
+/**
+ * Settings a branch keeps for itself (Business Settings → "Settings for" a branch), in
+ * settings.branchSettings[branchId], by group. A group left out follows the whole business.
+ * * receipts: receipt, receiptPage, documents (Receipts tab)
+ * * workflow: every dropdown and workflow option except payment methods (Dropdowns & workflow tab;
+ *   a branch's payment methods are those of its own money accounts)
+ * * jobs: jobs, drawers, production (Jobs & payments tab)
+ */
+export const BRANCH_SETTING_GROUPS = {
+  receipts: ['receipt', 'receiptPage', 'documents'],
+  workflow: ['options'],
+  jobs: ['jobs', 'drawers', 'production'],
+};
+/** The group a business setting key belongs to (null: always the whole business's). */
+export const branchSettingGroup = (key) =>
+  Object.entries(BRANCH_SETTING_GROUPS).find(([, keys]) => keys.includes(key))?.[0] ?? null;
+
+/** A branch's own value for one setting key: what it keeps in its group. */
+function ownValue(own, key) {
+  if (key === 'options') return own?.workflow?.options;
+  const group = branchSettingGroup(key);
+  return group ? own?.[group]?.[key] : undefined;
+}
+
+/** The settings with a branch's own groups put in (none for the main branch or a store). */
+export function withBranchSettings(settings, id) {
+  const own = settings?.branchSettings?.[id];
+  if (!id || id === MAIN || !own || typeof own !== 'object') return settings;
+  const out = { ...settings };
+  for (const keys of Object.values(BRANCH_SETTING_GROUPS))
+    for (const key of keys) {
+      const value = ownValue(own, key);
+      if (value === undefined) continue;
+      // The branch keeps the business's payment methods list (its accounts decide what it takes).
+      out[key] = key === 'options' ? { ...value, paymentMethods: settings.options?.paymentMethods } : value;
+    }
+  return out;
+}
+
+/** Whether a branch keeps its own settings for a group. */
+export const ownsGroup = (settings, id, group) => !!settings?.branchSettings?.[id]?.[group];
+
+/**
+ * branchSettings after a branch saves its own values for some keys (from the effective draft), or
+ * (values null) goes back to the whole business's for that group.
+ */
+export function setBranchSettings(settings, id, group, values) {
+  const all = { ...(settings?.branchSettings ?? {}) };
+  const own = { ...(all[id] ?? {}) };
+  if (values === null) delete own[group];
+  else own[group] = { ...(own[group] ?? {}), ...values };
+  if (Object.keys(own).length) all[id] = own;
+  else delete all[id];
+  return all;
+}
+
+/** Shape check for settings.branchSettings (each group's values are checked by the business's validators). */
+export function validateBranchSettingsShape(input, branches) {
+  if (input === undefined || input === null) return {};
+  if (typeof input !== 'object' || Array.isArray(input)) throw Error('Invalid branch settings.');
+  const ids = new Set((branches ?? []).map((b) => b.id));
+  const out = {};
+  for (const [id, own] of Object.entries(input)) {
+    if (!ids.has(id) || id === MAIN || !own || typeof own !== 'object') continue;
+    const kept = {};
+    for (const [group, keys] of Object.entries(BRANCH_SETTING_GROUPS)) {
+      const values = own[group];
+      if (!values || typeof values !== 'object') continue;
+      const picked = Object.fromEntries(
+        keys.filter((k) => values[k] !== undefined).map((k) => [k, values[k]]),
+      );
+      if (Object.keys(picked).length) kept[group] = picked;
+    }
+    if (Object.keys(kept).length) out[id] = kept;
+  }
+  return out;
 }
 
 /**
