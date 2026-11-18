@@ -246,3 +246,20 @@ export function upgradeSettingsTabs(input, version = 0) {
     if (Array.isArray(next[rank])) next[rank] = next[rank].filter((t) => t !== 'Payment methods');
   return next;
 }
+
+/**
+ * Page access with the extra limits (General Manager per branch, Manager+ per person): the rank's
+ * pages (Developer's settings) that the limit also lists. `limit` is the pages list the server gives
+ * for this person at this branch (my_page_limits), or null for none. My Account always stays.
+ * Returns a pageAccess object for canAccessPage.
+ */
+export function limitedPageAccess(configured, access, limit) {
+  if (!Array.isArray(limit) || access === 5 || !Number.isInteger(access) || access < 1) return configured;
+  const rank = String(access);
+  const own = configured?.[rank] ?? (access === 4 ? configured?.['3'] : undefined) ?? defaultPageAccess()[rank] ?? [];
+  return { ...configured, [rank]: own.filter((page) => page === 'My Account' || limit.includes(page)) };
+}
+/** The pages a rank may open (Developer's settings), for the limit editors. */
+export function rankPages(configured, rank) {
+  return pages.filter((page) => canAccessPage(page, rank, configured));
+}

@@ -4877,3 +4877,13 @@ button.pos-tile {
 .item-tiles-settings > p + .form-grid {
   margin-top: 12px;
 }
+
+/* Users → Pages: one person's pages, two columns where there is room. */
+.page-limit-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
+  gap: 4px 16px;
+}
+.page-limit-list > legend {
+  grid-column: 1 / -1;
+}
