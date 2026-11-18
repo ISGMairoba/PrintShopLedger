@@ -12,18 +12,19 @@ export const partsAllowed = (job) =>
   Number.isInteger(job.quantity) && job.quantity >= 2 && !closed.includes(job.productionStatus ?? 'Added');
 
 /**
- * Where a job stands: items in all, done so far, collected so far, ready to hand over now.
- * @param {import('./types').Job} job
- */
-/**
  * Items collected by handovers so far: the running count (progress.collected), so it stays right
  * when only the latest 200 handovers are kept; jobs from before it add up their handovers.
+ * @param {import('./types').Job['progress']} progress
  */
 export const collectedSoFar = (progress) =>
   Number.isInteger(progress?.collected)
-    ? Number(progress.collected)
+    ? Number(progress?.collected)
     : (progress?.handovers ?? []).reduce((sum, h) => sum + h.quantity, 0);
 
+/**
+ * Where a job stands: items in all, done so far, collected so far, ready to hand over now.
+ * @param {import('./types').Job} job
+ */
 export function jobParts(job) {
   const total = Number.isInteger(job.quantity) ? Number(job.quantity) : 1;
   const handovers = job.progress?.handovers ?? [];
