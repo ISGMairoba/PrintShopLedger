@@ -41,22 +41,22 @@ do $m$ begin
 end $m$;
 create or replace function public.get_ledger(p_shop uuid) returns jsonb
 language plpgsql stable set search_path to '' as $function$
-declare result jsonb := public.get_ledger_before_branch_customers(p_shop); v record; own boolean := false;
+declare result jsonb := public.get_ledger_before_branch_customers(p_shop); bv record; own boolean := false;
 begin
   if not (result ? 'customers') then return result; end if;
-  select * into v from private.branch_view(p_shop);
-  if v.has_branches and v.keep_branch is not null and v.keep_branch <> 'main' then
+  select * into bv from private.branch_view(p_shop);
+  if bv.has_branches and bv.keep_branch is not null and bv.keep_branch <> 'main' then
     select exists (select 1 from public.business_settings b, jsonb_array_elements(coalesce(b.settings->'branches', '[]'::jsonb)) x
-                   where b.shop_id = p_shop and x->>'id' = v.keep_branch and x->>'customers' = 'own') into own;
+                   where b.shop_id = p_shop and x->>'id' = bv.keep_branch and x->>'customers' = 'own') into own;
   end if;
   result := jsonb_set(result, '{customers}', (
     select coalesce(jsonb_agg(x.v || jsonb_build_object('branchId', coalesce(c.branch_id, 'main'),
              'creditLimits', coalesce(c.credit_limits, '{}'::jsonb)) order by x.n), '[]'::jsonb)
     from jsonb_array_elements(result->'customers') with ordinality x(v, n)
     left join public.customers c on c.shop_id = p_shop and c.id = (x.v->>'id')::uuid
-    where not own or coalesce(c.branch_id, 'main') = v.keep_branch
-       or exists (select 1 from public.jobs j where j.shop_id = p_shop and j.customer_id = c.id and j.branch_id = v.keep_branch)
-       or exists (select 1 from public.checkout_records k where k.shop_id = p_shop and k.customer_id = c.id and k.branch_id = v.keep_branch)));
+    where not own or coalesce(c.branch_id, 'main') = bv.keep_branch
+       or exists (select 1 from public.jobs j where j.shop_id = p_shop and j.customer_id = c.id and j.branch_id = bv.keep_branch)
+       or exists (select 1 from public.checkout_records k where k.shop_id = p_shop and k.customer_id = c.id and k.branch_id = bv.keep_branch)));
   return result;
 end $function$;
 revoke all on function public.get_ledger(uuid) from public, anon;
