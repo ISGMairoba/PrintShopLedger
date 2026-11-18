@@ -522,16 +522,18 @@ export default function JobsPaymentsPage({
                                   <Icon name="details" /> Receipt
                                 </button>
                               )}
-                              {onCorrectPayment && !payment.refundId && (canCorrectPayment?.(payment) ?? true) && (
-                                <button
-                                  className="text-button"
-                                  disabled={busy}
-                                  aria-label={`Correct payment ${shortId(payment.id)}`}
-                                  onClick={() => onCorrectPayment(payment)}
-                                >
-                                  <Icon name="edit" /> Correct
-                                </button>
-                              )}
+                              {onCorrectPayment &&
+                                !payment.refundId &&
+                                (canCorrectPayment?.(payment) ?? true) && (
+                                  <button
+                                    className="text-button"
+                                    disabled={busy}
+                                    aria-label={`Correct payment ${shortId(payment.id)}`}
+                                    onClick={() => onCorrectPayment(payment)}
+                                  >
+                                    <Icon name="edit" /> Correct
+                                  </button>
+                                )}
                             </div>
                           </td>
                         </tr>

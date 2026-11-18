@@ -108,7 +108,11 @@ export function correctionChanges(ledger, next, jobId, customerId = null) {
       add(`${name} · date`, payment.paidOn, revised.paidOn);
       add(`${name} · reference`, payment.reference, revised.reference);
     }
-    add('Customer credit', currency(walletBalance(ledger, customerId)), currency(walletBalance(next, customerId)));
+    add(
+      'Customer credit',
+      currency(walletBalance(ledger, customerId)),
+      currency(walletBalance(next, customerId)),
+    );
     return rows;
   }
   const job = ledger.jobs.find((j) => j.id === jobId),

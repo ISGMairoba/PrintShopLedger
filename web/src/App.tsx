@@ -3363,7 +3363,9 @@ export default function App() {
                         <PaymentCorrectionDialog
                           request
                           ledger={ledger}
-                          payment={ledger.payments.find((p) => p.id === requestingPayment.id) ?? requestingPayment}
+                          payment={
+                            ledger.payments.find((p) => p.id === requestingPayment.id) ?? requestingPayment
+                          }
                           busy={busy}
                           actor={salesActor}
                           onClose={() => setRequestingPayment(null)}
