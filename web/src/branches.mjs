@@ -420,6 +420,15 @@ export function branchLedger(ledger, id = localBranch) {
       out.accountEntries = ledger.accountEntries.filter(
         (e) => own.has(e.accountId) || own.has(e.toAccountId),
       );
+    // Money moved to or from another branch: that account's name and branch, so the entry can say
+    // where the money went (it is not one of this branch's accounts to use).
+    const kept = new Set(out.moneyAccounts.map((a) => a.id));
+    const others = new Set(
+      (out.accountEntries ?? []).flatMap((e) => [e.accountId, e.toAccountId]).filter((x) => x && !kept.has(x)),
+    );
+    out.otherBranchAccounts = ledger.moneyAccounts
+      .filter((a) => others.has(a.id))
+      .map((a) => ({ id: a.id, name: a.name, branch: branchOf(a) }));
   }
   // An expense's change history goes with the expense.
   if (Array.isArray(ledger?.expenseHistory) && Array.isArray(out.expenses)) {

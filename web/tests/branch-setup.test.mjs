@@ -243,3 +243,25 @@ test('everything but the business name can be a branch’s own', async () => {
   assert.equal(shop.businessName, 'X');
   assert.notEqual(settingsForBranch(saved, 'main').primary, '#7a1f5c');
 });
+
+test('Money moved between branches shows at both, naming the other branch’s account', async () => {
+  const { branchLedger } = await import('../src/branches.mjs');
+  const ledger = {
+    moneyAccounts: [
+      { id: 'a-main', name: 'Cash', branch: 'main' },
+      { id: 'a-zoo', name: 'Cash, Zoo Road', branch: 'b-zoo0000001' },
+      { id: 'a-gari', name: 'Cash, Sabon Gari', branch: 'b-gari000001' },
+    ],
+    accountEntries: [
+      { id: 'e1', action: 'transfer', accountId: 'a-main', toAccountId: 'a-zoo', amount: 500 },
+      { id: 'e2', action: 'transfer', accountId: 'a-gari', toAccountId: 'a-main', amount: 300 },
+    ],
+  };
+  const zoo = branchLedger(ledger, 'b-zoo0000001');
+  assert.deepEqual(zoo.moneyAccounts.map((a) => a.id), ['a-zoo']);
+  assert.deepEqual(zoo.accountEntries.map((e) => e.id), ['e1']);
+  assert.deepEqual(zoo.otherBranchAccounts, [{ id: 'a-main', name: 'Cash', branch: 'main' }]);
+  const main = branchLedger(ledger, 'main');
+  assert.deepEqual(main.accountEntries.map((e) => e.id), ['e1', 'e2']);
+  assert.deepEqual(main.otherBranchAccounts.map((a) => a.id), ['a-zoo', 'a-gari']);
+});
