@@ -277,3 +277,18 @@ test('Money moved between branches shows at both, naming the other branch’s ac
     ['a-zoo', 'a-gari'],
   );
 });
+
+test('Viewing another branch counts that branch’s wallet, not the device’s', async () => {
+  const { branchLedger, setLocalBranch } = await import('../src/branches.mjs');
+  const { walletBalance } = await import('../src/checkout.mjs');
+  setLocalBranch('main');
+  const ledger = {
+    payments: [
+      { id: 'p1', customerId: 'c', walletAdded: 5000, branchId: 'b-zoo0000001' },
+      { id: 'p2', customerId: 'c', walletAdded: 700 },
+    ],
+  };
+  assert.equal(walletBalance(branchLedger(ledger, 'b-zoo0000001'), 'c'), 5000);
+  assert.equal(walletBalance(branchLedger(ledger, 'main'), 'c'), 700);
+  assert.equal(walletBalance(ledger, 'c'), 700);
+});
