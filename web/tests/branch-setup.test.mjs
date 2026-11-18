@@ -222,7 +222,10 @@ test('everything but the business name can be a branch’s own', async () => {
       { id: 'b-shop000001', name: 'Shop', address: '', phone: '', archived: false },
     ],
   });
-  s.branchSettings = setBranchSettings(s, 'b-shop000001', 'appearance', { primary: '#7a1f5c', accent: '#f0b400' });
+  s.branchSettings = setBranchSettings(s, 'b-shop000001', 'appearance', {
+    primary: '#7a1f5c',
+    accent: '#f0b400',
+  });
   s.branchSettings = setBranchSettings(s, 'b-shop000001', 'profile', { email: 'shop@example.com' });
   const saved = validateBranding(s);
   const shop = settingsForBranch(saved, 'b-shop000001');
