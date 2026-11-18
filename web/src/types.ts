@@ -6,6 +6,14 @@ export interface Customer {
   phone: string;
   address: string;
   creditLimit: number;
+  /** Where they were added (left out = main branch). */
+  branchId?: string | null;
+  /** Each branch's own credit limit (left out = creditLimit). */
+  creditLimits?: Record<string, number>;
+  /** On a branch device: the customer's own limit (creditLimit is then this branch's). */
+  baseCreditLimit?: number;
+  /** On a branch device: added here or has records here (the Customers page lists these). */
+  workedHere?: boolean;
   archived: boolean;
   version: number;
   createdAt: string;

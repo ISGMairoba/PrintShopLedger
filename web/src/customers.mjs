@@ -1,4 +1,12 @@
 import { materialCode } from './material-display.mjs';
+import { MAIN, localBranchId } from './branches.mjs';
+
+/** A credit limit set at a branch (branchCreditLimit) goes in creditLimits for that branch. */
+function branchLimits(existing, data) {
+  const here = localBranchId();
+  if (data.branchCreditLimit === undefined || here === MAIN) return existing?.creditLimits;
+  return { ...(existing?.creditLimits ?? {}), [here]: data.branchCreditLimit };
+}
 export const customerCode = (id, customers = []) => materialCode(id, customers).replace('MAT-', 'CUS-');
 /**
  * The comparable form of a phone number: digits only, Nigerian numbers in local 0… form
@@ -56,6 +64,9 @@ export function validateCustomer(data, legacy = false) {
   const limit = data.creditLimit ?? 0;
   if (!Number.isSafeInteger(limit) || limit < 0 || limit > 100000000000)
     throw new Error('Credit limit must be zero or greater, with at most two decimal places.');
+  const here = data.branchCreditLimit;
+  if (here !== undefined && (!Number.isSafeInteger(here) || here < 0 || here > 100000000000))
+    throw new Error('Credit limit must be zero or greater, with at most two decimal places.');
 }
 export function createCustomerEvent(
   fields,
@@ -73,6 +84,7 @@ export function createCustomerEvent(
       phone: fields.phone.trim(),
       address: (fields.address ?? '').trim(),
       creditLimit: fields.creditLimit ?? 0,
+      ...(fields.branchCreditLimit !== undefined ? { branchCreditLimit: fields.branchCreditLimit } : {}),
       createdAt: now,
       modifiedBy: actor.id,
       modifiedByLabel: actor.label,
@@ -140,6 +152,7 @@ export function applyCustomerEvent(ledger, event) {
       phone: (data.phone ?? '').trim(),
       address: (data.address ?? '').trim(),
       creditLimit: data.creditLimit ?? 0,
+      ...(branchLimits(null, data) ? { creditLimits: branchLimits(null, data) } : {}),
       archived: false,
       version: 1,
       createdBy: audit.modifiedBy,
@@ -168,6 +181,7 @@ export function applyCustomerEvent(ledger, event) {
       phone: data.phone.trim(),
       address: (data.address ?? '').trim(),
       creditLimit: data.creditLimit ?? 0,
+      ...(branchLimits(existing, data) ? { creditLimits: branchLimits(existing, data) } : {}),
       ...audit,
       version: existing.version + 1,
     };
