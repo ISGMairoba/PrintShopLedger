@@ -306,7 +306,10 @@ export const answerStockRequest = (
   });
 export const cancelStockRequest = (shopId: string, id: string) =>
   stockCall('cancel_stock_request', { p_shop: shopId, p_id: id });
-export const transferStock = (
+// A transfer keeps its operation ID until the server answers, so sending the same transfer again
+// after a lost answer does not move the stock twice (the server finds it already made).
+const transfersSent = new Map<string, string>();
+export async function transferStock(
   shopId: string,
   materialId: string,
   from: string,
@@ -314,8 +317,12 @@ export const transferStock = (
   quantity: number,
   reason: string,
   cost: { unitCost: number; actual: boolean } | null = null,
-) =>
-  stockCall('transfer_stock', {
+) {
+  const key = JSON.stringify([shopId, materialId, from, to, quantity, reason]);
+  const operation = transfersSent.get(key) ?? crypto.randomUUID();
+  transfersSent.set(key, operation);
+  await stockCall('transfer_stock', {
+    p_operation: operation,
     p_shop: shopId,
     p_material: materialId,
     p_from: from,
@@ -324,6 +331,8 @@ export const transferStock = (
     p_reason: reason,
     ...(cost ? { p_unit_cost: cost.unitCost, p_actual_cost: cost.actual } : {}),
   });
+  transfersSent.delete(key);
+}
 
 /**
  * The business's whole history, for a report on a device that keeps recent history only. It is
