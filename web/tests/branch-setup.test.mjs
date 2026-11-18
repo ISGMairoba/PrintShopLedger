@@ -127,3 +127,35 @@ test('each branch or store can have its own minimum stock', async () => {
     [['main', 50]],
   );
 });
+
+test('a branch can keep its own receipts, dropdowns & workflow and job settings', async () => {
+  const { defaultBranding, validateBranding } = await import('../src/business-branding.mjs');
+  const { settingsForBranch, setBranchSettings, ownsGroup } = await import('../src/branches.mjs');
+  const s = validateBranding({
+    ...defaultBranding(),
+    businessName: 'X',
+    branches: [
+      { id: 'main', name: 'Main', address: '', phone: '', archived: false },
+      { id: 'b-shop000001', name: 'Shop', address: '', phone: '', archived: false },
+    ],
+  });
+  s.branchSettings = setBranchSettings(s, 'b-shop000001', 'receipts', {
+    receipt: { ...s.receipt, footer: 'Thank you, Shop' },
+  });
+  s.branchSettings = setBranchSettings(s, 'b-shop000001', 'workflow', {
+    options: { ...s.options, expenseCategories: ['Fuel', 'Rent'] },
+  });
+  const saved = validateBranding(s);
+  assert.equal(ownsGroup(saved, 'b-shop000001', 'receipts'), true);
+  assert.equal(ownsGroup(saved, 'b-shop000001', 'jobs'), false);
+  const shop = settingsForBranch(saved, 'b-shop000001');
+  assert.equal(shop.receipt.footer, 'Thank you, Shop');
+  assert.deepEqual(shop.options.expenseCategories, ['Fuel', 'Rent']);
+  assert.deepEqual(shop.options.paymentMethods, saved.options.paymentMethods, 'payment methods stay the business’s');
+  assert.notEqual(settingsForBranch(saved, 'main').receipt.footer, 'Thank you, Shop');
+  // Going back to the whole business's.
+  saved.branchSettings = setBranchSettings(saved, 'b-shop000001', 'receipts', null);
+  assert.equal(ownsGroup(saved, 'b-shop000001', 'receipts'), false);
+  // A closed-down branch id is dropped.
+  assert.deepEqual(validateBranding({ ...saved, branchSettings: { 'b-gone000001': { receipts: {} } } }).branchSettings, {});
+});
