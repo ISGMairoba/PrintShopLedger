@@ -177,7 +177,15 @@ test('A deposit with no job is corrected on the customer’s account', () => {
     ledger,
     prepareCheckout(
       ledger,
-      { customerId: customer, lines: [], cashReceived: 300000, useWallet: false, paidOn: '2026-10-17', method: 'Cash', reference: '' },
+      {
+        customerId: customer,
+        lines: [],
+        cashReceived: 300000,
+        useWallet: false,
+        paidOn: '2026-10-17',
+        method: 'Cash',
+        reference: '',
+      },
       actor,
       id(),
       at,
@@ -187,7 +195,12 @@ test('A deposit with no job is corrected on the customer’s account', () => {
   assert.equal(payment.walletAdded, 300000);
   assert.equal(anchorJob(ledger, payment), undefined);
   // Typed ₦300,000 instead of ₦30,000: the credit goes down with it.
-  const event = paymentCorrectionEvent(ledger, payment, change(payment, { amount: 30000, reason: 'Typo' }), actor);
+  const event = paymentCorrectionEvent(
+    ledger,
+    payment,
+    change(payment, { amount: 30000, reason: 'Typo' }),
+    actor,
+  );
   assert.equal(event.data.customerId, customer);
   assert.equal(event.data.jobId, undefined);
   ledger = applyEvent(ledger, event);
@@ -197,7 +210,12 @@ test('A deposit with no job is corrected on the customer’s account', () => {
   assert.equal(record.jobId, null);
   assert.equal(record.methodDeltas.Cash, -270000);
   // Raising it again adds the credit back.
-  const up = paymentCorrectionEvent(ledger, after, change(after, { amount: 50000, reason: 'Counted again' }), actor);
+  const up = paymentCorrectionEvent(
+    ledger,
+    after,
+    change(after, { amount: 50000, reason: 'Counted again' }),
+    actor,
+  );
   ledger = applyEvent(ledger, up);
   assert.equal(ledger.payments[0].walletAdded, 50000);
 });

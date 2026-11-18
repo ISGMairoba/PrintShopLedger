@@ -574,7 +574,8 @@ function applyDepositCorrection(ledger, event) {
   /** @type {Record<string, number>} */
   const methodDeltas = {};
   for (const method of ['Cash', 'POS', 'Transfer', 'Other'])
-    methodDeltas[method] = (p.method === method ? p.amount : 0) - (before.method === method ? before.amount : 0);
+    methodDeltas[method] =
+      (p.method === method ? p.amount : 0) - (before.method === method ? before.amount : 0);
   const snapshot = { description: 'Deposit with no job', amount: 0 };
   const record = /** @type {any} */ ({
     id: event.id,

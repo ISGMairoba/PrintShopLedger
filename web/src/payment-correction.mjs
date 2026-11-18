@@ -51,9 +51,7 @@ export function paymentCorrectionEvent(
     kind: 'payment.corrected',
     data: {
       // A deposit from a customer with no jobs yet is corrected on the customer's account.
-      ...(job
-        ? { jobId: job.id, baseVersion: job.version ?? 1 }
-        : { customerId: payment.customerId }),
+      ...(job ? { jobId: job.id, baseVersion: job.version ?? 1 } : { customerId: payment.customerId }),
       expectedAccount: accountToken(ledger, payment.customerId),
       paymentId: payment.id,
       expectedPayment: paymentCorrectionToken(payment),
