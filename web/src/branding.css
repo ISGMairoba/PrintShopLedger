@@ -446,6 +446,10 @@ select:focus-visible {
 /* Sign-in screens (app/AuthScreens.tsx AuthShell), laid out like Tillora's: the story in the
    brand colour on the left, the form on a plain surface on the right. */
 .auth.auth-split {
+  /* The sign-in colours: PrintShopLedger's own unless the business chose its own (Appearance). */
+  --brand-primary: var(--auth-primary, #124b40);
+  --brand-accent: var(--auth-accent, #d9a126);
+  --brand-on-primary: var(--auth-on-primary, #fff);
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   place-items: stretch;
@@ -655,4 +659,55 @@ select:focus-visible {
 }
 .settings-branch-status span {
   flex: 1 1 260px;
+}
+/* Sidebar bottom (sketch 18 Nov): avatar, username over rank, the round buttons, and the full name
+   centred underneath. */
+.sidebar-user.sidebar-user-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 6px;
+}
+.sidebar-user-card .sidebar-user-actions .icon-button {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+}
+.sidebar-user-card .sidebar-user-name {
+  grid-column: 1 / -1;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Quick sale tile: one item's price, marked when packs or quantity ranges are cheaper. */
+.pos-tile-price .pos-tile-deal {
+  margin-left: 6px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--brand-accent, #d9a126) 22%, transparent);
+  color: var(--ink);
+  vertical-align: middle;
+}
+/* Appearance → Sign-in page colours. */
+.login-colors {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin: 16px 0;
+}
+.login-colors input[type='color'] {
+  width: 100%;
+  height: 42px;
+  padding: 4px;
 }

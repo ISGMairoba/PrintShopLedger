@@ -102,14 +102,18 @@ export function productCategories(products) {
 }
 
 /** The lowest price a tile can sell at ("from ₦…" when packs, tiers or variants make it vary). */
+/**
+ * A tile's price: the price of one item (the lowest of its variants; from = the variants differ),
+ * and whether cheaper pack prices or quantity ranges apply (deal: 'packs' | 'ranges' | null).
+ */
 export function tilePrice(variants) {
-  const prices = variants.flatMap((p) => [
-    p.price,
-    ...(p.priceTiers ?? []).map((t) => t.price),
-    ...(p.packPrices ?? []).map((pk) => Math.round(pk.price / pk.quantity)),
-  ]);
-  const low = Math.min(...prices.filter((n) => Number.isFinite(n)));
-  return { price: low, from: new Set(prices).size > 1 };
+  const prices = variants.map((p) => p.price).filter((n) => Number.isFinite(n));
+  const deal = variants.some((p) => (p.priceTiers ?? []).length)
+    ? 'ranges'
+    : variants.some((p) => (p.packPrices ?? []).length)
+      ? 'packs'
+      : null;
+  return { price: Math.min(...prices), from: new Set(prices).size > 1, deal };
 }
 
 /**

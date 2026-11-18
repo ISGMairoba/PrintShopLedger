@@ -73,7 +73,7 @@ try {
   await nav('Materials');
   assert.match(await page.locator('table').innerText(), /Blue pen[\s\S]*\b7\b/);
 
-  // Quick sale: tap the product twice, hold the basket and resume it, then take ₦2,000 and give ₦1,000 change.
+  // Quick sale: tap the product twice, hold the cart and resume it, then take ₦2,000 and give ₦1,000 change.
   await nav('Point of Service');
   await page.getByRole('button', { name: 'Quick sale', exact: true }).click();
   d = page.getByRole('dialog', { name: 'Quick sale' });
@@ -81,13 +81,13 @@ try {
   await items().click();
   await items().click();
   assert.equal(await d.getByLabel('Quantity of Blue pen').inputValue(), '2');
-  assert.match(await items().getAttribute('aria-label'), /2 in the basket/);
-  await d.getByRole('button', { name: 'Hold basket', exact: true }).click();
+  assert.match(await items().getAttribute('aria-label'), /2 in the cart/);
+  await d.getByRole('button', { name: 'Hold cart', exact: true }).click();
   await d.waitFor({ state: 'detached' });
   await page.getByRole('button', { name: 'Quick sale', exact: true }).click();
   d = page.getByRole('dialog', { name: 'Quick sale' });
-  await d.getByRole('button', { name: 'Held baskets (1)', exact: true }).click();
-  const heldDialog = page.getByRole('dialog', { name: 'Held baskets (1)' });
+  await d.getByRole('button', { name: 'Held carts (1)', exact: true }).click();
+  const heldDialog = page.getByRole('dialog', { name: 'Held carts (1)' });
   await heldDialog.getByRole('button', { name: 'Resume', exact: true }).click();
   await heldDialog.waitFor({ state: 'detached' });
   assert.equal(await d.getByLabel('Quantity of Blue pen').inputValue(), '2');

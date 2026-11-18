@@ -78,7 +78,7 @@ export const settingsTabKeys = {
     'logoUsage',
     'appIcon',
   ],
-  Appearance: ['primary', 'accent', 'theme', 'backgrounds'],
+  Appearance: ['primary', 'accent', 'theme', 'backgrounds', 'tiles', 'loginColors'],
   Receipts: ['receipt', 'receiptPage', 'documents'],
   'Payment methods': ['options'],
   'Dropdowns & workflow': ['options'],
