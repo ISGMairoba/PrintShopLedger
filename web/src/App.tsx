@@ -108,6 +108,7 @@ import {
 import { useAuthSessions, useOnline, useWorkspaces } from './app/useSessions';
 import { useAutoLock } from './app/useAutoLock';
 import usePinLock from './app/usePinLock';
+import { validPinHash } from './pin.mjs';
 import HelpPanel from './HelpPanel';
 import {
   AuthShell,
@@ -1578,7 +1579,7 @@ export default function App() {
     fetchHash: async () => {
       const { data, error } = await supabase!.rpc('my_pin', { p_shop: shop!.id });
       if (error) throw Error(error.message);
-      return (data as string | null) ?? null;
+      return typeof data === 'string' && validPinHash(data) ? data : null;
     },
     signOut: signOutStaff,
   });
