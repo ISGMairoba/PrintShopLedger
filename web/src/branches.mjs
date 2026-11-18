@@ -424,7 +424,9 @@ export function branchLedger(ledger, id = localBranch) {
     // where the money went (it is not one of this branch's accounts to use).
     const kept = new Set(out.moneyAccounts.map((a) => a.id));
     const others = new Set(
-      (out.accountEntries ?? []).flatMap((e) => [e.accountId, e.toAccountId]).filter((x) => x && !kept.has(x)),
+      (out.accountEntries ?? [])
+        .flatMap((e) => [e.accountId, e.toAccountId])
+        .filter((x) => x && !kept.has(x)),
     );
     out.otherBranchAccounts = ledger.moneyAccounts
       .filter((a) => others.has(a.id))

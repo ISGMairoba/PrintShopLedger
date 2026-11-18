@@ -100,8 +100,9 @@ export default function AccountsPage({
   const accountLabel = (id: string) => {
     const own = accounts.find((a) => a.id === id);
     if (own) return own.name;
-    const other = (ledger as { otherBranchAccounts?: { id: string; name: string; branch: string }[] })
-      .otherBranchAccounts?.find((a) => a.id === id);
+    const other = (
+      ledger as { otherBranchAccounts?: { id: string; name: string; branch: string }[] }
+    ).otherBranchAccounts?.find((a) => a.id === id);
     if (!other) return 'another account';
     const where = branches?.find((b) => b.id === other.branch)?.name;
     return `${other.name}${where ? ` (${where})` : ' (another branch)'}`;
@@ -938,7 +939,9 @@ export default function AccountsPage({
                           } · ${e.direction < 0 ? '−' : '+'}`
                         : `${e.action} · `}
                     {currency(e.amount)}
-                    {e.action === 'transfer' ? ` · ${accountLabel(e.accountId)} → ${accountLabel(e.toAccountId)}` : ''}
+                    {e.action === 'transfer'
+                      ? ` · ${accountLabel(e.accountId)} → ${accountLabel(e.toAccountId)}`
+                      : ''}
                     <br />
                     {e.reason} · {e.modifiedByLabel}
                     {e.cancelled ? ' · Cancelled' : ''}

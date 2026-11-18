@@ -258,10 +258,22 @@ test('Money moved between branches shows at both, naming the other branch’s ac
     ],
   };
   const zoo = branchLedger(ledger, 'b-zoo0000001');
-  assert.deepEqual(zoo.moneyAccounts.map((a) => a.id), ['a-zoo']);
-  assert.deepEqual(zoo.accountEntries.map((e) => e.id), ['e1']);
+  assert.deepEqual(
+    zoo.moneyAccounts.map((a) => a.id),
+    ['a-zoo'],
+  );
+  assert.deepEqual(
+    zoo.accountEntries.map((e) => e.id),
+    ['e1'],
+  );
   assert.deepEqual(zoo.otherBranchAccounts, [{ id: 'a-main', name: 'Cash', branch: 'main' }]);
   const main = branchLedger(ledger, 'main');
-  assert.deepEqual(main.accountEntries.map((e) => e.id), ['e1', 'e2']);
-  assert.deepEqual(main.otherBranchAccounts.map((a) => a.id), ['a-zoo', 'a-gari']);
+  assert.deepEqual(
+    main.accountEntries.map((e) => e.id),
+    ['e1', 'e2'],
+  );
+  assert.deepEqual(
+    main.otherBranchAccounts.map((a) => a.id),
+    ['a-zoo', 'a-gari'],
+  );
 });
