@@ -15,6 +15,7 @@ type Branch = {
   type?: 'both' | 'print' | 'retail';
   prices?: 'main' | 'own';
   sells?: 'all' | 'chosen';
+  customers?: 'shared' | 'own';
 };
 export type BranchStaff = { userId: string; name: string; role: string; rank: number; archived?: boolean };
 
@@ -150,6 +151,17 @@ export default function BranchesSettings({
                       >
                         <option value="all">Every item</option>
                         <option value="chosen">Only chosen items</option>
+                      </select>
+                    </label>
+                    <label>
+                      Customers
+                      <select
+                        aria-label={`Branch ${i + 1} customers`}
+                        value={b.customers ?? 'shared'}
+                        onChange={(e) => change(b.id, { customers: e.target.value as 'shared' | 'own' })}
+                      >
+                        <option value="shared">Shared with the other branches</option>
+                        <option value="own">Its own customers only</option>
                       </select>
                     </label>
                   </>
