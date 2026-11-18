@@ -115,13 +115,13 @@ do $m$ begin
   end if;
 end $m$;
 revoke all on function private.apply_ledger_event_core(uuid, jsonb) from public, anon, authenticated;
-create or replace function public.apply_ledger_event(p_shop uuid, p_event jsonb) returns jsonb
+create or replace function public.apply_ledger_event(p_shop uuid, p_event jsonb) returns void
 language plpgsql security definer set search_path to '' as $f$
 begin
   if p_event->>'kind' in ('job.created', 'payment.recorded') then
     raise exception 'Sales and payments are recorded through checkout. Update the app and try again.' using errcode = '42501';
   end if;
-  return private.apply_ledger_event_core(p_shop, p_event);
+  perform private.apply_ledger_event_core(p_shop, p_event);
 end $f$;
 revoke all on function public.apply_ledger_event(uuid, jsonb) from public, anon;
 grant execute on function public.apply_ledger_event(uuid, jsonb) to authenticated;
@@ -174,11 +174,11 @@ begin
     end if;
     execute format('revoke all on function private.%I(uuid, jsonb) from public, anon, authenticated', n || '_core');
     w := format($w$
-      create or replace function public.%1$I(p_shop uuid, p_event jsonb) returns jsonb
+      create or replace function public.%1$I(p_shop uuid, p_event jsonb) returns void
       language plpgsql security definer set search_path to '' as $f$
       begin
         perform private.assert_job_branch(p_shop, p_event->'data'->>'id');
-        return private.%2$I(p_shop, p_event);
+        perform private.%2$I(p_shop, p_event);
       end $f$;$w$, n, n || '_core');
     execute w;
     execute format('revoke all on function public.%I(uuid, jsonb) from public, anon', n);
