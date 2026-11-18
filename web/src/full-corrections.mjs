@@ -268,6 +268,7 @@ export function applyFullCorrection(input, event) {
     if (!sameEvent(previous.event, event)) throw Error('Adjustment ID already used for different details.');
     return ledger;
   }
+  if (event.kind === 'payment.corrected' && !d.jobId) return applyDepositCorrection(ledger, event);
   const job = ledger.jobs.find((j) => j.id === d.jobId);
   if (!job) throw Error('Job not found.');
   if (d.baseVersion !== (job.version ?? 1) || d.expectedAccount !== accountToken(ledger, job.customerId))
@@ -509,4 +510,96 @@ export function applyFullCorrection(input, event) {
     materialHistory: history,
     saleAdjustments: [...ledger.saleAdjustments, record],
   };
+}
+
+/**
+ * A deposit with no job (a customer who paid ahead and has no jobs yet): the payment's amount,
+ * method, date and reference are corrected on the customer's account. Lowering it takes the
+ * difference back off their credit, refused when that credit is already spent. Filed like any
+ * payment correction, with no job. The server (private.correct_deposit) applies the same rules.
+ */
+function applyDepositCorrection(ledger, event) {
+  const d = event.data;
+  const customerId = d.customerId;
+  if (!ledger.customers.some((c) => c.id === customerId)) throw Error('Customer not found.');
+  if (ledger.jobs.some((j) => j.customerId === customerId))
+    throw Error('This customer has jobs now. Sync and reopen the correction.');
+  if (d.expectedAccount !== accountToken(ledger, customerId))
+    throw Error('The customer account changed. Sync and reopen the correction.');
+  const payments = structuredClone(ledger.payments);
+  const p = payments.find((x) => x.id === d.paymentId && x.customerId === customerId && !x.refundId);
+  if (!p) throw Error('Choose a payment for this customer.');
+  if (!sameEvent(d.expectedPayment, paymentCorrectionToken(p)))
+    throw Error('Payment changed. Sync and reopen the correction.');
+  if (
+    !Number.isSafeInteger(d.paymentAmount) ||
+    d.paymentAmount < 0 ||
+    d.paymentAmount > 100000000000 ||
+    !['Cash', 'POS', 'Transfer', 'Other'].includes(d.method) ||
+    !d.methodLabel?.trim() ||
+    d.methodLabel.length > 80 ||
+    typeof d.reference !== 'string' ||
+    d.reference.length > 500
+  )
+    throw Error('Enter valid payment details.');
+  if (d.paidOn !== undefined && !validDate(d.paidOn)) throw Error('Choose a valid payment date.');
+  if (
+    p.amount === d.paymentAmount &&
+    p.method === d.method &&
+    (p.methodLabel ?? p.method) === d.methodLabel &&
+    p.reference === d.reference.trim() &&
+    (d.paidOn ?? p.paidOn) === p.paidOn
+  )
+    throw Error('Nothing changed.');
+  const before = ledger.payments.find((x) => x.id === p.id),
+    difference = d.paymentAmount - p.amount;
+  if (difference > 0) p.walletAdded = (p.walletAdded ?? 0) + difference;
+  if (difference < 0) {
+    const move = Math.min(-difference, p.walletAdded ?? 0, Math.max(0, walletBalance(ledger, customerId)));
+    if (move < -difference)
+      throw Error('This payment credit has already been spent. Correct the dependent payments first.');
+    p.walletAdded = (p.walletAdded ?? 0) - move;
+  }
+  p.amount = d.paymentAmount;
+  p.method = d.method;
+  p.methodLabel = d.methodLabel;
+  p.reference = d.reference.trim();
+  if (d.paidOn !== undefined) p.paidOn = d.paidOn;
+  const checkout = ledger.checkouts.find((r) => r.id === (p.checkoutId ?? p.id));
+  const historicalClosingId =
+    checkout?.drawerClosingId ??
+    ledger.drawerClosings.find((c) => c.checkoutIds.includes(checkout?.id))?.id ??
+    null;
+  const drawerActor = checkout && !historicalClosingId ? checkout.createdBy : null;
+  /** @type {Record<string, number>} */
+  const methodDeltas = {};
+  for (const method of ['Cash', 'POS', 'Transfer', 'Other'])
+    methodDeltas[method] =
+      (p.method === method ? p.amount : 0) - (before.method === method ? before.amount : 0);
+  const snapshot = { description: 'Deposit with no job', amount: 0 };
+  const record = /** @type {any} */ ({
+    id: event.id,
+    jobId: null,
+    customerId,
+    action: event.kind,
+    reason: d.reason.trim(),
+    changedBy: d.modifiedBy,
+    changedByLabel: d.modifiedByLabel || d.modifiedBy,
+    changedAt: d.modifiedAt,
+    before: snapshot,
+    after: snapshot,
+    creditReleased: 0,
+    refundAmount: 0,
+    returnQuantity: 0,
+    paymentChanges: [{ before, after: p }],
+    stockChanges: [],
+    cashDelta: methodDeltas.Cash,
+    methodDeltas,
+    drawerActor,
+    historicalClosingId,
+    paymentId: p.id,
+    affectedJobIds: [],
+    event,
+  });
+  return { ...ledger, payments, saleAdjustments: [...ledger.saleAdjustments, record] };
 }

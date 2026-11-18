@@ -164,3 +164,58 @@ test('a wrong amount: more goes to what is owed, then to credit; less is taken b
     100000,
   );
 });
+
+test('A deposit with no job is corrected on the customer’s account', () => {
+  let ledger = emptyLedger();
+  const customer = id();
+  ledger = applyEvent(ledger, {
+    id: id(),
+    kind: 'customer.created',
+    data: { id: customer, name: 'Musa', phone: '0802', address: '', creditLimit: 0, ...audit },
+  });
+  ledger = applyEvent(
+    ledger,
+    prepareCheckout(
+      ledger,
+      {
+        customerId: customer,
+        lines: [],
+        cashReceived: 300000,
+        useWallet: false,
+        paidOn: '2026-10-17',
+        method: 'Cash',
+        reference: '',
+      },
+      actor,
+      id(),
+      at,
+    ),
+  );
+  const payment = ledger.payments[0];
+  assert.equal(payment.walletAdded, 300000);
+  assert.equal(anchorJob(ledger, payment), undefined);
+  // Typed ₦300,000 instead of ₦30,000: the credit goes down with it.
+  const event = paymentCorrectionEvent(
+    ledger,
+    payment,
+    change(payment, { amount: 30000, reason: 'Typo' }),
+    actor,
+  );
+  assert.equal(event.data.customerId, customer);
+  assert.equal(event.data.jobId, undefined);
+  ledger = applyEvent(ledger, event);
+  const after = ledger.payments[0];
+  assert.deepEqual([after.amount, after.walletAdded], [30000, 30000]);
+  const record = ledger.saleAdjustments.find((r) => r.id === event.id);
+  assert.equal(record.jobId, null);
+  assert.equal(record.methodDeltas.Cash, -270000);
+  // Raising it again adds the credit back.
+  const up = paymentCorrectionEvent(
+    ledger,
+    after,
+    change(after, { amount: 50000, reason: 'Counted again' }),
+    actor,
+  );
+  ledger = applyEvent(ledger, up);
+  assert.equal(ledger.payments[0].walletAdded, 50000);
+});

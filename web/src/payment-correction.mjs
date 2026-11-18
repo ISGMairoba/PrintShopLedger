@@ -11,7 +11,8 @@ export const correctablePayment = (payment) => !!payment && !payment.refundId;
 
 /**
  * The job the correction is filed under: the oldest job this payment paid, or else the customer's
- * latest job (a payment that only added credit). Undefined when the customer has no jobs.
+ * latest job (a payment that only added credit). Undefined when the customer has no jobs: the
+ * correction is then filed under the customer (a deposit with no job).
  * @param {import('./types').Ledger} ledger
  * @param {import('./types').Payment} payment
  */
@@ -45,14 +46,13 @@ export function paymentCorrectionEvent(
 ) {
   if (!correctablePayment(payment)) throw Error('Refunds are corrected from Sale Adjustments.');
   const job = anchorJob(ledger, payment);
-  if (!job) throw Error('This customer has no jobs, so this payment cannot be corrected here.');
   return /** @type {any} */ ({
     id,
     kind: 'payment.corrected',
     data: {
-      jobId: job.id,
-      baseVersion: job.version ?? 1,
-      expectedAccount: accountToken(ledger, job.customerId),
+      // A deposit from a customer with no jobs yet is corrected on the customer's account.
+      ...(job ? { jobId: job.id, baseVersion: job.version ?? 1 } : { customerId: payment.customerId }),
+      expectedAccount: accountToken(ledger, payment.customerId),
       paymentId: payment.id,
       expectedPayment: paymentCorrectionToken(payment),
       paymentAmount: change.amount,
