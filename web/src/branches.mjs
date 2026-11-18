@@ -133,8 +133,9 @@ export const ownCustomers = (settings, id) => branchOf(settings, id)?.customers 
  * Customers as a branch sees them (records already this branch's, see branchLedger):
  * * creditLimit is the branch's own limit (creditLimits[branch]; the customer's limit until set),
  *   with the customer's own kept in baseCreditLimit;
- * * workedHere: added at this branch or has any job, sale, payment or quotation here (the Customers
- *   page lists these; checkouts can still find every shared customer);
+ * * workedHere: added at this branch, added to it by phone number (linkedBranches), or has any
+ *   job, sale, payment or quotation here (the Customers page lists these; checkouts can still
+ *   find every shared customer);
  * * a branch with its own customers sees only those.
  * @template T
  * @param {T} ledger
@@ -153,7 +154,7 @@ export function branchCustomersLedger(ledger, settings, id) {
         ...c,
         baseCreditLimit: c.creditLimit ?? 0,
         creditLimit: Number.isFinite(own) ? own : (c.creditLimit ?? 0),
-        workedHere: (c.branchId || MAIN) === here || worked.has(c.id),
+        workedHere: (c.branchId || MAIN) === here || worked.has(c.id) || !!c.linkedBranches?.includes(here),
       };
     })
     .filter((c) => !ownCustomers(settings, here) || c.workedHere);
