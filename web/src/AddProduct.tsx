@@ -96,18 +96,20 @@ export default function AddProduct({
       if (!name) throw Error(w('Enter a product name.'));
       if (withVariants) {
         await onSaveMany(
-          withLook(newVariantProductEvents(
-            ledgerFor(),
-            {
-              name,
-              unit: String(data.get('unit')).trim(),
-              price,
-              packPrices: pricing === 'ranges' ? [] : packPricesFrom(packs),
-              priceTiers: pricing === 'ranges' ? tiersFrom(tiers) : [],
-              variants: variantRows,
-            },
-            actor,
-          )),
+          withLook(
+            newVariantProductEvents(
+              ledgerFor(),
+              {
+                name,
+                unit: String(data.get('unit')).trim(),
+                price,
+                packPrices: pricing === 'ranges' ? [] : packPricesFrom(packs),
+                priceTiers: pricing === 'ranges' ? tiersFrom(tiers) : [],
+                variants: variantRows,
+              },
+              actor,
+            ),
+          ),
         );
         onClose();
         return;
@@ -116,36 +118,38 @@ export default function AddProduct({
       const at = new Date().toISOString();
       const audit = { modifiedBy: actor.id, modifiedByLabel: actor.label, modifiedAt: at };
       const materialId = crypto.randomUUID();
-      await onSaveMany(withLook([
-        {
-          id: crypto.randomUUID(),
-          kind: 'material.created',
-          data: {
-            id: materialId,
-            name,
-            available: Math.round(stock * 1000) / 1000,
-            measurementUnit: String(data.get('unit')).trim(),
-            requireSize: false,
-            minimumStock: Math.round(minimum * 1000) / 1000,
-            reason: 'Opening stock',
-            ...audit,
-          },
-        },
-        {
-          id: crypto.randomUUID(),
-          kind: 'service.created',
-          data: {
+      await onSaveMany(
+        withLook([
+          {
             id: crypto.randomUUID(),
-            description: name,
-            materialId,
-            price,
-            shelfItem: true,
-            packPrices: pricing === 'ranges' ? [] : packPricesFrom(packs),
-            priceTiers: pricing === 'ranges' ? tiersFrom(tiers) : [],
-            ...audit,
+            kind: 'material.created',
+            data: {
+              id: materialId,
+              name,
+              available: Math.round(stock * 1000) / 1000,
+              measurementUnit: String(data.get('unit')).trim(),
+              requireSize: false,
+              minimumStock: Math.round(minimum * 1000) / 1000,
+              reason: 'Opening stock',
+              ...audit,
+            },
           },
-        },
-      ]));
+          {
+            id: crypto.randomUUID(),
+            kind: 'service.created',
+            data: {
+              id: crypto.randomUUID(),
+              description: name,
+              materialId,
+              price,
+              shelfItem: true,
+              packPrices: pricing === 'ranges' ? [] : packPricesFrom(packs),
+              priceTiers: pricing === 'ranges' ? tiersFrom(tiers) : [],
+              ...audit,
+            },
+          },
+        ]),
+      );
       onClose();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not save the product.');
