@@ -4,10 +4,12 @@ import {
   allowedBranches,
   branchesOf,
   branchLedger,
+  branchCustomersLedger,
   chosenItemsLedger,
   hasBranches,
   withLocationMinimums,
   MAIN,
+  ownCustomers,
   ownPrices,
   seesAllBranches,
   sellsChosen,
@@ -452,9 +454,13 @@ export default function App() {
   const ledger = useMemo(
     () => ({
       ...(multiBranch && activeBranch
-        ? withLocationMinimums(
-            chosenItemsLedger(
-              branchLedger(state.ledger, activeBranch.id),
+        ? branchCustomersLedger(
+            withLocationMinimums(
+              chosenItemsLedger(
+                branchLedger(state.ledger, activeBranch.id),
+                branding.settings,
+                activeBranch.id,
+              ),
               branding.settings,
               activeBranch.id,
             ),
@@ -538,6 +544,14 @@ export default function App() {
     if (error) throw Error(error.message);
     syncNow();
   };
+  // Customers page: a branch lists the customers it worked with; the owner sees every shared customer.
+  const customersPageLedger = useMemo(
+    () =>
+      ownerView
+        ? { ...ledger, customers: ledger.customers.map((c) => ({ ...c, workedHere: undefined })) }
+        : ledger,
+    [ownerView, ledger],
+  );
   // Every branch's name (closed ones too), for notices and the Users page.
   const branchNames = useMemo(
     () => Object.fromEntries(branchesOf(branding.settings).map((b) => [b.id, b.name])),
@@ -1157,7 +1171,9 @@ export default function App() {
   // A branch switching between the main prices and its own: its devices receive every item priced
   // afresh (the items themselves did not change, so a normal sync would not bring them).
   const branchPriceMode =
-    multiBranch && activeBranch ? `${activeBranch.id}:${ownPrices(branding.settings, activeBranch.id)}` : '';
+    multiBranch && activeBranch
+      ? `${activeBranch.id}:${ownPrices(branding.settings, activeBranch.id)}:${ownCustomers(branding.settings, activeBranch.id)}`
+      : '';
   useEffect(() => {
     if (demo || !scope || !brandingReadyForKeep || !branchPriceMode) return;
     const key = `printshopledger:branch-prices:v1:${scope}`;
@@ -2902,7 +2918,7 @@ export default function App() {
                                     }
                                   : undefined
                               }
-                              ledger={ledger}
+                              ledger={customersPageLedger}
                               ready={ready}
                               busy={busy || hasConflict}
                               actor={catalogueActor}

@@ -128,6 +128,46 @@ test('each branch or store can have its own minimum stock', async () => {
   );
 });
 
+test('customers by branch: worked here, own credit limit, own customers only', async () => {
+  const { branchCustomersLedger, setLocalBranch, tagNewRecords } = await import('../src/branches.mjs');
+  const shared = {
+    branches: [
+      { id: 'main', name: 'Main' },
+      { id: 'b-shop000001', name: 'Shop' },
+    ],
+  };
+  const ledger = {
+    customers: [
+      { id: 'c1', name: 'Ada', creditLimit: 5000, creditLimits: { 'b-shop000001': 2000 } },
+      { id: 'c2', name: 'Bayo', creditLimit: 1000, branchId: 'b-shop000001' },
+      { id: 'c3', name: 'Chi', creditLimit: 1000 },
+    ],
+    jobs: [{ id: 'j1', customerId: 'c1' }],
+    checkouts: [],
+    payments: [],
+    quotations: [],
+  };
+  const view = branchCustomersLedger(ledger, shared, 'b-shop000001');
+  assert.deepEqual(
+    view.customers.map((c) => [c.id, c.workedHere, c.creditLimit, c.baseCreditLimit]),
+    [
+      ['c1', true, 2000, 5000],
+      ['c2', true, 1000, 1000],
+      ['c3', false, 1000, 1000],
+    ],
+  );
+  const own = { branches: [shared.branches[0], { ...shared.branches[1], customers: 'own' }] };
+  assert.deepEqual(
+    branchCustomersLedger(ledger, own, 'b-shop000001').customers.map((c) => c.id),
+    ['c1', 'c2'],
+  );
+  assert.equal(branchCustomersLedger(ledger, shared, 'main').customers[0].creditLimit, 5000);
+  setLocalBranch('b-shop000001');
+  const after = tagNewRecords({ customers: [] }, { customers: [{ id: 'c9' }] });
+  assert.equal(after.customers[0].branchId, 'b-shop000001');
+  setLocalBranch('main');
+});
+
 test('a branch can keep its own receipts, dropdowns & workflow and job settings', async () => {
   const { defaultBranding, validateBranding } = await import('../src/business-branding.mjs');
   const { settingsForBranch, setBranchSettings, ownsGroup } = await import('../src/branches.mjs');

@@ -9,7 +9,9 @@ import { useBusinessOptions } from './BusinessOptionsContext';
 import { useWords } from './Words';
 import { emptyLedger, money } from './domain.mjs';
 import { newVariantProductEvents } from './variants.mjs';
-import type { Material, MaterialEvent, Service, ServiceEvent } from './types';
+import ItemLookFields, { blankLook, codeTaken, type ItemLook } from './ItemLookFields';
+import { cleanCode, cleanTags, displayEvent } from './item-fields.mjs';
+import type { FieldEvent, Material, MaterialEvent, Service, ServiceEvent } from './types';
 
 const blankVariants = () => [
   { name: '', stock: '', minimum: '' },
@@ -33,7 +35,7 @@ export default function AddProduct({
   materials: Material[];
   busy: boolean;
   actor: { id: string; label: string };
-  onSaveMany: (events: (MaterialEvent | ServiceEvent)[]) => Promise<void>;
+  onSaveMany: (events: (MaterialEvent | ServiceEvent | FieldEvent)[]) => Promise<void>;
   onClose: () => void;
 }) {
   const { w } = useWords();
@@ -45,6 +47,34 @@ export default function AddProduct({
   const [priceText, setPriceText] = useState('');
   const [withVariants, setWithVariants] = useState(false);
   const [variantRows, setVariantRows] = useState(blankVariants);
+  // Icon, category, code and tags (optional): how it shows on the Quick sale screen.
+  const [look, setLook] = useState<ItemLook>(blankLook);
+  const [tagText, setTagText] = useState('');
+  const [name, setName] = useState('');
+  /** The new item(s) with their look: a display event after each item it creates. */
+  const withLook = (events: (MaterialEvent | ServiceEvent)[]) => {
+    const tags = tagText.trim() ? cleanTags([...look.tags, tagText]) : look.tags;
+    if (!look.icon && !look.category.trim() && !look.code.trim() && !tags.length) return events;
+    if (codeTaken(services, look.code)) throw Error(`Another item already has the code ${look.code.trim()}.`);
+    const created = events.filter((e) => e.kind === 'service.created') as ServiceEvent[];
+    return [
+      ...events,
+      ...created.map(
+        (e) =>
+          displayEvent(
+            { id: e.data.id, version: 1 },
+            {
+              icon: look.icon,
+              category: look.category,
+              tags,
+              // A code belongs to one item: variants each need their own (Icon, category, code & tags).
+              code: created.length === 1 ? cleanCode(look.code) : '',
+            },
+            actor,
+          ) as FieldEvent,
+      ),
+    ];
+  };
   const ledgerFor = () => ({ ...emptyLedger(), services, materials });
   const kobo = (text: string) => {
     try {
@@ -66,17 +96,19 @@ export default function AddProduct({
       if (!name) throw Error(w('Enter a product name.'));
       if (withVariants) {
         await onSaveMany(
-          newVariantProductEvents(
-            ledgerFor(),
-            {
-              name,
-              unit: String(data.get('unit')).trim(),
-              price,
-              packPrices: pricing === 'ranges' ? [] : packPricesFrom(packs),
-              priceTiers: pricing === 'ranges' ? tiersFrom(tiers) : [],
-              variants: variantRows,
-            },
-            actor,
+          withLook(
+            newVariantProductEvents(
+              ledgerFor(),
+              {
+                name,
+                unit: String(data.get('unit')).trim(),
+                price,
+                packPrices: pricing === 'ranges' ? [] : packPricesFrom(packs),
+                priceTiers: pricing === 'ranges' ? tiersFrom(tiers) : [],
+                variants: variantRows,
+              },
+              actor,
+            ),
           ),
         );
         onClose();
@@ -86,36 +118,38 @@ export default function AddProduct({
       const at = new Date().toISOString();
       const audit = { modifiedBy: actor.id, modifiedByLabel: actor.label, modifiedAt: at };
       const materialId = crypto.randomUUID();
-      await onSaveMany([
-        {
-          id: crypto.randomUUID(),
-          kind: 'material.created',
-          data: {
-            id: materialId,
-            name,
-            available: Math.round(stock * 1000) / 1000,
-            measurementUnit: String(data.get('unit')).trim(),
-            requireSize: false,
-            minimumStock: Math.round(minimum * 1000) / 1000,
-            reason: 'Opening stock',
-            ...audit,
-          },
-        },
-        {
-          id: crypto.randomUUID(),
-          kind: 'service.created',
-          data: {
+      await onSaveMany(
+        withLook([
+          {
             id: crypto.randomUUID(),
-            description: name,
-            materialId,
-            price,
-            shelfItem: true,
-            packPrices: pricing === 'ranges' ? [] : packPricesFrom(packs),
-            priceTiers: pricing === 'ranges' ? tiersFrom(tiers) : [],
-            ...audit,
+            kind: 'material.created',
+            data: {
+              id: materialId,
+              name,
+              available: Math.round(stock * 1000) / 1000,
+              measurementUnit: String(data.get('unit')).trim(),
+              requireSize: false,
+              minimumStock: Math.round(minimum * 1000) / 1000,
+              reason: 'Opening stock',
+              ...audit,
+            },
           },
-        },
-      ]);
+          {
+            id: crypto.randomUUID(),
+            kind: 'service.created',
+            data: {
+              id: crypto.randomUUID(),
+              description: name,
+              materialId,
+              price,
+              shelfItem: true,
+              packPrices: pricing === 'ranges' ? [] : packPricesFrom(packs),
+              priceTiers: pricing === 'ranges' ? tiersFrom(tiers) : [],
+              ...audit,
+            },
+          },
+        ]),
+      );
       onClose();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not save the product.');
@@ -138,7 +172,14 @@ export default function AddProduct({
           <div className="form-grid hint-grid">
             <label>
               Product name
-              <input name="name" maxLength={160} placeholder="e.g. Blue biro pen" required />
+              <input
+                name="name"
+                maxLength={160}
+                placeholder="e.g. Blue biro pen"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
             </label>
             <label>
               Unit
@@ -263,6 +304,21 @@ export default function AddProduct({
           ) : (
             <PackPricesField value={packs} onChange={setPacks} unitPrice={kobo(priceText)} />
           )}
+          <details className="add-product-look">
+            <summary>Icon, category{withVariants ? '' : ', code'} &amp; tags (optional)</summary>
+            <div className="item-look">
+              <ItemLookFields
+                look={look}
+                onChange={setLook}
+                services={services}
+                name={name}
+                showCode={!withVariants}
+                onError={setError}
+                tagText={tagText}
+                setTagText={setTagText}
+              />
+            </div>
+          </details>
           <button type="submit">
             <Icon name="save" /> {busy ? 'Saving...' : 'Save product'}
           </button>

@@ -639,6 +639,16 @@ select:focus-visible {
   text-align: center;
   margin-top: 10px;
 }
+/* Add product → Icon, category, code & tags (optional). */
+.add-product-look {
+  margin: 8px 0 16px;
+}
+.add-product-look > summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 8px 0;
+}
+
 /* Business Settings → "Settings for" the whole business or one branch's own. */
 .settings-scope {
   display: grid;

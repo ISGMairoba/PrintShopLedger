@@ -92,6 +92,8 @@ export default function CustomersPage({
   const visible = sorting.sortRows(
     ledger.customers.filter(
       (customer) =>
+        // With branches: the customers who were added at this branch or bought here.
+        customer.workedHere !== false &&
         inFilter(customer) &&
         customerMatches(customer, query, ledger.customers, [
           jobs(customer.id),

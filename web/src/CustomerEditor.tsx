@@ -1,4 +1,5 @@
 import DialogActions from './DialogActions';
+import { MAIN, localBranchId } from './branches.mjs';
 import { phoneProblem } from './input-guard.mjs';
 import { useFeedbackMessage } from './Feedback';
 import CurrencyInput from './CurrencyInput';
@@ -48,7 +49,13 @@ export default function CustomerEditor({
         phone: String(form.get('phone') ?? '').trim(),
         address: String(form.get('address') ?? '').trim(),
         creditLimit: money(String(form.get('creditLimit') ?? '0')),
-      };
+      } as Record<string, any>;
+      // At a branch the limit typed is this branch's own; the customer's own limit stays as it was
+      // (a customer added at a branch starts with it as both).
+      if (localBranchId() !== MAIN) {
+        fields.branchCreditLimit = fields.creditLimit;
+        if (customer) fields.creditLimit = customer.baseCreditLimit ?? customer.creditLimit;
+      }
       const operation: CustomerEvent = customer
         ? {
             id: crypto.randomUUID(),
