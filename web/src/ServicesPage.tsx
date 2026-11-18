@@ -21,7 +21,7 @@ import { emptyLedger, money } from './domain.mjs';
 import { materialCode } from './material-display.mjs';
 import { serviceCode, serviceMatches, servicePrice } from './services.mjs';
 import { canonical, consumptionUnit, costRate, hasCost, suggestCostKey } from './pricing-templates.mjs';
-import type { Material, MaterialEvent, Service, ServiceEvent, Step } from './types';
+import type { FieldEvent, Material, MaterialEvent, Service, ServiceEvent, Step } from './types';
 import { ItemSteps } from './StepBuilder';
 import { stepsWorkflow } from './workflow-steps.mjs';
 import { useWords } from './Words';
@@ -34,7 +34,7 @@ type Props = {
   actor: { id: string; label: string };
   onSave: (event: ServiceEvent) => Promise<void>;
   /** Saves several events together (a new product: its stock item, then its service). */
-  onSaveMany: (events: (MaterialEvent | ServiceEvent)[]) => Promise<void>;
+  onSaveMany: (events: (MaterialEvent | ServiceEvent | FieldEvent)[]) => Promise<void>;
   /** Open the product editor ('' to choose a product). */
   onEditProduct?: (serviceId: string) => void;
   /** Branch prices on, and this device works in a branch other than the main one. */
