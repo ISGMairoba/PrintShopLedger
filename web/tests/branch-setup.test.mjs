@@ -162,6 +162,15 @@ test('customers by branch: worked here, own credit limit, own customers only', a
     ['c1', 'c2'],
   );
   assert.equal(branchCustomersLedger(ledger, shared, 'main').customers[0].creditLimit, 5000);
+  // Added to the branch by phone number from another branch.
+  const linked = {
+    ...ledger,
+    customers: [...ledger.customers, { id: 'c4', name: 'Dayo', linkedBranches: ['b-shop000001'] }],
+  };
+  assert.deepEqual(
+    branchCustomersLedger(linked, own, 'b-shop000001').customers.map((c) => c.id),
+    ['c1', 'c2', 'c4'],
+  );
   setLocalBranch('b-shop000001');
   const after = tagNewRecords({ customers: [] }, { customers: [{ id: 'c9' }] });
   assert.equal(after.customers[0].branchId, 'b-shop000001');

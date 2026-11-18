@@ -188,6 +188,7 @@ import RemindersPage from './RemindersPage';
 import { useMobileLayout } from './ResponsiveTable';
 import { PendingChecksBanner } from './MaterialCheckSection';
 import { setMessageSender } from './messages.mjs';
+import { setCustomerLink } from './customer-link';
 
 const DashboardPage = lazy(() => import('./DashboardPage'));
 const ReportsPage = lazy(() => import('./ReportsPage'));
@@ -620,6 +621,39 @@ export default function App() {
     } catch {}
   }, [demo, businessBranding.ready, businessBranding.settings.loginColors]);
   // Messages ({branch}, {address}, {phone}) come from this device's branch.
+  // A branch with its own customers can add another branch's customer by phone number.
+  setCustomerLink(
+    !demo &&
+      online &&
+      shop &&
+      scope &&
+      multiBranch &&
+      activeBranch &&
+      ownCustomers(branding.settings, activeBranch.id)
+      ? {
+          elsewhere: async (phone) => {
+            const { data, error } = await supabase!.rpc('customer_phone_elsewhere', {
+              p_shop: shop.id,
+              p_phone: phone,
+            });
+            if (error) throw Error(error.message);
+            return data === true;
+          },
+          link: async (phone) => {
+            const target = scope,
+              shopId = shop.id;
+            const { data, error } = await supabase!.rpc('link_customer_by_phone', {
+              p_shop: shopId,
+              p_phone: phone,
+            });
+            if (error) throw Error(error.message);
+            const synced = await syncLedger(target, shopId);
+            if (activeScope.current === target) setState(synced);
+            return data as { id: string; name: string };
+          },
+        }
+      : null,
+  );
   setMessageSender({
     branch: multiBranch && activeBranch ? activeBranch.name : '',
     address: (multiBranch && activeBranch?.address) || branding.settings.address,
