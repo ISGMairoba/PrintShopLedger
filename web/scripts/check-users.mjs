@@ -224,6 +224,7 @@ try {
         });
       result = null;
     } else if (path.endsWith('/list_shop_users')) result = users;
+    else if (path.endsWith('/list_page_limits')) result = { branches: {}, people: {} };
     else if (path.endsWith('/manage-users') && body.action === 'reset-password') {
       assert.ok(body.password.length >= 12);
       result = { success: true };
