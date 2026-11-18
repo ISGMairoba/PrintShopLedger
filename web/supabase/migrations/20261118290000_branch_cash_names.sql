@@ -25,6 +25,15 @@ begin
                    and coalesce(data->>'branch', 'main') in ('*', br->>'id')) then nm := 'Cash'; end if;$x$);
 end $m$;
 
+-- The database's own uniqueness rule: payees across the business, accounts within a branch.
+drop index if exists public.business_operations_unique_name;
+create unique index if not exists business_operations_unique_payee_name on public.business_operations_records
+  (shop_id, lower(btrim(data->>'name')))
+  where collection = 'payees' and not coalesce((data->>'archived')::boolean, false);
+create unique index if not exists business_operations_unique_account_name on public.business_operations_records
+  (shop_id, coalesce(data->>'branch', 'main'), lower(btrim(data->>'name')))
+  where collection = 'moneyAccounts' and not coalesce((data->>'archived')::boolean, false);
+
 -- The Cash accounts made for branches so far.
 update public.business_operations_records r set data = r.data || jsonb_build_object('name', 'Cash',
     'version', coalesce((r.data->>'version')::integer, 1) + 1, 'modifiedAt', now())
