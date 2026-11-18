@@ -95,12 +95,19 @@ export default function AccountsPage({
     setAction(kind);
     setError('');
   };
+  // With branches, the owner sees every branch's accounts: say whose each one is.
+  const whose = (a: MoneyAccount) => {
+    if (!branches || !seesAll) return '';
+    const b = accountBranch(a);
+    return b === '*' ? ' · shared' : ` · ${branches.find((x) => x.id === b)?.name ?? 'closed branch'}`;
+  };
   const accountOptions = active
     // Payments can't be put in a hidden account; it takes transfers (and money in / out) only.
     .filter((a) => !(action === 'assign' && a.hidden))
     .map((a) => (
       <option key={a.id} value={a.id}>
         {a.name}
+        {whose(a)}
         {a.hidden ? ' (hidden)' : ''}
       </option>
     ));
@@ -720,6 +727,7 @@ export default function AccountsPage({
                           .map((a) => (
                             <option value={a.id} key={a.id}>
                               {a.name}
+                              {whose(a)}
                               {a.hidden ? ' (hidden)' : ''}
                             </option>
                           ))}
