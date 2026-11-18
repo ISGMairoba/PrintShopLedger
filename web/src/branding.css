@@ -643,6 +643,7 @@ select:focus-visible {
   cursor: pointer;
   font-weight: 600;
   padding: 8px 0;
+}
 
 /* Business Settings → "Settings for" the whole business or one branch's own. */
 .settings-scope {
