@@ -166,6 +166,7 @@ test('customers by branch: worked here, own credit limit, own customers only', a
   const after = tagNewRecords({ customers: [] }, { customers: [{ id: 'c9' }] });
   assert.equal(after.customers[0].branchId, 'b-shop000001');
   setLocalBranch('main');
+});
 
 test('a branch can keep its own receipts, dropdowns & workflow and job settings', async () => {
   const { defaultBranding, validateBranding } = await import('../src/business-branding.mjs');
