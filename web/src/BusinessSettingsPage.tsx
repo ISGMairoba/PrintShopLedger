@@ -208,11 +208,17 @@ export default function BusinessSettingsPage({
           ]),
         );
         const saved = (await onSave(
-          validateBranding({ ...settings, branchSettings: setBranchSettings(settings, scope, group, values) }),
+          validateBranding({
+            ...settings,
+            branchSettings: setBranchSettings(settings, scope, group, values),
+          }),
           base,
         )) as { settings: Branding; version: number };
         const effective = withBranchSettings(saved.settings, scope) as Branding;
-        setDraft((current) => ({ ...current, ...Object.fromEntries(keys.map((key) => [key, effective[key]])) }));
+        setDraft((current) => ({
+          ...current,
+          ...Object.fromEntries(keys.map((key) => [key, effective[key]])),
+        }));
         setBase(saved.version);
         setDirtyKeys((current) => current.filter((key) => !keys.includes(key)));
         setDirtyOptions((current) => (part ? current.filter((p) => p !== part) : current));
@@ -262,21 +268,21 @@ export default function BusinessSettingsPage({
     scope && !branchSettingGroup(keys[0]) ? (
       <small className="muted">The same for every branch: change it under the whole business.</small>
     ) : (
-    <button
-      type="button"
-      className="section-save"
-      disabled={
-        busy ||
-        !ready ||
-        (!demo && !online) ||
-        version !== base ||
-        !keys.some((key) => dirtyKeys.includes(key))
-      }
-      onClick={() => void saveSection(label, keys)}
-    >
-      <Icon name="save" /> Save {w(label).toLowerCase()}
-    </button>
-  );
+      <button
+        type="button"
+        className="section-save"
+        disabled={
+          busy ||
+          !ready ||
+          (!demo && !online) ||
+          version !== base ||
+          !keys.some((key) => dirtyKeys.includes(key))
+        }
+        onClick={() => void saveSection(label, keys)}
+      >
+        <Icon name="save" /> Save {w(label).toLowerCase()}
+      </button>
+    );
   // Going back to the whole business's settings for a group.
   async function followBusiness(group: string) {
     if (busy || !scope || version !== base) return;
@@ -423,8 +429,8 @@ export default function BusinessSettingsPage({
                 </>
               ) : (
                 <span>
-                  {scopeName} follows the whole business's {GROUP_NAMES[BRANCH_TABS[tab]]}. Change anything below
-                  and save to give {scopeName} its own.
+                  {scopeName} follows the whole business's {GROUP_NAMES[BRANCH_TABS[tab]]}. Change anything
+                  below and save to give {scopeName} its own.
                 </span>
               )}
             </div>

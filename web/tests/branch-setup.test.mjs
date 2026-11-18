@@ -151,11 +151,18 @@ test('a branch can keep its own receipts, dropdowns & workflow and job settings'
   const shop = settingsForBranch(saved, 'b-shop000001');
   assert.equal(shop.receipt.footer, 'Thank you, Shop');
   assert.deepEqual(shop.options.expenseCategories, ['Fuel', 'Rent']);
-  assert.deepEqual(shop.options.paymentMethods, saved.options.paymentMethods, 'payment methods stay the business’s');
+  assert.deepEqual(
+    shop.options.paymentMethods,
+    saved.options.paymentMethods,
+    'payment methods stay the business’s',
+  );
   assert.notEqual(settingsForBranch(saved, 'main').receipt.footer, 'Thank you, Shop');
   // Going back to the whole business's.
   saved.branchSettings = setBranchSettings(saved, 'b-shop000001', 'receipts', null);
   assert.equal(ownsGroup(saved, 'b-shop000001', 'receipts'), false);
   // A closed-down branch id is dropped.
-  assert.deepEqual(validateBranding({ ...saved, branchSettings: { 'b-gone000001': { receipts: {} } } }).branchSettings, {});
+  assert.deepEqual(
+    validateBranding({ ...saved, branchSettings: { 'b-gone000001': { receipts: {} } } }).branchSettings,
+    {},
+  );
 });

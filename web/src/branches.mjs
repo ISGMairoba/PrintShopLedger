@@ -207,7 +207,9 @@ export function validateBranchSettingsShape(input, branches) {
     for (const [group, keys] of Object.entries(BRANCH_SETTING_GROUPS)) {
       const values = own[group];
       if (!values || typeof values !== 'object') continue;
-      const picked = Object.fromEntries(keys.filter((k) => values[k] !== undefined).map((k) => [k, values[k]]));
+      const picked = Object.fromEntries(
+        keys.filter((k) => values[k] !== undefined).map((k) => [k, values[k]]),
+      );
       if (Object.keys(picked).length) kept[group] = picked;
     }
     if (Object.keys(kept).length) out[id] = kept;
