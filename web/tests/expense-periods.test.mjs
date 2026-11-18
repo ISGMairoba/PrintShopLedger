@@ -46,9 +46,19 @@ test('Profit spreads an expense by day over what it covers; the parts add up exa
   );
   // An ordinary expense: all on its day.
   assert.equal(expenseShare({ amount: 500, incurredOn: '2026-03-02' }, '2026-03-01', '2026-03-31'), 500);
-  // Paid in advance at the end of January: the other 11 months.
-  assert.equal(paidInAdvance([rent], '2026-01-31'), 36500000 - 3100000);
-  assert.equal(paidInAdvance([rent], '2026-12-31'), 0);
+  // Paid in advance at the end of January: the other 11 months, once it is paid.
+  const paidRent = { ...rent, payments: [{ id: 'p1', amount: 36500000, paidOn: '2026-01-02' }] };
+  assert.equal(paidInAdvance([paidRent], '2026-01-31'), 36500000 - 3100000);
+  assert.equal(paidInAdvance([paidRent], '2026-12-31'), 0);
+  // Not paid yet: nothing is paid in advance. Half paid: only what is paid beyond January's share.
+  assert.equal(paidInAdvance([rent], '2026-01-31'), 0);
+  const half = { ...rent, payments: [{ id: 'p2', amount: 18250000, paidOn: '2026-01-10' }] };
+  assert.equal(paidInAdvance([half], '2026-01-31'), 18250000 - 3100000);
+  // A payment after the report date, or a removed one, does not count.
+  const late = { ...rent, payments: [{ id: 'p3', amount: 36500000, paidOn: '2026-02-01' }] };
+  assert.equal(paidInAdvance([late], '2026-01-31'), 0);
+  const removed = { ...paidRent, payments: [{ ...paidRent.payments[0], removedAt: '2026-01-05T00:00:00Z' }] };
+  assert.equal(paidInAdvance([removed], '2026-01-31'), 0);
 });
 
 test('Usual period per category: starter defaults, only allowed choices', () => {

@@ -105,3 +105,19 @@ test('a job moved to Collected by the usual button is not reopened by removing a
   l = { ...l, jobs: [{ ...job(l), productionStatus: 'Collected' }] };
   assert.match(removeProblem(job(l), h.id, 'typo'), /collected in full/);
 });
+
+test('More than 200 handovers: the running count keeps every item collected', () => {
+  let l = base();
+  l = { ...l, jobs: [{ ...job(l), quantity: 300 }] };
+  l = applyEvent(l, doneEvent(job(l), 299, actor));
+  for (let i = 0; i < 250; i++)
+    l = applyEvent(l, handoverEvent(job(l), { quantity: 1, collectedBy: 'Sara' }, actor));
+  assert.equal(job(l).progress.handovers.length, 200);
+  assert.equal(job(l).progress.collected, 250);
+  assert.deepEqual([jobParts(job(l)).collected, jobParts(job(l)).ready], [250, 49]);
+  assert.match(handoverProblem(job(l), 50), /Only 49 are ready/);
+  // Removing the latest handover takes its items back off the count.
+  const last = job(l).progress.handovers.at(-1);
+  l = applyEvent(l, removeHandoverEvent(job(l), last.id, 'Counted twice', actor));
+  assert.equal(jobParts(job(l)).collected, 249);
+});

@@ -236,6 +236,8 @@ export interface Job {
   /** Part orders (job-handover.mjs): done so far, and each part handed to the customer. */
   progress?: {
     done: number;
+    /** Items collected by handovers so far (the handover list keeps only the latest 200). */
+    collected?: number;
     doneByLabel?: string;
     doneAt?: string;
     handovers: {
