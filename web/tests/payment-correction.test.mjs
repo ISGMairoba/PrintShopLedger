@@ -219,3 +219,38 @@ test('A deposit with no job is corrected on the customer’s account', () => {
   ledger = applyEvent(ledger, up);
   assert.equal(ledger.payments[0].walletAdded, 50000);
 });
+
+test('A deposit correction request is approved against the customer’s latest account', async () => {
+  const { approvalEvent, correctionChanges, isDepositWithoutJob, depositCorrectionRank } = await import(
+    '../src/correction-requests.mjs'
+  );
+  let ledger = emptyLedger();
+  const customer = id();
+  ledger = applyEvent(ledger, {
+    id: id(),
+    kind: 'customer.created',
+    data: { id: customer, name: 'Musa', phone: '0803', address: '', creditLimit: 0, ...audit },
+  });
+  ledger = applyEvent(
+    ledger,
+    prepareCheckout(
+      ledger,
+      { customerId: customer, lines: [], cashReceived: 300000, useWallet: false, paidOn: '2026-10-17', method: 'Cash', reference: '' },
+      actor,
+      id(),
+      at,
+    ),
+  );
+  const payment = ledger.payments[0];
+  assert.equal(isDepositWithoutJob(ledger, payment), true);
+  assert.deepEqual([depositCorrectionRank(undefined), depositCorrectionRank({ depositCorrection: 'manager' })], [2, 3]);
+  const asked = paymentCorrectionEvent(ledger, payment, change(payment, { amount: 30000, reason: 'Typo' }), { id: 'c', label: 'Cashier' });
+  const request = { id: asked.id, jobId: null, kind: 'payment.corrected', event: asked, reason: 'Typo', requestedBy: 'c', requestedByLabel: 'Cashier', requestedAt: at, status: 'pending' };
+  const approved = approvalEvent(ledger, request, { id: 'm', label: 'Manager' }, at);
+  assert.equal(approved.data.modifiedBy, 'm');
+  assert.equal(approved.data.requestedBy, 'c');
+  const next = applyEvent(ledger, approved);
+  assert.equal(next.payments[0].amount, 30000);
+  const rows = correctionChanges(ledger, next, null, customer);
+  assert.ok(rows.some(([label]) => label === 'Customer credit'));
+});

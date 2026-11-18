@@ -43,6 +43,8 @@ type Props = {
   onReceipt: (record: CheckoutRecord) => void;
   /** Admin or higher (online): correct a payment's amount, method, date or reference. */
   onCorrectPayment?: (payment: Payment) => void;
+  /** Whether this payment shows Correct (staff below Admin: deposits with no job, as a request). */
+  canCorrectPayment?: (payment: Payment) => boolean;
 };
 
 /** The Jobs and Payments list pages: totals, sort and search, and the table. */
@@ -63,6 +65,7 @@ export default function JobsPaymentsPage({
   onBulkAction,
   onReceipt,
   onCorrectPayment,
+  canCorrectPayment,
 }: Props) {
   const { w, stage } = useWords();
   const [grouped, setGrouped] = useState(false);
@@ -519,7 +522,7 @@ export default function JobsPaymentsPage({
                                   <Icon name="details" /> Receipt
                                 </button>
                               )}
-                              {onCorrectPayment && !payment.refundId && (
+                              {onCorrectPayment && !payment.refundId && (canCorrectPayment?.(payment) ?? true) && (
                                 <button
                                   className="text-button"
                                   disabled={busy}
