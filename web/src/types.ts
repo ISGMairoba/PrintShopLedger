@@ -970,6 +970,8 @@ export interface ExpenseHistoryEntry {
 }
 
 export interface SupervisedCommand {
+  /** A deposit with no job: the customer whose payment is corrected. */
+  customerId?: string;
   detailsId?: string;
   paymentEdits?: {
     eventId: string;
@@ -1034,7 +1036,8 @@ export type SupervisedEvent = {
 /** A cashier's correction waiting for (or decided by) an Admin, Manager or Developer. */
 export interface CorrectionRequest {
   id: string;
-  jobId: string;
+  /** The job; null for a deposit with no job (its customer is in event.data). */
+  jobId: string | null;
   kind: SupervisedEvent['kind'];
   event: SupervisedEvent;
   reason: string;

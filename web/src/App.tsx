@@ -77,6 +77,7 @@ import PaymentCorrectionDialog from './PaymentCorrectionDialog';
 import SplitCorrectionDialog from './SplitCorrectionDialog';
 import DeviceStorageCard, { LOW_SPACE } from './DeviceStorageCard';
 import { MyCorrectionsPanel, PendingRequestsPanel } from './CorrectionRequests';
+import { depositCorrectionRank, isDepositWithoutJob } from './correction-requests.mjs';
 import { receiptPayments } from './payment-correction.mjs';
 import { receiptIntegrityError } from './receipts.mjs';
 import { printAfterTransaction, printReceipt, setPrintSigner } from './printing';
@@ -278,6 +279,7 @@ export default function App() {
   const [jobToAdvance, setJobToAdvance] = useState<{ job: Job; mode: ProgressMode } | null>(null);
   const [adjustingJob, setAdjustingJob] = useState<Job | null>(null);
   const [correctingPayment, setCorrectingPayment] = useState<Payment | null>(null);
+  const [requestingPayment, setRequestingPayment] = useState<Payment | null>(null);
   const [requestingJob, setRequestingJob] = useState<Job | null>(null),
     [requestsVersion, setRequestsVersion] = useState(0);
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
@@ -444,6 +446,7 @@ export default function App() {
       setReceipt(null);
       setAdjustingJob(null);
       setCorrectingPayment(null);
+      setRequestingPayment(null);
     }
   }, [pageAllowed, branding.ready, demo, session?.user.id, shop?.userId]);
   const businessName = branding.settings.businessName || shop?.name || 'Business';
@@ -723,6 +726,7 @@ export default function App() {
     setSelectedJob(null);
     setAdjustingJob(null);
     setCorrectingPayment(null);
+    setRequestingPayment(null);
     setQuery('');
     setConflict(null);
     setServiceConflict(null);
@@ -1102,6 +1106,19 @@ export default function App() {
     (online &&
       (shop?.accessLevel ?? 0) >= 2 &&
       canAccessPage('Sale Adjustments', shop?.accessLevel ?? 0, pageAccess));
+  // A deposit with no job: corrected by the ranks the business allows (Business Settings →
+  // Corrections); anyone else sends a request for one of them to approve.
+  const depositRank = depositCorrectionRank(branding.settings.corrections);
+  const canRequestDeposit = !demo && online && (shop?.accessLevel ?? 0) >= 1;
+  const correctPaymentAction =
+    canCorrectPayments || canRequestDeposit
+      ? (payment: Payment) => {
+          const deposit = isDepositWithoutJob(ledger, payment);
+          if (deposit && !demo && (shop?.accessLevel ?? 0) < depositRank) setRequestingPayment(payment);
+          else if (canCorrectPayments) setCorrectingPayment(payment);
+          else setMessage('Ask an Admin or Manager to correct this payment.', 'warning');
+        }
+      : undefined;
   const canReviewConflicts = demo || (shop?.accessLevel ?? 0) >= 2 || !!supervisor;
   useEffect(() => {
     if (!hasConflict && !state.pending.length) {
@@ -2482,6 +2499,7 @@ export default function App() {
                                     actor={salesActor}
                                     busy={busy || hasConflict}
                                     canSave={online}
+                                    canApproveDeposits={demo || (shop.accessLevel ?? 0) >= depositRank}
                                     version={requestsVersion}
                                     load={() => listCorrectionRequests(shop.id)}
                                     onApprove={approveOperation}
@@ -3119,7 +3137,8 @@ export default function App() {
                               onBulkAction={(jobs, mode) => setBatchToAdvance({ jobs, mode })}
                               onDue={canChangeDue ? setDeadlineJobs : undefined}
                               onReceipt={setReceipt}
-                              onCorrectPayment={canCorrectPayments ? setCorrectingPayment : undefined}
+                              onCorrectPayment={correctPaymentAction}
+                              canCorrectPayment={(p) => canCorrectPayments || isDepositWithoutJob(ledger, p)}
                             />
                           )}
                           <p className="footnote">
@@ -3340,6 +3359,19 @@ export default function App() {
                           onSave={sendCorrectionRequest}
                         />
                       )}
+                      {requestingPayment && (
+                        <PaymentCorrectionDialog
+                          request
+                          ledger={ledger}
+                          payment={
+                            ledger.payments.find((p) => p.id === requestingPayment.id) ?? requestingPayment
+                          }
+                          busy={busy}
+                          actor={salesActor}
+                          onClose={() => setRequestingPayment(null)}
+                          onSave={sendCorrectionRequest}
+                        />
+                      )}
                       {correctingPayment &&
                         // A part of a split sale: the whole sale is corrected together.
                         receiptPayments(ledger, correctingPayment.checkoutId ?? correctingPayment.id).length >
@@ -3435,11 +3467,15 @@ export default function App() {
                           pending={state.pending.some((e) => e.id === receipt.id)}
                           onClose={() => setReceipt(null)}
                           onCorrectPayment={
-                            canCorrectPayments && receiptPayments(ledger, receipt.id).length
+                            receiptPayments(ledger, receipt.id).length &&
+                            (canCorrectPayments ||
+                              (canRequestDeposit &&
+                                receiptPayments(ledger, receipt.id).length === 1 &&
+                                isDepositWithoutJob(ledger, receiptPayments(ledger, receipt.id)[0])))
                               ? () => {
                                   const [payment] = receiptPayments(ledger, receipt.id);
                                   setReceipt(null);
-                                  setCorrectingPayment(payment);
+                                  correctPaymentAction?.(payment);
                                 }
                               : undefined
                           }
