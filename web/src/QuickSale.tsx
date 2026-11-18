@@ -1,3 +1,4 @@
+import { minOrderRule } from './min-order.mjs';
 import { stockBelowZeroBlocked } from './stock-rule.mjs';
 import { defaultMethod, defaultSource } from './business-options.mjs';
 import { alphabetical } from './alphabetical.mjs';
@@ -177,7 +178,7 @@ export default function QuickSale({
     p.stock === null ? null : p.stock - (cart.find((l) => l.serviceId === p.id)?.quantity ?? 0);
   const add = (id: string) => {
     setTyped(({ [id]: _done, ...rest }) => rest);
-    setCart((c) => addToCart(c, id));
+    setCart((c) => addToCart(c, id, 1, products.find((x) => x.id === id)?.minOrder || 1));
   };
   // Full-page: the app behind does not scroll, and Escape goes back when nothing else is open.
   useEffect(() => {
@@ -411,6 +412,11 @@ export default function QuickSale({
                         {currency(tierPrice(p?.price ?? 0, p?.priceTiers, line.quantity))} each
                         {pack ? ` · ${pack}` : ''}
                       </small>
+                      {p && p.minOrder > 0 && line.quantity < p.minOrder && (
+                        <small className={minOrderRule() === 'block' ? 'danger-text' : 'stock-near-text'}>
+                          {`Minimum order is ${p.minOrder}.`}
+                        </small>
+                      )}
                       {short && (
                         <small className={blocked ? 'danger-text' : 'stock-near-text'}>
                           More than the {p!.stock} in stock

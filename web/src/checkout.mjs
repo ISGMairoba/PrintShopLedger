@@ -1,3 +1,4 @@
+import { minOrderRule } from './min-order.mjs';
 import { counts } from './branches.mjs';
 import { perItem } from './production-materials.mjs';
 import { validStageHours } from './stage-time.mjs';
@@ -142,6 +143,9 @@ export function quoteLine(ledger, line, notCollected = false) {
     ? packTotal(service.price, service.packPrices, quantity)
     : Number((BigInt(unitPrice) * raw + divisor / 2n) / divisor);
   amount(total);
+  // The item's minimum order (Business Settings → Jobs & payments: don't allow less, or warn).
+  if (service.minQuantity && quantity < service.minQuantity && minOrderRule() === 'block')
+    throw Error(`The minimum order for ${service.description} is ${service.minQuantity}.`);
   if (!Number.isFinite(needed) || needed <= 0 || needed > 1000000000000)
     throw Error('Material usage is outside the supported range.');
   if (

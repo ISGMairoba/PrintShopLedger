@@ -4,8 +4,8 @@ import ItemIcon, { ITEM_ICONS } from './ItemIcon';
 import { MAX_TAGS, cleanTags, itemCategories, itemTags, suggestCode } from './item-fields.mjs';
 import type { Service } from './types';
 
-export type ItemLook = { icon: string; category: string; code: string; tags: string[] };
-export const blankLook = (): ItemLook => ({ icon: '', category: '', code: '', tags: [] });
+export type ItemLook = { icon: string; category: string; code: string; tags: string[]; minQuantity?: string };
+export const blankLook = (): ItemLook => ({ icon: '', category: '', code: '', tags: [], minQuantity: '' });
 
 /**
  * The icon, category, code and tags of an item (how it shows on the Quick sale screen): used by
@@ -141,6 +141,16 @@ export default function ItemLookFields({
             ))}
           </datalist>
           <small>Search finds items by tag; tiles show them under the price.</small>
+        </label>
+        <label>
+          Minimum order (optional)
+          <input
+            inputMode="numeric"
+            value={look.minQuantity ?? ''}
+            placeholder="No minimum"
+            onChange={(e) => onChange({ ...look, minQuantity: e.target.value.replace(/[^0-9]/g, '') })}
+          />
+          <small>The least sold in one sale, in pieces (packs and quantity ranges count their pieces).</small>
         </label>
       </div>
       {tags.length > 0 && (

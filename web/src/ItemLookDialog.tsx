@@ -27,6 +27,7 @@ export default function ItemLookDialog({
     category: service.category ?? '',
     code: service.code ?? '',
     tags: service.tags ?? [],
+    minQuantity: service.minQuantity ? String(service.minQuantity) : '',
   });
   const { icon, category, code, tags } = look;
   const [tagText, setTagText] = useState('');
@@ -68,6 +69,7 @@ export default function ItemLookDialog({
                       icon,
                       category,
                       tags: pending,
+                      minQuantity: look.minQuantity ?? '',
                       code: s.id === service.id ? cleanCode(code) : undefined,
                     },
                     actor,

@@ -436,6 +436,8 @@ export interface Service {
   code?: string;
   /** Up to 10 tags, for search and the Quick sale tiles. */
   tags?: string[];
+  /** Least that may be sold in one sale, in pieces (0 or missing: no minimum). */
+  minQuantity?: number;
   /** Branches that sell only chosen items and sell this one (branches.mjs soldAt). */
   soldAt?: string[];
   /** Put aside on this device: its branch does not sell it (branches.mjs chosenItemsLedger). */
@@ -528,6 +530,7 @@ export type FieldEvent = {
     category?: string;
     code?: string;
     tags?: string[];
+    minQuantity?: number;
     calledAs?: string;
     modifiedBy: string;
     modifiedByLabel: string;
