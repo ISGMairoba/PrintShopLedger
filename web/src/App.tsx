@@ -749,7 +749,11 @@ export default function App() {
       (!demo && (!session || !shop || shop.userId !== session.user.id || shop.accessLevel === 0))
     )
       throw new Error('Please wait until the staff workspace is ready.');
-    if (['account.created', 'account.updated'].includes(operation.kind) && !demo && (shop?.accessLevel ?? 0) < 4)
+    if (
+      ['account.created', 'account.updated'].includes(operation.kind) &&
+      !demo &&
+      (shop?.accessLevel ?? 0) < 4
+    )
       throw Error('Only General Managers and above can create accounts or change payment-method links.');
     setBusy(true);
     setMessage('');
