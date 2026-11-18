@@ -36,6 +36,19 @@ import { useWords } from './Words';
 import MessagesSettings from './MessagesSettings';
 import { KEEP_CHOICES } from './history-keep.mjs';
 import { useBusinessOptions } from './BusinessOptionsContext';
+import { branchSettingGroup, ownsGroup, setBranchSettings, withBranchSettings } from './branches.mjs';
+
+/** Tabs a branch can keep its own settings in, and the group each one saves. */
+const BRANCH_TABS: Record<string, string> = {
+  Receipts: 'receipts',
+  'Dropdowns & workflow': 'workflow',
+  'Jobs & payments': 'jobs',
+};
+const GROUP_NAMES: Record<string, string> = {
+  receipts: 'receipts & documents',
+  workflow: 'dropdowns & workflow (expense categories, stages…)',
+  jobs: 'job settings',
+};
 export default function BusinessSettingsPage({
   settings,
   version,
@@ -50,7 +63,10 @@ export default function BusinessSettingsPage({
   accountSettings,
   deviceSignOut,
   branchItems,
+  branchList,
 }: {
+  /** With branches: the branches that can keep their own receipts, dropdowns and job settings. */
+  branchList?: { id: string; name: string }[];
   /** Choosing the items a branch sells (General Manager and Developer). */
   branchItems?: {
     services: Service[];
@@ -76,13 +92,18 @@ export default function BusinessSettingsPage({
   const { w } = useWords();
   // The payment methods sales offer (accounts' methods), for their order and defaults.
   const salesMethods = useBusinessOptions().paymentMethods;
+  // "Settings for": the whole business ('') or one branch's own settings.
+  const [scope, setScope] = useState('');
+  const scopeName = branchList?.find((b) => b.id === scope)?.name ?? '';
+  const source = scope ? (withBranchSettings(settings, scope) as Branding) : settings;
   const [draft, setDraft] = useState(settings),
     [base, setBase] = useState(version),
     [dirtyKeys, setDirtyKeys] = useState<(keyof Branding)[]>([]),
     [busy, setBusy] = useState(false),
     [message, setMessage, messageTone] = useFeedbackMessage('success'),
     [palette, setPalette] = useState<string[]>([]);
-  const tabs: string[] = allowedSettingsTabs(accessLevel, settings);
+  const allTabs: string[] = allowedSettingsTabs(accessLevel, settings);
+  const tabs: string[] = scope ? allTabs.filter((t) => t in BRANCH_TABS) : allTabs;
   const tabKeys = (name: string) =>
     (developerSettingsTabs[name as keyof typeof developerSettingsTabs] ??
       settingsTabKeys[name as keyof typeof settingsTabKeys]) as (keyof Branding)[];
@@ -115,10 +136,15 @@ export default function BusinessSettingsPage({
   const dirty = dirtyKeys.length > 0;
   useEffect(() => {
     if (!dirty) {
-      setDraft(settings);
+      setDraft(source);
       setBase(version);
     }
-  }, [settings, version, dirty]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings, version, dirty, scope]);
+  useEffect(() => {
+    if (!tabs.includes(tab) && tabs[0]) setTab(tabs[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scope]);
   function field(key: keyof Branding, value: unknown) {
     setDraft((current) => ({ ...current, [key]: value }));
     setDirtyKeys((keys) => (keys.includes(key) ? keys : [...keys, key]));
@@ -171,6 +197,34 @@ export default function BusinessSettingsPage({
     setMessage('');
     try {
       const part = optionPart(label);
+      if (scope) {
+        // A branch's own: its group in branchSettings (other settings stay the whole business's).
+        const group = branchSettingGroup(keys[0]);
+        if (!group) return;
+        const values = Object.fromEntries(
+          keys.map((key) => [
+            key,
+            key === 'options' && part ? mergeOptionsSection(source.options, draft.options, part) : draft[key],
+          ]),
+        );
+        const saved = (await onSave(
+          validateBranding({
+            ...settings,
+            branchSettings: setBranchSettings(settings, scope, group, values),
+          }),
+          base,
+        )) as { settings: Branding; version: number };
+        const effective = withBranchSettings(saved.settings, scope) as Branding;
+        setDraft((current) => ({
+          ...current,
+          ...Object.fromEntries(keys.map((key) => [key, effective[key]])),
+        }));
+        setBase(saved.version);
+        setDirtyKeys((current) => current.filter((key) => !keys.includes(key)));
+        setDirtyOptions((current) => (part ? current.filter((p) => p !== part) : current));
+        setMessage(`${label} saved for ${scopeName}.`);
+        return;
+      }
       const payload = validateBranding({
         ...settings,
         ...Object.fromEntries(
@@ -210,22 +264,46 @@ export default function BusinessSettingsPage({
       setBusy(false);
     }
   }
-  const sectionSave = (label: string, keys: (keyof Branding)[]) => (
-    <button
-      type="button"
-      className="section-save"
-      disabled={
-        busy ||
-        !ready ||
-        (!demo && !online) ||
-        version !== base ||
-        !keys.some((key) => dirtyKeys.includes(key))
-      }
-      onClick={() => void saveSection(label, keys)}
-    >
-      <Icon name="save" /> Save {w(label).toLowerCase()}
-    </button>
-  );
+  const sectionSave = (label: string, keys: (keyof Branding)[]) =>
+    scope && !branchSettingGroup(keys[0]) ? (
+      <small className="muted">The same for every branch: change it under the whole business.</small>
+    ) : (
+      <button
+        type="button"
+        className="section-save"
+        disabled={
+          busy ||
+          !ready ||
+          (!demo && !online) ||
+          version !== base ||
+          !keys.some((key) => dirtyKeys.includes(key))
+        }
+        onClick={() => void saveSection(label, keys)}
+      >
+        <Icon name="save" /> Save {w(label).toLowerCase()}
+      </button>
+    );
+  // Going back to the whole business's settings for a group.
+  async function followBusiness(group: string) {
+    if (busy || !scope || version !== base) return;
+    setBusy(true);
+    setMessage('');
+    try {
+      const saved = (await onSave(
+        validateBranding({ ...settings, branchSettings: setBranchSettings(settings, scope, group, null) }),
+        base,
+      )) as { settings: Branding; version: number };
+      setBase(saved.version);
+      setDraft(withBranchSettings(saved.settings, scope) as Branding);
+      setDirtyKeys([]);
+      setDirtyOptions([]);
+      setMessage(`${scopeName} follows the whole business's ${GROUP_NAMES[group]} again.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error), 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
   // Receipt printers and full pages each keep their own receipt settings.
   const [previewLayout, setPreviewLayout] = useState<'narrow' | 'wide'>('narrow');
   const receiptKey = previewLayout === 'narrow' ? 'receipt' : 'receiptPage';
@@ -244,6 +322,29 @@ export default function BusinessSettingsPage({
         </p>
       )}
       <FeedbackBanner message={message} tone={messageTone} />
+      {branchList && branchList.length > 0 && (
+        <label className="settings-scope">
+          Settings for
+          <select
+            aria-label="Settings for"
+            value={scope}
+            disabled={dirty || busy}
+            onChange={(event) => setScope(event.target.value)}
+          >
+            <option value="">The whole business</option>
+            {branchList.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name} (its own)
+              </option>
+            ))}
+          </select>
+          <small>
+            {dirty
+              ? 'Save or undo your changes before switching.'
+              : 'A branch can keep its own receipts, dropdowns & workflow, and job settings. Its payment methods are those of its own money accounts.'}
+          </small>
+        </label>
+      )}
       <div className="business-settings-layout">
         <div className="settings-section-navigation">
           <label className="settings-section-picker">
@@ -309,6 +410,31 @@ export default function BusinessSettingsPage({
           id={`business-panel-${tabs.indexOf(tab)}`}
           aria-labelledby={`business-tab-${tabs.indexOf(tab)}`}
         >
+          {scope && BRANCH_TABS[tab] && (
+            <div className="notice settings-branch-status">
+              {ownsGroup(settings, scope, BRANCH_TABS[tab]) ? (
+                <>
+                  <span>
+                    {scopeName} keeps its own {GROUP_NAMES[BRANCH_TABS[tab]]}. Changes saved here apply only
+                    there.
+                  </span>
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={busy || dirty || (!demo && !online)}
+                    onClick={() => void followBusiness(BRANCH_TABS[tab])}
+                  >
+                    Follow the whole business again
+                  </button>
+                </>
+              ) : (
+                <span>
+                  {scopeName} follows the whole business's {GROUP_NAMES[BRANCH_TABS[tab]]}. Change anything
+                  below and save to give {scopeName} its own.
+                </span>
+              )}
+            </div>
+          )}
           {tab === 'Accounts & payment methods' ? (
             accountSettings
           ) : (

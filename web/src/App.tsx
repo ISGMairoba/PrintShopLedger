@@ -2608,6 +2608,11 @@ export default function App() {
                             <BusinessSettingsPage
                               key={scope}
                               settings={businessBranding.settings}
+                              branchList={
+                                !demo && multiBranch
+                                  ? openBranches.filter((b) => b.kind !== 'store' && b.id !== MAIN)
+                                  : undefined
+                              }
                               branchItems={
                                 chooseItems
                                   ? { services: state.ledger.services, save: saveBranchItems, online }

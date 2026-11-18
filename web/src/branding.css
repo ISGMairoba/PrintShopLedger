@@ -635,3 +635,24 @@ select:focus-visible {
   text-align: center;
   margin-top: 10px;
 }
+/* Business Settings → "Settings for" the whole business or one branch's own. */
+.settings-scope {
+  display: grid;
+  gap: 6px;
+  max-width: 520px;
+  margin: 0 0 18px;
+  font-weight: 600;
+}
+.settings-scope small {
+  font-weight: 400;
+}
+.settings-branch-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.settings-branch-status span {
+  flex: 1 1 260px;
+}

@@ -24,7 +24,14 @@ import {
 import { defaultOptions, validateOptions } from './business-options.mjs';
 import { discountDefaults, validateDiscountSettings } from './discounts.mjs';
 import { termDefaults, validateTerms } from './terms.mjs';
-import { validateBranchAccess, validateBranches, validateStockMinimums } from './branches.mjs';
+import {
+  BRANCH_SETTING_GROUPS,
+  validateBranchAccess,
+  validateBranchSettingsShape,
+  validateBranches,
+  validateStockMinimums,
+  withBranchSettings,
+} from './branches.mjs';
 import { pricingDefaults, validatePricingSettings } from './pricing-templates.mjs';
 import { validateBusinessType } from './business-type.mjs';
 /** The history choices a business can set as its device default (see history-keep.mjs). */
@@ -198,6 +205,8 @@ export const defaultBranding = () => ({
   branchAccess: /** @type {Record<string, string[]>} */ ({}),
   /** Minimum stock set at each branch or store: { locationId: { materialId: number } } (branches.mjs). */
   stockMinimums: /** @type {Record<string, Record<string, number>>} */ ({}),
+  /** Settings a branch keeps for itself, by group (branches.mjs BRANCH_SETTING_GROUPS). */
+  branchSettings: /** @type {Record<string, Record<string, Record<string, any>>>} */ ({}),
   /** 'shared': one price list; 'perBranch': each branch may set its own prices. */
   branchPricing: /** @type {'shared' | 'perBranch'} */ ('shared'),
   /** Print shop, retail or both: which parts of the app show (business-type.mjs). Developer only. */
@@ -332,6 +341,22 @@ export function validateBranding(input) {
     lock > 240
   )
     throw Error('Choose an auto-lock time from 0 to 240 minutes.');
+  // Each branch's own settings are checked the same way as the business's.
+  value.branchSettings = validateBranchSettingsShape(value.branchSettings, value.branches);
+  for (const [id, own] of Object.entries(value.branchSettings)) {
+    const merged = withBranchSettings({ ...value, branchSettings: { [id]: own } }, id);
+    const checked = validateBranding({ ...merged, branchSettings: {} });
+    for (const [group, keys] of Object.entries(BRANCH_SETTING_GROUPS))
+      if (own[group])
+        own[group] = Object.fromEntries(
+          keys
+            .filter((k) => own[group][k] !== undefined)
+            .map((k) => [
+              k,
+              k === 'options' ? { ...checked.options, paymentMethods: undefined } : checked[k],
+            ]),
+        );
+  }
   return value;
 }
 export function contrastText(hex) {
