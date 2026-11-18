@@ -6,7 +6,9 @@
  * type). prices: 'own' = the branch sets its own prices, 'main' = it uses the main branch's (left out
  * = the business's older branchPricing setting). sells: 'chosen' = only the items picked for it
  * (each item lists the branches in soldAt), 'all' or left out = every item.
- * @typedef {{ id: string, name: string, address: string, phone: string, archived: boolean, kind?: 'branch' | 'store', type?: 'both' | 'print' | 'retail', prices?: 'main' | 'own', sells?: 'all' | 'chosen' }} Branch
+ * customers: 'own' = the branch has its own customers only; 'shared' or left out = the customer
+ * list is shared (its Customers page shows those who bought there or were added there).
+ * @typedef {{ id: string, name: string, address: string, phone: string, archived: boolean, kind?: 'branch' | 'store', type?: 'both' | 'print' | 'retail', prices?: 'main' | 'own', sells?: 'all' | 'chosen', customers?: 'shared' | 'own' }} Branch
  */
 export const MAIN = 'main';
 const ID = /^(main|b-[a-z0-9]{6,20})$/;
@@ -40,12 +42,15 @@ export function validateBranches(input) {
       throw Error('Choose how each branch prices items.');
     if (b.sells !== undefined && !['all', 'chosen'].includes(b.sells))
       throw Error('Choose which items each branch sells.');
+    if (b.customers !== undefined && !['shared', 'own'].includes(b.customers))
+      throw Error('Choose whether each branch shares customers.');
     const sales = kind === 'branch';
     return {
       ...(kind === 'store' ? { kind } : {}),
       ...(sales && b.type ? { type: b.type } : {}),
       ...(sales && id !== MAIN && b.prices ? { prices: b.prices } : {}),
       ...(sales && id !== MAIN && b.sells === 'chosen' ? { sells: 'chosen' } : {}),
+      ...(sales && id !== MAIN && b.customers === 'own' ? { customers: 'own' } : {}),
       id,
       name,
       address: String(b.address ?? '')
@@ -120,6 +125,40 @@ export function ownPrices(settings, id) {
 
 /** Whether a branch sells only the items chosen for it. */
 export const sellsChosen = (settings, id) => branchOf(settings, id)?.sells === 'chosen';
+
+/** Whether a branch keeps its own customers (not shared with the other branches). */
+export const ownCustomers = (settings, id) => branchOf(settings, id)?.customers === 'own';
+
+/**
+ * Customers as a branch sees them (records already this branch's, see branchLedger):
+ * * creditLimit is the branch's own limit (creditLimits[branch]; the customer's limit until set),
+ *   with the customer's own kept in baseCreditLimit;
+ * * workedHere: added at this branch or has any job, sale, payment or quotation here (the Customers
+ *   page lists these; checkouts can still find every shared customer);
+ * * a branch with its own customers sees only those.
+ * @template T
+ * @param {T} ledger
+ * @returns {T}
+ */
+export function branchCustomersLedger(ledger, settings, id) {
+  const l = /** @type {any} */ (ledger);
+  const here = id || MAIN;
+  const worked = new Set();
+  for (const key of ['jobs', 'checkouts', 'payments', 'quotations'])
+    for (const r of l[key] ?? []) if (r.customerId) worked.add(r.customerId);
+  const customers = (l.customers ?? [])
+    .map((c) => {
+      const own = here === MAIN ? undefined : c.creditLimits?.[here];
+      return {
+        ...c,
+        baseCreditLimit: c.creditLimit ?? 0,
+        creditLimit: Number.isFinite(own) ? own : (c.creditLimit ?? 0),
+        workedHere: (c.branchId || MAIN) === here || worked.has(c.id),
+      };
+    })
+    .filter((c) => !ownCustomers(settings, here) || c.workedHere);
+  return /** @type {T} */ ({ ...l, customers });
+}
 
 /** Whether an item is sold at a branch. */
 export function soldAt(settings, service, id) {
@@ -306,12 +345,20 @@ export function branchLedger(ledger, id = localBranch) {
 export function tagNewRecords(before, after, id = localBranch) {
   if (id === MAIN || before === after) return after;
   let out = after;
+  // A customer added here belongs to this branch (where they were added; the server does the same).
+  if (Array.isArray(after?.customers)) {
+    const known = new Set((before?.customers ?? []).map((c) => c.id));
+    if (after.customers.some((c) => !known.has(c.id) && !c.branchId)) {
+      out = { ...out };
+      out.customers = after.customers.map((c) => (known.has(c.id) || c.branchId ? c : { ...c, branchId: id }));
+    }
+  }
   // An item added at a branch that sells chosen items is sold there (the server does the same).
   if (localChosen && id === localBranch && Array.isArray(after?.services)) {
     const known = new Set((before?.services ?? []).map((s) => s.id));
     // (Unless the General Manager or Developer chose where it is sold: then soldAt is set.)
     if (after.services.some((s) => !known.has(s.id) && !s.soldAt)) {
-      out = { ...after };
+      if (out === after) out = { ...after };
       out.services = after.services.map((s) => (known.has(s.id) || s.soldAt ? s : { ...s, soldAt: [id] }));
     }
   }
