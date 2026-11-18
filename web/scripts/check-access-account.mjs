@@ -169,7 +169,7 @@ try {
       if (mobile) await open();
       await page
         .locator('.sidebar-user')
-        .getByText('Test User (valid.user)', { exact: true })
+        .getByText('valid.user', { exact: true })
         .waitFor({ state: 'attached' });
       assert.equal(calls, 1);
       if (mobile) await nav.getByRole('button', { name: 'My Account', exact: true }).click();

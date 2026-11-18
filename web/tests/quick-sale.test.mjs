@@ -265,11 +265,24 @@ test('Categories, "from" prices and the Collected default for the selling screen
     ['c'],
   );
   assert.deepEqual(productTiles(items, 'station').length, 2, 'search also matches the category');
-  assert.deepEqual(tilePrice([{ price: 500, priceTiers: [], packPrices: [] }]), { price: 500, from: false });
-  assert.deepEqual(tilePrice([{ price: 500, priceTiers: [{ from: 10, price: 400 }], packPrices: [] }]), {
-    price: 400,
-    from: true,
+  assert.deepEqual(tilePrice([{ price: 500, priceTiers: [], packPrices: [] }]), {
+    price: 500,
+    from: false,
+    deal: null,
   });
+  // The tile shows one item's price, with a mark when quantity ranges or packs are cheaper.
+  assert.deepEqual(tilePrice([{ price: 500, priceTiers: [{ from: 10, price: 400 }], packPrices: [] }]), {
+    price: 500,
+    from: false,
+    deal: 'ranges',
+  });
+  assert.deepEqual(
+    tilePrice([
+      { price: 500, priceTiers: [], packPrices: [{ quantity: 12, price: 5000 }] },
+      { price: 600, priceTiers: [], packPrices: [] },
+    ]),
+    { price: 500, from: true, deal: 'packs' },
+  );
   assert.equal(collectedByDefault({ defaultShelfWorkflowId: null }), true);
   assert.equal(collectedByDefault({ defaultShelfWorkflowId: 'wf1' }), false);
 });

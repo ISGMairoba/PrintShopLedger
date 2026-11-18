@@ -581,6 +581,62 @@ export default function BusinessSettingsPage({
                   accent={draft.accent}
                   onChange={(next) => field('tiles', next)}
                 />
+                <fieldset className="login-colors">
+                  <legend>Sign-in page colours</legend>
+                  <label className="check-label">
+                    <input
+                      type="radio"
+                      name="login-colors"
+                      checked={!draft.loginColors}
+                      onChange={() => field('loginColors', null)}
+                    />
+                    PrintShopLedger's own (green and gold)
+                  </label>
+                  <label className="check-label">
+                    <input
+                      type="radio"
+                      name="login-colors"
+                      checked={!!draft.loginColors}
+                      onChange={() =>
+                        field(
+                          'loginColors',
+                          draft.loginColors ?? { primary: draft.primary, accent: draft.accent },
+                        )
+                      }
+                    />
+                    Our own colours
+                  </label>
+                  {draft.loginColors && (
+                    <div className="form-grid">
+                      <label>
+                        Main colour
+                        <input
+                          type="color"
+                          aria-label="Sign-in main colour"
+                          value={draft.loginColors.primary}
+                          onChange={(e) =>
+                            field('loginColors', { ...draft.loginColors!, primary: e.target.value })
+                          }
+                        />
+                      </label>
+                      <label>
+                        Accent colour
+                        <input
+                          type="color"
+                          aria-label="Sign-in accent colour"
+                          value={draft.loginColors.accent}
+                          onChange={(e) =>
+                            field('loginColors', { ...draft.loginColors!, accent: e.target.value })
+                          }
+                        />
+                      </label>
+                    </div>
+                  )}
+                  <small>
+                    The sign-in and lock screens of this business's devices. They use PrintShopLedger's
+                    colours until you choose your own.
+                  </small>
+                </fieldset>
                 <div className="action-row">
                   <button
                     type="button"
@@ -594,7 +650,14 @@ export default function BusinessSettingsPage({
                   >
                     <Icon name="restore" /> Restore default colors
                   </button>
-                  {sectionSave('Appearance', ['primary', 'accent', 'theme', 'backgrounds', 'tiles'])}
+                  {sectionSave('Appearance', [
+                    'primary',
+                    'accent',
+                    'theme',
+                    'backgrounds',
+                    'tiles',
+                    'loginColors',
+                  ])}
                 </div>
               </fieldset>
               <fieldset hidden={tab !== 'Receipts'} disabled={busy || !ready} className="receipt-settings">

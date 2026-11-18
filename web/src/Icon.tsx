@@ -1,4 +1,5 @@
 import {
+  faLock,
   faWifi,
   faRightFromBracket,
   faRightToBracket,
@@ -112,6 +113,7 @@ const icons = {
   notice: faBullhorn,
   wifi: faWifi,
   logout: faRightFromBracket,
+  lock: faLock,
   login: faRightToBracket,
   switchUser: faArrowRightArrowLeft,
   back: faArrowLeft,

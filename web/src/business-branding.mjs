@@ -203,6 +203,8 @@ export const defaultBranding = () => ({
     /** @type {{ id: string, name: string, address: string, phone: string, archived: boolean }[]} */ ([]),
   /** Which branches each staff member works in: { memberId: ['main', …] or ['*'] }. */
   branchAccess: /** @type {Record<string, string[]>} */ ({}),
+  /** The sign-in and lock screens' colours (null: PrintShopLedger's own). */
+  loginColors: /** @type {{ primary: string, accent: string } | null} */ (null),
   /** Minimum stock set at each branch or store: { locationId: { materialId: number } } (branches.mjs). */
   stockMinimums: /** @type {Record<string, Record<string, number>>} */ ({}),
   /** Settings a branch keeps for itself, by group (branches.mjs BRANCH_SETTING_GROUPS). */
@@ -294,6 +296,16 @@ export function validateBranding(input) {
   value.branches = validateBranches(value.branches);
   value.branchAccess = validateBranchAccess(value.branchAccess, value.branches);
   value.stockMinimums = validateStockMinimums(value.stockMinimums);
+  value.loginColors ??= null;
+  if (
+    value.loginColors !== null &&
+    (typeof value.loginColors !== 'object' ||
+      !/^#[0-9a-f]{6}$/i.test(value.loginColors.primary ?? '') ||
+      !/^#[0-9a-f]{6}$/i.test(value.loginColors.accent ?? ''))
+  )
+    throw Error('Choose valid sign-in colours.');
+  if (value.loginColors)
+    value.loginColors = { primary: value.loginColors.primary, accent: value.loginColors.accent };
   Object.assign(value, validateBusinessType(value));
   value.branchPricing ??= 'shared';
   if (!['shared', 'perBranch'].includes(value.branchPricing)) throw Error('Choose how branches price items.');
