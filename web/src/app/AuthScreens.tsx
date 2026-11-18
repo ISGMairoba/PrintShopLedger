@@ -1,4 +1,10 @@
-import { useState, type CSSProperties, type FormEvent, type InputHTMLAttributes, type ReactNode } from 'react';
+import {
+  useState,
+  type CSSProperties,
+  type FormEvent,
+  type InputHTMLAttributes,
+  type ReactNode,
+} from 'react';
 import Icon from '../Icon';
 import Modal from '../Modal';
 import { FeedbackBanner, type FeedbackTone } from '../Feedback';
@@ -36,8 +42,7 @@ export const LOGIN_COLORS_KEY = 'printshopledger:login-colors:v1';
 function loginColors(): Record<string, string> {
   try {
     const saved = JSON.parse(localStorage.getItem(LOGIN_COLORS_KEY) ?? 'null');
-    if (saved && /^#[0-9a-f]{6}$/i.test(saved.primary) && /^#[0-9a-f]{6}$/i.test(saved.accent))
-    {
+    if (saved && /^#[0-9a-f]{6}$/i.test(saved.primary) && /^#[0-9a-f]{6}$/i.test(saved.accent)) {
       // Dark text on a light main colour, white on a dark one.
       const [r, g, b] = [1, 3, 5].map((i) => parseInt(saved.primary.slice(i, i + 2), 16));
       const light = 0.299 * r + 0.587 * g + 0.114 * b > 160;

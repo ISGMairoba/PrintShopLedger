@@ -1863,7 +1863,11 @@ export default function App() {
                                 type="button"
                                 className="icon-button"
                                 aria-label="Lock"
-                                title={pinLock.hasPin ? 'Lock (your PIN unlocks it)' : 'Lock (sign in again to continue)'}
+                                title={
+                                  pinLock.hasPin
+                                    ? 'Lock (your PIN unlocks it)'
+                                    : 'Lock (sign in again to continue)'
+                                }
                                 disabled={busy}
                                 onClick={async () => {
                                   if (!(await pinLock.lock()))

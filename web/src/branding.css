@@ -706,7 +706,7 @@ select:focus-visible {
   padding: 12px 14px;
   margin: 16px 0;
 }
-.login-colors input[type='color'] {
+.login-colors input[type="color"] {
   width: 100%;
   height: 42px;
   padding: 4px;

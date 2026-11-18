@@ -598,7 +598,10 @@ export default function BusinessSettingsPage({
                       name="login-colors"
                       checked={!!draft.loginColors}
                       onChange={() =>
-                        field('loginColors', draft.loginColors ?? { primary: draft.primary, accent: draft.accent })
+                        field(
+                          'loginColors',
+                          draft.loginColors ?? { primary: draft.primary, accent: draft.accent },
+                        )
                       }
                     />
                     Our own colours
@@ -611,7 +614,9 @@ export default function BusinessSettingsPage({
                           type="color"
                           aria-label="Sign-in main colour"
                           value={draft.loginColors.primary}
-                          onChange={(e) => field('loginColors', { ...draft.loginColors!, primary: e.target.value })}
+                          onChange={(e) =>
+                            field('loginColors', { ...draft.loginColors!, primary: e.target.value })
+                          }
                         />
                       </label>
                       <label>
@@ -620,14 +625,16 @@ export default function BusinessSettingsPage({
                           type="color"
                           aria-label="Sign-in accent colour"
                           value={draft.loginColors.accent}
-                          onChange={(e) => field('loginColors', { ...draft.loginColors!, accent: e.target.value })}
+                          onChange={(e) =>
+                            field('loginColors', { ...draft.loginColors!, accent: e.target.value })
+                          }
                         />
                       </label>
                     </div>
                   )}
                   <small>
-                    The sign-in and lock screens of this business's devices. They use PrintShopLedger's colours until
-                    you choose your own.
+                    The sign-in and lock screens of this business's devices. They use PrintShopLedger's
+                    colours until you choose your own.
                   </small>
                 </fieldset>
                 <div className="action-row">
@@ -643,7 +650,14 @@ export default function BusinessSettingsPage({
                   >
                     <Icon name="restore" /> Restore default colors
                   </button>
-                  {sectionSave('Appearance', ['primary', 'accent', 'theme', 'backgrounds', 'tiles', 'loginColors'])}
+                  {sectionSave('Appearance', [
+                    'primary',
+                    'accent',
+                    'theme',
+                    'backgrounds',
+                    'tiles',
+                    'loginColors',
+                  ])}
                 </div>
               </fieldset>
               <fieldset hidden={tab !== 'Receipts'} disabled={busy || !ready} className="receipt-settings">
