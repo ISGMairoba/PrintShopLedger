@@ -76,3 +76,19 @@ test('all editable account fields update together with before/after history and 
     /changed/,
   );
 });
+
+test('Each branch may have its own account called Cash; a shared one is unique everywhere', async () => {
+  const { applyOperation: applyOperations } = await import('../src/operations.mjs');
+  const audit = { modifiedBy: 'u', modifiedByLabel: 'Ada', modifiedAt: '2026-11-18T09:00:00Z' };
+  const account = (id, branch, method = 'Cash') => ({
+    id: crypto.randomUUID(),
+    kind: 'account.created',
+    data: { id, name: 'Cash', accountType: 'cash', branch, openingDate: '2026-11-18', openingBalance: 0, methods: [method], ...audit },
+  });
+  let ledger = { moneyAccounts: [], accountEntries: [], operationHistory: [], payees: [] };
+  ledger = applyOperations(ledger, account('a1', 'main'));
+  ledger = applyOperations(ledger, account('a2', 'b-zoo0000001'));
+  assert.equal(ledger.moneyAccounts.length, 2);
+  assert.throws(() => applyOperations(ledger, account('a3', 'b-zoo0000001', 'POS')), /already has that name/);
+  assert.throws(() => applyOperations(ledger, account('a4', '*', 'Transfer')), /already has that name/);
+});
