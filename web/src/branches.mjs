@@ -133,8 +133,9 @@ export const ownCustomers = (settings, id) => branchOf(settings, id)?.customers 
  * Customers as a branch sees them (records already this branch's, see branchLedger):
  * * creditLimit is the branch's own limit (creditLimits[branch]; the customer's limit until set),
  *   with the customer's own kept in baseCreditLimit;
- * * workedHere: added at this branch or has any job, sale, payment or quotation here (the Customers
- *   page lists these; checkouts can still find every shared customer);
+ * * workedHere: added at this branch, added to it by phone number (linkedBranches), or has any
+ *   job, sale, payment or quotation here (the Customers page lists these; checkouts can still
+ *   find every shared customer);
  * * a branch with its own customers sees only those.
  * @template T
  * @param {T} ledger
@@ -153,7 +154,7 @@ export function branchCustomersLedger(ledger, settings, id) {
         ...c,
         baseCreditLimit: c.creditLimit ?? 0,
         creditLimit: Number.isFinite(own) ? own : (c.creditLimit ?? 0),
-        workedHere: (c.branchId || MAIN) === here || worked.has(c.id),
+        workedHere: (c.branchId || MAIN) === here || worked.has(c.id) || !!c.linkedBranches?.includes(here),
       };
     })
     .filter((c) => !ownCustomers(settings, here) || c.workedHere);
@@ -180,16 +181,23 @@ export function settingsForBranch(settings, id) {
 
 /**
  * Settings a branch keeps for itself (Business Settings → "Settings for" a branch), in
- * settings.branchSettings[branchId], by group. A group left out follows the whole business.
- * * receipts: receipt, receiptPage, documents (Receipts tab)
- * * workflow: every dropdown and workflow option except payment methods (Dropdowns & workflow tab;
- *   a branch's payment methods are those of its own money accounts)
- * * jobs: jobs, drawers, production (Jobs & payments tab)
+ * settings.branchSettings[branchId], by group (one per settings tab). A group left out follows the
+ * whole business. Everything can be a branch's own except the business name, the branches and who
+ * works where, page access, the business type and the Developer's items (decided 18 Nov 2026);
+ * a branch's payment methods are those of its own money accounts.
  */
 export const BRANCH_SETTING_GROUPS = {
+  profile: ['address', 'phones', 'email', 'website', 'socials', 'logo', 'logoVariants', 'logoUsage'],
+  appearance: ['primary', 'accent', 'theme', 'backgrounds', 'tiles'],
   receipts: ['receipt', 'receiptPage', 'documents'],
   workflow: ['options'],
-  jobs: ['jobs', 'drawers', 'production'],
+  jobs: ['jobs', 'drawers', 'production', 'discounts'],
+  words: ['terms'],
+  messages: ['messages'],
+  periods: ['periods'],
+  pricing: ['pricing'],
+  corrections: ['corrections'],
+  security: ['security'],
 };
 /** The group a business setting key belongs to (null: always the whole business's). */
 export const branchSettingGroup = (key) =>

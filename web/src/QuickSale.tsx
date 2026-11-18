@@ -254,7 +254,7 @@ export default function QuickSale({
               type="button"
               className="secondary"
               disabled={!quickHeld.length}
-              aria-label={`Held baskets (${quickHeld.length})`}
+              aria-label={`Held carts (${quickHeld.length})`}
               onClick={() => setShowHeld(true)}
             >
               <Icon name="pause" /> Held ({quickHeld.length})
@@ -306,7 +306,7 @@ export default function QuickSale({
                 const variants = tile.kind === 'group' ? tile.variants : [tile.product];
                 const first = variants[0];
                 const name = tile.kind === 'group' ? tile.name : first.name;
-                const { price, from } = tilePrice(variants);
+                const { price, from, deal } = tilePrice(variants);
                 const stocked = variants.filter((v) => v.stock !== null);
                 const remaining = stocked.length ? stocked.reduce((n, v) => n + (left(v) ?? 0), 0) : null;
                 const out = remaining !== null && remaining <= 0;
@@ -322,7 +322,7 @@ export default function QuickSale({
                     aria-label={`${name}, ${from ? 'from ' : ''}${currency(price)}${
                       remaining === null ? '' : out ? ', out of stock' : `, ${remaining} left`
                     }${tile.kind === 'group' ? `, ${variants.length} options` : ''}${
-                      inCart ? `, ${inCart} in the basket` : ''
+                      inCart ? `, ${inCart} in the cart` : ''
                     }`}
                     onClick={() =>
                       tile.kind === 'group' ? setPicking({ name, variants: tile.variants }) : add(first.id)
@@ -357,6 +357,14 @@ export default function QuickSale({
                         <span className="pos-tile-price">
                           {from && <small>from </small>}
                           {currency(price)}
+                          {deal && (
+                            <small
+                              className="pos-tile-deal"
+                              title={deal === 'packs' ? 'Cheaper in packs' : 'Cheaper by quantity'}
+                            >
+                              {deal === 'packs' ? 'Packs' : 'Bulk'}
+                            </small>
+                          )}
                         </span>
                         {first.tags.length > 0 && (
                           <small className="pos-tile-tags">{first.tags.join(', ')}</small>
@@ -369,10 +377,10 @@ export default function QuickSale({
             </div>
           )}
         </section>
-        <section className={`pos-basket${basketOpen ? ' open' : ''}`} aria-label="Basket">
+        <section className={`pos-basket${basketOpen ? ' open' : ''}`} aria-label="Cart">
           <div className="pos-basket-head">
             <h3>
-              <Icon name="basket" /> Basket
+              <Icon name="basket" /> Cart
               {cart.length > 0 && <small>{pieces === 1 ? '1 piece' : `${pieces} pieces`}</small>}
             </h3>
             <button
@@ -483,11 +491,11 @@ export default function QuickSale({
                 }}
                 onBlur={() => setConfirmClear(false)}
               >
-                <Icon name="waste" /> {confirmClear ? 'Yes, clear it' : 'Clear basket'}
+                <Icon name="waste" /> {confirmClear ? 'Yes, clear it' : 'Clear cart'}
               </button>
               {onHold && (
                 <button type="button" className="secondary" disabled={busy || !cart.length} onClick={hold}>
-                  <Icon name="pause" /> Hold basket
+                  <Icon name="pause" /> Hold cart
                 </button>
               )}
             </div>
@@ -508,7 +516,7 @@ export default function QuickSale({
       {/* Phones: the basket is a bar at the bottom that opens over the items. */}
       <div className="pos-phone-bar">
         <button type="button" className="secondary" onClick={() => setBasketOpen(true)}>
-          <Icon name="basket" /> Basket ({pieces}) · {currency(total)}
+          <Icon name="basket" /> Cart ({pieces}) · {currency(total)}
         </button>
         <button
           type="button"
@@ -551,7 +559,7 @@ export default function QuickSale({
                   {v.priceTiers.length > 0 && <small>{tierList(v.price, v.priceTiers)}</small>}
                   <small>
                     {n === null ? 'Not stock-tracked' : n <= 0 ? 'Out of stock' : `${n} left`}
-                    {inCart ? ` · ${inCart} in the basket` : ''}
+                    {inCart ? ` · ${inCart} in the cart` : ''}
                   </small>
                 </button>
               );
@@ -560,7 +568,7 @@ export default function QuickSale({
         </Modal>
       )}
       {showHeld && onResumeHeld && onDiscardHeld && (
-        <Modal title={`Held baskets (${quickHeld.length})`} onClose={() => setShowHeld(false)}>
+        <Modal title={`Held carts (${quickHeld.length})`} onClose={() => setShowHeld(false)}>
           {quickHeld.length ? (
             <HeldSales
               held={quickHeld}
@@ -737,7 +745,7 @@ function PayDialog({
         footer={
           <>
             <button type="button" className="secondary" onClick={onClose}>
-              Back to basket
+              Back to cart
             </button>
             <button type="button" disabled={busy} onClick={() => void complete()}>
               <Icon name="complete" /> {busy ? 'Saving…' : `Complete sale · ${currency(total)}`}

@@ -122,6 +122,7 @@ import { validPinHash } from './pin.mjs';
 import HelpPanel from './HelpPanel';
 import {
   AuthShell,
+  LOGIN_COLORS_KEY,
   PinLockScreen,
   BusinessLogin,
   PasswordRecovery,
@@ -195,6 +196,7 @@ import RemindersPage from './RemindersPage';
 import { useMobileLayout } from './ResponsiveTable';
 import { PendingChecksBanner } from './MaterialCheckSection';
 import { setMessageSender } from './messages.mjs';
+import { setCustomerLink } from './customer-link';
 
 const DashboardPage = lazy(() => import('./DashboardPage'));
 const ReportsPage = lazy(() => import('./ReportsPage'));
@@ -301,12 +303,15 @@ export default function App() {
         : null,
     );
   }, [signingShop]);
+  // The device's branch, once known: its own colours and logos (Business Settings → Settings for).
+  const [themeBranch, setThemeBranch] = useState(MAIN);
   const businessBranding = useBusinessBranding(
     shop?.id ?? '',
     scope,
     demo ? 'Local trial' : (shop?.name ?? ''),
     online,
     demo,
+    themeBranch,
   );
   // The branch this device works in (branches.mjs). One-branch businesses always use the main one.
   const branchChoices = allowedBranches(
@@ -332,7 +337,7 @@ export default function App() {
       setQuickSale(false);
       setMessage(
         sale.kind === 'quick'
-          ? `Basket held${sale.customerName ? ` for ${sale.customerName}` : ''}. Resume it from Held on Quick sale.`
+          ? `Cart held${sale.customerName ? ` for ${sale.customerName}` : ''}. Resume it from Held on Quick sale.`
           : `Sale held${sale.customerName ? ` for ${sale.customerName}` : ''}. Resume it from Point of Service.`,
         'success',
       );
@@ -357,6 +362,9 @@ export default function App() {
     const settings = settingsForBranch(businessBranding.settings, activeBranch?.id ?? MAIN);
     return settings === businessBranding.settings ? businessBranding : { ...businessBranding, settings };
   }, [businessBranding, activeBranch?.id]);
+  useEffect(() => {
+    setThemeBranch(activeBranch?.id ?? MAIN);
+  }, [activeBranch?.id]);
   // Held sales of this device's branch only (a sale held in another branch is resumed there; ones
   // held before branches were recorded show everywhere).
   const heldHere = useMemo(
@@ -630,7 +638,49 @@ export default function App() {
     </label>
   ) : undefined;
   // Receipts and documents show the branch's own phone and address when it has them.
+  // The sign-in and lock screens use the business's chosen sign-in colours on this device.
+  useEffect(() => {
+    if (demo || !businessBranding.ready) return;
+    try {
+      const chosen = businessBranding.settings.loginColors;
+      if (chosen) localStorage.setItem(LOGIN_COLORS_KEY, JSON.stringify(chosen));
+      else localStorage.removeItem(LOGIN_COLORS_KEY);
+    } catch {}
+  }, [demo, businessBranding.ready, businessBranding.settings.loginColors]);
   // Messages ({branch}, {address}, {phone}) come from this device's branch.
+  // A branch with its own customers can add another branch's customer by phone number.
+  setCustomerLink(
+    !demo &&
+      online &&
+      shop &&
+      scope &&
+      multiBranch &&
+      activeBranch &&
+      ownCustomers(branding.settings, activeBranch.id)
+      ? {
+          elsewhere: async (phone) => {
+            const { data, error } = await supabase!.rpc('customer_phone_elsewhere', {
+              p_shop: shop.id,
+              p_phone: phone,
+            });
+            if (error) throw Error(error.message);
+            return data === true;
+          },
+          link: async (phone) => {
+            const target = scope,
+              shopId = shop.id;
+            const { data, error } = await supabase!.rpc('link_customer_by_phone', {
+              p_shop: shopId,
+              p_phone: phone,
+            });
+            if (error) throw Error(error.message);
+            const synced = await syncLedger(target, shopId);
+            if (activeScope.current === target) setState(synced);
+            return data as { id: string; name: string };
+          },
+        }
+      : null,
+  );
   setMessageSender({
     branch: multiBranch && activeBranch ? activeBranch.name : '',
     address: (multiBranch && activeBranch?.address) || branding.settings.address,
@@ -1874,18 +1924,36 @@ export default function App() {
                         </div>
                       }
                       footer={
-                        <div className="sidebar-user">
+                        <div className="sidebar-user sidebar-user-card">
                           <span className="user-avatar" aria-hidden="true">
                             {initialsFor(demo ? 'Trial' : shop?.staffName || '?', shop?.initials)}
                           </span>
                           <span className="sidebar-user-text">
-                            <strong>
-                              {demo ? 'Local trial user' : shop?.staffName || 'Not signed in'}
-                              {(demo || shop?.username) && ` (${demo ? 'trial' : shop?.username})`}
-                            </strong>
-                            <small className="staff-rank">{demo ? 'Trial' : shop?.role}</small>
+                            <strong>{demo ? 'trial' : shop?.username || 'Not signed in'}</strong>
+                            <small className="staff-rank">
+                              {demo ? 'Trial' : (shop?.role ?? '').replace(/_/g, ' ')}
+                            </small>
                           </span>
                           <span className="sidebar-user-actions">
+                            {!demo && (
+                              <button
+                                type="button"
+                                className="icon-button"
+                                aria-label="Lock"
+                                title={
+                                  pinLock.hasPin
+                                    ? 'Lock (your PIN unlocks it)'
+                                    : 'Lock (sign in again to continue)'
+                                }
+                                disabled={busy}
+                                onClick={async () => {
+                                  if (!(await pinLock.lock()))
+                                    signOutStaff('Locked. Sign in to continue, or set a PIN in My Account.');
+                                }}
+                              >
+                                <Icon name="lock" />
+                              </button>
+                            )}
                             {demo && supabase && (
                               <button
                                 type="button"
@@ -1932,6 +2000,9 @@ export default function App() {
                                 <Icon name="logout" />
                               </button>
                             )}
+                          </span>
+                          <span className="sidebar-user-name">
+                            {demo ? 'Local trial user' : shop?.staffName || ''}
                           </span>
                         </div>
                       }

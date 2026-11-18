@@ -1,9 +1,10 @@
 import DialogActions from './DialogActions';
 import { MAIN, localBranchId } from './branches.mjs';
 import { phoneProblem } from './input-guard.mjs';
-import { useFeedbackMessage } from './Feedback';
+import { useFeedback, useFeedbackMessage } from './Feedback';
+import { customerLink } from './customer-link';
 import CurrencyInput from './CurrencyInput';
-import { useId, useState, type FormEvent } from 'react';
+import { useEffect, useId, useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import { money } from './domain.mjs';
 import { createCustomerEvent, customerCode, phoneKey, phoneOwner } from './customers.mjs';
@@ -38,6 +39,47 @@ export default function CustomerEditor({
     customer && phoneKey(phone) === phoneKey(customer.phone)
       ? null
       : phoneOwner(customers, phone, customer?.id);
+  // At a branch with its own customers the number may be another branch's customer, which this
+  // device does not have: the server says only yes or no, and the name shows once it is added here.
+  const link = customerLink();
+  const notify = useFeedback();
+  const [elsewhere, setElsewhere] = useState<string | null>(null);
+  const [linking, setLinking] = useState(false);
+  const askServer =
+    !!link &&
+    !phoneTakenBy &&
+    !phoneProblem(phone) &&
+    !(customer && phoneKey(phone) === phoneKey(customer.phone));
+  useEffect(() => {
+    if (!askServer || !link) return;
+    let live = true;
+    const timer = window.setTimeout(() => {
+      link
+        .elsewhere(phone)
+        .then((yes) => live && setElsewhere(yes ? phoneKey(phone) : null))
+        .catch(() => {});
+    }, 400);
+    return () => {
+      live = false;
+      window.clearTimeout(timer);
+    };
+  }, [askServer, link, phone]);
+  const usedElsewhere = askServer && elsewhere === phoneKey(phone);
+  async function addHere() {
+    if (!link || linking) return;
+    setLinking(true);
+    setError('');
+    try {
+      const found = await link.link(phone);
+      notify(`${found.name} is now a customer at this branch.`, 'success');
+      onSaved?.(found.id);
+      onClose();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not add the customer to this branch.');
+    } finally {
+      setLinking(false);
+    }
+  }
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (busy) return;
@@ -75,6 +117,10 @@ export default function CustomerEditor({
       if (phoneTakenBy)
         throw new Error(
           `This phone number already belongs to ${phoneTakenBy.name}. Use that customer or enter a different number.`,
+        );
+      if (usedElsewhere || (askServer && link && (await link.elsewhere(fields.phone))))
+        throw new Error(
+          'This phone number already belongs to a customer at another branch. Add them to this branch, or enter a different number.',
         );
       await onSave(operation);
       const calledAs = String(form.get('calledAs') ?? '').trim();
@@ -141,7 +187,7 @@ export default function CustomerEditor({
                 onChange={(e) => setPhone(e.target.value)}
                 autoComplete="tel"
                 placeholder="e.g. 0803 123 4567"
-                aria-invalid={!!phoneTakenBy}
+                aria-invalid={!!phoneTakenBy || usedElsewhere}
                 required
               />
               {phoneTakenBy && (
@@ -149,6 +195,14 @@ export default function CustomerEditor({
                   Already used by {phoneTakenBy.name} ({customerCode(phoneTakenBy.id, customers)})
                   {phoneTakenBy.archived ? ', archived' : ''}.
                 </small>
+              )}
+              {usedElsewhere && (
+                <span className="field-error customer-elsewhere" role="alert">
+                  <small>This number belongs to a customer at another branch.</small>
+                  <button type="button" className="secondary" onClick={addHere} disabled={linking || busy}>
+                    {linking ? 'Adding…' : 'Add them to this branch'}
+                  </button>
+                </span>
               )}
             </label>
             <label>

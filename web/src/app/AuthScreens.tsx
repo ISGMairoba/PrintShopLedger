@@ -1,4 +1,10 @@
-import { useState, type FormEvent, type InputHTMLAttributes, type ReactNode } from 'react';
+import {
+  useState,
+  type CSSProperties,
+  type FormEvent,
+  type InputHTMLAttributes,
+  type ReactNode,
+} from 'react';
 import Icon from '../Icon';
 import Modal from '../Modal';
 import { FeedbackBanner, type FeedbackTone } from '../Feedback';
@@ -32,9 +38,26 @@ function SharedDeviceInput(props: InputHTMLAttributes<HTMLInputElement>) {
  * The sign-in screens' layout (like Tillora's): the app's story on the left in the brand colour,
  * the form on the right. On phones the story becomes a short band above the form.
  */
+export const LOGIN_COLORS_KEY = 'printshopledger:login-colors:v1';
+function loginColors(): Record<string, string> {
+  try {
+    const saved = JSON.parse(localStorage.getItem(LOGIN_COLORS_KEY) ?? 'null');
+    if (saved && /^#[0-9a-f]{6}$/i.test(saved.primary) && /^#[0-9a-f]{6}$/i.test(saved.accent)) {
+      // Dark text on a light main colour, white on a dark one.
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(saved.primary.slice(i, i + 2), 16));
+      const light = 0.299 * r + 0.587 * g + 0.114 * b > 160;
+      return {
+        '--auth-primary': saved.primary,
+        '--auth-accent': saved.accent,
+        '--auth-on-primary': light ? '#1b1b1b' : '#ffffff',
+      };
+    }
+  } catch {}
+  return {};
+}
 export function AuthShell({ children }: { children: ReactNode }) {
   return (
-    <main className="auth auth-split">
+    <main className="auth auth-split" style={loginColors() as CSSProperties}>
       <section className="auth-story" aria-label="About PrintShopLedger">
         <div className="auth-story-brand">
           <span className="brand-mark">P</span>

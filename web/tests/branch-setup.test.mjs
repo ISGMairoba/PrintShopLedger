@@ -162,6 +162,15 @@ test('customers by branch: worked here, own credit limit, own customers only', a
     ['c1', 'c2'],
   );
   assert.equal(branchCustomersLedger(ledger, shared, 'main').customers[0].creditLimit, 5000);
+  // Added to the branch by phone number from another branch.
+  const linked = {
+    ...ledger,
+    customers: [...ledger.customers, { id: 'c4', name: 'Dayo', linkedBranches: ['b-shop000001'] }],
+  };
+  assert.deepEqual(
+    branchCustomersLedger(linked, own, 'b-shop000001').customers.map((c) => c.id),
+    ['c1', 'c2', 'c4'],
+  );
   setLocalBranch('b-shop000001');
   const after = tagNewRecords({ customers: [] }, { customers: [{ id: 'c9' }] });
   assert.equal(after.customers[0].branchId, 'b-shop000001');
@@ -205,4 +214,32 @@ test('a branch can keep its own receipts, dropdowns & workflow and job settings'
     validateBranding({ ...saved, branchSettings: { 'b-gone000001': { receipts: {} } } }).branchSettings,
     {},
   );
+});
+
+test('everything but the business name can be a branch’s own', async () => {
+  const { defaultBranding, validateBranding } = await import('../src/business-branding.mjs');
+  const { settingsForBranch, setBranchSettings, branchSettingGroup } = await import('../src/branches.mjs');
+  assert.equal(branchSettingGroup('businessName'), null);
+  assert.equal(branchSettingGroup('branchAccess'), null);
+  assert.equal(branchSettingGroup('pageAccess'), null);
+  assert.equal(branchSettingGroup('primary'), 'appearance');
+  const s = validateBranding({
+    ...defaultBranding(),
+    businessName: 'X',
+    branches: [
+      { id: 'main', name: 'Main', address: '', phone: '', archived: false },
+      { id: 'b-shop000001', name: 'Shop', address: '', phone: '', archived: false },
+    ],
+  });
+  s.branchSettings = setBranchSettings(s, 'b-shop000001', 'appearance', {
+    primary: '#7a1f5c',
+    accent: '#f0b400',
+  });
+  s.branchSettings = setBranchSettings(s, 'b-shop000001', 'profile', { email: 'shop@example.com' });
+  const saved = validateBranding(s);
+  const shop = settingsForBranch(saved, 'b-shop000001');
+  assert.equal(shop.primary, '#7a1f5c');
+  assert.equal(shop.email, 'shop@example.com');
+  assert.equal(shop.businessName, 'X');
+  assert.notEqual(settingsForBranch(saved, 'main').primary, '#7a1f5c');
 });

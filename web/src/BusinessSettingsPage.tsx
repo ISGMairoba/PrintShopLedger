@@ -40,14 +40,30 @@ import { branchSettingGroup, ownsGroup, setBranchSettings, withBranchSettings } 
 
 /** Tabs a branch can keep its own settings in, and the group each one saves. */
 const BRANCH_TABS: Record<string, string> = {
+  'Profile & logo': 'profile',
+  Appearance: 'appearance',
   Receipts: 'receipts',
   'Dropdowns & workflow': 'workflow',
   'Jobs & payments': 'jobs',
+  Words: 'words',
+  Messages: 'messages',
+  'Default time frames': 'periods',
+  'Pricing templates': 'pricing',
+  Corrections: 'corrections',
+  Security: 'security',
 };
 const GROUP_NAMES: Record<string, string> = {
+  profile: 'contact details and logos (the business name stays the same everywhere)',
+  appearance: 'colours and appearance',
   receipts: 'receipts & documents',
   workflow: 'dropdowns & workflow (expense categories, stages…)',
-  jobs: 'job settings',
+  jobs: 'job, drawer and discount settings',
+  words: 'words',
+  messages: 'messages',
+  periods: 'default time frames',
+  pricing: 'pricing template settings',
+  corrections: 'correction settings',
+  security: 'security settings',
 };
 export default function BusinessSettingsPage({
   settings,
@@ -199,10 +215,12 @@ export default function BusinessSettingsPage({
       const part = optionPart(label);
       if (scope) {
         // A branch's own: its group in branchSettings (other settings stay the whole business's).
-        const group = branchSettingGroup(keys[0]);
+        // The business name (and anything else without a group) stays the whole business's.
+        const own = keys.filter((key) => branchSettingGroup(key));
+        const group = own.length ? branchSettingGroup(own[0]) : null;
         if (!group) return;
         const values = Object.fromEntries(
-          keys.map((key) => [
+          own.map((key) => [
             key,
             key === 'options' && part ? mergeOptionsSection(source.options, draft.options, part) : draft[key],
           ]),
@@ -265,7 +283,7 @@ export default function BusinessSettingsPage({
     }
   }
   const sectionSave = (label: string, keys: (keyof Branding)[]) =>
-    scope && !branchSettingGroup(keys[0]) ? (
+    scope && !keys.some((key) => branchSettingGroup(key)) ? (
       <small className="muted">The same for every branch: change it under the whole business.</small>
     ) : (
       <button
@@ -464,6 +482,7 @@ export default function BusinessSettingsPage({
                         aria-label={label}
                         type={key === 'email' ? 'email' : key === 'website' ? 'url' : 'text'}
                         required={key === 'businessName'}
+                        disabled={!!scope && key === 'businessName'}
                         maxLength={max}
                         value={draft[key]}
                         onChange={(e) => field(key, e.target.value)}
@@ -581,6 +600,62 @@ export default function BusinessSettingsPage({
                   accent={draft.accent}
                   onChange={(next) => field('tiles', next)}
                 />
+                <fieldset className="login-colors">
+                  <legend>Sign-in page colours</legend>
+                  <label className="check-label">
+                    <input
+                      type="radio"
+                      name="login-colors"
+                      checked={!draft.loginColors}
+                      onChange={() => field('loginColors', null)}
+                    />
+                    PrintShopLedger's own (green and gold)
+                  </label>
+                  <label className="check-label">
+                    <input
+                      type="radio"
+                      name="login-colors"
+                      checked={!!draft.loginColors}
+                      onChange={() =>
+                        field(
+                          'loginColors',
+                          draft.loginColors ?? { primary: draft.primary, accent: draft.accent },
+                        )
+                      }
+                    />
+                    Our own colours
+                  </label>
+                  {draft.loginColors && (
+                    <div className="form-grid">
+                      <label>
+                        Main colour
+                        <input
+                          type="color"
+                          aria-label="Sign-in main colour"
+                          value={draft.loginColors.primary}
+                          onChange={(e) =>
+                            field('loginColors', { ...draft.loginColors!, primary: e.target.value })
+                          }
+                        />
+                      </label>
+                      <label>
+                        Accent colour
+                        <input
+                          type="color"
+                          aria-label="Sign-in accent colour"
+                          value={draft.loginColors.accent}
+                          onChange={(e) =>
+                            field('loginColors', { ...draft.loginColors!, accent: e.target.value })
+                          }
+                        />
+                      </label>
+                    </div>
+                  )}
+                  <small>
+                    The sign-in and lock screens of this business's devices. They use PrintShopLedger's
+                    colours until you choose your own.
+                  </small>
+                </fieldset>
                 <div className="action-row">
                   <button
                     type="button"
@@ -594,7 +669,14 @@ export default function BusinessSettingsPage({
                   >
                     <Icon name="restore" /> Restore default colors
                   </button>
-                  {sectionSave('Appearance', ['primary', 'accent', 'theme', 'backgrounds', 'tiles'])}
+                  {sectionSave('Appearance', [
+                    'primary',
+                    'accent',
+                    'theme',
+                    'backgrounds',
+                    'tiles',
+                    'loginColors',
+                  ])}
                 </div>
               </fieldset>
               <fieldset hidden={tab !== 'Receipts'} disabled={busy || !ready} className="receipt-settings">

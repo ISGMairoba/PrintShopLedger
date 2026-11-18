@@ -330,7 +330,7 @@ try {
     await page.locator('.sidebar-header').getByText('PrintShopLedger', { exact: true }).count(),
     0,
   );
-  await page.locator('.sidebar-user').getByText('Test Manager (manager)', { exact: true }).waitFor();
+  await page.locator('.sidebar-user').getByText('Test Manager', { exact: true }).waitFor();
   assert.equal((await page.locator('.sidebar-user .staff-rank').innerText()).toLowerCase(), 'manager');
   assert.equal(
     await page
@@ -499,7 +499,7 @@ try {
   await dialog.getByLabel('Password', { exact: true }).fill('new-test-only-password');
   await dialog.getByRole('button', { name: 'Sign in user', exact: true }).click();
   await dialog.waitFor({ state: 'detached' });
-  await page.locator('.sidebar-user').getByText('Amina Updated (amina.print)', { exact: true }).waitFor();
+  await page.locator('.sidebar-user').getByText('Amina Updated', { exact: true }).waitFor();
   assert.equal(
     await page.getByRole('button', { name: 'Sign out business', exact: true }).count(),
     0,
@@ -511,7 +511,7 @@ try {
     'Cashier cannot view Users',
   );
   await page.reload();
-  await page.locator('.sidebar-user').getByText('Amina Updated (amina.print)', { exact: true }).waitFor();
+  await page.locator('.sidebar-user').getByText('Amina Updated', { exact: true }).waitFor();
   assert.equal(
     await page.getByRole('button', { name: 'Sign out business', exact: true }).count(),
     0,
@@ -641,7 +641,7 @@ try {
   await dialog.getByRole('button', { name: 'Close drawer and switch user', exact: true }).click();
   await dialog.waitFor({ state: 'detached' });
   await page.setViewportSize({ width: 1280, height: 800 });
-  await page.locator('.sidebar-user').getByText('Amina Updated (amina.print)', { exact: true }).waitFor();
+  await page.locator('.sidebar-user').getByText('Amina Updated', { exact: true }).waitFor();
   await page.locator('tbody tr').filter({ hasText: 'Cashier only' }).waitFor();
   assert.equal(await page.getByText('Manager print', { exact: true }).count(), 0);
   assert.equal(serverLedger.drawerClosings.length, 1);
@@ -678,7 +678,7 @@ try {
   await dialog.getByLabel('Password', { exact: true }).fill('test-only-password');
   await dialog.getByRole('button', { name: 'Sign in user', exact: true }).click();
   await dialog.waitFor({ state: 'detached' });
-  await page.locator('.sidebar-user').getByText('Test Manager (manager)', { exact: true }).waitFor();
+  await page.locator('.sidebar-user').getByText('Test Manager', { exact: true }).waitFor();
   await page.getByRole('button', { name: 'My Sales', exact: true }).click();
   await page.getByLabel('My sales status').selectOption('closed');
   await page.getByRole('button', { name: /^Dates:/ }).click();
