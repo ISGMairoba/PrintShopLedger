@@ -110,7 +110,8 @@ test('More than 200 handovers: the running count keeps every item collected', ()
   let l = base();
   l = { ...l, jobs: [{ ...job(l), quantity: 300 }] };
   l = applyEvent(l, doneEvent(job(l), 299, actor));
-  for (let i = 0; i < 250; i++) l = applyEvent(l, handoverEvent(job(l), { quantity: 1, collectedBy: 'Sara' }, actor));
+  for (let i = 0; i < 250; i++)
+    l = applyEvent(l, handoverEvent(job(l), { quantity: 1, collectedBy: 'Sara' }, actor));
   assert.equal(job(l).progress.handovers.length, 200);
   assert.equal(job(l).progress.collected, 250);
   assert.deepEqual([jobParts(job(l)).collected, jobParts(job(l)).ready], [250, 49]);
