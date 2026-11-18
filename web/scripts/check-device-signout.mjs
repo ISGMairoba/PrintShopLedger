@@ -79,6 +79,7 @@ try {
     else if (path.endsWith('/my_subscription')) result = { state: 'none' };
     else if (path.endsWith('/get_notices')) result = [];
     else if (path.endsWith('/my_pin')) result = null;
+    else if (path.endsWith('/my_page_limits') || path.endsWith('/customer_phone_elsewhere')) result = null;
     else if (path.endsWith('/report_device')) {
       reports.push(route.request().postDataJSON());
       result = { signOut: true };
