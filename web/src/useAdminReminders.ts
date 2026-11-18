@@ -28,7 +28,7 @@ export default function useAdminReminders({
   scope: string;
   /** The signed-in person's rank (Admin is 2). */
   level: number;
-  /** The whole business copy on this device (every branch). */
+  /** This branch's records (locationStock still lists every location this person may see). */
   ledger: Ledger;
   multiBranch: boolean;
   activeBranch: Branch | null | undefined;

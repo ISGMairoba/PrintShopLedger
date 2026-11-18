@@ -21,7 +21,10 @@ export default function DrawerReviews({
   ledger,
   online,
   onReview,
+  branchName,
 }: {
+  /** At the main branch with branches: the branch each drawer belongs to. */
+  branchName?: (id: string | null | undefined) => string;
   closings: DrawerClosing[];
   ledger: Ledger;
   online: boolean;
@@ -80,6 +83,7 @@ export default function DrawerReviews({
               <tr key={d.id}>
                 <td>
                   <strong>{d.fromUserLabel}</strong>
+                  {branchName && <span className="badge badge-branch">{branchName(d.branchId)}</span>}
                   <small>Closed {when(d.closedAt)}</small>
                 </td>
                 <td>

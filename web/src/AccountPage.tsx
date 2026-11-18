@@ -3,6 +3,7 @@ import Icon from './Icon';
 import { useFeedbackMessage, FeedbackBanner } from './Feedback';
 import { useState, type FormEvent } from 'react';
 import { supabase } from './cloud';
+import { hashPin, pinProblem } from './pin.mjs';
 export default function AccountPage({
   shopId,
   userId,
@@ -15,7 +16,10 @@ export default function AccountPage({
   onChanged,
   staffName = '',
   initials = '',
+  pin,
 }: {
+  /** PIN lock: whether this person has a PIN, and saving a new hash (null removes it). */
+  pin?: { has: boolean; save: (hash: string | null) => Promise<void> };
   /** The person's name and own initials, for the round avatar. */
   staffName?: string;
   initials?: string;
@@ -155,6 +159,90 @@ export default function AccountPage({
           <Icon name="save" /> Save username
         </button>
       </form>
+      {pin && (
+        <>
+          <h3>PIN</h3>
+          <p className="muted">
+            {pin.has
+              ? 'You have a PIN. When the app locks after the auto-lock time, your PIN unlocks it on any device you have signed in on, even without internet.'
+              : 'Set a 4 to 6 digit PIN. When the app locks after the auto-lock time, your PIN unlocks it, even without internet, instead of signing you out.'}
+          </p>
+          <form
+            className="pin-form"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              const form = new FormData(event.currentTarget);
+              const next = String(form.get('pin') ?? '');
+              const problem = pinProblem(next, String(form.get('again') ?? ''));
+              if (problem) return setMessage(problem, 'error');
+              setBusy(true);
+              try {
+                await pin.save(await hashPin(next));
+                (event.target as HTMLFormElement).reset();
+                setMessage(pin.has ? 'PIN changed.' : 'PIN set. It works on every device you sign in on.');
+              } catch (error) {
+                setMessage(error instanceof Error ? error.message : String(error), 'error');
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            <div className="form-grid">
+              <label>
+                {pin.has ? 'New PIN' : 'PIN'}
+                <input
+                  name="pin"
+                  type="password"
+                  inputMode="numeric"
+                  autoComplete="new-password"
+                  pattern="[0-9]{4,6}"
+                  minLength={4}
+                  maxLength={6}
+                  required
+                />
+              </label>
+              <label>
+                Type it again
+                <input
+                  name="again"
+                  type="password"
+                  inputMode="numeric"
+                  autoComplete="new-password"
+                  pattern="[0-9]{4,6}"
+                  minLength={4}
+                  maxLength={6}
+                  required
+                />
+              </label>
+            </div>
+            <div className="material-actions">
+              <button disabled={disabled}>
+                <Icon name="save" /> {pin.has ? 'Change PIN' : 'Set PIN'}
+              </button>
+              {pin.has && (
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={disabled}
+                  onClick={async () => {
+                    setBusy(true);
+                    try {
+                      await pin.save(null);
+                      setMessage('PIN removed. The app signs you out when it locks.');
+                    } catch (error) {
+                      setMessage(error instanceof Error ? error.message : String(error), 'error');
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  Remove PIN
+                </button>
+              )}
+            </div>
+          </form>
+        </>
+      )}
       <h3>Initials</h3>
       <form className="initials-form" onSubmit={(event) => void saveInitials(event)}>
         <span className="user-avatar" aria-hidden="true">

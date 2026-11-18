@@ -80,6 +80,7 @@ try {
         result = null;
       } else if (path.endsWith('/my_subscription')) result = subscription;
       else if (path.endsWith('/get_notices')) result = [];
+      else if (path.endsWith('/my_pin')) result = null;
       else if (path.endsWith('/report_device')) result = report;
       else if (path.endsWith('/ack_device_sign_out')) result = null;
       else throw Error('Unexpected request: ' + path);
