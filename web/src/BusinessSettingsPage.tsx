@@ -1132,6 +1132,22 @@ export default function BusinessSettingsPage({
                   waste. Work saved without a connection is checked again when it syncs; if the stock has run
                   out by then, it waits in the conflict inbox until the stock is updated.
                 </p>
+                <h3>{w('Minimum order')}</h3>
+                <label>
+                  {w('When a sale has less than an item’s minimum order')}
+                  <select
+                    value={draft.jobs.minOrder ?? 'block'}
+                    onChange={(event) => field('jobs', { ...draft.jobs, minOrder: event.target.value })}
+                  >
+                    <option value="block">Don't allow it</option>
+                    <option value="warn">Allow it, with a warning</option>
+                  </select>
+                </label>
+                <p>
+                  {w(
+                    'Each item can have a minimum order (Items → Icon, category, code & tags). Default: don’t allow less. Items sold in packs or by quantity range count the minimum in pieces.',
+                  )}
+                </p>
                 <p className="muted">
                   {w(
                     'The "order ready" message and every other message the app sends are now in the Messages tab.',

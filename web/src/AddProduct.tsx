@@ -54,7 +54,8 @@ export default function AddProduct({
   /** The new item(s) with their look: a display event after each item it creates. */
   const withLook = (events: (MaterialEvent | ServiceEvent)[]) => {
     const tags = tagText.trim() ? cleanTags([...look.tags, tagText]) : look.tags;
-    if (!look.icon && !look.category.trim() && !look.code.trim() && !tags.length) return events;
+    if (!look.icon && !look.category.trim() && !look.code.trim() && !tags.length && !look.minQuantity)
+      return events;
     if (codeTaken(services, look.code)) throw Error(`Another item already has the code ${look.code.trim()}.`);
     const created = events.filter((e) => e.kind === 'service.created') as ServiceEvent[];
     return [
@@ -67,6 +68,7 @@ export default function AddProduct({
               icon: look.icon,
               category: look.category,
               tags,
+              minQuantity: look.minQuantity ?? '',
               // A code belongs to one item: variants each need their own (Icon, category, code & tags).
               code: created.length === 1 ? cleanCode(look.code) : '',
             },

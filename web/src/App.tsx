@@ -29,6 +29,7 @@ import { confirmSignedOut, reportDevice, sendProblems } from './device-report';
 import { historyCheckIfDue } from './history-check-store';
 import { recordProblem } from './problem-log.mjs';
 import { setStockBelowZeroBlocked } from './stock-rule.mjs';
+import { setMinOrderRule } from './min-order.mjs';
 import useSyncConflicts from './app/useSyncConflicts';
 import BatchJobProgressDialog from './BatchJobProgressDialog';
 import PricingTemplatesPage from './PricingTemplatesPage';
@@ -1669,6 +1670,7 @@ export default function App() {
   // stays signed in, so the staff sign-in appears with empty fields.
   // Saving refuses work that takes stock below zero when the business blocks it.
   setStockBelowZeroBlocked(branding.settings.jobs.stockBelowZero === 'block');
+  setMinOrderRule(branding.settings.jobs.minOrder);
   const lockMinutes = branding.settings.security.autoLockMinutes;
   // PIN lock (My Account → PIN): the screen locks without signing out, and the PIN unlocks it on
   // this device, online or not. People without a PIN are signed out as before.
