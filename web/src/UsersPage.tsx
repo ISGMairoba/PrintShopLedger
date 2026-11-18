@@ -9,6 +9,7 @@ import ToolbarActions, { MenuToggle } from './ToolbarActions';
 import { SortHeader, useTableSort } from './TableSort';
 import { accessLevels, GENERAL_MANAGER, rankValues, canManage, userCode, validateUser } from './users.mjs';
 import { useWords } from './Words';
+import { BranchPages, PersonPages, type PageLimits } from './PageLimits';
 
 type Staff = {
   id: string;
@@ -39,6 +40,12 @@ type Props = {
   /** With branches: each branch's name (the Branches column), and this device's branch. */
   branchNames?: Record<string, string>;
   branchName?: string;
+  /** Developer's pages for each rank (Page access), for the page limits. */
+  pageAccess?: Record<string, string[]>;
+  /** Every branch (General Manager and above set pages at each one). */
+  branches?: { id: string; name: string }[];
+  /** After page limits change (this device asks again for its own). */
+  onPagesChanged?: () => void;
 };
 const date = (value: string | null) =>
   value ? new Date(value).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' }) : 'Never';
@@ -52,6 +59,9 @@ export default function UsersPage({
   onChanged,
   branchNames,
   branchName,
+  pageAccess,
+  branches,
+  onPagesChanged,
 }: Props) {
   const worksIn = (user: { branches?: string[] }) =>
     !user.branches?.length
@@ -70,6 +80,9 @@ export default function UsersPage({
   const [confirmation, setConfirmation] = useState<Staff | null>(null);
   const [accessChange, setAccessChange] = useState<Staff | null>(null);
   const [passwordReset, setPasswordReset] = useState<Staff | null>(null);
+  const [pagesFor, setPagesFor] = useState<Staff | null>(null);
+  const [branchPages, setBranchPages] = useState(false);
+  const [limits, setLimits] = useState<PageLimits>({ branches: {}, people: {} });
   const [error, setError, errorTone] = useFeedbackMessage('error');
   const [formError, setFormError] = useFeedbackMessage('error');
   const sorting = useTableSort<Staff>('name');
@@ -78,6 +91,51 @@ export default function UsersPage({
   const editable = (user: Staff) => !!actor && canManage(actor, user);
   // Only Developer can archive or revoke the General Manager.
   const canTurnOff = (user: Staff) => editable(user) && (user.role !== GENERAL_MANAGER || actor?.rank === 5);
+  // Page limits: Managers and above for people of a lower rank; General Managers for each branch.
+  const canSetPages = (user: Staff) => !!actor && actor.rank >= 3 && user.rank < actor.rank;
+  const canSetBranchPages = !!actor && actor.rank >= 4 && !!branches && branches.length > 1;
+  async function loadLimits() {
+    if (!supabase || !online || !actor || actor.rank < 3) return;
+    const { data, error: failure } = await supabase.rpc('list_page_limits', { p_shop: shopId });
+    if (failure) throw new Error(failure.message);
+    setLimits({ branches: data?.branches ?? {}, people: data?.people ?? {} });
+  }
+  useEffect(() => {
+    void loadLimits().catch(() => {});
+  }, [shopId, online, actor?.rank]);
+  async function savePersonPages(user: Staff, pages: string[] | null) {
+    if (!supabase) throw new Error('Connect to the internet to set pages.');
+    setBusy(true);
+    try {
+      const { error: failure } = await supabase.rpc('set_person_page_limit', {
+        p_shop: shopId,
+        p_user: user.userId,
+        p_pages: pages,
+      });
+      if (failure) throw new Error(failure.message);
+      await loadLimits();
+      onPagesChanged?.();
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function saveBranchPages(branch: string, rank: number, pages: string[] | null) {
+    if (!supabase) throw new Error('Connect to the internet to set pages.');
+    setBusy(true);
+    try {
+      const { error: failure } = await supabase.rpc('set_branch_page_limit', {
+        p_shop: shopId,
+        p_branch: branch,
+        p_rank: rank,
+        p_pages: pages,
+      });
+      if (failure) throw new Error(failure.message);
+      await loadLimits();
+      onPagesChanged?.();
+    } finally {
+      setBusy(false);
+    }
+  }
   async function load() {
     if (!supabase || !allowed || !online) return;
     const { data, error: failure } = await supabase.rpc('list_shop_users', { p_shop: shopId });
@@ -335,6 +393,11 @@ export default function UsersPage({
             >
               <Icon name="add" /> Add user
             </button>
+            {canSetBranchPages && (
+              <button className="secondary" disabled={busy || !online} onClick={() => setBranchPages(true)}>
+                <Icon name="settings" /> Pages at each branch
+              </button>
+            )}
           </ToolbarActions>
         </div>
         {!online && <div className="notice">Connect to the internet to manage user accounts.</div>}
@@ -444,6 +507,16 @@ export default function UsersPage({
                               >
                                 <Icon name="sync" /> Reset password
                               </button>
+                              {canSetPages(user) && (
+                                <button
+                                  className="text-button"
+                                  disabled={busy || !online}
+                                  onClick={() => setPagesFor(user)}
+                                >
+                                  <Icon name="details" /> Pages
+                                  {limits.people[user.userId] ? ' (limited)' : ''}
+                                </button>
+                              )}
                             </>
                           )}
                         </div>
@@ -604,6 +677,27 @@ export default function UsersPage({
             </button>
           </div>
         </Modal>
+      )}
+      {pagesFor && (
+        <PersonPages
+          name={pagesFor.name}
+          rank={pagesFor.rank}
+          configured={pageAccess}
+          current={limits.people[pagesFor.userId]}
+          busy={busy}
+          onSave={(pages) => savePersonPages(pagesFor, pages)}
+          onClose={() => setPagesFor(null)}
+        />
+      )}
+      {branchPages && branches && (
+        <BranchPages
+          branches={branches}
+          configured={pageAccess}
+          current={limits.branches}
+          busy={busy}
+          onSave={saveBranchPages}
+          onClose={() => setBranchPages(false)}
+        />
       )}
       {passwordReset && (
         <Modal

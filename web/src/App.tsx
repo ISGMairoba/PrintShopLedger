@@ -15,6 +15,7 @@ import {
   sellsChosen,
   settingsForBranch,
 } from './branches.mjs';
+import { usePageLimit } from './usePageLimit';
 import { setRequestBranch, storeBranch, storedBranch } from './device-branch';
 import PayeesPage from './PayeesPage';
 import AccountsPage from './AccountsPage';
@@ -44,7 +45,14 @@ import { BusinessOptionsContext } from './BusinessOptionsContext';
 import useBusinessBranding from './useBusinessBranding';
 import BusinessSettingsPage from './BusinessSettingsPage';
 import AccountPage from './AccountPage';
-import { allowedSettingsTabs, canAccessPage, pageGroup, pages, navigationPages } from './page-access.mjs';
+import {
+  allowedSettingsTabs,
+  canAccessPage,
+  limitedPageAccess,
+  pageGroup,
+  pages,
+  navigationPages,
+} from './page-access.mjs';
 import ExpensesPage from './ExpensesPage';
 import DrawerReviews from './DrawerReviews';
 import { setBusinessKeep, setKeepChoice } from './history-keep.mjs';
@@ -379,19 +387,32 @@ export default function App() {
       : '',
   );
   const subscriptionBanner = demo ? null : subscriptionNotice(subscription);
+  // Pages: the rank's (Developer), less any the General Manager turned off at this branch or a
+  // Manager+ turned off for this person.
+  const pageLimit = usePageLimit({
+    scope: demo ? '' : (scope ?? ''),
+    shopId: shop?.id,
+    branch: activeBranch?.id ?? MAIN,
+    online,
+    ready: branding.ready,
+  });
+  const pageAccess = useMemo(
+    () => limitedPageAccess(branding.settings.pageAccess, shop?.accessLevel ?? 0, pageLimit.limit),
+    [branding.settings.pageAccess, shop?.accessLevel, pageLimit.limit],
+  );
   // Catalogue edits need an Admin or higher who can open Services (the server checks this too).
   const canEditCatalogue =
     demo ||
     (!!shop &&
       shop.role !== 'cashier' &&
       shop.accessLevel >= 2 &&
-      canAccessPage('Services', shop.accessLevel, branding.settings.pageAccess));
+      canAccessPage('Services', shop.accessLevel, pageAccess));
   const allowed = (item: Page) =>
     !(restriction === 'pages_off' && (subscription.pagesOff ?? []).includes(item)) &&
     (item !== 'Pricing Templates' || branding.settings.pricing.enabled) &&
     featureOn(branding.settings, item) &&
     (item !== 'Edit Products' || demo || (!!shop && shop.role !== 'cashier' && shop.accessLevel >= 2)) &&
-    (demo || canAccessPage(item, shop?.accessLevel ?? 0, branding.settings.pageAccess));
+    (demo || canAccessPage(item, shop?.accessLevel ?? 0, pageAccess));
   // Stock and waste share one screen with two tabs when the user may see both.
   const materialTabs =
     allowed('Materials') && allowed('Material Waste') ? (
@@ -1080,7 +1101,7 @@ export default function App() {
     demo ||
     (online &&
       (shop?.accessLevel ?? 0) >= 2 &&
-      canAccessPage('Sale Adjustments', shop?.accessLevel ?? 0, branding.settings.pageAccess));
+      canAccessPage('Sale Adjustments', shop?.accessLevel ?? 0, pageAccess));
   const canReviewConflicts = demo || (shop?.accessLevel ?? 0) >= 2 || !!supervisor;
   useEffect(() => {
     if (!hasConflict && !state.pending.length) {
@@ -2395,48 +2416,19 @@ export default function App() {
                                 onPayeeChange={setReportPayee}
                                 access={{
                                   customers:
-                                    demo ||
-                                    canAccessPage(
-                                      'Customers',
-                                      shop?.accessLevel ?? 0,
-                                      branding.settings.pageAccess,
-                                    ),
-                                  jobs:
-                                    demo ||
-                                    canAccessPage(
-                                      'Jobs',
-                                      shop?.accessLevel ?? 0,
-                                      branding.settings.pageAccess,
-                                    ),
+                                    demo || canAccessPage('Customers', shop?.accessLevel ?? 0, pageAccess),
+                                  jobs: demo || canAccessPage('Jobs', shop?.accessLevel ?? 0, pageAccess),
                                   payments:
-                                    demo ||
-                                    canAccessPage(
-                                      'Payments',
-                                      shop?.accessLevel ?? 0,
-                                      branding.settings.pageAccess,
-                                    ),
+                                    demo || canAccessPage('Payments', shop?.accessLevel ?? 0, pageAccess),
                                   expenses:
-                                    demo ||
-                                    canAccessPage(
-                                      'Expenses',
-                                      shop?.accessLevel ?? 0,
-                                      branding.settings.pageAccess,
-                                    ),
+                                    demo || canAccessPage('Expenses', shop?.accessLevel ?? 0, pageAccess),
                                   costs:
                                     demo ||
                                     canSeeTemplateCosts(branding.settings.pricing, shop?.accessLevel ?? 0),
                                   stock:
                                     demo ||
-                                    canAccessPage(
-                                      'Stock History',
-                                      shop?.accessLevel ?? 0,
-                                      branding.settings.pageAccess,
-                                    ) ||
-                                    canAccessPage(
-                                      'Materials',
-                                      shop?.accessLevel ?? 0,
-                                      branding.settings.pageAccess,
-                                    ),
+                                    canAccessPage('Stock History', shop?.accessLevel ?? 0, pageAccess) ||
+                                    canAccessPage('Materials', shop?.accessLevel ?? 0, pageAccess),
                                 }}
                               />
                             </Suspense>
@@ -2459,40 +2451,14 @@ export default function App() {
                                 lastSynced={state.lastSynced}
                                 access={{
                                   customers:
-                                    demo ||
-                                    canAccessPage(
-                                      'Customers',
-                                      shop?.accessLevel ?? 0,
-                                      branding.settings.pageAccess,
-                                    ),
-                                  sales:
-                                    demo ||
-                                    canAccessPage(
-                                      'Jobs',
-                                      shop?.accessLevel ?? 0,
-                                      branding.settings.pageAccess,
-                                    ),
+                                    demo || canAccessPage('Customers', shop?.accessLevel ?? 0, pageAccess),
+                                  sales: demo || canAccessPage('Jobs', shop?.accessLevel ?? 0, pageAccess),
                                   payments:
-                                    demo ||
-                                    canAccessPage(
-                                      'Payments',
-                                      shop?.accessLevel ?? 0,
-                                      branding.settings.pageAccess,
-                                    ),
+                                    demo || canAccessPage('Payments', shop?.accessLevel ?? 0, pageAccess),
                                   expenses:
-                                    demo ||
-                                    canAccessPage(
-                                      'Expenses',
-                                      shop?.accessLevel ?? 0,
-                                      branding.settings.pageAccess,
-                                    ),
+                                    demo || canAccessPage('Expenses', shop?.accessLevel ?? 0, pageAccess),
                                   materials:
-                                    demo ||
-                                    canAccessPage(
-                                      'Materials',
-                                      shop?.accessLevel ?? 0,
-                                      branding.settings.pageAccess,
-                                    ),
+                                    demo || canAccessPage('Materials', shop?.accessLevel ?? 0, pageAccess),
                                   costs:
                                     demo ||
                                     canSeeTemplateCosts(branding.settings.pricing, shop?.accessLevel ?? 0),
@@ -2738,8 +2704,7 @@ export default function App() {
                               ledger={ledger}
                               businessName={businessName}
                               onStatement={
-                                demo ||
-                                canAccessPage('Reports', shop?.accessLevel ?? 0, branding.settings.pageAccess)
+                                demo || canAccessPage('Reports', shop?.accessLevel ?? 0, pageAccess)
                                   ? (id) => {
                                       setReportPayee(id);
                                       setPage('Reports');
@@ -2816,12 +2781,7 @@ export default function App() {
                               onSave={saveCatalogue}
                               onReceivePayment={(id) => openPayment(id)}
                               onOpenCustomer={
-                                demo ||
-                                canAccessPage(
-                                  'Customers',
-                                  shop?.accessLevel ?? 0,
-                                  branding.settings.pageAccess,
-                                )
+                                demo || canAccessPage('Customers', shop?.accessLevel ?? 0, pageAccess)
                                   ? (id) => {
                                       setCustomerToOpen(id);
                                       setPage('Customers');
@@ -2932,6 +2892,9 @@ export default function App() {
                               onChanged={() => setStaffEpoch((value) => value + 1)}
                               branchNames={multiBranch ? branchNames : undefined}
                               branchName={multiBranch ? activeBranch?.name : undefined}
+                              pageAccess={branding.settings.pageAccess}
+                              branches={multiBranch ? openBranches : undefined}
+                              onPagesChanged={pageLimit.reload}
                             />
                           ) : page === 'Print Settings' ? (
                             <PrintSettingsPage
@@ -2949,7 +2912,7 @@ export default function App() {
                               onStatement={
                                 demo ||
                                 (['Reports', 'Jobs', 'Payments'] as const).every((name) =>
-                                  canAccessPage(name, shop?.accessLevel ?? 0, branding.settings.pageAccess),
+                                  canAccessPage(name, shop?.accessLevel ?? 0, pageAccess),
                                 )
                                   ? (id) => {
                                       setReportCustomer(id);
@@ -3186,12 +3149,7 @@ export default function App() {
                           legacyConflict={legacyConflict}
                           customerHeld={heldWork.resources.has('customer:' + currentJob.customerId)}
                           canAdjust={
-                            demo ||
-                            canAccessPage(
-                              'Sale Adjustments',
-                              shop?.accessLevel ?? 0,
-                              branding.settings.pageAccess,
-                            )
+                            demo || canAccessPage('Sale Adjustments', shop?.accessLevel ?? 0, pageAccess)
                           }
                           canSave={demo || online}
                           onClose={() => setSelectedJob(null)}
