@@ -447,7 +447,7 @@ try {
             await page
               .getByRole('dialog')
               .last()
-              .getByRole('button', { name: 'Picture', exact: true })
+              .getByRole('button', { name: 'Picture (80mm)', exact: true })
               .click();
           })(),
         ]);

@@ -524,17 +524,25 @@ function modelPdf(m: Model, media: ReceiptMedia, business: string | Branding, ma
  * The receipt as a picture (PNG) to share on WhatsApp: the same layout as the PDF, drawn on the
  * narrow roll (phone-shaped), at 10 pixels per millimetre.
  */
+/** The receipt picture's paper: an 80 mm till roll (the default), A5 or A4. */
+export type ReceiptPictureSize = 'roll' | 'a5' | 'a4';
 export async function createReceiptImage(
   record: CheckoutRecord,
   business: string | Branding,
   pending = false,
   adjustments: SaleAdjustment[] = [],
+  size: ReceiptPictureSize = 'roll',
 ) {
   const warning = receiptIntegrityError(record);
   if (warning) throw Error(warning);
   const { CanvasDoc, canvasPng, loadCanvasFonts, loadImages } = await import('./canvas-doc');
-  const m = receiptModel(record, business, pending, adjustments, 'roll');
-  const media = { ...ROLL_80_RECEIPT, width: 90, margins: { top: 6, right: 6, bottom: 6, left: 6 } };
+  const media =
+    size === 'a4'
+      ? A4_RECEIPT
+      : size === 'a5'
+        ? A5_DOCUMENT
+        : { ...ROLL_80_RECEIPT, width: 90, margins: { top: 6, right: 6, bottom: 6, left: 6 } };
+  const m = receiptModel(record, business, pending, adjustments, media.layout);
   await loadCanvasFonts();
   const images = await loadImages([m.business.logo ?? '', resolveWatermark(receiptBusiness(business)) ?? '']);
   let last: InstanceType<typeof CanvasDoc> | null = null;
@@ -542,7 +550,9 @@ export async function createReceiptImage(
     last = new CanvasDoc(format, images);
     return last as unknown as jsPDF;
   });
-  const name = `Receipt-${record.id.slice(0, 8).toUpperCase()}${record.corrected ? '-corrected' : ''}.png`;
+  const suffix = size === 'roll' ? '' : `-${size.toUpperCase()}`;
+  const name = `Receipt-${record.id.slice(0, 8).toUpperCase()}${record.corrected ? '-corrected' : ''}${suffix}.png`;
+  // 10 pixels per mm: about 2,100 pixels across for A4, 1,480 for A5 and 900 for the roll.
   return canvasPng((last as unknown as InstanceType<typeof CanvasDoc>).render(10), name);
 }
 /** A quotation as a PDF, on A4 or an 80 mm roll, with the business's receipt look. */

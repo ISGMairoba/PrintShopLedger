@@ -136,12 +136,21 @@ try {
     page.waitForEvent('download'),
     (async () => {
       await page.getByRole('dialog').getByRole('button', { name: 'Download', exact: true }).click();
-      await page.getByRole('dialog').getByRole('button', { name: 'Picture', exact: true }).click();
+      await page.getByRole('dialog').getByRole('button', { name: 'Picture (80mm)', exact: true }).click();
     })(),
   ]);
   assert.match(picture.suggestedFilename(), /^Receipt-[0-9A-F]{8}\.png$/);
   const { statSync } = await import('node:fs');
   assert.ok(statSync(await picture.path()).size > 20000, 'the receipt picture has content');
+  // The same receipt as an A4 page picture.
+  const [a4] = await Promise.all([
+    page.waitForEvent('download'),
+    (async () => {
+      await page.getByRole('dialog').getByRole('button', { name: 'Download', exact: true }).click();
+      await page.getByRole('dialog').getByRole('button', { name: 'Picture (A4)', exact: true }).click();
+    })(),
+  ]);
+  assert.match(a4.suggestedFilename(), /^Receipt-[0-9A-F]{8}-A4\.png$/);
   await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
   await nav('Materials');
   assert.match(await page.locator('table').innerText(), /Blue pen[\s\S]*\b3\b/);
