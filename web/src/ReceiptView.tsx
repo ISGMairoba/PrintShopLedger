@@ -14,6 +14,7 @@ import {
 import { loadPrintSettings } from './print-settings.mjs';
 import { printReceipt } from './printing';
 import type { CheckoutRecord } from './types';
+import type { ReceiptPictureSize } from './receipt-pdf';
 export default function ReceiptView({
   record: originalRecord,
   ledger,
@@ -65,7 +66,7 @@ export default function ReceiptView({
     }
   }
   /** Share the receipt as a PDF (A4) or a picture (phone-shaped), with the receipt message. */
-  async function share(kind: 'pdf' | 'image' = 'pdf') {
+  async function share(kind: 'pdf' | 'image' = 'pdf', picture: ReceiptPictureSize = 'roll') {
     setBusy(true);
     try {
       const [{ createReceiptPdf, createReceiptImage }, { shareFile, shareResult }] = await Promise.all([
@@ -76,7 +77,7 @@ export default function ReceiptView({
       const ref = `Receipt-${record.id.slice(0, 8).toUpperCase()}`;
       const file =
         kind === 'image'
-          ? await createReceiptImage(record, business, pending, adjustments)
+          ? await createReceiptImage(record, business, pending, adjustments, picture)
           : new File(
               [createReceiptPdf(record, business, pending, adjustments, 'a4').output('blob')],
               `${ref}.pdf`,
@@ -141,14 +142,14 @@ export default function ReceiptView({
     );
     page.document.close();
   }
-  async function downloadPicture() {
+  async function downloadPicture(picture: ReceiptPictureSize = 'roll') {
     setBusy(true);
     try {
       const [{ createReceiptImage }, { downloadFile }] = await Promise.all([
         import('./receipt-pdf'),
         import('./share-pdf'),
       ]);
-      downloadFile(await createReceiptImage(record, business, pending, adjustments));
+      downloadFile(await createReceiptImage(record, business, pending, adjustments, picture));
       setMessage('Picture downloaded.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error), 'error');
@@ -227,8 +228,18 @@ export default function ReceiptView({
           <button disabled={busy} onClick={() => void run(() => share('pdf'))}>
             <Icon name="share" /> PDF
           </button>
-          <button className="secondary" disabled={busy} onClick={() => void run(() => share('image'))}>
-            <Icon name="share" /> Picture
+          <button
+            className="secondary"
+            disabled={busy}
+            onClick={() => void run(() => share('image', 'roll'))}
+          >
+            <Icon name="share" /> Picture (80mm)
+          </button>
+          <button className="secondary" disabled={busy} onClick={() => void run(() => share('image', 'a5'))}>
+            <Icon name="share" /> Picture (A5)
+          </button>
+          <button className="secondary" disabled={busy} onClick={() => void run(() => share('image', 'a4'))}>
+            <Icon name="share" /> Picture (A4)
           </button>
           <small>Then choose WhatsApp (the customer's chat) or another app.</small>
         </div>
@@ -241,8 +252,18 @@ export default function ReceiptView({
           <button className="secondary" disabled={busy} onClick={() => void run(() => pdf('roll'))}>
             <Icon name="export" /> PDF (80mm)
           </button>
-          <button className="secondary" disabled={busy} onClick={() => void run(downloadPicture)}>
-            <Icon name="export" /> Picture
+          <button
+            className="secondary"
+            disabled={busy}
+            onClick={() => void run(() => downloadPicture('roll'))}
+          >
+            <Icon name="export" /> Picture (80mm)
+          </button>
+          <button className="secondary" disabled={busy} onClick={() => void run(() => downloadPicture('a5'))}>
+            <Icon name="export" /> Picture (A5)
+          </button>
+          <button className="secondary" disabled={busy} onClick={() => void run(() => downloadPicture('a4'))}>
+            <Icon name="export" /> Picture (A4)
           </button>
         </div>
       )}
