@@ -55,7 +55,10 @@ export default function CreditRefundDialog({
   let left: number | null = null,
     notice = '';
   try {
-    left = walletBalance(applySaleAdjustment(ledger, event(reason.trim() || 'Preview')) as Ledger, customerId);
+    left = walletBalance(
+      applySaleAdjustment(ledger, event(reason.trim() || 'Preview')) as Ledger,
+      customerId,
+    );
   } catch (cause) {
     notice = cause instanceof Error ? cause.message : String(cause);
   }
@@ -71,8 +74,8 @@ export default function CreditRefundDialog({
       }
     >
       <p>
-        {customer?.name ?? 'Customer'} has <strong>{currency(credit)}</strong> credit (money paid ahead and not
-        used).
+        {customer?.name ?? 'Customer'} has <strong>{currency(credit)}</strong> credit (money paid ahead and
+        not used).
       </p>
       {error && (
         <p className="notice" role="alert">
@@ -128,8 +131,8 @@ export default function CreditRefundDialog({
         </fieldset>
         {left !== null ? (
           <p className="muted">
-            Credit after the refund: <strong>{currency(left)}</strong>. Recorded today. Cash refunds come out of
-            your drawer.
+            Credit after the refund: <strong>{currency(left)}</strong>. Recorded today. Cash refunds come out
+            of your drawer.
           </p>
         ) : (
           notice && <p className="notice">{notice}</p>

@@ -69,16 +69,26 @@ function amount(n, positive = false) {
     throw Error('Enter a valid amount within the supported limit.');
 }
 const lagosDay = (iso) =>
-  new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Lagos', year: 'numeric', month: '2-digit', day: '2-digit' }).format(
-    new Date(iso),
-  );
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Africa/Lagos',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(iso));
 
 /**
  * A refund of a customer's unused credit (a deposit with no job, or credit left over): a sale.refunded
  * with no job, filed under the customer. Paid out of their credit; counted in the drawer when cash.
  * `refund`: { amount (kobo), method, methodLabel, reason }.
  */
-export function creditRefundEvent(ledger, customerId, refund, actor, id = crypto.randomUUID(), now = new Date().toISOString()) {
+export function creditRefundEvent(
+  ledger,
+  customerId,
+  refund,
+  actor,
+  id = crypto.randomUUID(),
+  now = new Date().toISOString(),
+) {
   return /** @type {any} */ ({
     id,
     kind: 'sale.refunded',
@@ -109,7 +119,8 @@ function applyCreditRefund(ledger, event) {
   if (d.expectedAccount !== accountToken(ledger, d.customerId))
     throw Error('The customer account changed. Sync and reopen the refund.');
   amount(d.refundAmount, true);
-  if (d.refundAmount > walletBalance(ledger, d.customerId)) throw Error("The refund is more than the customer's credit.");
+  if (d.refundAmount > walletBalance(ledger, d.customerId))
+    throw Error("The refund is more than the customer's credit.");
   if (
     !['Cash', 'POS', 'Transfer', 'Other'].includes(d.method) ||
     typeof d.methodLabel !== 'string' ||
@@ -117,7 +128,8 @@ function applyCreditRefund(ledger, event) {
     d.methodLabel.length > 80
   )
     throw Error('Choose a refund payment method.');
-  if (d.paidOn !== lagosDay(d.modifiedAt)) throw Error('Refunds must be recorded on the day money is returned.');
+  if (d.paidOn !== lagosDay(d.modifiedAt))
+    throw Error('Refunds must be recorded on the day money is returned.');
   const snap = { description: 'Customer credit', amount: 0 };
   return {
     ...ledger,
@@ -164,7 +176,8 @@ function applyCreditRefund(ledger, event) {
 
 export function applySaleAdjustment(input, event) {
   if (correctionKinds.includes(event.kind)) return applyFullCorrection(input, event);
-  if (event.kind === 'sale.refunded' && !event.data?.jobId) return applyCreditRefund(normalizeLedger(input), event);
+  if (event.kind === 'sale.refunded' && !event.data?.jobId)
+    return applyCreditRefund(normalizeLedger(input), event);
   const ledger = normalizeLedger(input),
     d = event.data,
     a = audit(event);

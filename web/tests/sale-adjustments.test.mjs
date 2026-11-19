@@ -281,10 +281,17 @@ test('Unused credit is refunded with no job: credit down, drawer and refunds up 
   let ledger = base;
   ledger = {
     ...ledger,
-    payments: ledger.payments.map((p, i) => (i === 0 ? { ...p, amount: p.amount + 10000, walletAdded: 10000 } : p)),
+    payments: ledger.payments.map((p, i) =>
+      i === 0 ? { ...p, amount: p.amount + 10000, walletAdded: 10000 } : p,
+    ),
   };
   assert.equal(walletBalance(ledger, customerId), 10000);
-  const event = creditRefundEvent(ledger, customerId, { amount: 4000, method: 'Cash', methodLabel: 'Cash', reason: 'Cancelled before work' }, actor);
+  const event = creditRefundEvent(
+    ledger,
+    customerId,
+    { amount: 4000, method: 'Cash', methodLabel: 'Cash', reason: 'Cancelled before work' },
+    actor,
+  );
   const next = applyEvent(ledger, event);
   assert.equal(walletBalance(next, customerId), 6000);
   const record = next.saleAdjustments.find((a) => a.id === event.id);
@@ -292,7 +299,16 @@ test('Unused credit is refunded with no job: credit down, drawer and refunds up 
   assert.equal(drawerSnapshot(next, actor.id).totalRefunded, 4000);
   assert.deepEqual(applyEvent(next, event), next, 'the same refund again changes nothing');
   assert.throws(
-    () => applyEvent(next, creditRefundEvent(next, customerId, { amount: 7000, method: 'Cash', methodLabel: 'Cash', reason: 'Too much' }, actor)),
+    () =>
+      applyEvent(
+        next,
+        creditRefundEvent(
+          next,
+          customerId,
+          { amount: 7000, method: 'Cash', methodLabel: 'Cash', reason: 'Too much' },
+          actor,
+        ),
+      ),
     /more than the customer's credit/,
   );
 });
