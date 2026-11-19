@@ -1424,8 +1424,9 @@ export default function BusinessSettingsPage({
                   Lock when the app opens
                 </label>
                 <p>
-                  Each time the app is opened, staff unlock it with their PIN (or sign in with their password if
-                  they have no PIN). Without a PIN and offline, it stays open so work can go on. Default: on.
+                  Each time the app is opened, staff unlock it with their PIN (or sign in with their password
+                  if they have no PIN). Without a PIN and offline, it stays open so work can go on. Default:
+                  on.
                 </p>
                 <label>
                   Lock the app after

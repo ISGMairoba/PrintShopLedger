@@ -84,7 +84,8 @@ function partReadyMessage(ledger, job, { business, messages }) {
  * @param {{ business: string, template?: string, terms?: { job: string, jobs: string }, messages?: any }} options
  */
 export function readyMessage(ledger, job, { business, template, terms, messages }) {
-  if (job.productionStatus === 'Collected') return collectedMessage(ledger, job, { business, terms, messages });
+  if (job.productionStatus === 'Collected')
+    return collectedMessage(ledger, job, { business, terms, messages });
   // A part order with only some items ready: the "part ready" message.
   if (job.productionStatus !== 'Completed' && partReady(job) > 0)
     return partReadyMessage(ledger, job, { business, messages });

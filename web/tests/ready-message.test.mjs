@@ -65,11 +65,18 @@ test('A collected order gets the "collected" message: who collected it, when, an
   l.jobs[0] = {
     ...l.jobs[0],
     productionStatus: 'Collected',
-    progress: { done: 200, collected: 200, handovers: [{ id: 'h', quantity: 200, collectedBy: 'Musa', at: '2026-11-19T09:00:00Z' }] },
+    progress: {
+      done: 200,
+      collected: 200,
+      handovers: [{ id: 'h', quantity: 200, collectedBy: 'Musa', at: '2026-11-19T09:00:00Z' }],
+    },
   };
   assert.equal(canTellCustomer(l.jobs[0]), true);
   const { text } = readyMessage(l, l.jobs[0], { business: 'Mairoba' });
-  assert.match(text, /^Hello Ada, your order #AAAAAAAA \(Paper bags × 200\) was collected by Musa on 19 Nov 2026\./);
+  assert.match(
+    text,
+    /^Hello Ada, your order #AAAAAAAA \(Paper bags × 200\) was collected by Musa on 19 Nov 2026\./,
+  );
   assert.match(text, /Balance to pay: ₦20,000\.00\. Thank you for choosing Mairoba\.$/);
   // Nobody recorded: no "by".
   l.jobs[0] = { ...l.jobs[0], progress: undefined, modifiedAt: '2026-11-19T09:00:00Z' };
