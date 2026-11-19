@@ -235,7 +235,7 @@ export default function App() {
   const [staffEpoch, setStaffEpoch] = useState(0);
   const [authEpoch, setAuthEpoch] = useState(0);
   const [demo, setDemo] = useState(!supabase);
-  const { session, setSession, businessSession, setBusinessSession, authReady, authStartupError } =
+  const { session, setSession, businessSession, setBusinessSession, authReady, authStartupError, keptStaff } =
     useAuthSessions(authEpoch, setMessage);
   const { shops, shop, setShop, workspaceLookup, setWorkspaceLookup, workspaceIdentity } = useWorkspaces({
     businessSession,
@@ -1693,6 +1693,21 @@ export default function App() {
     },
     signOut: signOutStaff,
   });
+  // Lock when the app opens (Business Settings → Security, on by default): a sign-in kept from
+  // before opens at the PIN, or at the password for someone without a PIN (offline, without a PIN,
+  // it stays open so work can go on). A sign-in made now is not locked again.
+  const openChecked = useRef('');
+  useEffect(() => {
+    if (demo || !session || keptStaff === undefined || !pinLock.ready || !branding.ready) return;
+    const id = session.user.id;
+    if (openChecked.current === id) return;
+    openChecked.current = id;
+    if (keptStaff !== id || branding.settings.security.lockOnOpen === false) return;
+    if (pinLock.hasPin) {
+      if (!pinLock.locked) void pinLock.lock();
+    } else if (online) signOutStaff('Sign in to continue.');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [demo, session, keptStaff, pinLock.ready, pinLock.hasPin, branding.ready]);
   const savePin = async (hash: string | null) => {
     const { error } = await supabase!.rpc('set_my_pin', { p_shop: shop!.id, p_hash: hash });
     if (error) throw Error(error.message);

@@ -18,8 +18,9 @@ export function partReady(job) {
   return jobParts(job).ready;
 }
 
-/** Whether "Tell customer" can be used: the job is ready, or part of it is. */
-export const canTellCustomer = (job) => job.productionStatus === 'Completed' || partReady(job) > 0;
+/** Whether "Tell customer" can be used: the job is ready or collected, or part of it is ready. */
+export const canTellCustomer = (job) =>
+  job.productionStatus === 'Completed' || job.productionStatus === 'Collected' || partReady(job) > 0;
 
 export const READY_PLACEHOLDERS = ['customer', 'job', 'number', 'items', 'is', 'business', 'balance'];
 export const DEFAULT_READY_MESSAGE =
@@ -83,6 +84,7 @@ function partReadyMessage(ledger, job, { business, messages }) {
  * @param {{ business: string, template?: string, terms?: { job: string, jobs: string }, messages?: any }} options
  */
 export function readyMessage(ledger, job, { business, template, terms, messages }) {
+  if (job.productionStatus === 'Collected') return collectedMessage(ledger, job, { business, terms, messages });
   // A part order with only some items ready: the "part ready" message.
   if (job.productionStatus !== 'Completed' && partReady(job) > 0)
     return partReadyMessage(ledger, job, { business, messages });
@@ -107,5 +109,32 @@ export function readyMessage(ledger, job, { business, template, terms, messages 
     phone: customer?.phone ?? '',
     jobs,
     mode: messageMode(messages, 'ready'),
+  };
+}
+
+/** The "order collected" message: who collected it and when, and what is left to pay. */
+export function collectedMessage(ledger, job, { business, terms, messages }) {
+  const customer = ledger.customers.find((c) => c.id === job.customerId);
+  const owed = jobBalanceFast(ledger, job).outstanding;
+  const last = (job.progress?.handovers ?? []).at(-1);
+  const by = (last?.collectedBy ?? '').trim();
+  const day = new Date(last?.at ?? job.modifiedAt ?? Date.now());
+  const values = {
+    ...customerNames(customer?.name, customer?.calledAs),
+    job: terms?.job ?? 'order',
+    number: `#${job.id.slice(0, 8).toUpperCase()}`,
+    items: itemText({ ...job, productionStatus: 'Collected' }),
+    collected_by: by ? `by ${by}` : '',
+    date: day.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+    balance: owed > 0 ? `Balance to pay: ${currency(owed)}.` : 'It is fully paid.',
+    business: business || 'our shop',
+  };
+  const text = messageText(messages, 'collected', values);
+  return {
+    text,
+    link: whatsappLink(customer?.phone, text),
+    phone: customer?.phone ?? '',
+    jobs: [job],
+    mode: messageMode(messages, 'collected'),
   };
 }
