@@ -53,8 +53,8 @@ export default function MessagesSettings({
   return (
     <div className="messages-settings">
       <p>
-        The wording of every message the app sends for you. Tap a placeholder to put it where the cursor is; it
-        is filled in for each customer when the message is sent. Each Share asks where to send it: WhatsApp
+        The wording of every message the app sends for you. Tap a placeholder to put it where the cursor is;
+        it is filled in for each customer when the message is sent. Each Share asks where to send it: WhatsApp
         (the customer's chat) or another app.
       </p>
       <div className="message-list">

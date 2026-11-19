@@ -217,8 +217,8 @@ export default function ReceiptView({
             <Icon name="details" /> Open print page
           </button>
           <small>
-            Print uses Print Settings ({settings.paper}, {settings.orientation}): receipt rolls get the till-roll
-            layout, larger paper the page layout. The print page opens the browser's own printing.
+            Print uses Print Settings ({settings.paper}, {settings.orientation}): receipt rolls get the
+            till-roll layout, larger paper the page layout. The print page opens the browser's own printing.
           </small>
         </div>
       )}
