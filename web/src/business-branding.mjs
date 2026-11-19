@@ -161,10 +161,12 @@ export const defaultBranding = () => ({
   }),
   // syncMinutes: how often devices check for changes made on other devices.
   // historyKeep: how much history devices keep by default (left out = Everything).
-  security: /** @type {{ autoLockMinutes: number, syncMinutes: number, historyKeep?: string }} */ ({
-    autoLockMinutes: 0,
-    syncMinutes: 2,
-  }),
+  security:
+    /** @type {{ autoLockMinutes: number, syncMinutes: number, lockOnOpen: boolean, historyKeep?: string }} */ ({
+      autoLockMinutes: 0,
+      syncMinutes: 2,
+      lockOnOpen: true,
+    }),
   jobs: jobSettingsDefaults(),
   pricing: pricingDefaults(),
   periods: defaultPeriods(),
@@ -341,7 +343,10 @@ export function validateBranding(input) {
   value.corrections.depositCorrection ??= 'admin';
   if (!['admin', 'manager'].includes(value.corrections.depositCorrection))
     throw Error('Choose who can correct a deposit with no job.');
-  value.security = { autoLockMinutes: 0, syncMinutes: 2, ...value.security };
+  value.security = { autoLockMinutes: 0, syncMinutes: 2, lockOnOpen: true, ...value.security };
+  // Lock when the app opens: the PIN (or password, without a PIN) is asked each time it is opened.
+  if (typeof value.security.lockOnOpen !== 'boolean')
+    throw Error('Choose whether the app locks when opened.');
   const lock = value.security.autoLockMinutes;
   const sync = value.security.syncMinutes;
   if (!Number.isInteger(sync) || sync < 1 || sync > 60)
@@ -353,7 +358,7 @@ export function validateBranding(input) {
   if (keep === 'all') delete value.security.historyKeep;
   if (
     Object.keys(value.security).some(
-      (key) => key !== 'autoLockMinutes' && key !== 'syncMinutes' && key !== 'historyKeep',
+      (key) => !['autoLockMinutes', 'syncMinutes', 'historyKeep', 'lockOnOpen'].includes(key),
     ) ||
     !Number.isInteger(lock) ||
     lock < 0 ||

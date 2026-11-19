@@ -32,6 +32,8 @@ export function useAuthSessions(
   const [businessSession, setBusinessSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(!supabase);
   const [authStartupError, setAuthStartupError] = useState('');
+  /** The staff member whose sign-in was kept from before this opening (null: none), for the open lock. */
+  const [keptStaff, setKeptStaff] = useState<string | null | undefined>(supabase ? undefined : null);
   useEffect(() => {
     if (!supabase) return;
     let active = true;
@@ -49,6 +51,7 @@ export function useAuthSessions(
         if (staff.error || business.error)
           setMessage(staff.error?.message || business.error?.message || '', 'error');
         setSession(staff.data.session);
+        setKeptStaff((kept) => (kept === undefined ? (staff.data.session?.user.id ?? null) : kept));
         setBusinessSession(business.data.session);
         setAuthReady(true);
       })
@@ -72,7 +75,7 @@ export function useAuthSessions(
       businessListener.subscription.unsubscribe();
     };
   }, [authEpoch]);
-  return { session, setSession, businessSession, setBusinessSession, authReady, authStartupError };
+  return { session, setSession, businessSession, setBusinessSession, authReady, authStartupError, keptStaff };
 }
 
 /**

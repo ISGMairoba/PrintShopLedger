@@ -1413,6 +1413,21 @@ export default function BusinessSettingsPage({
               </fieldset>
               <fieldset hidden={tab !== 'Security'} disabled={busy || !ready}>
                 <legend>Auto-lock and sync</legend>
+                <label className="check-label">
+                  <input
+                    type="checkbox"
+                    checked={draft.security.lockOnOpen !== false}
+                    onChange={(event) =>
+                      field('security', { ...draft.security, lockOnOpen: event.target.checked })
+                    }
+                  />
+                  Lock when the app opens
+                </label>
+                <p>
+                  Each time the app is opened, staff unlock it with their PIN (or sign in with their password
+                  if they have no PIN). Without a PIN and offline, it stays open so work can go on. Default:
+                  on.
+                </p>
                 <label>
                   Lock the app after
                   <select
