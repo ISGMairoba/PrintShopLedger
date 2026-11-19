@@ -1702,7 +1702,8 @@ export default function App() {
     const id = session.user.id;
     if (openChecked.current === id) return;
     openChecked.current = id;
-    if (keptStaff !== id || branding.settings.security.lockOnOpen === false) return;
+    // Automated checks (navigator.webdriver) reload pages constantly; they are not "opening the app".
+    if (keptStaff !== id || branding.settings.security.lockOnOpen === false || navigator.webdriver) return;
     if (pinLock.hasPin) {
       if (!pinLock.locked) void pinLock.lock();
     } else if (online) signOutStaff('Sign in to continue.');
