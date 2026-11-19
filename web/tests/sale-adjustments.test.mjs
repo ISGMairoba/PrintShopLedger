@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { emptyLedger, applyEvent, jobBalance, customerBalance } from '../src/domain.mjs';
 import { prepareCheckout, accountToken, walletBalance, applyJobStatus } from '../src/checkout.mjs';
-import { returnableStock } from '../src/sale-adjustments.mjs';
+import { returnableStock, creditRefundEvent } from '../src/sale-adjustments.mjs';
 import { receiptHtml } from '../src/receipts.mjs';
 import { drawerSnapshot } from '../src/my-sales.mjs';
 const actor = { id: '10000000-0000-4000-8000-000000000001', label: 'Manager' };
@@ -273,4 +273,26 @@ test('Waste rejects a different job material and materialless jobs, but allows u
   const unlinked = applyEvent(base, waste(base, { jobId: undefined }));
   assert.equal(unlinked.materialWaste[0].jobId, null);
   assert.equal(unlinked.materials[0].available, 7);
+});
+
+test('Unused credit is refunded with no job: credit down, drawer and refunds up (audit AUD-12)', () => {
+  const base = fixture();
+  // Paid ₦100 more than the jobs: ₦100 credit.
+  let ledger = base;
+  ledger = {
+    ...ledger,
+    payments: ledger.payments.map((p, i) => (i === 0 ? { ...p, amount: p.amount + 10000, walletAdded: 10000 } : p)),
+  };
+  assert.equal(walletBalance(ledger, customerId), 10000);
+  const event = creditRefundEvent(ledger, customerId, { amount: 4000, method: 'Cash', methodLabel: 'Cash', reason: 'Cancelled before work' }, actor);
+  const next = applyEvent(ledger, event);
+  assert.equal(walletBalance(next, customerId), 6000);
+  const record = next.saleAdjustments.find((a) => a.id === event.id);
+  assert.deepEqual([record.jobId, record.action, record.refundAmount], [null, 'sale.refunded', 4000]);
+  assert.equal(drawerSnapshot(next, actor.id).totalRefunded, 4000);
+  assert.deepEqual(applyEvent(next, event), next, 'the same refund again changes nothing');
+  assert.throws(
+    () => applyEvent(next, creditRefundEvent(next, customerId, { amount: 7000, method: 'Cash', methodLabel: 'Cash', reason: 'Too much' }, actor)),
+    /more than the customer's credit/,
+  );
 });

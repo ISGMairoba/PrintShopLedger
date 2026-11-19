@@ -75,6 +75,7 @@ import MySalesPage from './MySalesPage';
 import PointOfServicePage from './PointOfServicePage';
 import CheckoutEditor, { type HeldSale } from './CheckoutEditor';
 import ReceiptView from './ReceiptView';
+import CreditRefundDialog from './CreditRefundDialog';
 import PaymentCorrectionDialog from './PaymentCorrectionDialog';
 import SplitCorrectionDialog from './SplitCorrectionDialog';
 import DeviceStorageCard, { LOW_SPACE } from './DeviceStorageCard';
@@ -282,6 +283,7 @@ export default function App() {
   const [adjustingJob, setAdjustingJob] = useState<Job | null>(null);
   const [correctingPayment, setCorrectingPayment] = useState<Payment | null>(null);
   const [requestingPayment, setRequestingPayment] = useState<Payment | null>(null);
+  const [refundingCustomer, setRefundingCustomer] = useState('');
   const [requestingJob, setRequestingJob] = useState<Job | null>(null),
     [requestsVersion, setRequestsVersion] = useState(0);
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
@@ -2976,6 +2978,11 @@ export default function App() {
                               onSave={saveCatalogue}
                               onSaveField={saveCatalogue}
                               onRecordPayment={(id) => openPayment(id)}
+                              onRefundCredit={
+                                demo || (canCorrectPayments && (shop?.accessLevel ?? 0) >= depositRank)
+                                  ? setRefundingCustomer
+                                  : undefined
+                              }
                             />
                           ) : page === 'Materials' ? (
                             <>
@@ -3372,6 +3379,16 @@ export default function App() {
                           actor={salesActor}
                           onClose={() => setRequestingPayment(null)}
                           onSave={sendCorrectionRequest}
+                        />
+                      )}
+                      {refundingCustomer && (
+                        <CreditRefundDialog
+                          ledger={ledger}
+                          customerId={refundingCustomer}
+                          busy={busy}
+                          actor={salesActor}
+                          onClose={() => setRefundingCustomer('')}
+                          onSave={approveOperation}
                         />
                       )}
                       {correctingPayment &&

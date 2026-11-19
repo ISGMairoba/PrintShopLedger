@@ -68,8 +68,103 @@ function amount(n, positive = false) {
   if (!Number.isSafeInteger(n) || n < 0 || (positive && n === 0) || n > 100000000000)
     throw Error('Enter a valid amount within the supported limit.');
 }
+const lagosDay = (iso) =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Lagos', year: 'numeric', month: '2-digit', day: '2-digit' }).format(
+    new Date(iso),
+  );
+
+/**
+ * A refund of a customer's unused credit (a deposit with no job, or credit left over): a sale.refunded
+ * with no job, filed under the customer. Paid out of their credit; counted in the drawer when cash.
+ * `refund`: { amount (kobo), method, methodLabel, reason }.
+ */
+export function creditRefundEvent(ledger, customerId, refund, actor, id = crypto.randomUUID(), now = new Date().toISOString()) {
+  return /** @type {any} */ ({
+    id,
+    kind: 'sale.refunded',
+    data: {
+      customerId,
+      expectedAccount: accountToken(ledger, customerId),
+      refundAmount: refund.amount,
+      method: refund.method,
+      methodLabel: refund.methodLabel,
+      paidOn: lagosDay(now),
+      reason: String(refund.reason ?? '').trim(),
+      modifiedBy: actor.id,
+      modifiedByLabel: actor.label,
+      modifiedAt: now,
+    },
+  });
+}
+
+function applyCreditRefund(ledger, event) {
+  const d = event.data,
+    a = audit(event);
+  const old = ledger.saleAdjustments.find((r) => r.id === event.id);
+  if (old) {
+    if (!sameEvent(old.event, event)) throw Error('Adjustment ID already used for different details.');
+    return ledger;
+  }
+  if (!ledger.customers.some((c) => c.id === d.customerId)) throw Error('Customer not found.');
+  if (d.expectedAccount !== accountToken(ledger, d.customerId))
+    throw Error('The customer account changed. Sync and reopen the refund.');
+  amount(d.refundAmount, true);
+  if (d.refundAmount > walletBalance(ledger, d.customerId)) throw Error("The refund is more than the customer's credit.");
+  if (
+    !['Cash', 'POS', 'Transfer', 'Other'].includes(d.method) ||
+    typeof d.methodLabel !== 'string' ||
+    !d.methodLabel.trim() ||
+    d.methodLabel.length > 80
+  )
+    throw Error('Choose a refund payment method.');
+  if (d.paidOn !== lagosDay(d.modifiedAt)) throw Error('Refunds must be recorded on the day money is returned.');
+  const snap = { description: 'Customer credit', amount: 0 };
+  return {
+    ...ledger,
+    payments: [
+      ...ledger.payments,
+      {
+        id: event.id,
+        customerId: d.customerId,
+        amount: 0,
+        method: d.method,
+        methodLabel: d.methodLabel,
+        paidOn: d.paidOn,
+        reference: 'Refund ' + event.id.slice(0, 8).toUpperCase(),
+        allocations: [],
+        createdAt: d.modifiedAt,
+        walletUsed: d.refundAmount,
+        walletAdded: 0,
+        refundId: event.id,
+      },
+    ],
+    saleAdjustments: [
+      ...ledger.saleAdjustments,
+      {
+        id: event.id,
+        jobId: null,
+        customerId: d.customerId,
+        action: event.kind,
+        ...a,
+        before: snap,
+        after: snap,
+        creditReleased: 0,
+        refundAmount: d.refundAmount,
+        method: d.method,
+        methodLabel: d.methodLabel,
+        paidOn: d.paidOn,
+        returnQuantity: 0,
+        stockChanges: [],
+        paymentChanges: [],
+        event,
+      },
+    ],
+  };
+}
+
 export function applySaleAdjustment(input, event) {
   if (correctionKinds.includes(event.kind)) return applyFullCorrection(input, event);
+  if (event.kind === 'sale.refunded' && !event.data?.jobId) return applyCreditRefund(normalizeLedger(input), event);
   const ledger = normalizeLedger(input),
     d = event.data,
     a = audit(event);

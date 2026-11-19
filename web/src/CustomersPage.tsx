@@ -27,6 +27,8 @@ type Props = {
   onSaveField?: (event: FieldEvent) => Promise<void>;
   onRecordPayment: (id: string) => void;
   onStatement?: (id: string) => void;
+  /** Give back a customer's unused credit (shown when they have some, for those allowed). */
+  onRefundCredit?: (id: string) => void;
   /** The owner's view: each branch's records (customer accounts in every branch). */
   branches?: { id: string; name: string; ledger: Ledger }[];
   /** Open this customer's account records straight away (from Payment Reminders). */
@@ -42,6 +44,7 @@ export default function CustomersPage({
   onSaveField,
   onRecordPayment,
   onStatement,
+  onRefundCredit,
   branches,
   initialAccountId = '',
 }: Props) {
@@ -304,6 +307,15 @@ export default function CustomersPage({
                           {onStatement && (
                             <button className="text-button" onClick={() => onStatement(customer.id)}>
                               <Icon name="reports" /> Statement
+                            </button>
+                          )}
+                          {onRefundCredit && wallet(customer.id) > 0 && (
+                            <button
+                              className="text-button"
+                              disabled={busy}
+                              onClick={() => onRefundCredit(customer.id)}
+                            >
+                              <Icon name="export" /> Refund credit
                             </button>
                           )}
                           {!customer.archived && (
