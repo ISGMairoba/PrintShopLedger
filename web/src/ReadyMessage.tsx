@@ -20,10 +20,18 @@ export function TellCustomer({ job, busy }: { job: Job; busy?: boolean }) {
       type="button"
       className="text-button"
       disabled={busy}
-      title={w('Send the customer a WhatsApp message that their job is ready')}
+      title={w(
+        job.productionStatus === 'Collected'
+          ? 'Send the customer a message that their job was collected'
+          : 'Send the customer a WhatsApp message that their job is ready',
+      )}
       onClick={() => {
         const { text, phone, mode } = message(job);
-        void shareText(text, { title: 'Order ready', phone, mode: mode === 'share' ? 'share' : 'whatsapp' });
+        void shareText(text, {
+          title: job.productionStatus === 'Collected' ? 'Order collected' : 'Order ready',
+          phone,
+          mode: mode === 'share' ? 'share' : 'whatsapp',
+        });
       }}
     >
       <Icon name="share" /> Tell customer
