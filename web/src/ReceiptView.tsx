@@ -228,7 +228,11 @@ export default function ReceiptView({
           <button disabled={busy} onClick={() => void run(() => share('pdf'))}>
             <Icon name="share" /> PDF
           </button>
-          <button className="secondary" disabled={busy} onClick={() => void run(() => share('image', 'roll'))}>
+          <button
+            className="secondary"
+            disabled={busy}
+            onClick={() => void run(() => share('image', 'roll'))}
+          >
             <Icon name="share" /> Picture (80mm)
           </button>
           <button className="secondary" disabled={busy} onClick={() => void run(() => share('image', 'a5'))}>
@@ -248,7 +252,11 @@ export default function ReceiptView({
           <button className="secondary" disabled={busy} onClick={() => void run(() => pdf('roll'))}>
             <Icon name="export" /> PDF (80mm)
           </button>
-          <button className="secondary" disabled={busy} onClick={() => void run(() => downloadPicture('roll'))}>
+          <button
+            className="secondary"
+            disabled={busy}
+            onClick={() => void run(() => downloadPicture('roll'))}
+          >
             <Icon name="export" /> Picture (80mm)
           </button>
           <button className="secondary" disabled={busy} onClick={() => void run(() => downloadPicture('a5'))}>
