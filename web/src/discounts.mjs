@@ -40,7 +40,12 @@ export function validDiscount(spec) {
   if (reason.length > 200 || /[\x00-\x1f\x7f]/.test(reason))
     throw Error('Discount reason must be up to 200 characters.');
   if (spec.kind === 'percent') {
-    if (!Number.isFinite(value) || value < 0 || value > 100 || Math.abs(Math.round(value * 100) - value * 100) > 1e-6)
+    if (
+      !Number.isFinite(value) ||
+      value < 0 ||
+      value > 100 ||
+      Math.abs(Math.round(value * 100) - value * 100) > 1e-6
+    )
       throw Error('Discount percentage must be between 0 and 100, with at most two decimals.');
   } else if (!Number.isSafeInteger(value) || value < 0 || value > 100000000000)
     throw Error('Enter a valid discount amount.');

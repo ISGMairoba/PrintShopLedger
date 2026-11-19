@@ -226,7 +226,9 @@ export default function BusinessSettingsPage({
               .filter((key) => branchSettingGroup(key) === group)
               .map((key) => [
                 key,
-                key === 'options' && part ? mergeOptionsSection(source.options, draft.options, part) : draft[key],
+                key === 'options' && part
+                  ? mergeOptionsSection(source.options, draft.options, part)
+                  : draft[key],
               ]),
           );
           next = { ...next, branchSettings: setBranchSettings(next, scope, group, values) };
