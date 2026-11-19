@@ -669,6 +669,17 @@ export async function saveSupervisedEvent(
   event: SupervisedEvent,
   requestId?: string,
 ) {
+  return saveSupervisedEvents(scope, shopId, [event], requestId);
+}
+// Several changes saved together or not at all (the parts of a split payment's correction).
+export async function saveSupervisedEvents(
+  scope: string,
+  shopId: string,
+  events: SupervisedEvent[],
+  requestId?: string,
+) {
+  const [event] = events;
+  if (!event || (events.length > 1 && requestId)) throw Error('Nothing to save.');
   if (!supabase || !navigator.onLine || !navigator.locks) throw Error('Connect to approve this action.');
   await requireConflictReviewer(supabase, scope, shopId);
   await syncLedger(scope, shopId);
@@ -681,7 +692,9 @@ export async function saveSupervisedEvent(
       throw Error('Your sign-in changed. Reopen the workspace.');
     const { data, error } = await (requestId
       ? supabase!.rpc('approve_correction_request', { p_shop: shopId, p_request: requestId, p_event: event })
-      : supabase!.rpc('apply_supervised_event', { p_shop: shopId, p_event: event })
+      : events.length > 1
+        ? supabase!.rpc('apply_supervised_events', { p_shop: shopId, p_events: events })
+        : supabase!.rpc('apply_supervised_event', { p_shop: shopId, p_event: event })
     ).abortSignal(AbortSignal.timeout(30000));
     if (error) {
       // A network failure can happen after the transaction committed. Confirm its ID
@@ -689,15 +702,15 @@ export async function saveSupervisedEvent(
       const { data: latest, error: readError } = await supabase!
         .rpc('get_ledger', { p_shop: shopId })
         .abortSignal(AbortSignal.timeout(60000));
-      const saved =
-        !readError &&
-        [...(latest?.saleAdjustments ?? []), ...(latest?.materialWaste ?? [])].find(
-          (r: { id: string }) => r.id === event.id,
-        );
+      const records = readError ? [] : [...(latest?.saleAdjustments ?? []), ...(latest?.materialWaste ?? [])];
+      const allSaved = events.every((each) => {
+        const found = records.find((r: { id: string }) => r.id === each.id);
+        return !!found && sameEvent(found.event, each);
+      });
       const { data: confirmedAuth } = await supabase!.auth.getSession();
       if (confirmedAuth.session?.user.id !== scope.split(':')[0])
         throw Error('Your sign-in changed. Reopen the original workspace to confirm the action.');
-      if (!saved || !sameEvent(saved.event, event))
+      if (!allSaved)
         throw Error(
           error.message +
             ' Reopen after syncing if the record changed; retry the same action if confirmation was interrupted.',

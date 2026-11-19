@@ -153,7 +153,7 @@ import {
   JobSyncConflict,
   resolvePendingWork,
   checkoutReviewBase,
-  saveSupervisedEvent,
+  saveSupervisedEvents,
   listCorrectionRequests,
   submitCorrectionRequest,
   withdrawCorrectionRequest,
@@ -883,15 +883,20 @@ export default function App() {
       setBusy(false);
     }
   }
-  async function approveOperation(operation: SupervisedEvent, requestId?: string) {
+  // Several operations (a split payment's parts) are saved together: all or none.
+  async function approveOperation(operations: SupervisedEvent | SupervisedEvent[], requestId?: string) {
     if (busy || !ready || !scope || hasConflict || (!demo && (!online || (shop?.accessLevel ?? 0) < 2)))
       throw Error('Connect and finish syncing as Admin, Manager or Developer before approving.');
+    const all = Array.isArray(operations) ? operations : [operations];
+    const operation = all[0];
     const target = scope;
     setBusy(true);
     try {
-      const next = demo
-        ? await saveEvent(target, operation, false)
-        : await saveSupervisedEvent(target, shop!.id, operation, requestId);
+      let next: Awaited<ReturnType<typeof saveEvent>>;
+      if (demo) {
+        next = await saveEvent(target, operation, false);
+        for (const more of all.slice(1)) next = await saveEvent(target, more, false);
+      } else next = await saveSupervisedEvents(target, shop!.id, all, requestId);
       if (activeScope.current === target) {
         setState(next);
         channel.current?.postMessage('changed');
@@ -901,8 +906,9 @@ export default function App() {
             (operation.kind === 'material.wasted'
               ? m.id === operation.data.materialId
               : next.ledger.saleAdjustments
-                  .find((a) => a.id === operation.id)
-                  ?.stockChanges?.some((c) => c.materialId === m.id)),
+                  .filter((a) => all.some((o) => o.id === a.id))
+                  .flatMap((a) => a.stockChanges ?? [])
+                  .some((c) => c.materialId === m.id)),
         );
         setMessage(
           operation.kind === 'material.wasted'
@@ -3307,6 +3313,7 @@ export default function App() {
                               actor={salesActor}
                               busy={busy}
                               fromQuotation={{
+                                quotationId: quoteOrder.id,
                                 reference: quotationRef(quoteOrder.id),
                                 customerId: start.customerId,
                                 customerName: quoteOrder.customerName,
@@ -3316,37 +3323,8 @@ export default function App() {
                                 changes: start.changes,
                               }}
                               onSave={async (operation) => {
+                                // The sale carries the quotation and marks it converted as it saves.
                                 const record = await completeCheckout(operation);
-                                // Link the quotation to the sale. It syncs with the rest of the pending work.
-                                const target = scope;
-                                if (target && activeScope.current === target) {
-                                  try {
-                                    const next = await saveEvent(
-                                      target,
-                                      {
-                                        id: crypto.randomUUID(),
-                                        kind: 'quotation.converted',
-                                        data: {
-                                          id: quoteOrder.id,
-                                          checkoutId: operation.id,
-                                          baseVersion: quoteOrder.version,
-                                          modifiedBy: demo ? 'local-trial' : session!.user.id,
-                                          modifiedByLabel: demo
-                                            ? 'Local trial user'
-                                            : shop?.staffName || session!.user.email || session!.user.id,
-                                          modifiedAt: new Date().toISOString(),
-                                        },
-                                      },
-                                      !demo,
-                                    );
-                                    if (activeScope.current === target) setState(next);
-                                  } catch {
-                                    setMessage(
-                                      'The sale is saved, but the quotation could not be marked converted.',
-                                      'warning',
-                                    );
-                                  }
-                                }
                                 setQuoteOrder(null);
                                 return record;
                               }}

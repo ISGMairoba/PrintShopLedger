@@ -259,3 +259,15 @@ test('a job deadline is kept on the job; an empty one is left off', () => {
   const event = checkout(ledger, [{ ...job(), dueAt: '2026-10-14T09:00:00.000Z' }], 10000);
   assert.equal(applyCheckout(ledger, event).jobs.at(-1).dueAt, '2026-10-14T09:00:00.000Z');
 });
+
+test('A sale from a quotation marks it converted in the same save, and only once (audit AUD-24)', () => {
+  const quote = { id: '50000000-0000-4000-8000-000000000001', status: 'open', version: 2, lines: [] };
+  const base = { ...fixture(), quotations: [quote] };
+  const first = checkout(base, [job(1)], 0, { quotationId: quote.id });
+  assert.equal(first.data.quotationId, quote.id);
+  const after = applyCheckout(base, first);
+  const q = after.quotations[0];
+  assert.deepEqual([q.status, q.checkoutId, q.version], ['converted', first.data.id, 3]);
+  assert.throws(() => checkout(after, [job(1)], 0, { quotationId: quote.id }), /already an order/);
+  assert.deepEqual(applyCheckout(after, first), after, 'the same sale again changes nothing');
+});

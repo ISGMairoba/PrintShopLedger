@@ -16,7 +16,7 @@ type Part = { paymentId: string; amount: string; method: string };
 
 /**
  * Correct a split sale as one: each part's amount and method, with one date, reference and reason. The
- * parts that change are saved one after another (each is a payment correction). ₦0 removes a part.
+ * parts that change are saved together, all or none (each is a payment correction). ₦0 removes a part.
  */
 export default function SplitCorrectionDialog({
   ledger,
@@ -31,7 +31,8 @@ export default function SplitCorrectionDialog({
   busy: boolean;
   actor: { id: string; label: string };
   onClose: () => void;
-  onSave: (event: SupervisedEvent) => Promise<void>;
+  /** Saves every changed part together: all are saved or none. */
+  onSave: (events: SupervisedEvent[]) => Promise<void>;
 }) {
   const { w } = useWords();
   const methods = useBusinessOptions().paymentMethods.filter((m) => m.enabled);
@@ -47,7 +48,6 @@ export default function SplitCorrectionDialog({
     [reference, setReference] = useState(first.reference),
     [reason, setReason] = useState(''),
     [error, setError] = useFeedbackMessage('error');
-  const [saved, setSaved] = useState(0);
   const formId = useId();
   const customer = ledger.customers.find((c) => c.id === first.customerId);
   const changes = () =>
@@ -110,7 +110,7 @@ export default function SplitCorrectionDialog({
       onClose={onClose}
       footer={
         <DialogActions form={formId} busy={busy} onCancel={onClose}>
-          {saved ? 'Save the rest' : 'Save correction'}
+          Save correction
         </DialogActions>
       }
     >
@@ -130,24 +130,13 @@ export default function SplitCorrectionDialog({
           e.preventDefault();
           if (busy) return;
           setError('');
-          let done = 0,
-            count = 0;
           try {
             if (!reason.trim()) throw Error('Give a reason for the correction.');
-            // Worked out again from the latest ledger: parts already saved count as unchanged.
             const { events } = splitCorrectionEvents(ledger, changes(), { paidOn, reference, reason }, actor);
-            count = events.length;
-            for (const event of events) {
-              await onSave(event);
-              done++;
-            }
+            await onSave(events);
             onClose();
           } catch (cause) {
-            const message = cause instanceof Error ? cause.message : String(cause);
-            setSaved((n) => n + done);
-            setError(
-              done ? `${done} of ${count} parts were saved. ${message} Review and save the rest.` : message,
-            );
+            setError(cause instanceof Error ? cause.message : String(cause));
           }
         }}
       >
