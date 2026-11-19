@@ -406,7 +406,9 @@ export function prepareCheckout(
   // quotation can become only one sale.
   if (input.quotationId !== undefined && typeof input.quotationId !== 'string')
     throw Error('Invalid quotation.');
-  const fromQuote = input.quotationId ? (ledger.quotations ?? []).find((q) => q.id === input.quotationId) : null;
+  const fromQuote = input.quotationId
+    ? (ledger.quotations ?? []).find((q) => q.id === input.quotationId)
+    : null;
   if (fromQuote?.status === 'converted' && fromQuote.checkoutId && fromQuote.checkoutId !== id)
     throw Error('This quotation is already an order. Open that order instead of selling it again.');
   let working = ledger;
