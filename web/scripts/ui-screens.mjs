@@ -438,11 +438,10 @@ try {
       if (mode === 'desktop-light') {
         const [picture] = await Promise.all([
           page.waitForEvent('download'),
-          page
-            .getByRole('dialog')
-            .last()
-            .getByRole('button', { name: 'Download picture', exact: true })
-            .click(),
+          (async () => {
+            await page.getByRole('dialog').last().getByRole('button', { name: 'Download', exact: true }).click();
+            await page.getByRole('dialog').last().getByRole('button', { name: 'Picture', exact: true }).click();
+          })(),
         ]);
         await picture.saveAs(`${out}/${mode}-90-receipt-picture.png`);
       }

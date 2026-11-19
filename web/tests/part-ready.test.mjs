@@ -24,7 +24,7 @@ test('Tell customer works when part of a part order is ready', () => {
   assert.equal(canTellCustomer(job), true);
   assert.equal(canTellCustomer(jotters({ progress: { done: 0, handovers: [] } })), false);
   const msg = readyMessage(ledger(job), job, { business: 'Mairoba Studio' });
-  assert.equal(msg.mode, 'whatsapp');
+  assert.equal(msg.mode, 'ask');
   assert.match(msg.text, /Hello Sara, 60 of your 200 Jotter soft cover \(order #3222F0C8\) are ready/);
   // 60 of 200 for ₦200,000: ₦60,000 to pay for this part, ₦200,000 on the order.
   assert.match(msg.text, /Amount to pay for this part: ₦60,000\.00\. Balance on the order: ₦200,000\.00\./);
@@ -41,7 +41,7 @@ test('After a handover, only what is waiting counts; a paid part says so; the bu
     },
   });
   assert.equal(msg.text, '40/200 ready, 60 taken. This part is paid.');
-  assert.equal(msg.mode, 'share');
+  assert.equal(msg.mode, 'ask');
 });
 
 test('A finished order still gets the usual "ready" message', () => {

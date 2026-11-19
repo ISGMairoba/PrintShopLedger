@@ -300,7 +300,8 @@ try {
         assert.match(await d.locator('.receipt-sheet').innerText(), /Original receipt/);
         assert.match(await d.locator('.receipt-sheet').innerText(), /Later adjustments/);
         const downloadPromise = page.waitForEvent('download');
-        await d.getByRole('button', { name: 'Download PDF (A4)', exact: true }).click();
+        await d.getByRole('button', { name: 'Download', exact: true }).click();
+        await d.getByRole('button', { name: 'PDF (A4)', exact: true }).click();
         const download = await downloadPromise;
         assert.match(download.suggestedFilename(), /^Receipt-.*\.pdf$/);
         await dismiss();
@@ -410,7 +411,8 @@ try {
         assert.match(await d.locator('.receipt-sheet').innerText(), /Corrected receipt/);
         assert.match(await d.locator('.receipt-sheet').innerText(), /Qty 4/);
         const correctedDownload = page.waitForEvent('download');
-        await d.getByRole('button', { name: 'Download PDF (A4)', exact: true }).click();
+        await d.getByRole('button', { name: 'Download', exact: true }).click();
+        await d.getByRole('button', { name: 'PDF (A4)', exact: true }).click();
         assert.match((await correctedDownload).suggestedFilename(), /-corrected\.pdf$/);
         await d.getByRole('button', { name: 'Original receipt', exact: true }).click();
         assert.match(await d.locator('.receipt-sheet').innerText(), /Qty 2/);

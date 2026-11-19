@@ -260,7 +260,8 @@ try {
       'rgb(255, 255, 255)',
     );
     const waiting = page.waitForEvent('download');
-    await receipt.getByRole('button', { name: 'Download PDF (A4)', exact: true }).click();
+    await receipt.getByRole('button', { name: 'Download', exact: true }).click();
+    await receipt.getByRole('button', { name: 'PDF (A4)', exact: true }).click();
     const download = await waiting;
     const bytes = await readFile(await download.path());
     assert.equal(bytes.subarray(0, 5).toString(), '%PDF-');

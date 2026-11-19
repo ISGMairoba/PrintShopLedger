@@ -1,10 +1,11 @@
 import type { jsPDF } from 'jspdf';
 import { whatsappLink } from './share.mjs';
+import { chooseShare, type ShareMode } from './share-choice';
 
 /**
- * Share a PDF. In "share" mode, phones (and browsers that can share files) open the share sheet
- * with the PDF attached. Otherwise (and always in "whatsapp" mode) the PDF downloads and WhatsApp
- * opens on the customer's chat with the message, ready to attach it.
+ * Share a PDF. The person chooses (share-choice.ts): the share sheet with the PDF attached (where the
+ * device can share files), or WhatsApp on the customer's chat with the message while the PDF
+ * downloads to attach.
  */
 export async function sharePdf(
   doc: jsPDF,
@@ -13,8 +14,8 @@ export async function sharePdf(
     title,
     text,
     phone,
-    mode = 'share',
-  }: { title: string; text: string; phone?: string; mode?: 'whatsapp' | 'share' },
+    mode = 'ask',
+  }: { title: string; text: string; phone?: string; mode?: ShareMode },
 ): Promise<'shared' | 'cancelled' | 'downloaded'> {
   const name = fileName.endsWith('.pdf') ? fileName : fileName + '.pdf';
   const file = new File([doc.output('blob')], name, { type: 'application/pdf' });
@@ -40,12 +41,14 @@ export async function shareFile(
     title,
     text,
     phone,
-    mode = 'share',
-  }: { title: string; text: string; phone?: string; mode?: 'whatsapp' | 'share' },
+    mode = 'ask',
+  }: { title: string; text: string; phone?: string; mode?: ShareMode },
 ): Promise<'shared' | 'cancelled' | 'downloaded'> {
-  // "WhatsApp" (Business Settings → Messages): straight to the customer's chat; the PDF downloads
-  // to attach. "Share": the share sheet with the PDF, where the device can share files.
-  if (mode === 'share' && typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
+  // WhatsApp: straight to the customer's chat; the file downloads to attach. Other apps: the share
+  // sheet with the file, where the device can share files.
+  const choice = await chooseShare(mode, { file: true, phone });
+  if (!choice) return 'cancelled';
+  if (choice === 'share' && typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title, text });
       return 'shared';

@@ -94,6 +94,8 @@ try {
   // A desktop browser has no share sheet; record the WhatsApp link instead of opening a window.
   const shared = page.waitForEvent('download');
   await d.getByRole('button', { name: 'Share', exact: true }).click();
+  // Share asks where to: WhatsApp (the only choice on a desktop without a share sheet).
+  await page.getByRole('dialog', { name: 'Share' }).getByRole('button', { name: /^WhatsApp/ }).click();
   const sharedFile = await shared.catch(async (cause) => {
     console.error('Share did not download. Dialog says:', await d.innerText());
     console.error('Opened:', await page.evaluate(() => window.__opened));

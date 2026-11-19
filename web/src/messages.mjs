@@ -1,8 +1,7 @@
 // Messages the app sends for the business (Business Settings → Messages): each has wording the
-// business can change, with {placeholders} filled in when sent, and how it goes out:
-// * 'whatsapp': WhatsApp opens on the customer's number with the message ready to send (with a
-//   document, the PDF downloads first so it can be attached);
-// * 'share': the phone's share sheet (WhatsApp, SMS, email…), with the PDF attached when there is one.
+// business can change, with {placeholders} filled in when sent. How each goes out is chosen when
+// sharing (share-choice.ts): WhatsApp on the customer's number, or another app via the share sheet.
+// (The old per-message "send by" settings are no longer used; saved ones are ignored.)
 // Customer names: {customer} is the "Called as" name (else the first name), {customer_full} the name as saved,
 // {customer_first} / {customer_last} the first / last word of it.
 // Where from: {business} is the business name; {branch} the branch name, {address} and {phone} the
@@ -262,10 +261,9 @@ export function messageText(settings, key, values, legacyReady = '') {
   return fillMessage(template, { ...sender, ...values });
 }
 
-/** How a message goes out: its own choice, else the business default. */
-export function messageMode(settings, key) {
-  const own = settings?.items?.[key]?.send;
-  return SEND_MODES.includes(own) ? own : settings?.send === 'share' ? 'share' : 'whatsapp';
+/** How a message goes out: always chosen when sharing (the old saved choice is ignored). */
+export function messageMode(_settings, _key) {
+  return 'ask';
 }
 
 /** The sample text the settings preview shows. */

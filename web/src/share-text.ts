@@ -1,4 +1,5 @@
 import { whatsappLink } from './share.mjs';
+import { canShareSheet, chooseShare, type ShareMode } from './share-choice';
 
 /**
  * Copy text for pasting into a chat. Uses the clipboard when the browser allows it, otherwise a
@@ -30,14 +31,16 @@ export async function copyText(text: string): Promise<boolean> {
 }
 
 /**
- * Send text without a file. Phones open the share sheet (WhatsApp, SMS, Telegram…); elsewhere
- * WhatsApp opens with the message filled in, on the customer's chat when the number is known.
+ * Send text without a file. The person chooses (share-choice.ts): WhatsApp opens on the customer's
+ * chat with the message, or the phone's share sheet (WhatsApp, SMS, Telegram…).
  */
 export async function shareText(
   text: string,
-  { title, phone, mode = 'share' }: { title: string; phone?: string; mode?: 'whatsapp' | 'share' },
+  { title, phone, mode = 'ask' }: { title: string; phone?: string; mode?: ShareMode },
 ): Promise<'shared' | 'cancelled' | 'whatsapp'> {
-  if (mode === 'share' && typeof navigator.share === 'function') {
+  const choice = await chooseShare(mode, { file: false, phone });
+  if (!choice) return 'cancelled';
+  if (choice === 'share' && canShareSheet()) {
     try {
       await navigator.share({ title, text });
       return 'shared';

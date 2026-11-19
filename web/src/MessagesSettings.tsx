@@ -27,10 +27,9 @@ export default function MessagesSettings({
     const next: Item = { ...items[key], ...patch };
     const clean: Item = {
       ...(next.text?.trim() ? { text: next.text } : {}),
-      ...(next.send && next.send !== 'default' ? { send: next.send } : {}),
     };
     const all = { ...items };
-    if (clean.text || clean.send) all[key] = clean;
+    if (clean.text) all[key] = clean;
     else delete all[key];
     onChange({ ...value, items: all });
   };
@@ -54,24 +53,10 @@ export default function MessagesSettings({
   return (
     <div className="messages-settings">
       <p>
-        The wording of every message the app sends for you, and how it goes out. Tap a placeholder to put it
-        where the cursor is; it is filled in for each customer when the message is sent.
+        The wording of every message the app sends for you. Tap a placeholder to put it where the cursor is; it
+        is filled in for each customer when the message is sent. Each Share asks where to send it: WhatsApp
+        (the customer's chat) or another app.
       </p>
-      <label>
-        Send messages by
-        <select
-          aria-label="Send messages by"
-          value={value.send}
-          onChange={(e) => onChange({ ...value, send: e.target.value === 'share' ? 'share' : 'whatsapp' })}
-        >
-          <option value="whatsapp">WhatsApp, straight to the customer's number</option>
-          <option value="share">Share: choose WhatsApp, SMS, email… each time</option>
-        </select>
-        <small>
-          With a document (receipt, quotation…), WhatsApp opens on the customer's chat and the PDF downloads
-          to attach; Share sends the PDF itself where the phone allows it.
-        </small>
-      </label>
       <div className="message-list">
         {MESSAGE_KINDS.map((kind) => {
           const own = items[kind.key];
@@ -90,12 +75,6 @@ export default function MessagesSettings({
                     {own?.text || (kind.key === 'ready' && legacyReady.trim())
                       ? 'Your wording'
                       : 'App wording'}
-                    {' · '}
-                    {own?.send === 'share'
-                      ? 'Share'
-                      : own?.send === 'whatsapp'
-                        ? 'WhatsApp'
-                        : `Business default (${value.send === 'share' ? 'Share' : 'WhatsApp'})`}
                   </small>
                 </span>
                 <Icon name={isOpen ? 'up' : 'down'} />
@@ -142,20 +121,6 @@ export default function MessagesSettings({
                     </p>
                   </div>
                   <div className="message-controls">
-                    <label>
-                      Send by
-                      <select
-                        aria-label={`${kind.name}: send by`}
-                        value={own?.send ?? 'default'}
-                        onChange={(e) => setItem(kind.key, { send: e.target.value })}
-                      >
-                        <option value="default">
-                          Business default ({value.send === 'share' ? 'Share' : 'WhatsApp'})
-                        </option>
-                        <option value="whatsapp">WhatsApp</option>
-                        <option value="share">Share</option>
-                      </select>
-                    </label>
                     <button
                       type="button"
                       className="secondary"

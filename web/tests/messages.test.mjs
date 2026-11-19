@@ -45,9 +45,10 @@ test('a business wording with full names, and the app wording when there is none
     }),
     /^Hello Ada, here is quotation Q1 from M/,
   );
-  assert.equal(messageMode(settings, 'receipt'), 'whatsapp');
-  assert.equal(messageMode(settings, 'quotation'), 'share');
-  assert.equal(messageMode(validateMessages(undefined), 'ready'), 'whatsapp');
+  // How a message goes out is chosen each time it is shared; old saved choices are ignored.
+  assert.equal(messageMode(settings, 'receipt'), 'ask');
+  assert.equal(messageMode(settings, 'quotation'), 'ask');
+  assert.equal(messageMode(validateMessages(undefined), 'ready'), 'ask');
 });
 
 test('unknown placeholders stay, empty ones leave no gaps; long or odd text is refused', () => {
@@ -91,7 +92,7 @@ test('the ready message keeps the old Jobs & payments wording until Messages has
     }),
   });
   assert.equal(own.text, 'Dear Baban Suhaila, job is ready.');
-  assert.equal(own.mode, 'share');
+  assert.equal(own.mode, 'ask');
   assert.match(own.link, /^https:\/\/wa\.me\/2348031234567\?text=/);
 });
 

@@ -103,7 +103,8 @@ try {
     assert.match(await receipt.innerText(), /Wallet balance/);
     if (!pdfChecked) {
       const waiting = page.waitForEvent('download');
-      await receipt.getByRole('button', { name: 'Download PDF (A4)', exact: true }).click();
+      await receipt.getByRole('button', { name: 'Download', exact: true }).click();
+      await receipt.getByRole('button', { name: 'PDF (A4)', exact: true }).click();
       const download = await waiting;
       assert.match(download.suggestedFilename(), /^Receipt-.+\.pdf$/);
       const bytes = await readFile(await download.path());

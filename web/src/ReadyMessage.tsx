@@ -2,6 +2,7 @@ import { canTellCustomer } from './ready-message.mjs';
 import { createContext, useContext } from 'react';
 import Icon from './Icon';
 import { shareText } from './share-text';
+import type { ShareMode } from './share-choice';
 import type { Job } from './types';
 import { useWords } from './Words';
 
@@ -23,7 +24,7 @@ export function TellCustomer({ job, busy }: { job: Job; busy?: boolean }) {
       title={w('Send the customer a WhatsApp message that their job is ready')}
       onClick={() => {
         const { text, phone, mode } = message(job);
-        void shareText(text, { title: 'Order ready', phone, mode: mode === 'share' ? 'share' : 'whatsapp' });
+        void shareText(text, { title: 'Order ready', phone, mode: mode as ShareMode });
       }}
     >
       <Icon name="share" /> Tell customer

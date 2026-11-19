@@ -602,7 +602,7 @@ try {
     .click();
   await page
     .getByRole('dialog', { name: 'Receipt AAAAAAAA' })
-    .getByRole('button', { name: 'Print receipt', exact: true })
+    .getByRole('button', { name: 'Print', exact: true })
     .waitFor();
   await page.keyboard.press('Escape');
   await page.getByLabel('Search my sales').fill('POS');
