@@ -1430,6 +1430,21 @@ export default function BusinessSettingsPage({
                   if they have no PIN). Without a PIN and offline, it stays open so work can go on. Default:
                   on.
                 </p>
+                <label className="check-label">
+                  <input
+                    type="checkbox"
+                    checked={draft.security.limitsBlockActions !== false}
+                    onChange={(event) =>
+                      field('security', { ...draft.security, limitsBlockActions: event.target.checked })
+                    }
+                  />
+                  Page limits also block their actions
+                </label>
+                <p>
+                  When pages are taken away from someone (for a branch on the Users page, or for one person),
+                  the server also refuses that page's work from them: a person limited to Point of Service
+                  cannot record expenses or change stock by any other way. Default: on.
+                </p>
                 <label>
                   Lock the app after
                   <select

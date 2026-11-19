@@ -162,10 +162,11 @@ export const defaultBranding = () => ({
   // syncMinutes: how often devices check for changes made on other devices.
   // historyKeep: how much history devices keep by default (left out = Everything).
   security:
-    /** @type {{ autoLockMinutes: number, syncMinutes: number, lockOnOpen: boolean, historyKeep?: string }} */ ({
+    /** @type {{ autoLockMinutes: number, syncMinutes: number, lockOnOpen: boolean, limitsBlockActions: boolean, historyKeep?: string }} */ ({
       autoLockMinutes: 0,
       syncMinutes: 2,
       lockOnOpen: true,
+      limitsBlockActions: true,
     }),
   jobs: jobSettingsDefaults(),
   pricing: pricingDefaults(),
@@ -343,7 +344,16 @@ export function validateBranding(input) {
   value.corrections.depositCorrection ??= 'admin';
   if (!['admin', 'manager'].includes(value.corrections.depositCorrection))
     throw Error('Choose who can correct a deposit with no job.');
-  value.security = { autoLockMinutes: 0, syncMinutes: 2, lockOnOpen: true, ...value.security };
+  value.security = {
+    autoLockMinutes: 0,
+    syncMinutes: 2,
+    lockOnOpen: true,
+    limitsBlockActions: true,
+    ...value.security,
+  };
+  // Page limits (a branch's or a person's) also stop the actions of the pages taken away, on the server.
+  if (typeof value.security.limitsBlockActions !== 'boolean')
+    throw Error('Choose whether page limits also block their actions.');
   // Lock when the app opens: the PIN (or password, without a PIN) is asked each time it is opened.
   if (typeof value.security.lockOnOpen !== 'boolean')
     throw Error('Choose whether the app locks when opened.');
@@ -358,7 +368,8 @@ export function validateBranding(input) {
   if (keep === 'all') delete value.security.historyKeep;
   if (
     Object.keys(value.security).some(
-      (key) => !['autoLockMinutes', 'syncMinutes', 'historyKeep', 'lockOnOpen'].includes(key),
+      (key) =>
+        !['autoLockMinutes', 'syncMinutes', 'historyKeep', 'lockOnOpen', 'limitsBlockActions'].includes(key),
     ) ||
     !Number.isInteger(lock) ||
     lock < 0 ||
