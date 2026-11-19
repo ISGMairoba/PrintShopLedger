@@ -310,7 +310,27 @@ export const answerStockRequest = (
 export const cancelStockRequest = (shopId: string, id: string) =>
   stockCall('cancel_stock_request', { p_shop: shopId, p_id: id });
 // A transfer keeps its operation ID until the server answers, so sending the same transfer again
-// after a lost answer does not move the stock twice (the server finds it already made).
+// after a lost answer does not move the stock twice (the server finds it already made). The ID is
+// kept on the device for 15 minutes, so this holds after the app is closed or reloaded too.
+const TRANSFERS_KEY = 'printshopledger-transfers-sent';
+const TRANSFER_KEEP_MS = 15 * 60 * 1000;
+type SentTransfers = Record<string, { id: string; at: number }>;
+function sentTransfers(): SentTransfers {
+  try {
+    const all = JSON.parse(localStorage.getItem(TRANSFERS_KEY) ?? '{}') as SentTransfers;
+    const now = Date.now();
+    return Object.fromEntries(Object.entries(all).filter(([, v]) => v && now - v.at < TRANSFER_KEEP_MS));
+  } catch {
+    return {};
+  }
+}
+function keepTransfers(all: SentTransfers) {
+  try {
+    localStorage.setItem(TRANSFERS_KEY, JSON.stringify(all));
+  } catch {
+    // Storage unavailable: the ID is still kept for this session below.
+  }
+}
 const transfersSent = new Map<string, string>();
 export async function transferStock(
   shopId: string,
@@ -322,8 +342,10 @@ export async function transferStock(
   cost: { unitCost: number; actual: boolean } | null = null,
 ) {
   const key = JSON.stringify([shopId, materialId, from, to, quantity, reason]);
-  const operation = transfersSent.get(key) ?? crypto.randomUUID();
+  const saved = sentTransfers();
+  const operation = transfersSent.get(key) ?? saved[key]?.id ?? crypto.randomUUID();
   transfersSent.set(key, operation);
+  keepTransfers({ ...saved, [key]: { id: operation, at: saved[key]?.at ?? Date.now() } });
   await stockCall('transfer_stock', {
     p_operation: operation,
     p_shop: shopId,
@@ -335,6 +357,8 @@ export async function transferStock(
     ...(cost ? { p_unit_cost: cost.unitCost, p_actual_cost: cost.actual } : {}),
   });
   transfersSent.delete(key);
+  const { [key]: _done, ...rest } = sentTransfers();
+  keepTransfers(rest);
 }
 
 /**
