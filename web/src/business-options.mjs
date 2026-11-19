@@ -101,12 +101,14 @@ export function validateWorkflow(value) {
   const stages = validateList(value, 'Job stages');
   if (
     stages.length < 3 ||
-    stages.length > 20 ||
+    stages.length > 23 ||
     stages[0] !== 'Added' ||
     stages.at(-2) !== 'Completed' ||
     stages.at(-1) !== 'Collected'
   )
-    throw Error('Job stages must start with Added and end with Completed, then Collected (up to 20 stages).');
+    throw Error(
+      'Job stages must start with Added and end with Completed, then Collected (up to 20 steps between).',
+    );
   return stages;
 }
 /** Saved workflows: up to 30, each with a unique name and its steps (older ones kept stages). */

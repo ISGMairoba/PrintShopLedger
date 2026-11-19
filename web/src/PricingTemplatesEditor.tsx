@@ -605,9 +605,27 @@ export default function TemplateEditor({
       })),
     }));
   }
-  // Label changes carry the formula name along while it still matches the old label.
+  // Whether a formula already uses this name (then a label change keeps the name, so the formula
+  // still works; the name itself can be changed with its own field, which updates the formulas).
+  const inUse = (key: string) => {
+    const word = new RegExp(`\\b${key}(_rate)?\\b`);
+    return (
+      d.computed.some(
+        (c) => word.test(c.formula) || (c.stock && 'variable' in c.stock && c.stock.variable === key),
+      ) ||
+      d.expenses.some(
+        (e) =>
+          word.test(e.formula) ||
+          (e.calculation && (word.test(e.calculation.rate) || e.calculation.input === key)),
+      )
+    );
+  };
+  // Label changes carry the formula name along while it still matches the old label and no
+  // formula uses it yet.
   const relabel = (key: string, oldLabel: string, label: string) =>
-    key === slug(oldLabel) || /^(variable|computed|expense)_\d+$/.test(key) ? unique(slug(label)) : key;
+    !inUse(key) && (key === slug(oldLabel) || /^(variable|computed|expense)_\d+$/.test(key))
+      ? unique(slug(label))
+      : key;
   let preview: ReturnType<typeof priceTemplate> | null = null,
     problem = '';
   let checked: PricingTemplate | null = null;

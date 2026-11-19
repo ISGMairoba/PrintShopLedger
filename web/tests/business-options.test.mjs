@@ -155,3 +155,9 @@ test('zero payments show None, or Wallet when credit paid', () => {
 test('refunds keep the method the money went out by', () => {
   assert.equal(paymentName({ amount: 0, walletUsed: 400, refundId: 'r', method: 'Cash' }), 'Cash');
 });
+
+test('a workflow with the most steps the builder allows (20) is accepted at the sale (audit AUD-35)', () => {
+  const steps = Array.from({ length: 20 }, (_, i) => `Step ${i + 1}`);
+  assert.equal(validateWorkflow(['Added', ...steps, 'Completed', 'Collected']).length, 23);
+  assert.throws(() => validateWorkflow(['Added', ...steps, 'Step 21', 'Completed', 'Collected']));
+});

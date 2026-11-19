@@ -216,29 +216,31 @@ export default function BusinessSettingsPage({
       if (scope) {
         // A branch's own: its group in branchSettings (other settings stay the whole business's).
         // The business name (and anything else without a group) stays the whole business's.
+        // Every group changed is saved together (Save all can cover several).
         const own = keys.filter((key) => branchSettingGroup(key));
-        const group = own.length ? branchSettingGroup(own[0]) : null;
-        if (!group) return;
-        const values = Object.fromEntries(
-          own.map((key) => [
-            key,
-            key === 'options' && part ? mergeOptionsSection(source.options, draft.options, part) : draft[key],
-          ]),
-        );
-        const saved = (await onSave(
-          validateBranding({
-            ...settings,
-            branchSettings: setBranchSettings(settings, scope, group, values),
-          }),
-          base,
-        )) as { settings: Branding; version: number };
+        if (!own.length) return;
+        let next = settings;
+        for (const group of new Set(own.map((key) => branchSettingGroup(key)!))) {
+          const values = Object.fromEntries(
+            own
+              .filter((key) => branchSettingGroup(key) === group)
+              .map((key) => [
+                key,
+                key === 'options' && part
+                  ? mergeOptionsSection(source.options, draft.options, part)
+                  : draft[key],
+              ]),
+          );
+          next = { ...next, branchSettings: setBranchSettings(next, scope, group, values) };
+        }
+        const saved = (await onSave(validateBranding(next), base)) as { settings: Branding; version: number };
         const effective = withBranchSettings(saved.settings, scope) as Branding;
         setDraft((current) => ({
           ...current,
-          ...Object.fromEntries(keys.map((key) => [key, effective[key]])),
+          ...Object.fromEntries(own.map((key) => [key, effective[key]])),
         }));
         setBase(saved.version);
-        setDirtyKeys((current) => current.filter((key) => !keys.includes(key)));
+        setDirtyKeys((current) => current.filter((key) => !own.includes(key)));
         setDirtyOptions((current) => (part ? current.filter((p) => p !== part) : current));
         setMessage(`${label} saved for ${scopeName}.`);
         return;

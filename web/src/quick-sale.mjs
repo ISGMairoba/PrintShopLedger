@@ -4,6 +4,7 @@
 import { quoteLine } from './checkout.mjs';
 import { applyOrderDiscount, validDiscount } from './discounts.mjs';
 import { countPrice } from './price-tiers.mjs';
+import { perItem } from './production-materials.mjs';
 import { variantBase } from './variants.mjs';
 import { itemSteps, stepsWorkflow } from './workflow-steps.mjs';
 
@@ -20,6 +21,9 @@ export function shelfProducts(ledger) {
     .filter((s) => s.shelfItem && !s.archived && !s.private && !s.customPrice)
     .map((s) => {
       const material = s.materialId ? ledger.materials.find((m) => m.id === s.materialId) : null;
+      // Stock in items: one item can use more or less than one unit of its material (half a sheet).
+      const per = perItem(s);
+      const items = (n) => Math.floor(n / per + 1e-9);
       return {
         id: s.id,
         name: s.description,
@@ -34,11 +38,11 @@ export function shelfProducts(ledger) {
         variantName: s.variantName ?? null,
         productName: variantBase(s),
         material,
-        stock: material ? material.available : null,
-        minimum: material?.minimumStock ?? 0,
+        stock: material ? (per === 1 ? material.available : items(material.available)) : null,
+        minimum: per === 1 ? (material?.minimumStock ?? 0) : items(material?.minimumStock ?? 0),
         // The least sold in one sale (0: none); a first tap adds this many.
         minOrder: s.minQuantity ?? 0,
-        unit: material?.measurementUnit ?? 'item',
+        unit: per === 1 ? (material?.measurementUnit ?? 'item') : 'item',
         // Sized materials need width and height, which a quick sale does not ask for.
         sellable: !s.materialId || (!!material && !material.archived && !material.requireSize),
       };
@@ -278,7 +282,7 @@ export function quickSaleInput(
 ) {
   if (!cart.length) throw Error('Add at least one product.');
   for (const line of cart)
-    if (!(line.quantity > 0) || Math.round(line.quantity * 1000) !== line.quantity * 1000)
+    if (!(line.quantity > 0) || Math.abs(Math.round(line.quantity * 1000) - line.quantity * 1000) > 1e-6)
       throw Error('Quantities must be more than zero, with up to three decimal places.');
   if (!Number.isSafeInteger(tendered) || tendered < 0) throw Error('Enter the money received.');
   const { lines, orderDiscount, total } = pricedCart(ledger, cart, { discount, policy, source });

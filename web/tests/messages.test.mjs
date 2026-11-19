@@ -104,7 +104,13 @@ test('every message has wording that fills completely from its own placeholders 
       ...kind.sample,
     });
     assert.doesNotMatch(text, /\{\w+\}/, kind.key);
-    for (const [holder] of kind.holders) assert.ok(kind.text.includes(`{${holder}}`) || true);
+    // The default wording uses only placeholders the settings list for it (some listed ones are
+    // optional extras the business can add).
+    for (const [, holder] of kind.text.matchAll(/\{(\w+)\}/g))
+      assert.ok(
+        kind.holders.some(([h]) => h === holder),
+        `${kind.key}: {${holder}} is not listed`,
+      );
   }
 });
 

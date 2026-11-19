@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Modal from './Modal';
 import Icon, { type IconName } from './Icon';
 import { supabase } from './cloud';
@@ -44,18 +44,28 @@ const failure = (error: { message?: string } | null) =>
   error ? Error(error.message || 'Could not reach the business.') : null;
 
 /** Notices of this business, fetched online; refreshed every 5 minutes and when the app is reopened. */
-export function useNotices(shopId: string | undefined, enabled: boolean) {
+export function useNotices(shopId: string | undefined, enabled: boolean, context = '') {
   const [notices, setNotices] = useState<Notice[]>([]);
   const [error, setError] = useState('');
+  // Another business, person or branch: the old notices go at once, and an answer to a request
+  // made for the old one is ignored (it could show notices this person may not see).
+  const asked = useRef(0);
+  useEffect(() => {
+    asked.current++;
+    setNotices([]);
+    setError('');
+  }, [shopId, context]);
   const refresh = useCallback(async () => {
     if (!supabase || !shopId || !enabled) return;
+    const request = ++asked.current;
     const { data, error } = await supabase.rpc('get_notices', { p_shop: shopId });
+    if (request !== asked.current) return;
     if (error) setError(error.message);
     else {
       setError('');
       setNotices((data as Notice[]) ?? []);
     }
-  }, [shopId, enabled]);
+  }, [shopId, enabled, context]);
   useEffect(() => {
     void refresh();
     if (!enabled) return;
