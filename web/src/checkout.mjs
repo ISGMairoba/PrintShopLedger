@@ -402,6 +402,13 @@ export function prepareCheckout(
     (input.newCustomer.kind !== 'customer.created' || input.newCustomer.data.id !== input.customerId)
   )
     throw Error('New customer must match this checkout.');
+  // A sale made from a quotation carries it, so the sale and "converted" are saved together and a
+  // quotation can become only one sale.
+  if (input.quotationId !== undefined && typeof input.quotationId !== 'string')
+    throw Error('Invalid quotation.');
+  const fromQuote = input.quotationId ? (ledger.quotations ?? []).find((q) => q.id === input.quotationId) : null;
+  if (fromQuote?.status === 'converted' && fromQuote.checkoutId && fromQuote.checkoutId !== id)
+    throw Error('This quotation is already an order. Open that order instead of selling it again.');
   let working = ledger;
   if (input.newCustomer) working = applyCustomerEvent(working, input.newCustomer);
   const customer = working.customers.find((c) => c.id === input.customerId && !c.archived);
@@ -518,6 +525,7 @@ export function prepareCheckout(
     data: {
       id,
       customerId: customer.id,
+      ...(input.quotationId ? { quotationId: input.quotationId } : {}),
       ...(input.accountId === undefined ? {} : { accountId: input.accountId }),
       ...(input.termsAndConditions === undefined
         ? {}
@@ -561,6 +569,7 @@ export function applyCheckout(ledger, event) {
     {
       customerId: data.customerId,
       newCustomer: data.newCustomer,
+      ...(data.quotationId ? { quotationId: data.quotationId } : {}),
       lines: data.jobs,
       termsAndConditions: data.termsAndConditions,
       accountId: data.accountId,
@@ -709,6 +718,25 @@ export function applyCheckout(ledger, event) {
         ? [...next.payments, payment]
         : next.payments,
     checkouts: [...(next.checkouts ?? []), rebuilt.data],
+    ...(data.quotationId && next.quotations
+      ? {
+          quotations: next.quotations.map((q) =>
+            q.id === data.quotationId && q.status !== 'converted'
+              ? {
+                  ...q,
+                  status: 'converted',
+                  checkoutId: data.id,
+                  convertedAt: data.createdAt,
+                  convertedByLabel: data.createdByLabel,
+                  version: q.version + 1,
+                  modifiedBy: data.createdBy,
+                  modifiedByLabel: data.createdByLabel,
+                  modifiedAt: data.createdAt,
+                }
+              : q,
+          ),
+        }
+      : {}),
   };
 }
 export function applyJobStatus(ledger, event) {

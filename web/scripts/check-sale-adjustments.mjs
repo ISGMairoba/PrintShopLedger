@@ -183,6 +183,17 @@ try {
                 result = { code: 'PT409', message: e.message };
               }
             }
+          } else if (path.endsWith('/apply_supervised_events')) {
+            // A split payment's parts: all saved or none, like the server.
+            const events = route.request().postDataJSON().p_events;
+            writes.push(...events);
+            try {
+              cloud = events.reduce((ledger, event) => applyEvent(ledger, event), cloud);
+              result = cloud;
+            } catch (e) {
+              status = 409;
+              result = { code: 'PT409', message: e.message };
+            }
           } else if (path.endsWith('/list_correction_requests')) result = requests;
           else if (path.endsWith('/submit_correction_request')) {
             const event = route.request().postDataJSON().p_event;

@@ -612,6 +612,8 @@ export interface CheckoutJob extends Job {
   serviceVersion: number;
 }
 export interface CheckoutRecord {
+  /** The quotation this sale was made from (marked converted with it). */
+  quotationId?: string;
   accountId?: string;
   termsAndConditions?: string;
   /** Whole-order discount as entered, and all discounts on this checkout in kobo. */

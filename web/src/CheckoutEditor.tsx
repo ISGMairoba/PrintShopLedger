@@ -91,6 +91,8 @@ type HeldCheckout = {
   termsAndConditions: string;
 };
 export type QuotationStart = {
+  /** The quotation's ID: the sale carries it and marks it converted in the same save. */
+  quotationId: string;
   reference: string;
   customerId: string;
   customerName: string;
@@ -801,6 +803,7 @@ export default function CheckoutEditor({
                   ...(splitRows ? { splits: splitParts(ledger, splitRows, paymentMethods) } : {}),
                   paidOn,
                   reference,
+                  ...(fromQuotation ? { quotationId: fromQuotation.quotationId } : {}),
                 },
                 actor,
                 String(crypto.randomUUID()),
