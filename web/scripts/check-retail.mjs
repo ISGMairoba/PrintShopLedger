@@ -134,7 +134,10 @@ try {
   // The receipt as a picture: a PNG of the same receipt.
   const [picture] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('dialog').getByRole('button', { name: 'Download picture', exact: true }).click(),
+    (async () => {
+      await page.getByRole('dialog').getByRole('button', { name: 'Download', exact: true }).click();
+      await page.getByRole('dialog').getByRole('button', { name: 'Picture', exact: true }).click();
+    })(),
   ]);
   assert.match(picture.suggestedFilename(), /^Receipt-[0-9A-F]{8}\.png$/);
   const { statSync } = await import('node:fs');

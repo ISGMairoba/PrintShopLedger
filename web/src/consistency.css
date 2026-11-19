@@ -4902,3 +4902,40 @@ label .customer-elsewhere > button {
 label .customer-elsewhere > small {
   color: inherit;
 }
+
+/* Share: WhatsApp or another app (ShareChooser). */
+.share-choices {
+  display: grid;
+  gap: 10px;
+}
+.share-choices > button:not(.text-button) {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  min-height: 64px;
+  justify-content: flex-start;
+}
+.share-choices > button > span {
+  display: grid;
+  gap: 2px;
+}
+.share-choices small {
+  font-weight: 400;
+  opacity: 0.85;
+}
+
+/* Receipt: the choices under Print, Share and Download. */
+.receipt-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--line, rgba(127, 127, 127, 0.35));
+  border-radius: 12px;
+}
+.receipt-choices > small {
+  flex-basis: 100%;
+}

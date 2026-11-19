@@ -458,7 +458,7 @@ export default function ReportsPage({
     title: string,
     subtitle: string[],
     sections: ReportSection[],
-    to: { text: string; phone?: string; mode?: 'whatsapp' | 'share' },
+    to: { text: string; phone?: string; mode?: import('./share-choice').ShareMode },
   ) {
     if (busy) return;
     setBusy(true);
@@ -533,7 +533,7 @@ type TabProps = {
     title: string,
     subtitle: string[],
     sections: ReportSection[],
-    to: { text: string; phone?: string; mode?: 'whatsapp' | 'share' },
+    to: { text: string; phone?: string; mode?: import('./share-choice').ShareMode },
   ) => Promise<void>;
 };
 

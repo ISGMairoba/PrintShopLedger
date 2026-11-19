@@ -1,3 +1,4 @@
+import ShareChooser from './ShareChooser';
 import { accountPaymentOptions } from './account-methods.mjs';
 import {
   allBranchesLedger,
@@ -2206,6 +2207,7 @@ export default function App() {
                       )}
                       <FeedbackBanner message={branding.error} tone="warning" />
                       <FeedbackBanner message={message} tone={messageTone} />
+                      <ShareChooser />
                       {hasConflict && !canReviewConflicts && (
                         <div className="notice" role="alert">
                           <strong>Admin review required.</strong>

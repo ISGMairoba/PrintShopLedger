@@ -109,6 +109,53 @@ export default function ReceiptView({
       setBusy(false);
     }
   }
+  const [menu, setMenu] = useState<'' | 'print' | 'share' | 'download'>('');
+  const toggle = (next: 'print' | 'share' | 'download') => setMenu((m) => (m === next ? '' : next));
+  /** Do one of the choices, then close the choices. */
+  async function run(action: () => Promise<void>) {
+    await action();
+    setMenu('');
+  }
+  async function print() {
+    setBusy(true);
+    try {
+      await printReceipt(settings, record, business, pending, adjustments);
+      setMessage('Receipt submitted to the printer.');
+    } catch (cause) {
+      setMessage(cause instanceof Error ? cause.message : String(cause), 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
+  /** The receipt on its own page, printed with the browser's printing (any printer it knows). */
+  async function openPrintPage() {
+    const page = window.open('', '_blank');
+    if (!page) {
+      setMessage('Allow pop-ups for this app to open the print page.', 'error');
+      return;
+    }
+    page.document.write(
+      `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Receipt ${record.id
+        .slice(0, 8)
+        .toUpperCase()}</title><style>body{margin:0;padding:12px;background:#fff;color:#000;font-family:system-ui,sans-serif}</style></head><body><div class="receipt-sheet ${layout}">${html}</div><script>window.onload=function(){window.print()}</script></body></html>`,
+    );
+    page.document.close();
+  }
+  async function downloadPicture() {
+    setBusy(true);
+    try {
+      const [{ createReceiptImage }, { downloadFile }] = await Promise.all([
+        import('./receipt-pdf'),
+        import('./share-pdf'),
+      ]);
+      downloadFile(await createReceiptImage(record, business, pending, adjustments));
+      setMessage('Picture downloaded.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error), 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <Modal title={`Receipt ${record.id.slice(0, 8).toUpperCase()}`} wide busy={busy} onClose={onClose}>
       {warning && (
@@ -136,65 +183,69 @@ export default function ReceiptView({
       <div className={`receipt-sheet ${layout}`} dangerouslySetInnerHTML={{ __html: html }} />
       <FeedbackBanner message={message} tone={messageTone} />
       <div className="receipt-actions">
-        <button
-          disabled={busy || !!warning}
-          onClick={async () => {
-            setBusy(true);
-            try {
-              await printReceipt(settings, record, business, pending, adjustments);
-              setMessage('Receipt submitted to the printer.');
-            } catch (cause) {
-              setMessage(cause instanceof Error ? cause.message : String(cause), 'error');
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
-          <Icon name="services" /> {busy ? 'Printing…' : 'Print receipt'}
-        </button>
-        <button className="secondary" disabled={busy || !!warning} onClick={() => void share('pdf')}>
-          <Icon name="share" /> Share PDF
-        </button>
-        <button className="secondary" disabled={busy || !!warning} onClick={() => void share('image')}>
-          <Icon name="share" /> Share as picture
+        <button disabled={busy || !!warning} aria-expanded={menu === 'print'} onClick={() => toggle('print')}>
+          <Icon name="services" /> {busy ? 'Working…' : 'Print'}
         </button>
         <button
           className="secondary"
           disabled={busy || !!warning}
-          onClick={async () => {
-            setBusy(true);
-            try {
-              const [{ createReceiptImage }, { downloadFile }] = await Promise.all([
-                import('./receipt-pdf'),
-                import('./share-pdf'),
-              ]);
-              downloadFile(await createReceiptImage(record, business, pending, adjustments));
-              setMessage('Picture downloaded.');
-            } catch (error) {
-              setMessage(error instanceof Error ? error.message : String(error), 'error');
-            } finally {
-              setBusy(false);
-            }
-          }}
+          aria-expanded={menu === 'share'}
+          onClick={() => toggle('share')}
         >
-          <Icon name="export" /> Download picture
+          <Icon name="share" /> Share
         </button>
-        <button className="secondary" disabled={busy || !!warning} onClick={() => void pdf('a4')}>
-          <Icon name="export" /> Download PDF (A4)
-        </button>
-        <button className="secondary" disabled={busy || !!warning} onClick={() => void pdf('roll')}>
-          <Icon name="export" /> Download PDF (80mm)
+        <button
+          className="secondary"
+          disabled={busy || !!warning}
+          aria-expanded={menu === 'download'}
+          onClick={() => toggle('download')}
+        >
+          <Icon name="export" /> Download
         </button>
         {onCorrectPayment && (
           <button className="secondary" disabled={busy || pending} onClick={onCorrectPayment}>
             <Icon name="edit" /> Correct payment
           </button>
         )}
-        <small>
-          Printing uses the paper in Print Settings ({settings.paper}, {settings.orientation}): receipt rolls
-          get the till-roll layout, larger paper gets the page layout — the same as the A4 PDF.
-        </small>
       </div>
+      {menu === 'print' && (
+        <div className="receipt-choices" role="group" aria-label="Print">
+          <button disabled={busy} onClick={() => void run(print)}>
+            <Icon name="services" /> Print ({settings.paper})
+          </button>
+          <button className="secondary" disabled={busy} onClick={() => void run(openPrintPage)}>
+            <Icon name="details" /> Open print page
+          </button>
+          <small>
+            Print uses Print Settings ({settings.paper}, {settings.orientation}): receipt rolls get the
+            till-roll layout, larger paper the page layout. The print page opens the browser's own printing.
+          </small>
+        </div>
+      )}
+      {menu === 'share' && (
+        <div className="receipt-choices" role="group" aria-label="Share">
+          <button disabled={busy} onClick={() => void run(() => share('pdf'))}>
+            <Icon name="share" /> PDF
+          </button>
+          <button className="secondary" disabled={busy} onClick={() => void run(() => share('image'))}>
+            <Icon name="share" /> Picture
+          </button>
+          <small>Then choose WhatsApp (the customer's chat) or another app.</small>
+        </div>
+      )}
+      {menu === 'download' && (
+        <div className="receipt-choices" role="group" aria-label="Download">
+          <button disabled={busy} onClick={() => void run(() => pdf('a4'))}>
+            <Icon name="export" /> PDF (A4)
+          </button>
+          <button className="secondary" disabled={busy} onClick={() => void run(() => pdf('roll'))}>
+            <Icon name="export" /> PDF (80mm)
+          </button>
+          <button className="secondary" disabled={busy} onClick={() => void run(downloadPicture)}>
+            <Icon name="export" /> Picture
+          </button>
+        </div>
+      )}
     </Modal>
   );
 }

@@ -1,3 +1,4 @@
+import type { ShareMode } from './share-choice';
 import { createContext, useContext } from 'react';
 import { customerNames, messageMode, messagesDefaults, messageText } from './messages.mjs';
 
@@ -35,6 +36,6 @@ export function useMessages() {
         { business: business || 'our shop', ...(who ? names(who) : {}), ...values },
         legacyReady,
       ),
-    mode: (key: string) => messageMode(settings, key) as 'whatsapp' | 'share',
+    mode: (key: string) => messageMode(settings, key) as ShareMode,
   };
 }

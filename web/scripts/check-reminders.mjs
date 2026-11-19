@@ -74,6 +74,10 @@ try {
   assert.match(await table.innerText(), /Chika Eze[\s\S]*₦25,000\.00[\s\S]*Not yet/);
   const downloaded = page.waitForEvent('download');
   await table.getByRole('button', { name: 'Remind', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Share' })
+    .getByRole('button', { name: /^WhatsApp/ })
+    .click();
   assert.match((await downloaded).suggestedFilename(), /^Statement - Chika Eze/);
   await page.waitForFunction(() => window.__opened.length > 0);
   assert.match(
