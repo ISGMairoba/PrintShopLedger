@@ -122,6 +122,9 @@ async function synchronize(scope: string, shopId: string) {
       const { error: uploadError } = await supabase
         .rpc('submit_sync_conflict', { p_shop: shopId, p_event: event, p_message: state.syncConflicts![id] })
         .abortSignal(AbortSignal.timeout(30000));
+      // A kind of change the remote review cannot take yet stays held on this device (it is shown
+      // there for review) and does not stop the rest of the work from syncing.
+      if (uploadError && /Invalid conflict operation/.test(uploadError.message)) continue;
       if (uploadError)
         throw Error('Could not send the held operation for remote review: ' + uploadError.message);
       await check();
