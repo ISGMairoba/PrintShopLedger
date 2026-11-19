@@ -180,9 +180,11 @@ export async function loadState(store, scope, { writable, backup = () => [], cac
     return { state, records: written, migrated: !lost, repaired: lost };
   }
 
-  const outboxLost = damaged.includes(outboxKey(scope));
+  // A missing outbox is treated like a damaged one: its unsynced changes come from the backup, not
+  // from an empty list.
+  const outboxLost = damaged.includes(outboxKey(scope)) || !records.has(outboxKey(scope));
   const metaLost = damaged.includes(metaKey(scope)) || !records.has(metaKey(scope));
-  const joined = !damaged.length && !metaLost ? joinState(scope, records) : null;
+  const joined = !damaged.length && !metaLost && !outboxLost ? joinState(scope, records) : null;
   if (joined) return { state: normalizeState(joined), records };
 
   // Damage: keep what can be trusted, download the records again.

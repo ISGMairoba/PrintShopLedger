@@ -14,7 +14,7 @@ export function validateDiscountSettings(input) {
   const maxPercent = { ...discountDefaults().maxPercent, ...value.maxPercent };
   for (const rank of ['1', '2', '3']) {
     const n = maxPercent[rank];
-    if (!Number.isFinite(n) || n < 0 || n > 100 || Math.round(n * 100) !== n * 100)
+    if (!Number.isFinite(n) || n < 0 || n > 100 || Math.abs(Math.round(n * 100) - n * 100) > 1e-6)
       throw Error('Discount limits must be between 0% and 100%.');
   }
   return { maxPercent: { 1: maxPercent[1], 2: maxPercent[2], 3: maxPercent[3] } };
@@ -40,7 +40,7 @@ export function validDiscount(spec) {
   if (reason.length > 200 || /[\x00-\x1f\x7f]/.test(reason))
     throw Error('Discount reason must be up to 200 characters.');
   if (spec.kind === 'percent') {
-    if (!Number.isFinite(value) || value < 0 || value > 100 || Math.round(value * 100) !== value * 100)
+    if (!Number.isFinite(value) || value < 0 || value > 100 || Math.abs(Math.round(value * 100) - value * 100) > 1e-6)
       throw Error('Discount percentage must be between 0 and 100, with at most two decimals.');
   } else if (!Number.isSafeInteger(value) || value < 0 || value > 100000000000)
     throw Error('Enter a valid discount amount.');

@@ -326,7 +326,11 @@ export default function App() {
   const [branchChoice, setBranchChoice] = useState<string | null>(() => (scope ? storedBranch(scope) : null));
   useEffect(() => setBranchChoice(scope ? storedBranch(scope) : null), [scope]);
   // Notice board (online only): unread count in the header, the board in a dialog.
-  const noticeBoard = useNotices(shop?.id, !demo && !!shop?.id && !!session && online);
+  const noticeBoard = useNotices(
+    shop?.id,
+    !demo && !!shop?.id && !!session && online,
+    `${shop?.userId ?? ''}|${branchChoice ?? ''}`,
+  );
   const [noticesOpen, setNoticesOpen] = useState(false);
   // Hold sale: carts put aside on this device (held-sales.mjs); `resuming` is the one reopened.
   const [held, setHeld] = useState<HeldSale[]>(() => (scope ? listHeld(deviceStorage(), scope) : []));

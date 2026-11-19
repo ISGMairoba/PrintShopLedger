@@ -154,3 +154,13 @@ test('a first visit starts empty; pieces shrink when collections do', async () =
   const split = splitState(scope, smaller);
   assert.equal(split.get(`${scope}|meta`).pieces.jobs, 1);
 });
+
+test('a missing outbox restores the unsynced changes from the backup, not an empty list (audit AUD-36)', async () => {
+  const store = memory({ [scope]: shop() });
+  await loadState(store, scope, { writable: true });
+  store.data.delete(`${scope}|outbox`);
+  const backup = [{ id: 'e9', kind: 'job.status_changed', data: { id: 'job-9' } }];
+  const loaded = await loadState(store, scope, { writable: true, backup: () => backup });
+  assert.equal(loaded.repaired, true);
+  assert.deepEqual(loaded.state.pending, backup);
+});

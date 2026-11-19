@@ -360,6 +360,7 @@ export function correctedReceipt(record, ledger) {
       ? paidHere.reduce((n, p) => n + (p.walletAdded ?? 0), 0)
       : record.walletAdded,
     reference: payment?.reference ?? record.reference,
+    paidOn: payment?.paidOn ?? record.paidOn,
     walletAfter: ledger.payments
       .filter((p) => p.customerId === record.customerId)
       .reduce((n, p) => n + (p.walletAdded ?? 0) - (p.walletUsed ?? 0), 0),

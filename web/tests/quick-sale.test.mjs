@@ -82,6 +82,22 @@ test('Only shelf items without sizes are offered, with their stock', () => {
   );
 });
 
+test('Stock is counted in items when one item uses part of a unit (audit AUD-38)', () => {
+  let l = shop();
+  l = { ...l, services: l.services.map((s) => (s.id === 'pen-s' ? { ...s, production: { perItem: 0.5 } } : s)) };
+  const [pen] = shelfProducts(l);
+  assert.deepEqual([pen.stock, pen.unit], [20, 'item'], '10 pieces make 20 items at half a piece each');
+});
+
+test('Three decimal places are accepted however the computer rounds them (audit AUD-32)', () => {
+  const cart = [{ serviceId: 'pen-s', quantity: 1.001 }];
+  assert.doesNotThrow(() => quickSaleInput(shop(), cart, opts({ customerId: null, tendered: 100000 })));
+  assert.throws(
+    () => quickSaleInput(shop(), [{ serviceId: 'pen-s', quantity: 1.0001 }], opts({ customerId: null, tendered: 100000 })),
+    /three decimal/,
+  );
+});
+
 test('The cart adds, changes and removes quantities', () => {
   let cart = addToCart([], 'pen-s');
   cart = addToCart(cart, 'pen-s');
