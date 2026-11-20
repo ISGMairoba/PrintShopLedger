@@ -32,7 +32,13 @@ export function AdjustmentHistory({ records }: { records: SaleAdjustment[] }) {
               {new Date(r.changedAt).toLocaleString()} · {r.changedByLabel}
             </summary>
             <p>{r.reason}</p>
-            {!r.jobId && <p>{w('A deposit with no job, corrected on the customer’s account.')}</p>}
+            {!r.jobId && (
+              <p>
+                {r.action === 'sale.refunded'
+                  ? `Customer credit given back: ${currency(r.refundAmount ?? 0)} (${r.methodLabel ?? r.method ?? ''}).`
+                  : w('A deposit with no job, corrected on the customer’s account.')}
+              </p>
+            )}
             <p hidden={!r.jobId}>
               Charge: {currency(r.before.amount)} → {currency(r.after.amount)}
               <br />

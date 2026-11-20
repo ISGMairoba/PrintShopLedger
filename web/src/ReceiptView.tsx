@@ -74,7 +74,8 @@ export default function ReceiptView({
         import('./share-pdf'),
       ]);
       const name = typeof business === 'string' ? business : business.businessName;
-      const ref = `Receipt-${record.id.slice(0, 8).toUpperCase()}`;
+      const slip = record.kind === 'refund';
+      const ref = `${slip ? 'Refund-slip' : 'Receipt'}-${record.id.slice(0, 8).toUpperCase()}`;
       const file =
         kind === 'image'
           ? await createReceiptImage(record, business, pending, adjustments, picture)
@@ -86,20 +87,22 @@ export default function ReceiptView({
               },
             );
       const result = await shareFile(file, {
-        title: `Receipt ${record.id.slice(0, 8).toUpperCase()}`,
-        text: messages.text(
-          'receipt',
-          {
-            receipt: record.id.slice(0, 8).toUpperCase(),
-            paid: currency(record.cashReceived ?? 0),
-            balance:
-              (record.outstandingAfter ?? 0) > 0
-                ? `Balance on your account: ${currency(record.outstandingAfter ?? 0)}.`
-                : 'Thank you for your payment.',
-            business: name,
-          },
-          { id: record.customerId, name: record.customerSnapshot?.name ?? '' },
-        ),
+        title: `${slip ? 'Refund slip' : 'Receipt'} ${record.id.slice(0, 8).toUpperCase()}`,
+        text: slip
+          ? `${name}: refund slip ${record.id.slice(0, 8).toUpperCase()}. ${currency(record.refundAmount ?? 0)} given back to you.`
+          : messages.text(
+              'receipt',
+              {
+                receipt: record.id.slice(0, 8).toUpperCase(),
+                paid: currency(record.cashReceived ?? 0),
+                balance:
+                  (record.outstandingAfter ?? 0) > 0
+                    ? `Balance on your account: ${currency(record.outstandingAfter ?? 0)}.`
+                    : 'Thank you for your payment.',
+                business: name,
+              },
+              { id: record.customerId, name: record.customerSnapshot?.name ?? '' },
+            ),
         phone: record.customerSnapshot?.phone,
         mode: messages.mode('receipt'),
       });
@@ -158,7 +161,12 @@ export default function ReceiptView({
     }
   }
   return (
-    <Modal title={`Receipt ${record.id.slice(0, 8).toUpperCase()}`} wide busy={busy} onClose={onClose}>
+    <Modal
+      title={`${record.kind === 'refund' ? 'Refund slip' : 'Receipt'} ${record.id.slice(0, 8).toUpperCase()}`}
+      wide
+      busy={busy}
+      onClose={onClose}
+    >
       {warning && (
         <p className="notice" role="alert">
           {warning}

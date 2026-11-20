@@ -8,6 +8,7 @@ import { SortHeader, useTableSort } from './TableSort';
 import type { HoldChange, ProgressMode } from './JobActions';
 import { paymentName } from './business-options.mjs';
 import { currency, dateLabel, shortId } from './app/shared';
+import { refundSlipFor } from './receipts.mjs';
 import { useMemo, useState } from 'react';
 import { useShowMore } from './ShowMore';
 import { useDateFilter } from './PeriodFilter';
@@ -514,6 +515,14 @@ export default function JobsPaymentsPage({
                           </td>
                           <td>
                             <div className="material-actions stacked-actions">
+                              {payment.refundId && refundSlipFor(ledger, payment.refundId) && (
+                                <button
+                                  className="text-button"
+                                  onClick={() => onReceipt(refundSlipFor(ledger, payment.refundId!)!)}
+                                >
+                                  <Icon name="details" /> Refund slip
+                                </button>
+                              )}
                               {payment.checkoutId && checkoutsById.get(payment.checkoutId) && (
                                 <button
                                   className="text-button"

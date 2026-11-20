@@ -612,6 +612,9 @@ export interface CheckoutJob extends Job {
   serviceVersion: number;
 }
 export interface CheckoutRecord {
+  /** A refund slip shown like a receipt (receipts.mjs refundSlipRecord); left out on sales. */
+  kind?: 'refund';
+  refundAmount?: number;
   /** The quotation this sale was made from (marked converted with it). */
   quotationId?: string;
   accountId?: string;

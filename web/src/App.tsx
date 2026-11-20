@@ -23,6 +23,7 @@ import AccountsPage from './AccountsPage';
 import { defaultMoneyAccount } from './operations.mjs';
 import { locationUnitCost, stockValuation } from './actual-cost.mjs';
 import type { Ledger, OperationsEvent, FieldEvent } from './types';
+import { applySaleAdjustment } from './sale-adjustments.mjs';
 import DueDateDialog from './DueDateDialog';
 import useSubscription, { subscriptionNotice } from './useSubscription';
 import { setWritesBlocked } from './subscription-rule.mjs';
@@ -82,7 +83,7 @@ import DeviceStorageCard, { LOW_SPACE } from './DeviceStorageCard';
 import { MyCorrectionsPanel, PendingRequestsPanel } from './CorrectionRequests';
 import { depositCorrectionRank, isDepositWithoutJob } from './correction-requests.mjs';
 import { receiptPayments } from './payment-correction.mjs';
-import { receiptIntegrityError } from './receipts.mjs';
+import { receiptIntegrityError, refundSlipFor } from './receipts.mjs';
 import { printAfterTransaction, printReceipt, setPrintSigner } from './printing';
 import useAutoSync from './useAutoSync';
 import { isTransientSyncError } from './auto-sync.mjs';
@@ -3393,7 +3394,15 @@ export default function App() {
                           busy={busy}
                           actor={salesActor}
                           onClose={() => setRefundingCustomer('')}
-                          onSave={approveOperation}
+                          onSave={async (event) => {
+                            await approveOperation(event);
+                            // The refund slip, from the records as the refund leaves them.
+                            const slip = refundSlipFor(
+                              applySaleAdjustment(ledger, event) as Ledger,
+                              event.id,
+                            );
+                            if (slip) setReceipt(slip);
+                          }}
                         />
                       )}
                       {correctingPayment &&
@@ -3491,6 +3500,7 @@ export default function App() {
                           pending={state.pending.some((e) => e.id === receipt.id)}
                           onClose={() => setReceipt(null)}
                           onCorrectPayment={
+                            receipt.kind !== 'refund' &&
                             receiptPayments(ledger, receipt.id).length &&
                             (canCorrectPayments ||
                               (canRequestDeposit &&
