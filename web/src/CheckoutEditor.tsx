@@ -89,7 +89,12 @@ type HeldCheckout = {
   newCustomer: CustomerEvent | null;
   orderDiscount: DiscountDraft;
   termsAndConditions: string;
+  /** An order from a quotation keeps its quotation while held. */
+  fromQuotation?: QuotationStart;
 };
+/** The quotation a held sale was started from, if any. */
+export const heldQuotation = (sale: HeldSale | undefined | null) =>
+  sale?.kind === 'checkout' ? (sale.data as HeldCheckout).fromQuotation : undefined;
 export type QuotationStart = {
   /** The quotation's ID: the sale carries it and marks it converted in the same save. */
   quotationId: string;
@@ -691,6 +696,7 @@ export default function CheckoutEditor({
                       newCustomer,
                       orderDiscount,
                       termsAndConditions,
+                      ...(fromQuotation ? { fromQuotation } : {}),
                     };
                     onHold({
                       id: held?.id ?? String(crypto.randomUUID()),

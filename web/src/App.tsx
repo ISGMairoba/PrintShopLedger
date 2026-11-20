@@ -73,7 +73,7 @@ import JobProgressDialog from './JobProgressDialog';
 import { stageMoveEvents } from './material-choice.mjs';
 import MySalesPage from './MySalesPage';
 import PointOfServicePage from './PointOfServicePage';
-import CheckoutEditor, { type HeldSale } from './CheckoutEditor';
+import CheckoutEditor, { type HeldSale, heldQuotation } from './CheckoutEditor';
 import ReceiptView from './ReceiptView';
 import PaymentCorrectionDialog from './PaymentCorrectionDialog';
 import SplitCorrectionDialog from './SplitCorrectionDialog';
@@ -3246,6 +3246,7 @@ export default function App() {
                           initialCustomer={form === 'payment' ? paymentCustomer : ''}
                           startTemplate={form === 'job' ? (checkoutStart ?? undefined) : undefined}
                           held={form === 'job' && resuming?.kind === 'checkout' ? resuming : undefined}
+                          fromQuotation={form === 'job' ? heldQuotation(resuming) : undefined}
                           onHold={form === 'job' ? holdCurrentSale : undefined}
                           onSave={completeHeldCheckout}
                           onClose={() => {
@@ -3327,6 +3328,10 @@ export default function App() {
                                 const record = await completeCheckout(operation);
                                 setQuoteOrder(null);
                                 return record;
+                              }}
+                              onHold={(sale) => {
+                                holdCurrentSale(sale);
+                                setQuoteOrder(null);
                               }}
                               onClose={() => setQuoteOrder(null)}
                               onReceipt={setReceipt}
