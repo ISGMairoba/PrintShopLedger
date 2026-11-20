@@ -60,6 +60,9 @@ begin
   perform private.assert_pages(p_shop, private.event_pages(p_event->>'kind'));
 end $f$;
 revoke all on function private.assert_event_pages(uuid, jsonb) from public, anon, authenticated;
+-- Signed-in staff may call it: the expense and supervised functions below run as them (it only
+-- refuses or lets through). Without this they failed with "permission denied" (hotfix, 20 Nov).
+grant execute on function private.assert_event_pages(uuid, jsonb) to authenticated;
 
 -- 4. Where it is checked.
 -- 4a. Sales, customers, materials, items, jobs and accounts already pass through assert_sync_dependencies.
