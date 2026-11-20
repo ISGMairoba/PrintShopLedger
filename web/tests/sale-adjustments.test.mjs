@@ -312,3 +312,32 @@ test('Unused credit is refunded with no job: credit down, drawer and refunds up 
     /more than the customer's credit/,
   );
 });
+
+test('A refund slip shows the money given back and the credit before and after', async () => {
+  const { refundSlipFor, receiptModel } = await import('../src/receipts.mjs');
+  const { defaultBranding } = await import('../src/business-branding.mjs');
+  let ledger = fixture();
+  ledger = {
+    ...ledger,
+    payments: ledger.payments.map((p, i) =>
+      i === 0 ? { ...p, amount: p.amount + 10000, walletAdded: 10000 } : p,
+    ),
+  };
+  const event = creditRefundEvent(
+    ledger,
+    customerId,
+    { amount: 4000, method: 'Cash', methodLabel: 'Cash', reason: 'Cancelled' },
+    actor,
+  );
+  const next = applyEvent(ledger, event);
+  const m = receiptModel(refundSlipFor(next, event.id), defaultBranding(), false, [], 'roll');
+  assert.equal(m.title, 'Refund slip');
+  assert.deepEqual(
+    m.totals.map((t) => t.value),
+    ['₦40.00'],
+  );
+  assert.deepEqual(
+    m.account.map((a) => a.value),
+    ['₦100.00', '₦60.00'],
+  );
+});
