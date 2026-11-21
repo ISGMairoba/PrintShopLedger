@@ -23,35 +23,29 @@ begin
   if (select count(*) from public.shops) <> 1 then raise exception 'FAIL: cross-business read'; end if;
   perform public.apply_ledger_event(s, jsonb_build_object('id', gen_random_uuid(), 'kind', 'customer.created', 'data',
     jsonb_build_object('id', c, 'name', 'Customer A', 'phone', '', 'createdAt', now())));
-  perform public.apply_ledger_event(s, jsonb_build_object('id', gen_random_uuid(), 'kind', 'job.created', 'data',
-    jsonb_build_object('id', j, 'customerId', c, 'service', 'Banner', 'description', 'Test job', 'amount', 2000000, 'createdAt', now())));
+  -- Sales and payments go through checkout only (checkout.sql covers them, with overpayment and
+  -- allocation checks); the old ledger events for them are refused and save nothing (AUD-15).
+  rejected := false;
+  begin
+    perform public.apply_ledger_event(s, jsonb_build_object('id', gen_random_uuid(), 'kind', 'job.created', 'data',
+      jsonb_build_object('id', j, 'customerId', c, 'service', 'Banner', 'description', 'Test job', 'amount', 2000000, 'createdAt', now())));
+  exception when others then
+    if sqlerrm not like 'Sales and payments are recorded through checkout%' then raise; end if;
+    rejected := true;
+  end;
+  if not rejected then raise exception 'FAIL: job outside checkout accepted'; end if;
   p := jsonb_build_object('id', gen_random_uuid(), 'kind', 'payment.recorded', 'data', jsonb_build_object(
     'id', gen_random_uuid(), 'customerId', c, 'amount', 1500000, 'method', 'Cash', 'paidOn', '2026-10-03',
     'createdAt', now(), 'allocations', jsonb_build_array(jsonb_build_object('jobId', j, 'amount', 1500000))));
-  perform public.apply_ledger_event(s, p);
-  perform public.apply_ledger_event(s, p);
-  if (select count(*) from public.payments) <> 1 then raise exception 'FAIL: duplicate retry'; end if;
-  if (select sum(amount) from public.payment_allocations) <> 1500000 then raise exception 'FAIL: allocation'; end if;
-
   rejected := false;
   begin
-    perform public.apply_ledger_event(s, jsonb_build_object('id', gen_random_uuid(), 'kind', 'payment.recorded', 'data', jsonb_build_object(
-      'id', gen_random_uuid(), 'customerId', c, 'amount', 600000, 'method', 'Cash', 'paidOn', '2026-10-03',
-      'createdAt', now(), 'allocations', jsonb_build_array(jsonb_build_object('jobId', j, 'amount', 600000)))));
-  exception when others then rejected := true;
+    perform public.apply_ledger_event(s, p);
+  exception when others then
+    if sqlerrm not like 'Sales and payments are recorded through checkout%' then raise; end if;
+    rejected := true;
   end;
-  if not rejected then raise exception 'FAIL: overpayment accepted'; end if;
-  if (select count(*) from public.payments) <> 1 then raise exception 'FAIL: partial save on rejected payment'; end if;
-
-  rejected := false;
-  begin
-    perform public.apply_ledger_event(s, jsonb_build_object('id', gen_random_uuid(), 'kind', 'payment.recorded', 'data', jsonb_build_object(
-      'id', gen_random_uuid(), 'customerId', c, 'amount', 100000, 'method', 'Cash', 'paidOn', '2026-10-03',
-      'createdAt', now(), 'allocations', jsonb_build_array(jsonb_build_object('jobId', j, 'amount', 50000)))));
-  exception when others then rejected := true;
-  end;
-  if not rejected then raise exception 'FAIL: allocation mismatch accepted'; end if;
-  if (select count(*) from public.payments) <> 1 then raise exception 'FAIL: partial save on mismatch'; end if;
+  if not rejected then raise exception 'FAIL: payment outside checkout accepted'; end if;
+  if exists (select 1 from public.jobs) or exists (select 1 from public.payments) then raise exception 'FAIL: refused sale saved'; end if;
 
   rejected := false;
   begin

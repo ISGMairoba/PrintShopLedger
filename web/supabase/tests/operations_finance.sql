@@ -5,15 +5,17 @@ declare shop uuid;u uuid:=gen_random_uuid();dev uuid:=gen_random_uuid();other_us
 begin
 insert into auth.users(id,email,email_confirmed_at,raw_user_meta_data,created_at) values(u,'operations-test@example.invalid',now(),'{}',now()),(dev,'staff-developer-operations@staff.printshopledger.invalid',now(),'{}',now()),(other_user,'operations-other@example.invalid',now(),'{}',now());
 shop=(public.complete_business_registration(u,dev,'Operations test','Tester',repeat('a',64),'https://print-shop-ledger.vercel.app/#developer_activation='||repeat('a',64))->>'shopId')::uuid;
+-- This fixture sets up and counts its own accounts.
+perform test.without_default_accounts(shop);
 perform set_config('request.jwt.claim.sub',u::text,true);
 cursor:=public.get_ledger_changes(shop,null)->>'cursor';
-update public.shop_members set access_level=4,rank=4,role='developer' where shop_id=shop and user_id=u;
+update public.shop_members set access_level=5,rank=5,role='developer' where shop_id=shop and user_id=u;
 ev:=jsonb_build_object('id',eid,'kind','account.created','data',jsonb_build_object('id',a,'name','Bank A','accountType','bank','openingDate','2026-10-01','openingBalance',10000,'methods',jsonb_build_array('Transfer'),'modifiedBy',u));
 perform public.apply_operations_event(shop,ev);perform public.apply_operations_event(shop,ev);
 perform public.apply_operations_event(shop,jsonb_build_object('id',gen_random_uuid(),'kind','account.created','data',jsonb_build_object('id',b,'name','Cash','accountType','cash','openingDate','2026-10-01','openingBalance',5000,'methods',jsonb_build_array('Cash'),'modifiedBy',u)));
 update public.shop_members set access_level=3,rank=3,role='manager' where shop_id=shop and user_id=u;
 perform public.apply_operations_event(shop,jsonb_build_object('id',gen_random_uuid(),'kind','payee.created','data',jsonb_build_object('id',payee,'name','Paper supplier','phone','0801','address','Market','note','','modifiedBy',u)));
-perform public.apply_expense_event(shop,jsonb_build_object('id',gen_random_uuid(),'kind','expense.created','data',jsonb_build_object('id',expense,'description','Paper','category','Materials','payeeId',payee,'payee','Paper supplier','note','','receiptReference','','amount',2000,'incurredOn','2026-10-31','materials','[]'::jsonb,'stockIds','{}'::jsonb,'modifiedBy',u,'payment',jsonb_build_object('id',payment,'amount',1200,'paidOn','2026-10-31','method','Transfer','methodLabel','Transfer','source','Business bank account','reference','','accountId',a))));
+perform public.apply_expense_event(shop,jsonb_build_object('id',gen_random_uuid(),'kind','expense.created','data',jsonb_build_object('id',expense,'description','Paper','category','Materials','payeeId',payee,'payee','Paper supplier','note','','receiptReference','','amount',2000,'incurredOn','2026-10-31','materials','[]'::jsonb,'stockIds','{}'::jsonb,'modifiedBy',u,'payment',jsonb_build_object('id',payment,'amount',1200,'paidOn','2026-10-31','method','Transfer','methodLabel','Bank A','source','Business bank account','reference','','accountId',a))));
 led:=public.get_ledger(shop);
 if jsonb_array_length(led->'moneyAccounts')<>2 or jsonb_array_length(led->'payees')<>1 or led->'expenses'->0->>'payeeId'<>payee::text or led->'expenses'->0->'payments'->0->>'accountId'<>a::text then raise exception 'Account or payee references lost: %',led->'expenses';end if;
 if private.operations_balance(shop,a,'2026-10-31')<>8800 then raise exception 'Expense balance incorrect';end if;
@@ -25,7 +27,7 @@ if private.operations_balance(shop,a,'2026-10-31')<>5700 then raise exception 'R
 perform public.apply_customer_event(shop,jsonb_build_object('id',gen_random_uuid(),'kind','customer.created','data',jsonb_build_object('id',customer,'name','Ada','phone','080123','address','','creditLimit',0,'modifiedBy',u)));
 -- A wallet deposit is incoming money once; later wallet spending is not another receipt.
 eid:=gen_random_uuid();
-perform public.apply_checkout_event(shop,jsonb_build_object('id',eid,'kind','checkout.completed','data',jsonb_build_object('id',eid,'customerId',customer,'accountId',a,'createdBy',u,'createdAt',now(),'paidOn','2026-10-31','method','Transfer','methodLabel','Transfer','reference','','useWallet',false,'cashReceived',5000,'walletUsed',0,'walletAdded',5000,'walletAfter',5000,'total',0,'allocated',0,'outstandingBefore',0,'outstandingAfter',0,'expectedAccount',public.checkout_account_token(shop,customer),'jobs','[]'::jsonb,'allocations','[]'::jsonb)));
+perform test.checkout(shop,jsonb_build_object('id',eid,'kind','checkout.completed','data',jsonb_build_object('id',eid,'customerId',customer,'accountId',a,'createdBy',u,'createdAt',now(),'paidOn','2026-10-31','method','Transfer','methodLabel','Bank A','reference','','useWallet',false,'cashReceived',5000,'walletUsed',0,'walletAdded',5000,'walletAfter',5000,'total',0,'allocated',0,'outstandingBefore',0,'outstandingAfter',0,'expectedAccount',public.checkout_account_token(shop,customer),'jobs','[]'::jsonb,'allocations','[]'::jsonb)));
 if private.operations_balance(shop,a,'2026-10-31')<>10700 then raise exception 'Checkout account balance incorrect';end if;
 perform set_config('request.jwt.claim.sub',other_user::text,true);
 set local role authenticated;
@@ -48,7 +50,7 @@ failed:=false;begin perform public.get_ledger(shop);exception when others then f
 perform set_config('request.jwt.claim.sub',u::text,true);
 perform public.apply_operations_event(shop,jsonb_build_object('id',gen_random_uuid(),'kind','account.archived','data',jsonb_build_object('id',a,'baseVersion',1,'modifiedBy',u)));
 -- A delayed network retry must succeed even though the account is now archived.
-perform public.apply_checkout_event(shop,(select payload from public.ledger_events where shop_id=shop and id=eid));
+perform test.checkout(shop,(select payload from public.ledger_events where shop_id=shop and id=eid));
 perform public.apply_expense_event(shop,(select payload from public.ledger_events where shop_id=shop and payload->>'kind'='expense.created' limit 1));
 update public.shop_members set access_level=1,rank=1,role='cashier' where shop_id=shop and user_id=u;
 failed:=false;begin perform public.apply_operations_event(shop,jsonb_build_object('id',gen_random_uuid(),'kind','account.archived','data',jsonb_build_object('id',a,'baseVersion',1,'modifiedBy',u)));exception when others then failed:=true;end;if not failed then raise exception 'Cashier changed accounts';end if;

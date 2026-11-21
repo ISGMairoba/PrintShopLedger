@@ -4,7 +4,7 @@ declare owner_id uuid=gen_random_uuid(); cashier_id uuid=gen_random_uuid(); outs
 begin
  insert into auth.users(id,email,raw_user_meta_data,created_at) select id,id::text||'@example.invalid','{}',now() from unnest(array[owner_id,cashier_id,outsider]) id;
  perform set_config('request.jwt.claim.sub',owner_id::text,true);
- shop=public.create_shop('Self credentials test');
+ shop=test.new_shop('Self credentials test');
  perform public.provision_shop_user(shop,owner_id,jsonb_build_object('userId',cashier_id,'name','Cashier','username','cashier','role','cashier'));
  select version into original_version from public.shop_members where shop_id=shop and user_id=cashier_id;
  perform public.update_self_username(shop,cashier_id,'  cashier.updated  ');

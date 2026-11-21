@@ -4,7 +4,7 @@ declare u uuid:=gen_random_uuid();dev uuid:=gen_random_uuid();shop uuid;settings
 begin
 insert into auth.users(id,email,email_confirmed_at,raw_user_meta_data,created_at)values(u,'settings-sections@example.invalid',now(),'{}',now()),(dev,'staff-developer-sections@staff.printshopledger.invalid',now(),'{}',now());
 shop:=(public.complete_business_registration(u,dev,'Settings sections QA','Tester',repeat('c',64),'https://print-shop-ledger.vercel.app/#developer_activation='||repeat('c',64))->>'shopId')::uuid;
-perform set_config('request.jwt.claim.sub',u::text,true);update public.shop_members set access_level=4,rank=4,role='developer'where shop_id=shop and user_id=u;
+perform set_config('request.jwt.claim.sub',u::text,true);update public.shop_members set access_level=5,rank=5,role='developer'where shop_id=shop and user_id=u;
 select coalesce((select version from public.business_settings where shop_id=shop),0)into ver;
 result:=public.save_business_settings(shop,ver,settings);settings:=result->'settings';ver:=(result->>'version')::int;saved_periods:=settings->'periods';
 update public.shop_members set access_level=2,rank=2,role='admin'where shop_id=shop and user_id=u;
@@ -15,7 +15,7 @@ update public.shop_members set access_level=3,rank=3,role='manager'where shop_id
 candidate:=jsonb_set(settings,'{periods,dashboard}','"week"'::jsonb);candidate:=jsonb_set(candidate,'{terms,job}','"forbidden"'::jsonb);
 result:=public.save_business_settings(shop,ver,candidate);settings:=result->'settings';ver:=(result->>'version')::int;
 if settings->'terms'->>'job'<>'purchase' or settings->'periods'->>'dashboard'<>'week' then raise exception 'Time-frame section permissions failed';end if;
-update public.shop_members set access_level=4,rank=4,role='developer'where shop_id=shop and user_id=u;
+update public.shop_members set access_level=5,rank=5,role='developer'where shop_id=shop and user_id=u;
 settings:=settings||'{"settingsTabsVersion":1,"settingsTabs":{"2":["Jobs & payments"],"3":[]}}'::jsonb;
 result:=public.save_business_settings(shop,ver,settings);settings:=result->'settings';ver:=(result->>'version')::int;
 update public.shop_members set access_level=2,rank=2,role='admin'where shop_id=shop and user_id=u;
