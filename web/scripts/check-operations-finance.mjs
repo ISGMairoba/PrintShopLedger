@@ -149,10 +149,31 @@ try {
       .getByRole('button', { name: 'Reconcile', exact: true })
       .click();
     await dialog().getByLabel('Actual balance (₦)').fill('740');
+    // The difference shows while typing, with a way to record it as the expense it was.
+    await dialog().getByText('₦10.00 less than expected.', { exact: false }).waitFor();
+    await dialog().getByRole('button', { name: 'Record as expense…', exact: true }).waitFor();
     await dialog().getByLabel('Account entry reason').fill('Verified against bank statement');
     await save('Save reconciliation');
     state = await readCopy(page, 'local-trial');
     assert.equal(state.ledger.accountEntries.filter((e) => e.action === 'reconciliation')[0].amount, -1000);
+    // Transactions: one list with a type tag on each line, and a spreadsheet of it.
+    await page
+      .getByRole('row')
+      .filter({ hasText: 'Main Bank' })
+      .first()
+      .getByRole('button', { name: 'Transactions', exact: true })
+      .click();
+    await dialog().locator('.statement-tag.tag-reconcile').waitFor();
+    await dialog().locator('.statement-tag.tag-expense').waitFor();
+    await dialog().getByRole('button', { name: /Filters/ }).click();
+    await dialog().getByLabel('Transaction type').selectOption('reconcile');
+    assert.equal(await dialog().locator('.statement-table tbody tr').count(), 1);
+    const [sheet] = await Promise.all([
+      page.waitForEvent('download'),
+      dialog().getByRole('button', { name: 'Spreadsheet', exact: true }).click(),
+    ]);
+    assert.match(sheet.suggestedFilename(), /^Account-statement-Main-Bank\.csv$/);
+    await dialog().getByRole('button', { name: 'Close', exact: true }).click();
     const at = new Date().toISOString(),
       due = new Date(Date.now() + 2 * 86400000).toISOString();
     state.ledger.customers.push({

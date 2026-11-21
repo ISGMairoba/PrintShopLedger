@@ -4939,3 +4939,60 @@ label .customer-elsewhere > small {
 .receipt-choices > small {
   flex-basis: 100%;
 }
+
+/* Accounts → Transactions: one list with a type tag on each line. */
+.statement-toolbar input {
+  flex: 1 1 220px;
+}
+.statement-totals {
+  margin: 10px 0;
+}
+.statement-table td small {
+  display: block;
+}
+.statement-table td:not(:first-child) {
+  text-align: right;
+  white-space: nowrap;
+}
+.statement-tag {
+  --tag: #6b7280;
+  background: color-mix(in srgb, var(--tag) 16%, transparent);
+  color: color-mix(in srgb, var(--tag) 80%, var(--ink));
+  margin-right: 4px;
+}
+.statement-tag.tag-sale {
+  --tag: #15803d;
+}
+.statement-tag.tag-expense {
+  --tag: #b91c1c;
+}
+.statement-tag.tag-refund {
+  --tag: #c2410c;
+}
+.statement-tag.tag-loan,
+.statement-tag.tag-repayment {
+  --tag: #1d4ed8;
+}
+.statement-tag.tag-owner {
+  --tag: #7c3aed;
+}
+.statement-tag.tag-income {
+  --tag: #0f766e;
+}
+.statement-tag.tag-reconcile {
+  --tag: #a16207;
+}
+/* Reconcile: the difference while the count is typed, with what to do about it. */
+.reconcile-difference {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--line, rgba(127, 127, 127, 0.35));
+  border-radius: 12px;
+}
+.reconcile-difference p {
+  margin: 0;
+  flex-basis: 100%;
+}

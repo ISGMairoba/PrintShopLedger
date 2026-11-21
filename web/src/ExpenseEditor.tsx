@@ -48,6 +48,10 @@ type Props = {
     amount?: number;
     payeeId?: string;
     note?: string;
+    /** Paid from this money account (e.g. a difference found when reconciling it). */
+    accountId?: string;
+    /** The day it happened (YYYY-MM-DD), when not today. */
+    on?: string;
   };
   /** Orders this expense can be linked to (For orders), newest first. */
   orders?: { id: string; label: string }[];
@@ -128,12 +132,16 @@ export default function ExpenseEditor({
   // The business's usual "paid from" for expenses (Business Settings), else the first.
   const [paidFrom, setPaidFrom] = useState(
     correctingKey ||
+      (prefill?.accountId ? paidFromOptions.find((o) => o.accountId === prefill.accountId)?.key : '') ||
       paidFromOptions.find((o) => o.key === options.defaultExpenseMethod)?.key ||
       paidFromOptions[0]?.key ||
       'personal',
   );
   const chosenFrom = paidFromOptions.find((o) => o.key === paidFrom) ?? paidFromOptions[0];
-  const nowLocal = lagosLocal(new Date().toISOString());
+  const nowLocal =
+    prefill?.on && prefill.on !== lagosLocal(new Date().toISOString()).slice(0, 10)
+      ? `${prefill.on}T12:00`
+      : lagosLocal(new Date().toISOString());
   const [when, setWhen] = useState(
     expense?.incurredAt ? lagosLocal(expense.incurredAt) : expense ? `${expense.incurredOn}T00:00` : nowLocal,
   );

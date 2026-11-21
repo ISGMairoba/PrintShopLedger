@@ -11,7 +11,11 @@ import { accountBalance, accountBranch, moneyTransactions, operationEvent } from
 import { useBusinessOptions } from './BusinessOptionsContext';
 import { accountSummary } from './account-summary.mjs';
 import { MONEY_TYPES, lenderBalances } from './money-moves.mjs';
-import type { Ledger, MoneyAccount, OperationsEvent, AccountPaymentMethod } from './types';
+import AccountStatement from './AccountStatement';
+import type { Branding } from './useBusinessBranding';
+import ExpenseEditor from './ExpenseEditor';
+import { amountError } from './currency-input.mjs';
+import type { Ledger, MoneyAccount, OperationsEvent, AccountPaymentMethod, ExpenseEvent } from './types';
 const today = () => businessDay(new Date().toISOString());
 const NEW_LENDER = '__new';
 export default function AccountsPage({
@@ -25,7 +29,13 @@ export default function AccountsPage({
   branches,
   seesAll = false,
   currentBranch = 'main',
+  brand,
+  onSaveExpense,
 }: {
+  /** The business on printed statements (name and logo). */
+  brand?: string | Branding;
+  /** Save an expense (Reconcile → Record as expense). */
+  onSaveExpense?: (event: ExpenseEvent) => Promise<void>;
   /** With branches: every open branch, for whose account it is. */
   branches?: { id: string; name: string }[];
   /** The owner's view: every account with its full balance. */
@@ -54,6 +64,12 @@ export default function AccountsPage({
     [selected, setSelected] = useState(''),
     [on, setOn] = useState(today()),
     [error, setError] = useState('');
+  // Reconcile: the counted balance as typed, so the difference shows while typing; a difference can be
+  // recorded as the expense or income it was, then the reconciliation saved with nothing left over.
+  const [counted, setCounted] = useState(''),
+    [countSign, setCountSign] = useState('positive'),
+    [reconExpense, setReconExpense] = useState<number | null>(null),
+    [incomeAmount, setIncomeAmount] = useState<number | null>(null);
   const [methodDrafts, setMethodDrafts] = useState<AccountPaymentMethod[]>([]);
   function editAccount(account: MoneyAccount | 'new') {
     setError('');
@@ -92,6 +108,9 @@ export default function AccountsPage({
   const open = (kind: typeof action, id = '') => {
     setSelected(id || active[0]?.id || '');
     setOn(today());
+    setCounted('');
+    setCountSign('positive');
+    setIncomeAmount(null);
     setAction(kind);
     setError('');
   };
@@ -675,7 +694,9 @@ export default function AccountsPage({
                       amount: money(String(f.get('amount'))),
                       ...(lenderId ? { lenderId } : {}),
                     });
-                    if (ok) setAction(null);
+                    // Income recorded from a reconciliation: back to it, with the count kept.
+                    if (ok) setAction(incomeAmount !== null ? 'reconcile' : null);
+                    if (ok) setIncomeAmount(null);
                     return;
                   }
                   const kind =
@@ -811,7 +832,11 @@ export default function AccountsPage({
                     )}
                     <label>
                       Amount (₦)
-                      <CurrencyInput name="amount" required />
+                      <CurrencyInput
+                        name="amount"
+                        required
+                        defaultValue={incomeAmount !== null ? (incomeAmount / 100).toFixed(2) : ''}
+                      />
                     </label>
                   </>
                 ) : action === 'reconcile' ? (
@@ -824,17 +849,70 @@ export default function AccountsPage({
                     </p>
                     <label>
                       Actual balance (₦)
-                      <CurrencyInput name="actual" required />
+                      <CurrencyInput name="actual" required value={counted} onValueChange={setCounted} />
                     </label>
                     <label>
                       Balance type
-                      <select aria-label="Balance type" name="sign">
+                      <select
+                        aria-label="Balance type"
+                        name="sign"
+                        value={countSign}
+                        onChange={(e) => setCountSign(e.target.value)}
+                      >
                         <option value="positive">Positive / zero</option>
                         <option value="negative">Overdrawn / negative</option>
                       </select>
                     </label>
+                    {(() => {
+                      if (!selected || !counted || amountError(counted)) return null;
+                      const diff =
+                        money(counted) * (countSign === 'negative' ? -1 : 1) -
+                        accountBalance(ledger, selected, on).balance;
+                      if (diff === 0)
+                        return (
+                          <p className="reconcile-difference" role="status">
+                            <Icon name="complete" /> Matches the records: no difference.
+                          </p>
+                        );
+                      return (
+                        <div className="reconcile-difference" role="status">
+                          <p>
+                            <strong>
+                              {currency(Math.abs(diff))} {diff < 0 ? 'less' : 'more'} than expected.
+                            </strong>{' '}
+                            Remember what it was? Record it as {diff < 0 ? 'the expense' : 'the income'} it
+                            was, and the difference becomes zero. Otherwise save it below as a reconcile
+                            difference, with the reason.
+                          </p>
+                          {diff < 0 ? (
+                            onSaveExpense && (
+                              <button
+                                type="button"
+                                className="secondary"
+                                onClick={() => setReconExpense(-diff)}
+                              >
+                                <Icon name="add" /> Record as expense…
+                              </button>
+                            )
+                          ) : (
+                            <button
+                              type="button"
+                              className="secondary"
+                              onClick={() => {
+                                setError('');
+                                setMoneyType('other_income');
+                                setIncomeAmount(diff);
+                                setAction('money');
+                              }}
+                            >
+                              <Icon name="add" /> Record as income…
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })()}
                     <p className="muted">
-                      The difference is recorded as an account adjustment, not sales or an expense.
+                      A difference saved here is an account adjustment, not sales or an expense.
                     </p>
                   </>
                 ) : (
@@ -883,6 +961,27 @@ export default function AccountsPage({
             </form>
           </Modal>
         )}
+        {reconExpense !== null && onSaveExpense && (
+          <ExpenseEditor
+            key={`reconcile:${selected}:${on}:${reconExpense}`}
+            prefill={{
+              description: '',
+              category: 'Bank charges',
+              materials: [],
+              amount: reconExpense,
+              accountId: selected,
+              on,
+            }}
+            expenses={ledger.expenses}
+            payees={ledger.payees}
+            accounts={ledger.moneyAccounts}
+            materials={ledger.materials}
+            actor={actor}
+            busy={busy}
+            onSave={onSaveExpense}
+            onClose={() => setReconExpense(null)}
+          />
+        )}
         {detail && (
           <Modal
             title={`Account transactions · ${detail.name}`}
@@ -890,83 +989,15 @@ export default function AccountsPage({
             busy={busy}
             onClose={() => setDetail(null)}
           >
-            <p>
-              Opening {currency(detail.openingBalance)} on {detail.openingDate} · Expected now{' '}
-              <strong>{currency(accountBalance(ledger, detail.id).balance)}</strong>
-            </p>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Date / movement</th>
-                    <th>Received</th>
-                    <th>Paid</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {accountBalance(ledger, detail.id).transactions.map((t) => (
-                    <tr key={t.id}>
-                      <td>
-                        {t.paidOn}
-                        <small>
-                          {t.label} · {t.method}
-                        </small>
-                        {t.paidOn < detail.openingDate && (
-                          <small>Before opening date · already covered by opening balance</small>
-                        )}
-                      </td>
-                      <td>{t.direction > 0 ? currency(t.amount) : '—'}</td>
-                      <td>{t.direction < 0 ? currency(t.amount) : '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <h3>Transfers, reconciliations and other money</h3>
-            {accountBalance(ledger, detail.id)
-              .entries.filter((e: Record<string, any>) => e.action !== 'assignment')
-              .map((e: Record<string, any>) => (
-                <div key={e.id} className={`account-entry${e.cancelled ? ' cancelled-entry' : ''}`}>
-                  <p>
-                    {e.paidOn} ·{' '}
-                    {e.action === 'carried'
-                      ? `Carried forward · in ${currency(e.received)}, out ${currency(e.paid)} · net `
-                      : e.action === 'money'
-                        ? `${MONEY_TYPES[e.moneyType as keyof typeof MONEY_TYPES]?.label ?? 'Money'}${
-                            e.lenderId
-                              ? ` · ${payees.find((p) => p.id === e.lenderId)?.name ?? 'Lender'}`
-                              : ''
-                          } · ${e.direction < 0 ? '−' : '+'}`
-                        : `${e.action} · `}
-                    {currency(e.amount)}
-                    {e.action === 'transfer'
-                      ? ` · ${accountLabel(e.accountId)} → ${accountLabel(e.toAccountId)}`
-                      : ''}
-                    <br />
-                    {e.reason} · {e.modifiedByLabel}
-                    {e.cancelled ? ' · Cancelled' : ''}
-                  </p>
-                  {(e.corrections ?? []).map((c: Record<string, any>, i: number) => (
-                    <small key={i} className="entry-correction">
-                      {c.cancelled ? 'Cancelled' : 'Corrected'} by {c.correctedByLabel} on{' '}
-                      {new Date(c.correctedAt).toLocaleString('en-NG')}: was{' '}
-                      {currency(c.before.actualBalance ?? c.before.amount)}
-                      {c.before.paidOn && c.before.paidOn !== e.paidOn ? ` on ${c.before.paidOn}` : ''} ·{' '}
-                      {c.reason}
-                    </small>
-                  ))}
-                  {!e.cancelled && !e.carryForward && (
-                    <button
-                      type="button"
-                      className="text-button"
-                      disabled={busy}
-                      onClick={() => setFixing(e)}
-                    >
-                      <Icon name="edit" /> Correct
-                    </button>
-                  )}
-                </div>
-              ))}
+            <AccountStatement
+              ledger={ledger}
+              account={detail}
+              accountName={accountLabel}
+              payeeName={(id) => payees.find((p) => p.id === id)?.name ?? 'Lender'}
+              brand={brand ?? ''}
+              busy={busy}
+              onCorrect={setFixing}
+            />
             {fixing && (
               <CorrectEntry
                 entry={fixing}

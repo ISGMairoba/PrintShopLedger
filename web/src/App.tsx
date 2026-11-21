@@ -2729,6 +2729,7 @@ export default function App() {
                                   busy={busy || hasConflict}
                                   actor={salesActor}
                                   onSave={saveCatalogue}
+                                  brand={docBusiness}
                                 />
                               }
                               loadStaff={
@@ -2781,6 +2782,8 @@ export default function App() {
                               busy={busy || hasConflict}
                               actor={salesActor}
                               onSave={saveCatalogue}
+                              brand={docBusiness}
+                              onSaveExpense={saveCatalogue}
                             />
                           ) : page === 'Expenses' ? (
                             <ExpensesPage
