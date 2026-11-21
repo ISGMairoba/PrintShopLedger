@@ -176,6 +176,12 @@ try {
     ]);
     assert.match(sheet.suggestedFilename(), /^Account-statement-Main-Bank\.csv$/);
     await dialog().getByRole('button', { name: 'Close', exact: true }).click();
+    // Reports → Account statement: the same movements for a period, opening to closing balance.
+    await nav('Reports');
+    await page.getByRole('tab', { name: 'Account statement', exact: true }).click();
+    await page.getByLabel('Account', { exact: true }).selectOption({ label: 'Main Bank' });
+    await page.getByRole('heading', { name: 'Main Bank', exact: true }).waitFor();
+    await page.getByRole('table', { name: 'Account transactions' }).locator('.tag-reconcile').waitFor();
     const at = new Date().toISOString(),
       due = new Date(Date.now() + 2 * 86400000).toISOString();
     state.ledger.customers.push({
