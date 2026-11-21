@@ -802,7 +802,9 @@ export default function AccountsPage({
                           value={lender}
                           onChange={setLender}
                           placeholder="Choose the lender"
-                          pinned={moneyType === 'loan_in' ? [{ value: NEW_LENDER, label: 'New lender…' }] : []}
+                          pinned={
+                            moneyType === 'loan_in' ? [{ value: NEW_LENDER, label: 'New lender…' }] : []
+                          }
                           options={(moneyType === 'loan_in'
                             ? payees.filter((p) => !p.archived)
                             : payees.filter((p) => owedTo[p.id])

@@ -646,7 +646,10 @@ function AccountStatementTab({ ledger, freshness, busy, error, pdf, csv }: TabPr
             value={accountId}
             onChange={setAccountId}
             placeholder="Choose an account"
-            options={accounts.map((a) => ({ value: a.id, label: `${a.name}${a.archived ? ' (archived)' : ''}` }))}
+            options={accounts.map((a) => ({
+              value: a.id,
+              label: `${a.name}${a.archived ? ' (archived)' : ''}`,
+            }))}
           />
         </label>
         {controls}
