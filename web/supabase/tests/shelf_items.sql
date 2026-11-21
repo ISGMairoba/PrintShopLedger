@@ -23,6 +23,8 @@ perform public.apply_checkout_event(shop,$event${"id":"60000000-0000-4000-8000-0
 select metadata into pen from public.jobs where id='50000000-0000-4000-8000-000000000001';
 select metadata into flyer from public.jobs where id='50000000-0000-4000-8000-000000000002';
 if pen->>'productionStatus'<>'Collected' or (pen->>'shelfItem')::boolean is not true or pen ? 'dueAt' then raise exception 'Shelf job not collected: %',pen;end if;
+-- The row's own status too: the download takes it, not the metadata.
+if (select production_status from public.jobs where id='50000000-0000-4000-8000-000000000001')<>'Collected' then raise exception 'Shelf job row not collected';end if;
 if flyer->>'productionStatus'<>'Added' or flyer ? 'shelfItem' or not flyer ? 'dueAt' then raise exception 'Ordinary job changed: %',flyer;end if;
 if (select available from public.materials where id='30000000-0000-4000-8000-000000000001')<>8 then raise exception 'Stock not deducted';end if;
 -- Updating without shelfItem keeps the flag (older app versions).
