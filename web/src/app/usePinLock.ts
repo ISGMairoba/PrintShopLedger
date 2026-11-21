@@ -37,16 +37,27 @@ export default function usePinLock({
     let live = true;
     void (async () => {
       let record = await readPin(scope, userId);
+      // Decide from this device's copy first, so the app never waits on the server before it knows
+      // whether to show the lock screen. The server's copy below only refreshes it.
+      if (!live) return;
+      const flaggedFirst = lockedFlag(scope) === userId;
+      if (record || !flaggedFirst) {
+        setHasPin(!!record);
+        setLocked(!!record && (record.locked || flaggedFirst));
+        setChecked(`${scope}:${userId}`);
+      }
       if (online)
         try {
           const hash = await fetchHash();
+          // Read the device's copy again: the person may have unlocked while the server answered.
+          const now = await readPin(scope, userId);
           if (!hash) {
-            if (record && !record.locked) await writePin(scope, userId, null);
-            if (record && !record.locked) record = null;
-          } else if (!record || record.hash !== hash) {
-            record = { hash, tries: record?.tries ?? 0, locked: record?.locked ?? false };
+            if (now && !now.locked) await writePin(scope, userId, null);
+            record = now && !now.locked ? null : now;
+          } else if (!now || now.hash !== hash) {
+            record = { hash, tries: now?.tries ?? 0, locked: now?.locked ?? false };
             await writePin(scope, userId, record);
-          }
+          } else record = now;
         } catch {
           /* Offline or the server is busy: the device's copy stands. */
         }

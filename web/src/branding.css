@@ -721,3 +721,11 @@ select:focus-visible {
   height: 42px;
   padding: 4px;
 }
+/* While the app is in the background, or coming back with the auto-lock to check, nothing of it shows
+   (useAutoLock). Hidden rather than covered, so open windows (dialogs) are hidden too. */
+html.privacy-cover body * {
+  visibility: hidden !important;
+}
+html.privacy-cover ::backdrop {
+  background: var(--canvas);
+}

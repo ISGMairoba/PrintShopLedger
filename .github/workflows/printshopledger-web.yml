@@ -75,6 +75,8 @@ jobs:
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/run-check.mjs node scripts/check-device-signout.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: node scripts/run-check.mjs node scripts/check-pin-reload.mjs
+      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/run-check.mjs node scripts/check-subscription.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/run-check.mjs node scripts/check-branches.mjs

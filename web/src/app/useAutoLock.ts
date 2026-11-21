@@ -31,7 +31,7 @@ export function useAutoLock({
   active: boolean;
   online: boolean;
   busy: boolean;
-  onLock: () => void;
+  onLock: () => void | Promise<unknown>;
 }) {
   const last = useRef(Date.now());
   const state = useRef({ minutes, online, busy, onLock });
@@ -50,10 +50,11 @@ export function useAutoLock({
         write(last.current);
       }
     };
-    const check = () => {
+    /** Locks when the time is up; returns the lock's promise then (false: not due). */
+    const check = (): false | Promise<unknown> => {
       const s = state.current;
       if (
-        shouldLock({
+        !shouldLock({
           now: Date.now(),
           lastActivity: latestActivity(last.current, read()),
           minutes: s.minutes,
@@ -61,18 +62,35 @@ export function useAutoLock({
           busy: s.busy,
         })
       )
-        s.onLock();
+        return false;
+      return Promise.resolve(s.onLock());
     };
     const events = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart', 'scroll'] as const;
     for (const name of events) window.addEventListener(name, touch, { passive: true, capture: true });
+    // While the app is in the background its screen is hidden (privacy-cover in branding.css), and on
+    // the way back it stays hidden until the lock time has been checked. So the phone's app switcher
+    // and a lock that is due never show the screen behind it.
+    const cover = (on: boolean) => document.documentElement.classList.toggle('privacy-cover', on);
     const wake = () => {
-      if (document.visibilityState === 'visible') check();
+      if (document.visibilityState !== 'visible') {
+        cover(true);
+        return;
+      }
+      const due = check();
+      if (due) void Promise.resolve(due).finally(() => cover(false));
+      else cover(false);
     };
+    const hide = () => cover(true);
+    window.addEventListener('pagehide', hide);
+    window.addEventListener('pageshow', wake);
     document.addEventListener('visibilitychange', wake);
     const timer = setInterval(check, 10_000);
     return () => {
       for (const name of events) window.removeEventListener(name, touch, { capture: true });
       document.removeEventListener('visibilitychange', wake);
+      window.removeEventListener('pagehide', hide);
+      window.removeEventListener('pageshow', wake);
+      cover(false);
       clearInterval(timer);
     };
   }, [active, minutes]);
