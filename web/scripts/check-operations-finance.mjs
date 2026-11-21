@@ -115,8 +115,17 @@ try {
     await nav('Accounts');
     assert.equal(await page.getByRole('button', { name: 'Edit', exact: true }).count(), 0);
     await page.getByRole('button', { name: 'Transfer', exact: true }).click();
-    await dialog().getByLabel('Source account').selectOption({ label: 'Main Bank' });
-    await dialog().getByLabel('Destination account').selectOption({ label: 'Till' });
+    // Long lists can be typed into: the rest of the first matching name is filled in, Enter chooses it.
+    const source = dialog().getByRole('combobox', { name: 'Source account', exact: true });
+    await source.click();
+    await source.pressSequentially('Mai');
+    assert.equal(await source.inputValue(), 'Main Bank');
+    await source.press('Enter');
+    const destination = dialog().getByRole('combobox', { name: 'Destination account', exact: true });
+    await destination.click();
+    await destination.pressSequentially('ti');
+    await destination.press('Enter');
+    assert.equal(await destination.inputValue(), 'Till');
     await dialog().getByLabel('Amount (₦)', { exact: true }).fill('200');
     await dialog().getByLabel('Account entry reason').fill('Cash withdrawal');
     await save('Save transfer');
@@ -179,7 +188,10 @@ try {
     // Reports → Account statement: the same movements for a period, opening to closing balance.
     await nav('Reports');
     await page.getByRole('tab', { name: 'Account statement', exact: true }).click();
-    await page.getByLabel('Account', { exact: true }).selectOption({ label: 'Main Bank' });
+    const account = page.getByRole('combobox', { name: 'Account', exact: true });
+    await account.click();
+    await account.pressSequentially('main');
+    await account.press('Enter');
     await page.getByRole('heading', { name: 'Main Bank', exact: true }).waitFor();
     await page.getByRole('table', { name: 'Account transactions' }).locator('.tag-reconcile').waitFor();
     const at = new Date().toISOString(),
