@@ -1,3 +1,4 @@
+import SearchSelect from './SearchSelect';
 import { useState } from 'react';
 import Icon from './Icon';
 import Modal from './Modal';
@@ -135,13 +136,14 @@ export function RepeatEditor({
           </label>
           <label>
             Category
-            <select name="category" defaultValue={repeat?.category ?? from?.category ?? expenseCategories[0]}>
-              {[...new Set([...expenseCategories, repeat?.category ?? from?.category ?? ''])]
+            <SearchSelect
+              label="Category"
+              name="category"
+              defaultValue={repeat?.category ?? from?.category ?? expenseCategories[0]}
+              options={[...new Set([...expenseCategories, repeat?.category ?? from?.category ?? ''])]
                 .filter(Boolean)
-                .map((c) => (
-                  <option key={c}>{c}</option>
-                ))}
-            </select>
+                .map((c) => ({ value: c, label: c }))}
+            />
           </label>
           <label>
             Usual amount (₦)

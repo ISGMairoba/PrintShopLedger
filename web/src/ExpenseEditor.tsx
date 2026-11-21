@@ -681,17 +681,12 @@ export default function ExpenseEditor({
                 </label>
                 <label>
                   Paid from
-                  <select
-                    aria-label="Paid from"
+                  <SearchSelect
+                    label="Paid from"
                     value={paidFrom}
-                    onChange={(e) => setPaidFrom(e.target.value)}
-                  >
-                    {paidFromOptions.map((o) => (
-                      <option key={o.key} value={o.key}>
-                        {o.text}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setPaidFrom}
+                    options={paidFromOptions.map((o) => ({ value: o.key, label: o.text }))}
+                  />
                 </label>
                 <label>
                   Payment reference

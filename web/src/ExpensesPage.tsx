@@ -1,3 +1,4 @@
+import SearchSelect from './SearchSelect';
 import { useFeedbackMessage } from './Feedback';
 import { paymentName } from './business-options.mjs';
 import { useBusinessOptions } from './BusinessOptionsContext';
@@ -32,7 +33,6 @@ import type {
 } from './types';
 import { useWords } from './Words';
 import { renameActive as wt } from './Words';
-import { alphabetical } from './alphabetical.mjs';
 import { repeatExpenseId } from './repeating-expenses.mjs';
 const currency = (value: number) =>
   new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(value / 100);
@@ -107,6 +107,13 @@ export default function ExpensesPage({
     [category, setCategory] = useState(''),
     [staff, setStaff] = useState(''),
     [filtersOpen, setFiltersOpen] = useState(false);
+  // The filters' lists: every category in use or set up, and everyone who recorded an expense.
+  const categoryChoices = [...new Set([...expenseCategories, ...ledger.expenses.map((e) => e.category)])].map(
+    (value) => ({ value, label: value }),
+  );
+  const staffChoices = [
+    ...new Map(ledger.expenses.map((e) => [e.createdBy, e.createdByLabel])).entries(),
+  ].map(([value, label]) => ({ value, label }));
   const dates = useDateFilter('expenses');
   const from = dates.period.preset === 'all' ? '' : dates.period.from,
     to = dates.period.preset === 'all' ? '' : dates.period.to;
@@ -294,36 +301,23 @@ export default function ExpensesPage({
             </label>
             <label>
               Category
-              <select
-                aria-label="Expense category"
+              <SearchSelect
+                label="Expense category"
                 value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              >
-                <option value="">All categories</option>
-                {[...new Set([...expenseCategories, ...ledger.expenses.map((item) => item.category)])]
-                  .sort()
-                  .map((value) => (
-                    <option key={value}>{value}</option>
-                  ))}
-              </select>
+                onChange={setCategory}
+                pinned={[{ value: '', label: 'All categories' }]}
+                options={categoryChoices}
+              />
             </label>
             <label>
               Recorded by
-              <select aria-label="Recorded by" value={staff} onChange={(e) => setStaff(e.target.value)}>
-                <option value="">All staff</option>
-                {alphabetical(
-                  [
-                    ...new Map(
-                      ledger.expenses.map((item) => [item.createdBy, item.createdByLabel]),
-                    ).entries(),
-                  ],
-                  ([, label]) => label,
-                ).map(([id, label]) => (
-                  <option key={id} value={id}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+              <SearchSelect
+                label="Recorded by"
+                value={staff}
+                onChange={setStaff}
+                pinned={[{ value: '', label: 'All staff' }]}
+                options={staffChoices}
+              />
             </label>
             <button type="button" className="secondary history-filter-reset" onClick={reset}>
               <Icon name="sync" /> Reset filters

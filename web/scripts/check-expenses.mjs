@@ -125,7 +125,11 @@ try {
   await page.getByRole('button', { name: 'Record payment', exact: true }).click();
   d = page.getByRole('dialog', { name: 'Record expense payment' });
   assert.equal(await d.getByLabel('Amount paid (₦)').inputValue(), '20,000.00');
-  await d.getByLabel('Paid from', { exact: true }).selectOption({ label: 'Transfer' });
+  const paidFrom = d.getByRole('combobox', { name: 'Paid from', exact: true });
+  await paidFrom.click();
+  await paidFrom.pressSequentially('Transfer');
+  await paidFrom.press('Enter');
+  assert.equal(await paidFrom.inputValue(), 'Transfer');
   await d.getByLabel('Payment date and time').fill('2026-10-07T14:45');
   await d.getByRole('button', { name: 'Save payment', exact: true }).click();
   await d.waitFor({ state: 'detached' });
