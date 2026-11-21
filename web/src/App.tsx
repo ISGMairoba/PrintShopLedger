@@ -124,6 +124,7 @@ import { useAuthSessions, useOnline, useWorkspaces } from './app/useSessions';
 import { useAutoLock } from './app/useAutoLock';
 import usePinLock from './app/usePinLock';
 import { validPinHash } from './pin.mjs';
+import { lockedFlag } from './pin-store';
 import HelpPanel from './HelpPanel';
 import {
   AuthShell,
@@ -1688,14 +1689,13 @@ export default function App() {
   const lockMinutes = branding.settings.security.autoLockMinutes;
   // PIN lock (My Account → PIN): the screen locks without signing out, and the PIN unlocks it on
   // this device, online or not. People without a PIN are signed out as before.
-  const signOutStaff = (text: string) => {
-    void supabase!.auth.signOut({ scope: 'local' }).then(({ error }: { error: unknown }) => {
+  const signOutStaff = (text: string) =>
+    supabase!.auth.signOut({ scope: 'local' }).then(({ error }: { error: unknown }) => {
       if (error) return;
       setSwitchUser(false);
       setSession(null);
       setMessage(text, 'info');
     });
-  };
   const pinLock = usePinLock({
     scope: demo ? '' : scope,
     userId: !demo && shop && session && shop.userId === session.user.id ? session.user.id : '',
@@ -1710,19 +1710,29 @@ export default function App() {
   // Lock when the app opens (Business Settings → Security, on by default): a sign-in kept from
   // before opens at the PIN, or at the password for someone without a PIN (offline, without a PIN,
   // it stays open so work can go on). A sign-in made now is not locked again.
-  const openChecked = useRef('');
+  // Until this has been decided, nothing of the app is drawn (see openPending below), so a reload never
+  // shows the last screen before the lock screen.
+  const [openChecked, setOpenChecked] = useState('');
+  // The settings kept on the device are enough to decide; the server's copy isn't waited for.
+  const settingsKnown = branding.ready || branding.version > 0;
   useEffect(() => {
-    if (demo || !session || keptStaff === undefined || !pinLock.ready || !branding.ready) return;
+    if (demo || !session || keptStaff === undefined || !pinLock.ready || !settingsKnown) return;
     const id = session.user.id;
-    if (openChecked.current === id) return;
-    openChecked.current = id;
+    if (openChecked === id) return;
     // Automated checks (navigator.webdriver) reload pages constantly; they are not "opening the app".
-    if (keptStaff !== id || branding.settings.security.lockOnOpen === false || navigator.webdriver) return;
+    if (keptStaff !== id || branding.settings.security.lockOnOpen === false || navigator.webdriver) {
+      setOpenChecked(id);
+      return;
+    }
     if (pinLock.hasPin) {
-      if (!pinLock.locked) void pinLock.lock();
-    } else if (online) signOutStaff('Sign in to continue.');
+      if (pinLock.locked) setOpenChecked(id);
+      else void pinLock.lock().finally(() => setOpenChecked(id));
+    } else if (online) {
+      // Stays covered until the sign-out lands, so the app isn't shown on the way out.
+      void signOutStaff('Sign in to continue.').finally(() => setOpenChecked(id));
+    } else setOpenChecked(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [demo, session, keptStaff, pinLock.ready, pinLock.hasPin, branding.ready]);
+  }, [demo, session, keptStaff, pinLock.ready, pinLock.hasPin, settingsKnown, openChecked]);
   const savePin = async (hash: string | null) => {
     const { error } = await supabase!.rpc('set_my_pin', { p_shop: shop!.id, p_hash: hash });
     if (error) throw Error(error.message);
@@ -1848,7 +1858,12 @@ export default function App() {
       />
     );
 
-  if (!demo && session && pinLock.locked)
+  // Nothing of the app is drawn until the lock is settled: a device locked before the reload (the
+  // flag is read straight from device storage) opens at the lock screen, and until the PIN data and
+  // the open lock are checked only a plain screen shows.
+  const flaggedNow = !demo && !!session && !!scope && lockedFlag(scope) === session.user.id;
+  const lockPending = !demo && !!session && (!pinLock.ready || openChecked !== session.user.id);
+  if (!demo && session && (pinLock.locked || (flaggedNow && !pinLock.ready)))
     return (
       <PinLockScreen
         name={shop?.staffName ?? ''}
@@ -1881,6 +1896,7 @@ export default function App() {
         }
       />
     );
+  if (lockPending) return <StartupScreen error="" onRetry={() => setAuthEpoch((value) => value + 1)} />;
   if (needBranchChoice)
     return (
       <AuthShell>
