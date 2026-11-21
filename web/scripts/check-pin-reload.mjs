@@ -149,7 +149,10 @@ try {
   if (browser)
     for (const context of browser.contexts())
       for (const page of context.pages()) {
-        const text = await page.locator('body').innerText().catch(() => '');
+        const text = await page
+          .locator('body')
+          .innerText()
+          .catch(() => '');
         const keys = await page.evaluate(() => Object.keys(localStorage)).catch(() => []);
         console.error('Page:', text.slice(0, 600).replace(/\s+/g, ' '), '| keys:', keys.join(','));
       }
