@@ -16,6 +16,7 @@ import { useFeedbackMessage } from './Feedback';
 import { useBusinessOptions } from './BusinessOptionsContext';
 import { StepBuilder } from './StepBuilder';
 import { itemSteps, stagesToSteps, stepsWorkflow, validSteps } from './workflow-steps.mjs';
+import { spanLabel, stagePlan } from './stage-time.mjs';
 import CurrencyInput from './CurrencyInput';
 import { useEffect, useId, useState } from 'react';
 import Modal from './Modal';
@@ -256,6 +257,39 @@ const typedPrice = (text: string) => {
     return Number.NaN;
   }
 };
+/**
+ * Under a deadline: a warning when the job's step times don't fit before it (each step's time is
+ * then shrunk to fit; stage-time.mjs).
+ */
+function TightDeadline({
+  line,
+  jobStages,
+  stageHours,
+}: {
+  line: Record<string, any>;
+  jobStages: string[];
+  stageHours?: Record<string, number>;
+}) {
+  if (!line.dueAt) return null;
+  const plan = stagePlan(
+    {
+      createdAt: new Date().toISOString(),
+      productionStatus: 'Added',
+      workflow: line.workflow ?? jobStages,
+      stageHours: line.stageHours,
+      dueAt: line.dueAt,
+    },
+    stageHours,
+    { fromSale: true },
+  );
+  if (!plan?.tight) return null;
+  return (
+    <small className="notice" role="status">
+      Tight deadline: the steps take {spanLabel(plan.needed)}, but only {spanLabel(plan.available)} is
+      left. Each step's time is shrunk to fit.
+    </small>
+  );
+}
 const stepsOrTyped = (steps: Step[]) => {
   try {
     return validSteps(steps, 'Job steps');
@@ -1079,6 +1113,11 @@ export default function CheckoutEditor({
                               {item.dueAt ? 'Clear it for no deadline. ' : 'No deadline. '}
                               Business default: {durationLabel(jobSettings.defaultDuration).toLowerCase()}.
                             </small>
+                            <TightDeadline
+                              line={toLine(item)}
+                              jobStages={options.jobStages}
+                              stageHours={options.stageHours}
+                            />
                           </label>
                         )}
                       </div>

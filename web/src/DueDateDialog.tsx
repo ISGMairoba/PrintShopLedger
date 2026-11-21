@@ -2,6 +2,8 @@ import { useState } from 'react';
 import Modal from './Modal';
 import { toLocalInput, fromLocalInput } from './job-deadlines.mjs';
 import { operationEvent } from './operations.mjs';
+import { useBusinessOptions } from './BusinessOptionsContext';
+import { spanLabel, stagePlan } from './stage-time.mjs';
 import type { Job, OperationsEvent } from './types';
 export default function DueDateDialog({
   jobs,
@@ -19,6 +21,13 @@ export default function DueDateDialog({
   const [due, setDue] = useState(jobs.length === 1 ? toLocalInput(jobs[0].dueAt ?? '') : '');
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
+  const { stageHours } = useBusinessOptions();
+  // A date that leaves too little time for the stages still to do: they shrink to fit (stage-time.mjs).
+  const dueAt = due ? fromLocalInput(due) : '';
+  const tight =
+    jobs.length === 1 && dueAt && !Number.isNaN(Date.parse(dueAt))
+      ? stagePlan(jobs[0], stageHours, { dueAt })
+      : null;
   // Several jobs: Postpone moves each job from its own due date (or from now when it has none).
   const [shift, setShift] = useState<number | null>(null);
   const DAY = 86400000;
@@ -89,6 +98,12 @@ export default function DueDateDialog({
                 ? 'A date entered here applies to every selected job. Clear it to remove the deadlines.'
                 : 'Clear this field to remove the deadline.'}
           </small>
+          {tight?.tight && (
+            <small className="notice" role="status">
+              Tight deadline: the stages still to do take {spanLabel(tight.needed)}, but only{' '}
+              {spanLabel(tight.available)} is left. Each stage's time is shrunk to fit.
+            </small>
+          )}
           <div className="material-actions">
             {[1, 2, 7].map((days) => (
               <button
