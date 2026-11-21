@@ -115,7 +115,7 @@ export const videos = [
   {
     id: '03-quick-sale',
     title: 'Quick sale',
-    description: 'Selling shelf items in a few taps, including colours, pack prices and change.',
+    description: 'Selling shelf items in a few taps: search, colours, pack prices, payment and change.',
     steps: [
       {
         say: 'For items off the shelf, use Quick sale on Point of Service.',
@@ -125,46 +125,63 @@ export const videos = [
         },
       },
       {
-        say: 'Tap a product to add it to the sale.',
+        say: 'Tap an item to add it to the basket. Tap again for one more.',
         do: async ({ page, tap }) =>
           tap(
             page
               .getByRole('dialog', { name: 'Quick sale' })
-              .locator('.quick-product', { hasText: 'Art card' }),
+              .getByRole('group', { name: 'Items' })
+              .getByRole('button', { name: /^Art card/ }),
           ),
       },
       {
-        say: 'For a product in colours, tap the colour. Each button shows how many are left.',
-        do: async ({ page, tap }) =>
-          tap(
-            page
-              .getByRole('dialog', { name: 'Quick sale' })
-              .getByRole('button', { name: /^Add Envelope — Blue/ }),
-          ),
+        say: 'Search by name or category at the top, or use the category buttons under it.',
+        do: async ({ page, type }) =>
+          type(page.getByRole('dialog', { name: 'Quick sale' }).getByLabel('Search items'), 'envelope'),
       },
       {
-        say: 'Type the quantity. Full packs are charged at the pack price, and the rest one by one.',
-        do: async ({ page, type, show }) => {
+        say: 'An item in colours opens a choice. Each colour shows how many are left.',
+        do: async ({ page, tap }) => {
           const q = page.getByRole('dialog', { name: 'Quick sale' });
-          await type(q.getByRole('spinbutton', { name: 'Quantity of Envelope — Blue' }), '30');
-          await show(q.locator('.quick-cart tr', { hasText: 'Envelope' }), 2000);
+          await tap(q.getByRole('group', { name: 'Items' }).getByRole('button', { name: /^Envelope/ }));
+          const pick = page.getByRole('dialog', { name: 'Envelope', exact: true });
+          await tap(pick.getByRole('button', { name: /Blue/ }));
+          await tap(pick.getByRole('button', { name: 'Done', exact: true }));
         },
         min: 5,
       },
       {
-        say: 'Enter the money received. The change to give shows under the total.',
+        say: 'Type the quantity in the basket. Full packs are charged at the pack price, and the rest one by one.',
         do: async ({ page, type, show }) => {
           const q = page.getByRole('dialog', { name: 'Quick sale' });
-          await type(q.getByLabel('Money received (₦)'), '3000');
-          await show(q.locator('.cart-total'), 1800);
+          await type(q.getByLabel('Quantity of Envelope — Blue'), '30');
+          await show(q.getByRole('region', { name: 'Cart' }), 2000);
         },
+        min: 5,
+      },
+      {
+        say: 'Press Pay. The payment window shows the total to pay.',
+        do: async ({ page, tap }) =>
+          tap(page.getByRole('dialog', { name: 'Quick sale' }).getByRole('button', { name: /^Pay / })),
+      },
+      {
+        say: 'Enter the money received. The change to give shows under it.',
+        do: async ({ page, type, show }) => {
+          const pay = page.getByRole('dialog', { name: 'Payment' });
+          await type(pay.getByLabel('Money received (₦)'), '10000');
+          await show(pay.locator('.pos-pay-change'), 1800);
+        },
+      },
+      {
+        say: 'If the customer collects later, untick Collected now and set when it is due. More options holds the date, a reference and the terms for this sale.',
+        do: async ({ page, show }) =>
+          show(page.getByRole('dialog', { name: 'Payment' }).locator('.pos-collected'), 2500),
+        min: 5,
       },
       {
         say: 'Press Complete sale. Stock goes down, and the receipt opens.',
         do: async ({ page, tap }) =>
-          tap(
-            page.getByRole('dialog', { name: 'Quick sale' }).getByRole('button', { name: /^Complete sale/ }),
-          ),
+          tap(page.getByRole('dialog', { name: 'Payment' }).getByRole('button', { name: /Complete sale/ })),
         min: 4,
       },
       {
@@ -233,8 +250,12 @@ export const videos = [
         .click();
       await page.getByRole('button', { name: 'Quick sale', exact: true }).click();
       const q = page.getByRole('dialog', { name: 'Quick sale' });
-      await q.locator('.quick-product', { hasText: 'Art card' }).click();
-      await q.getByRole('button', { name: /^Complete sale/ }).click();
+      await q.getByRole('group', { name: 'Items' }).getByRole('button', { name: /^Art card/ }).click();
+      await q.getByRole('button', { name: /^Pay / }).click();
+      await page
+        .getByRole('dialog', { name: 'Payment' })
+        .getByRole('button', { name: /Complete sale/ })
+        .click();
       await page.getByRole('dialog').last().getByRole('button', { name: 'Close', exact: true }).click();
       await page
         .getByRole('navigation', { name: 'Main' })

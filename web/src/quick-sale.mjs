@@ -278,6 +278,7 @@ export function quickSaleInput(
     useWallet = false,
     reference = '',
     splits = null,
+    termsAndConditions = undefined,
   },
 ) {
   if (!cart.length) throw Error('Add at least one product.');
@@ -329,6 +330,8 @@ export function quickSaleInput(
         .trim()
         .slice(0, 120),
       ...(parts ? { splits: parts } : {}),
+      // Terms changed for this sale (More options); otherwise the receipt uses the business's.
+      ...(termsAndConditions === undefined ? {} : { termsAndConditions }),
     },
   };
 }

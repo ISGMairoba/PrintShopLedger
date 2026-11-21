@@ -351,3 +351,17 @@ test('Collected later: a chosen workflow covers the whole sale; a customer added
   assert.deepEqual([job.productionStatus, job.workflowName, job.amount], ['Added', 'Packaging', 20000]);
   assert.equal(ledger.customers.find((c) => c.id === added.data.id).name, 'Zainab');
 });
+
+test('Terms changed under More options go with the sale; otherwise the business terms apply', () => {
+  const cart = [{ serviceId: 'pen-s', quantity: 1 }];
+  const plain = quickSaleInput(shop(), cart, opts({ customerId: null, tendered: 100000 }));
+  assert.equal('termsAndConditions' in plain.input, false);
+  const own = quickSaleInput(
+    shop(),
+    cart,
+    opts({ customerId: null, tendered: 100000, termsAndConditions: 'No returns on sale items.' }),
+  );
+  assert.equal(own.input.termsAndConditions, 'No returns on sale items.');
+  const sale = prepareCheckout(shop(), own.input, actor);
+  assert.equal(sale.data.termsAndConditions, 'No returns on sale items.');
+});
