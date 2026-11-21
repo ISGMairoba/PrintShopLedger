@@ -2,11 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { emptyLedger } from '../src/domain.mjs';
 import { accountBalance } from '../src/operations.mjs';
-import {
-  accountStatement,
-  accountStatementSections,
-  filterStatement,
-} from '../src/account-statement.mjs';
+import { accountStatement, accountStatementSections, filterStatement } from '../src/account-statement.mjs';
 
 const ledger = {
   ...emptyLedger(),

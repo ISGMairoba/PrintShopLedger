@@ -725,9 +725,7 @@ function AccountStatementTab({ ledger, freshness, busy, error, pdf, csv }: TabPr
                             {STATEMENT_TYPES[r.type as keyof typeof STATEMENT_TYPES]}
                           </span>{' '}
                           {r.paidOn}
-                          <small>
-                            {[r.label, r.method, r.entry?.reason].filter(Boolean).join(' · ')}
-                          </small>
+                          <small>{[r.label, r.method, r.entry?.reason].filter(Boolean).join(' · ')}</small>
                         </td>
                         <td>{r.amountIn ? currency(r.amountIn) : '—'}</td>
                         <td>{r.amountOut ? currency(r.amountOut) : '—'}</td>
