@@ -66,7 +66,7 @@ export default function AccountsPage({
     [error, setError] = useState('');
   // Reconcile: the counted balance as typed, so the difference shows while typing; a difference can be
   // recorded as the expense or income it was, then the reconciliation saved with nothing left over.
-  const [counted, setCounted] = useState(''),
+  const [countedText, setCountedText] = useState(''),
     [countSign, setCountSign] = useState('positive'),
     [reconExpense, setReconExpense] = useState<number | null>(null),
     [incomeAmount, setIncomeAmount] = useState<number | null>(null);
@@ -108,7 +108,7 @@ export default function AccountsPage({
   const open = (kind: typeof action, id = '') => {
     setSelected(id || active[0]?.id || '');
     setOn(today());
-    setCounted('');
+    setCountedText('');
     setCountSign('positive');
     setIncomeAmount(null);
     setAction(kind);
@@ -849,7 +849,12 @@ export default function AccountsPage({
                     </p>
                     <label>
                       Actual balance (₦)
-                      <CurrencyInput name="actual" required value={counted} onValueChange={setCounted} />
+                      <CurrencyInput
+                        name="actual"
+                        required
+                        value={countedText}
+                        onValueChange={setCountedText}
+                      />
                     </label>
                     <label>
                       Balance type
@@ -864,9 +869,9 @@ export default function AccountsPage({
                       </select>
                     </label>
                     {(() => {
-                      if (!selected || !counted || amountError(counted)) return null;
+                      if (!selected || !countedText || amountError(countedText)) return null;
                       const diff =
-                        money(counted) * (countSign === 'negative' ? -1 : 1) -
+                        money(countedText) * (countSign === 'negative' ? -1 : 1) -
                         accountBalance(ledger, selected, on).balance;
                       if (diff === 0)
                         return (
