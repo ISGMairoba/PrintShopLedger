@@ -5,7 +5,7 @@ declare shop uuid; e jsonb := $event${"id":"f7df9571-6c5e-452c-9966-0637e59da403
 begin
 insert into auth.users(id,email,raw_user_meta_data,created_at) values('df2bb1e7-2dd9-480c-b566-98e59343d6c9','df2bb1e7-2dd9-480c-b566-98e59343d6c9@example.invalid','{}',now());
 perform set_config('request.jwt.claim.sub','df2bb1e7-2dd9-480c-b566-98e59343d6c9',true);
-shop:=public.create_shop('Materialless service test');
+shop:=test.new_shop('Materialless service test');
 perform public.apply_service_event(shop,$event${"id":"97955b60-4528-4a98-a933-7bdb1deede96","kind":"service.created","data":{"id":"c2c924e3-e5da-4c8a-bcb6-d856256928b3","description":"Cap pressing","materialId":null,"price":50000,"modifiedBy":"df2bb1e7-2dd9-480c-b566-98e59343d6c9"}}$event$::jsonb);
 if not exists(select 1 from public.services where id='c2c924e3-e5da-4c8a-bcb6-d856256928b3' and material_id is null) then raise exception 'Materialless creation failed';end if;
 perform public.apply_customer_event(shop,jsonb_build_object('id',gen_random_uuid(),'kind','customer.created','data',jsonb_build_object('id','c4d13b47-761b-416d-92bf-b0d9ce03d98a','name','Customer','phone','080111','address','','creditLimit',0,'modifiedBy','df2bb1e7-2dd9-480c-b566-98e59343d6c9')));
@@ -16,11 +16,11 @@ perform public.apply_service_event(shop,$event${"id":"dfa34f7d-14e6-44b6-a1dd-67
 perform public.apply_service_event(shop,$event${"id":"482deec9-448c-4fe0-a41d-68bd81a56950","kind":"service.updated","data":{"id":"c2c924e3-e5da-4c8a-bcb6-d856256928b3","description":"Cap pressing","materialId":null,"price":50000,"baseVersion":2,"modifiedBy":"df2bb1e7-2dd9-480c-b566-98e59343d6c9"}}$event$::jsonb);
 e:=jsonb_set(e,'{data,jobs,1,serviceVersion}','3');
 rejected:=false;
-begin perform public.apply_checkout_event(shop,jsonb_set(e,'{data,jobs,1,materialNeeded}','1')); exception when others then rejected:=true;end;
+begin perform test.checkout(shop,jsonb_set(e,'{data,jobs,1,materialNeeded}','1')); exception when others then rejected:=true;end;
 if not rejected then raise exception 'Forged stock usage accepted';end if;
 if exists(select 1 from public.jobs where shop_id=shop) or (select available from public.materials where id='df6e60dc-0887-4706-972c-86616e7a833b')<>10 then raise exception 'Rejected checkout partially applied';end if;
-perform public.apply_checkout_event(shop,e);
-perform public.apply_checkout_event(shop,e);
+perform test.checkout(shop,e);
+perform test.checkout(shop,e);
 if (select available from public.materials where id='df6e60dc-0887-4706-972c-86616e7a833b')<>8 or (select version from public.materials where id='df6e60dc-0887-4706-972c-86616e7a833b')<>2 then raise exception 'Mixed checkout stock incorrect';end if;
 if (select count(*) from public.material_stock_changes where shop_id=shop)<>2 then raise exception 'Materialless job created a stock history record';end if;
 if (select count(*) from public.jobs where shop_id=shop)<>2 then raise exception 'Mixed checkout or retry failed';end if;

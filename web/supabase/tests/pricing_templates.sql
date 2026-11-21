@@ -65,9 +65,9 @@ changed:=jsonb_set(quotation,'{id}','"a0000000-0000-4000-8000-000000000097"');ch
 begin perform public.apply_quotation_event(shop,changed);raise exception 'Tampered quotation accepted';exception when sqlstate 'PT409' then null;end;
 -- Tampered prices, costs or stock are refused.
 changed:=jsonb_set(e,'{data,jobs,0,templateSnapshot,expenses,0,amount}','"6400"');
-begin perform public.apply_checkout_event(shop,changed);raise exception 'Tampered expense accepted';exception when sqlstate 'PT409' then null;end;
+begin perform test.checkout(shop,changed);raise exception 'Tampered expense accepted';exception when sqlstate 'PT409' then null;end;
 changed:=jsonb_set(e,'{data,jobs,0,templateSnapshot,stock,0,quantity}','1');
-begin perform public.apply_checkout_event(shop,changed);raise exception 'Tampered stock accepted';exception when sqlstate 'PT409' then null;end;
+begin perform test.checkout(shop,changed);raise exception 'Tampered stock accepted';exception when sqlstate 'PT409' then null;end;
 execute 'reset role';update public.services set costing=jsonb_set(costing,'{amount}','510000') where shop_id=shop and id='a0000000-0000-4000-8000-000000000005';execute 'set local role authenticated';
 begin -- Management may discount a template to zero; the item floor applies only to Cashiers.
 begin
@@ -85,17 +85,17 @@ set local role authenticated;
  changed:=jsonb_set(changed,'{data,allocated}','0');
  changed:=jsonb_set(changed,'{data,allocations}','[]');
  changed:=jsonb_set(changed,'{data,outstandingAfter}','0');
- perform public.apply_checkout_event(shop,changed);
+ perform test.checkout(shop,changed);
  if not exists(select 1 from public.jobs where shop_id=shop and id=(changed->'data'->'jobs'->0->>'id')::uuid and amount=0) then raise exception 'Manager free job not saved';end if;
  raise exception 'Rollback successful management check' using errcode='ZX001';
 exception when sqlstate 'ZX001' then null;end;
-perform public.apply_checkout_event(shop,e);raise exception 'Stale cost accepted';exception when sqlstate 'PT409' then null;end;
+perform test.checkout(shop,e);raise exception 'Stale cost accepted';exception when sqlstate 'PT409' then null;end;
 execute 'reset role';update public.services set costing=jsonb_set(costing,'{amount}','500000') where shop_id=shop and id='a0000000-0000-4000-8000-000000000005';execute 'set local role authenticated';
-perform public.apply_checkout_event(shop,e);
+perform test.checkout(shop,e);
 if (select count(*) from public.jobs where shop_id=shop)<>1 or (select amount from public.jobs where shop_id=shop and id='a0000000-0000-4000-8000-000000000020')<>2880000 then raise exception 'Book job incorrect';end if;
 if (select available from public.materials where shop_id=shop and id='a0000000-0000-4000-8000-000000000003')<>1350 or (select available from public.materials where shop_id=shop and id='a0000000-0000-4000-8000-000000000010')<>47 or (select available from public.materials where shop_id=shop and id='a0000000-0000-4000-8000-000000000004')<>2000 then raise exception 'Stock deducted incorrectly';end if;
 if (select count(*) from public.material_stock_changes where shop_id=shop and action='material.job_used')<>2 then raise exception 'Stock history incomplete';end if;
-perform public.apply_checkout_event(shop,e);
+perform test.checkout(shop,e);
 if (select available from public.materials where shop_id=shop and id='a0000000-0000-4000-8000-000000000003')<>1350 then raise exception 'Retry deducted again';end if;
 -- Discounts above the template maximum (5%) or below its minimum price are refused.
 changed:=jsonb_set(second,'{data,jobs,0,discount}','{"kind":"percent","value":6}');
@@ -107,20 +107,20 @@ set local role authenticated;
 reset role;
 update public.business_settings bs set settings=jsonb_set(bs.settings,'{discounts}', '{"maxPercent":{"1":100,"2":20,"3":100}}') where shop_id=shop;
 set local role authenticated;
-begin perform public.apply_checkout_event(shop,changed);raise exception 'Over-maximum discount accepted';exception when sqlstate 'PT409' then if sqlerrm not like 'This discount is outside%' then raise;end if;end;
+begin perform test.checkout(shop,changed);raise exception 'Over-maximum discount accepted';exception when sqlstate 'PT409' then if sqlerrm not like 'This discount is outside%' then raise;end if;end;
 -- A templates-only item cannot be sold.
 reset role;
 update public.shop_members set role='developer',rank=5,access_level=5 where shop_id=shop and user_id=auth.uid();
 set local role authenticated;
-begin perform public.apply_checkout_event(shop,private_sale);raise exception 'Private item sold';exception when sqlstate 'PT409' then if sqlerrm not like '%templates only%' then raise;end if;end;
-perform public.apply_checkout_event(shop,second);
+begin perform test.checkout(shop,private_sale);raise exception 'Private item sold';exception when sqlstate 'PT409' then if sqlerrm not like '%templates only%' then raise;end if;end;
+perform test.checkout(shop,second);
 if (select available from public.materials where shop_id=shop and id='a0000000-0000-4000-8000-000000000003')<>700 then raise exception 'Second book stock incorrect';end if;
 -- Disabled templates stop new sales.
 execute 'reset role';
 changed:=jsonb_set(settings,'{pricing,enabled}','false');
 perform public.save_business_settings(shop,(select version from public.business_settings where shop_id=shop),changed);
 execute 'set local role authenticated';
-begin perform public.apply_checkout_event(shop,jsonb_set(jsonb_set(e,'{id}','"a0000000-0000-4000-8000-000000000098"'),'{data,id}','"a0000000-0000-4000-8000-000000000098"'));raise exception 'Disabled template accepted';exception when sqlstate 'PT409' then null;end;
+begin perform test.checkout(shop,jsonb_set(jsonb_set(e,'{id}','"a0000000-0000-4000-8000-000000000098"'),'{data,id}','"a0000000-0000-4000-8000-000000000098"'));raise exception 'Disabled template accepted';exception when sqlstate 'PT409' then null;end;
 execute 'reset role';
 raise notice 'PRICING_TEMPLATES_TEST_PASSED';
 end $test$;

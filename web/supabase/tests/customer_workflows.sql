@@ -10,8 +10,10 @@ e:=jsonb_build_object('id',gen_random_uuid(),'kind','customer.created','data',js
 perform public.apply_customer_event(s,e);perform public.apply_customer_event(s,e);
 if (select count(*) from public.customers where shop_id=s)<>1 then raise exception 'Idempotency failed'; end if;
 if (select created_by_label from public.customers where shop_id=s and id=c)<>'Database Test' then raise exception 'Trusted audit failed'; end if;
-perform public.apply_ledger_event(s,jsonb_build_object('id',gen_random_uuid(),'kind','job.created','data',jsonb_build_object('id',j,'customerId',c,'description','Test job','service','Printing','amount',10000,'createdAt',now())));
-perform public.apply_ledger_event(s,jsonb_build_object('id',gen_random_uuid(),'kind','payment.recorded','data',jsonb_build_object('id',p,'customerId',c,'amount',4000,'method','Cash','paidOn',current_date,'createdAt',now(),'allocations',jsonb_build_array(jsonb_build_object('jobId',j,'amount',4000)))));
+-- A job owing 6,000 after a 4,000 payment (sales are recorded through checkout; set up directly here).
+insert into public.jobs(shop_id,id,customer_id,service,description,amount,created_at,metadata) values(s,j,c,'Printing','Test job',10000,now(),'{}');
+insert into public.payments(shop_id,id,customer_id,amount,method,paid_on,created_at) values(s,p,c,4000,'Cash',current_date,now());
+insert into public.payment_allocations(shop_id,payment_id,job_id,amount) values(s,p,j,4000);
 perform public.apply_customer_event(s,jsonb_build_object('id',gen_random_uuid(),'kind','customer.updated','data',jsonb_build_object('id',c,'baseVersion',1,'name','Updated','phone','0802','creditLimit',0,'modifiedBy',u)));
 perform public.apply_customer_event(s,jsonb_build_object('id',gen_random_uuid(),'kind','customer.archived','data',jsonb_build_object('id',c,'baseVersion',2,'modifiedBy',u)));
 if not (select archived from public.customers where shop_id=s and id=c) then raise exception 'Archive failed'; end if;
