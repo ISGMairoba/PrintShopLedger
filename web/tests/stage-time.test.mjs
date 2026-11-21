@@ -31,9 +31,7 @@ test('every stage timed: each gets its share of the deadline', () => {
 });
 
 test('some stages timed: they keep their times and the others share what is left', () => {
-  const plan = stagePlan(
-    sale({ dueAt: '2026-11-08T08:00:00Z', stageHours: { Design: 2, Printing: 4 } }),
-  );
+  const plan = stagePlan(sale({ dueAt: '2026-11-08T08:00:00Z', stageHours: { Design: 2, Printing: 4 } }));
   assert.deepEqual(plan.allowances, { Design: 2 * H, Printing: 4 * H, Finishing: 18 * H });
 });
 
@@ -43,9 +41,7 @@ test('a deadline shorter than the set times shrinks every stage to fit and is ti
   assert.equal(plan.tight, true);
   assert.equal(plan.needed, 8 * H);
   // Untimed stages count as an average timed stage when shrinking.
-  const mixed = stagePlan(
-    sale({ dueAt: '2026-11-07T12:00:00Z', stageHours: { Design: 2, Printing: 4 } }),
-  );
+  const mixed = stagePlan(sale({ dueAt: '2026-11-07T12:00:00Z', stageHours: { Design: 2, Printing: 4 } }));
   // Weights 2 : 4 : 3 (the average), fitted into the 4 hours left.
   const a = mixed.allowances;
   assert.ok(Math.abs(a.Design + a.Printing + a.Finishing - 4 * H) < 1);

@@ -285,8 +285,8 @@ function TightDeadline({
   if (!plan?.tight) return null;
   return (
     <small className="notice" role="status">
-      Tight deadline: the steps take {spanLabel(plan.needed)}, but only {spanLabel(plan.available)} is
-      left. Each step's time is shrunk to fit.
+      Tight deadline: the steps take {spanLabel(plan.needed)}, but only {spanLabel(plan.available)} is left.
+      Each step's time is shrunk to fit.
     </small>
   );
 }
