@@ -1710,13 +1710,13 @@ export default function App() {
   // Lock when the app opens (Business Settings → Security, on by default): a sign-in kept from
   // before opens at the PIN, or at the password for someone without a PIN (offline, without a PIN,
   // it stays open so work can go on). A sign-in made now is not locked again.
-  // Until this has been decided, nothing of the app is drawn (see openPending below), so a reload never
+  // Until this has been decided, nothing of the app is drawn (see lockPending below), so a reload never
   // shows the last screen before the lock screen.
   const [openChecked, setOpenChecked] = useState('');
   // The settings kept on the device are enough to decide; the server's copy isn't waited for.
   const settingsKnown = branding.ready || branding.version > 0;
   useEffect(() => {
-    if (demo || !session || keptStaff === undefined || !pinLock.ready || !settingsKnown) return;
+    if (demo || !session || !scope || keptStaff === undefined || !pinLock.ready || !settingsKnown) return;
     const id = session.user.id;
     if (openChecked === id) return;
     // Automated checks (navigator.webdriver) reload pages constantly; they are not "opening the app".
@@ -1732,7 +1732,7 @@ export default function App() {
       void signOutStaff('Sign in to continue.').finally(() => setOpenChecked(id));
     } else setOpenChecked(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [demo, session, keptStaff, pinLock.ready, pinLock.hasPin, settingsKnown, openChecked]);
+  }, [demo, session, scope, keptStaff, pinLock.ready, pinLock.hasPin, settingsKnown, openChecked]);
   const savePin = async (hash: string | null) => {
     const { error } = await supabase!.rpc('set_my_pin', { p_shop: shop!.id, p_hash: hash });
     if (error) throw Error(error.message);
@@ -1862,7 +1862,7 @@ export default function App() {
   // flag is read straight from device storage) opens at the lock screen, and until the PIN data and
   // the open lock are checked only a plain screen shows.
   const flaggedNow = !demo && !!session && !!scope && lockedFlag(scope) === session.user.id;
-  const lockPending = !demo && !!session && (!pinLock.ready || openChecked !== session.user.id);
+  const lockPending = !demo && !!session && !!scope && (!pinLock.ready || openChecked !== session.user.id);
   if (!demo && session && (pinLock.locked || (flaggedNow && !pinLock.ready)))
     return (
       <PinLockScreen

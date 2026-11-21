@@ -55,7 +55,7 @@ try {
     businessName: 'Mairoba Studios',
     security: { ...defaultBranding().security, autoLockMinutes: 5 },
   };
-  const hash = await hashPin('2580', 1000);
+  const hash = await hashPin('2580', 10000);
   // How long the server takes to give the PIN hash (slow after the reload).
   let pinDelay = 0;
   await context.route('https://*.supabase.co/**', async (route) => {
@@ -119,6 +119,8 @@ try {
 
   await lockButton.click();
   await page.getByText('Locked', { exact: true }).waitFor();
+  const flags = await page.evaluate(() => Object.keys(localStorage).filter((k) => k.includes(':locked:')));
+  assert.equal(flags.length, 1, 'the lock flag is kept on the device');
 
   // From the first moment of the reload, note whether anything of the app ever appears.
   await page.addInitScript(() => {
@@ -143,6 +145,14 @@ try {
   assert.deepEqual(errors, []);
   console.log('PIN reload passed');
 } catch (error) {
+  // What the page showed, for the failure annotation.
+  if (browser)
+    for (const context of browser.contexts())
+      for (const page of context.pages()) {
+        const text = await page.locator('body').innerText().catch(() => '');
+        const keys = await page.evaluate(() => Object.keys(localStorage)).catch(() => []);
+        console.error('Page:', text.slice(0, 600).replace(/\s+/g, ' '), '| keys:', keys.join(','));
+      }
   if (browser)
     for (const context of browser.contexts())
       for (const page of context.pages())
