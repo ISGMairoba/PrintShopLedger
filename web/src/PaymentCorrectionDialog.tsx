@@ -158,7 +158,9 @@ export default function PaymentCorrectionDialog({
                 onChange={setMethod}
                 required
                 options={[
-                  ...(!methods.some((m) => m.label === method) && method ? [{ value: method, label: method }] : []),
+                  ...(!methods.some((m) => m.label === method) && method
+                    ? [{ value: method, label: method }]
+                    : []),
                   ...methods.map((m) => ({ value: m.label, label: m.displayLabel || m.label })),
                 ]}
               />

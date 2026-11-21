@@ -1085,7 +1085,10 @@ export default function CheckoutEditor({
                             label={w('Job received through')}
                             value={item.source}
                             onChange={(next) => editLine(item.id, 'source', next)}
-                            options={[...new Set([...jobSources, item.source])].map((s) => ({ value: s, label: s }))}
+                            options={[...new Set([...jobSources, item.source])].map((s) => ({
+                              value: s,
+                              label: s,
+                            }))}
                           />
                         </label>
                         <label>
@@ -1180,7 +1183,10 @@ export default function CheckoutEditor({
                                       ),
                                     );
                                   }}
-                                  options={(options.workflows ?? []).map((wf) => ({ value: wf.id, label: wf.name }))}
+                                  options={(options.workflows ?? []).map((wf) => ({
+                                    value: wf.id,
+                                    label: wf.name,
+                                  }))}
                                 />
                               </label>
                             )}

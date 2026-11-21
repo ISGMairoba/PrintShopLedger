@@ -244,7 +244,10 @@ try {
     await customer.waitFor({ state: 'detached' });
     await pick(dialog, 'Service', { index: 0 });
     await dialog.getByLabel('Job description').fill('Client cap');
-    assert.equal(await dialog.getByLabel('Job received through', { exact: true }).inputValue(), 'Instagram DM');
+    assert.equal(
+      await dialog.getByLabel('Job received through', { exact: true }).inputValue(),
+      'Instagram DM',
+    );
     await choose(dialog, 'Payment method', 'Transfer');
     await dialog.getByLabel('Money received (₦)').fill('5000');
     await dialog.getByRole('button', { name: 'Complete checkout', exact: true }).click();

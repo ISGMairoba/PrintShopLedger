@@ -124,7 +124,9 @@ export default function ExtraMaterials({
                     value={r.materialId}
                     disabled={cancelled}
                     placeholder="Choose a material…"
-                    onChange={(materialId) => setRows(rows.map((x, j) => (j === i ? { ...x, materialId } : x)))}
+                    onChange={(materialId) =>
+                      setRows(rows.map((x, j) => (j === i ? { ...x, materialId } : x)))
+                    }
                     options={choices.map((c) => ({
                       value: c.id,
                       label: `${c.name} · ${qty(c.available)} ${c.measurementUnit} in stock`,

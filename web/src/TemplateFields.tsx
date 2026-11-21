@@ -652,7 +652,9 @@ export function TemplateCalculator({
             options={active.map((t) => ({
               value: t.id,
               label:
-                t.category && t.category.toLowerCase() !== t.name.toLowerCase() ? `${t.category} · ${t.name}` : t.name,
+                t.category && t.category.toLowerCase() !== t.name.toLowerCase()
+                  ? `${t.category} · ${t.name}`
+                  : t.name,
             }))}
           />
           {template.description && <small>{template.description}</small>}

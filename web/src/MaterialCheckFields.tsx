@@ -83,7 +83,10 @@ export default function MaterialCheckFields({
                   label={`${line.name}: material`}
                   value={r.materialId}
                   onChange={(materialId) => set(index, { materialId })}
-                  options={options.map((m) => ({ value: m.id, label: `${m.name} · ${m.available} in stock` }))}
+                  options={options.map((m) => ({
+                    value: m.id,
+                    label: `${m.name} · ${m.available} in stock`,
+                  }))}
                 />
                 <span className="input-with-unit">
                   <input

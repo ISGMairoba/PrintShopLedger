@@ -159,7 +159,9 @@ export default function SplitCorrectionDialog({
                   label={`Part ${index + 1}: method`}
                   value={part.method}
                   required
-                  onChange={(method) => setParts((all) => all.map((p, i) => (i === index ? { ...p, method } : p)))}
+                  onChange={(method) =>
+                    setParts((all) => all.map((p, i) => (i === index ? { ...p, method } : p)))
+                  }
                   options={[
                     ...(methods.some((m) => m.label === part.method)
                       ? []

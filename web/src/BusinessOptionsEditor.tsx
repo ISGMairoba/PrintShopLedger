@@ -339,7 +339,10 @@ export default function BusinessOptionsEditor({
                 pinned={[
                   { value: '', label: `${stage('Added')} → ${stage('Processing')} → ${stage('Completed')}` },
                 ]}
-                options={(value.workflows ?? []).map((wf) => ({ value: wf.id, label: wf.name || 'Unnamed workflow' }))}
+                options={(value.workflows ?? []).map((wf) => ({
+                  value: wf.id,
+                  label: wf.name || 'Unnamed workflow',
+                }))}
               />
               <small>
                 {w(

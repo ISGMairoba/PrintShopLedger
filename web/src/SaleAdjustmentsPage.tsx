@@ -802,7 +802,10 @@ export function SaleAdjustmentEditor({
                             value={method}
                             onChange={setMethod}
                             required
-                            options={methods.map((m) => ({ value: m.label, label: m.displayLabel || m.label }))}
+                            options={methods.map((m) => ({
+                              value: m.label,
+                              label: m.displayLabel || m.label,
+                            }))}
                           />
                         </label>
                       </div>
