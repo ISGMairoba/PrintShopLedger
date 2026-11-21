@@ -1,5 +1,6 @@
 import { minOrderRule } from './min-order.mjs';
 import SearchSelect from './SearchSelect';
+import DefaultTermsButton from './DefaultTermsButton';
 import { stockBelowZeroBlocked } from './stock-rule.mjs';
 import { defaultMethod, defaultSource } from './business-options.mjs';
 import { alphabetical } from './alphabetical.mjs';
@@ -78,6 +79,7 @@ export default function QuickSale({
   canChooseWorkflow = false,
   tileSettings,
   brand = { primary: '#124b40', accent: '#d9a126' },
+  defaultTerms = '',
 }: {
   ledger: Ledger;
   actor: { id: string; label: string };
@@ -106,6 +108,8 @@ export default function QuickSale({
   /** Item tile colours (Appearance) and the brand colours they are made from. */
   tileSettings?: unknown;
   brand?: { primary: string; accent: string };
+  /** The business's terms for sales documents (More options can change them for one sale). */
+  defaultTerms?: string;
 }) {
   const resumed =
     held?.kind === 'quick'
@@ -610,6 +614,7 @@ export default function QuickSale({
           canChooseWorkflow={canChooseWorkflow}
           stageName={stage}
           w={w}
+          defaultTerms={defaultTerms}
           onClose={() => setPaying(false)}
           onComplete={async (event) => {
             const record = await onSave(event);
@@ -644,6 +649,7 @@ function PayDialog({
   canChooseWorkflow,
   stageName,
   w,
+  defaultTerms,
   onClose,
   onComplete,
 }: {
@@ -658,6 +664,7 @@ function PayDialog({
   customerText: string;
   onCustomerText: (text: string) => void;
   newCustomer: CustomerEvent | null;
+  defaultTerms: string;
   onNewCustomer: (event: CustomerEvent | null) => void;
   methods: { label: string; kind: string }[];
   jobSettings: { defaultDuration: { value: number; unit: string } };
@@ -705,6 +712,7 @@ function PayDialog({
       })();
   const change = !customer && tendered !== null && tendered > total ? tendered - total : 0;
   const delivered = stageName('Collected');
+  const [terms, setTerms] = useState(defaultTerms);
   async function complete() {
     if (busy) return;
     setError('');
@@ -736,6 +744,7 @@ function PayDialog({
         useWallet: wallet > 0 && useWallet,
         reference,
         splits: parts,
+        termsAndConditions: terms === defaultTerms ? undefined : terms,
       });
       await onComplete(prepareCheckout(ledger, input, actor) as CheckoutEvent);
     } catch (cause) {
@@ -942,6 +951,21 @@ function PayDialog({
               />
             </label>
           </div>
+          <label>
+            Terms for this sale
+            <textarea
+              maxLength={5000}
+              aria-label="Terms for this sale"
+              value={terms}
+              onChange={(e) => setTerms(e.target.value)}
+            />
+          </label>
+          <DefaultTermsButton
+            value={terms}
+            defaults={defaultTerms}
+            kind="invoice / sales document"
+            onUse={setTerms}
+          />
         </details>
       </Modal>
       {adding && (

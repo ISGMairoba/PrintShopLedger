@@ -2905,6 +2905,7 @@ export default function App() {
                               canChooseWorkflow={demo || (shop?.accessLevel ?? 0) >= 2}
                               tileSettings={branding.settings.tiles}
                               brand={{ primary: branding.settings.primary, accent: branding.settings.accent }}
+                              defaultTerms={branding.settings.documents.invoiceTerms}
                               discountPolicy={discountPolicy(
                                 branding.settings.discounts,
                                 demo ? 5 : (shop?.accessLevel ?? 0),
@@ -3326,6 +3327,7 @@ export default function App() {
                           canChooseWorkflow={demo || (shop?.accessLevel ?? 0) >= 2}
                           tileSettings={branding.settings.tiles}
                           brand={{ primary: branding.settings.primary, accent: branding.settings.accent }}
+                          defaultTerms={branding.settings.documents.invoiceTerms}
                           discountPolicy={discountPolicy(
                             branding.settings.discounts,
                             demo ? 5 : (shop?.accessLevel ?? 0),

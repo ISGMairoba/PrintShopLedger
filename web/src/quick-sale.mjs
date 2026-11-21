@@ -255,7 +255,8 @@ export function pricedCart(ledger, cart, { discount = null, policy = null, sourc
  * with an optional deadline, and a saved customer is needed.
  * newCustomer: a customer.created event for a customer added during the sale (they buy it).
  * useWallet: a saved customer's wallet credit pays first.
- * @param {{ customerId: string | null, tendered: number, method: string, methodLabel: string, paidOn: string, source: string, actor: { id: string, label: string }, now: string, discount?: { kind: string, value: number, reason?: string } | null, policy?: { maxPercent: number, canFlat: boolean } | null, collected?: boolean, dueAt?: string, workflowFor?: ((serviceId: string) => Record<string, unknown>) | null, newCustomer?: any, useWallet?: boolean, reference?: string, splits?: { method: string, methodLabel: string, accountId?: string, amount: number }[] | null }} options
+ * termsAndConditions: terms changed for this sale (left out, the receipt uses the business terms).
+ * @param {{ customerId: string | null, tendered: number, method: string, methodLabel: string, paidOn: string, source: string, actor: { id: string, label: string }, now: string, discount?: { kind: string, value: number, reason?: string } | null, policy?: { maxPercent: number, canFlat: boolean } | null, collected?: boolean, dueAt?: string, workflowFor?: ((serviceId: string) => Record<string, unknown>) | null, newCustomer?: any, useWallet?: boolean, reference?: string, splits?: { method: string, methodLabel: string, accountId?: string, amount: number }[] | null, termsAndConditions?: string }} options
  */
 export function quickSaleInput(
   ledger,
@@ -278,6 +279,7 @@ export function quickSaleInput(
     useWallet = false,
     reference = '',
     splits = null,
+    termsAndConditions = undefined,
   },
 ) {
   if (!cart.length) throw Error('Add at least one product.');
@@ -329,6 +331,8 @@ export function quickSaleInput(
         .trim()
         .slice(0, 120),
       ...(parts ? { splits: parts } : {}),
+      // Terms changed for this sale (More options); otherwise the receipt uses the business's.
+      ...(termsAndConditions === undefined ? {} : { termsAndConditions }),
     },
   };
 }
