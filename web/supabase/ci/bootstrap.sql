@@ -8,6 +8,12 @@ do $$ begin
   if not exists (select 1 from pg_roles where rolname = 'supabase_admin') then create role supabase_admin nologin; end if;
 end $$;
 grant anon, authenticated, service_role to postgres;
+-- Supabase's defaults: everything new in public is open to the API roles until a migration revokes it
+-- (the live database has exactly these). Without them the tests would miss a missing revoke.
+grant usage on schema public to anon, authenticated, service_role;
+alter default privileges for role postgres in schema public grant all on tables to anon, authenticated, service_role;
+alter default privileges for role postgres in schema public grant all on functions to anon, authenticated, service_role;
+alter default privileges for role postgres in schema public grant all on sequences to anon, authenticated, service_role;
 create schema if not exists extensions;
 create extension if not exists pgcrypto with schema extensions;
 create extension if not exists "uuid-ossp" with schema extensions;
