@@ -26,8 +26,10 @@ import {
   summaryReport,
   summarySections,
   reportFileName,
+  naira,
 } from './reports.mjs';
 import { currency } from './receipts.mjs';
+import { accountStatement, accountStatementSections, STATEMENT_TYPES } from './account-statement.mjs';
 import { downloadCsv, type ReportSection } from './export-csv';
 import type { Branding } from './useBusinessBranding';
 import type { Ledger } from './types';
@@ -51,6 +53,8 @@ export type ReportAccess = {
   stock: boolean;
   /** May see costs and profit (Business Settings → Pricing templates → who sees costs). */
   costs?: boolean;
+  /** May see money accounts (the Accounts page). */
+  accounts?: boolean;
 };
 type Props = {
   ledger: Ledger;
@@ -76,7 +80,14 @@ type Props = {
 };
 /** Each report says the earliest day it needs (its period, and the period it compares with). */
 const ReportNeeds = createContext<(key: string, from: string) => void>(() => {});
-type Tab = 'Customer statement' | 'Payee statement' | 'Transactions' | 'Summary' | 'Profit' | 'Profit & loss';
+type Tab =
+  | 'Customer statement'
+  | 'Payee statement'
+  | 'Account statement'
+  | 'Transactions'
+  | 'Summary'
+  | 'Profit'
+  | 'Profit & loss';
 type StatementJob = {
   id: string;
   ref: string;
@@ -339,11 +350,20 @@ export default function ReportsPage({
     void import('./share-pdf');
   }, []);
   const tabs = (
-    ['Customer statement', 'Payee statement', 'Transactions', 'Summary', 'Profit', 'Profit & loss'] as Tab[]
+    [
+      'Customer statement',
+      'Payee statement',
+      'Account statement',
+      'Transactions',
+      'Summary',
+      'Profit',
+      'Profit & loss',
+    ] as Tab[]
   ).filter(
     (t) =>
       (t !== 'Customer statement' || (access.customers && access.jobs && access.payments)) &&
       (t !== 'Payee statement' || access.expenses) &&
+      (t !== 'Account statement' || !!access.accounts) &&
       (t !== 'Profit' || (!!access.costs && access.jobs)) &&
       (t !== 'Profit & loss' || (!!access.costs && access.jobs && access.expenses)),
   );
@@ -509,6 +529,8 @@ export default function ReportsPage({
           <ProfitLossTab {...shared} />
         ) : tab === 'Payee statement' ? (
           <PayeeStatementTab {...shared} payeeId={payeeId} onPayeeChange={onPayeeChange} />
+        ) : tab === 'Account statement' ? (
+          <AccountStatementTab {...shared} />
         ) : tab === 'Transactions' ? (
           <TransactionsTab {...shared} access={access} />
         ) : (
@@ -574,6 +596,157 @@ type PayeeStatement = {
     entries: { id: string; date: string; kind: string; amount: number; note: string }[];
   };
 };
+/**
+ * Reports → Account statement: one money account over a period, opening balance to closing
+ * balance, with every movement tagged by type (account-statement.mjs, as on Accounts).
+ */
+function AccountStatementTab({ ledger, freshness, busy, error, pdf, csv }: TabProps) {
+  const { range, valid, controls } = useRange();
+  const accounts = useMemo(
+    () => [...(ledger.moneyAccounts ?? [])].sort((a, b) => a.name.localeCompare(b.name)),
+    [ledger.moneyAccounts],
+  );
+  const [accountId, setAccountId] = useState('');
+  const name = (id: string) => accounts.find((a) => a.id === id)?.name ?? 'another account';
+  const payee = (id: string) => (ledger.payees ?? []).find((p) => p.id === id)?.name ?? '';
+  const account = accounts.find((a) => a.id === accountId);
+  const statement = useMemo(
+    () =>
+      valid && account
+        ? accountStatement(ledger, account.id, {
+            from: range.from,
+            to: range.to,
+            accountName: name,
+            payeeName: payee,
+          })
+        : null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [ledger, account, range.from, range.to, valid],
+  );
+  const title = 'Account statement';
+  const subtitle =
+    statement && account
+      ? [
+          account.name,
+          `Period: ${range.from} to ${range.to}`,
+          `Opening ${currency(statement.opening)} · Closing ${currency(statement.closing)}`,
+        ]
+      : [];
+  const file = account
+    ? reportFileName('Account statement', account.name, `${range.from} to ${range.to}`)
+    : '';
+  return (
+    <>
+      <section className="panel dashboard-filters report-filters">
+        <label className="wide">
+          Account
+          <select aria-label="Account" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+            <option value="">Choose an account</option>
+            {accounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+                {a.archived ? ' (archived)' : ''}
+              </option>
+            ))}
+          </select>
+        </label>
+        {controls}
+        <small>Dates use Africa/Lagos.</small>
+      </section>
+      {freshness}
+      {!valid ? (
+        <div className="dashboard-warning" role="alert">
+          Choose valid From and To dates, in order, spanning no more than ten years.
+        </div>
+      ) : !statement || !account ? (
+        <section className="panel empty">
+          <h2>No account chosen</h2>
+          <p>Choose an account above to see its opening balance, money in and out, and closing balance.</p>
+        </section>
+      ) : (
+        <>
+          <section className="panel report-header">
+            <div>
+              <h2>{account.name}</h2>
+              <p>
+                Opened {account.openingDate} with {currency(account.openingBalance)}
+              </p>
+            </div>
+            <Exports
+              busy={busy}
+              onCsv={() => csv(file, title, subtitle, accountStatementSections(statement.rows, naira))}
+              onPdf={() =>
+                void pdf(file, title, subtitle, accountStatementSections(statement.rows, currency))
+              }
+            />
+          </section>
+          {error && (
+            <p role="alert" className="dashboard-warning">
+              {error}
+            </p>
+          )}
+          <section className="stats dashboard-stats" aria-label="Account statement summary">
+            <article>
+              <span>Opening balance</span>
+              <strong>{currency(statement.opening)}</strong>
+              <small>At the start of {range.from}</small>
+            </article>
+            <article>
+              <span>Money in</span>
+              <strong>{currency(statement.received)}</strong>
+            </article>
+            <article>
+              <span>Money out</span>
+              <strong>{currency(statement.paid)}</strong>
+            </article>
+            <article>
+              <span>Closing balance</span>
+              <strong>{currency(statement.closing)}</strong>
+              <small>At the end of {range.to}</small>
+            </article>
+          </section>
+          <section className="panel">
+            {statement.rows.length ? (
+              <div className="table-wrap">
+                <table aria-label="Account transactions" className="statement-table">
+                  <thead>
+                    <tr>
+                      <th>Date / details</th>
+                      <th>In</th>
+                      <th>Out</th>
+                      <th>Balance</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {statement.rows.map((r) => (
+                      <tr key={r.id}>
+                        <td>
+                          <span className={`badge statement-tag tag-${r.type}`}>
+                            {STATEMENT_TYPES[r.type as keyof typeof STATEMENT_TYPES]}
+                          </span>{' '}
+                          {r.paidOn}
+                          <small>
+                            {[r.label, r.method, r.entry?.reason].filter(Boolean).join(' · ')}
+                          </small>
+                        </td>
+                        <td>{r.amountIn ? currency(r.amountIn) : '—'}</td>
+                        <td>{r.amountOut ? currency(r.amountOut) : '—'}</td>
+                        <td>{r.beforeOpening ? '—' : currency(r.balance)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="muted report-none">No money moved in this period.</p>
+            )}
+          </section>
+        </>
+      )}
+    </>
+  );
+}
+
 function PayeeStatementTab({
   ledger,
   freshness,

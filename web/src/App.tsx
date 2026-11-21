@@ -2495,6 +2495,8 @@ export default function App() {
                                     demo ||
                                     canAccessPage('Stock History', shop?.accessLevel ?? 0, pageAccess) ||
                                     canAccessPage('Materials', shop?.accessLevel ?? 0, pageAccess),
+                                  accounts:
+                                    demo || canAccessPage('Accounts', shop?.accessLevel ?? 0, pageAccess),
                                 }}
                               />
                             </Suspense>

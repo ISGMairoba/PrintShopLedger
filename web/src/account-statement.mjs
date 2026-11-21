@@ -153,3 +153,30 @@ export function filterStatement(rows, f = {}) {
   if (f.sort === 'amount-desc') return [...kept].sort((a, b) => size(b) - size(a));
   return kept;
 }
+
+/**
+ * The statement as report sections (PDF and spreadsheet), with amounts as `money` shows them.
+ * @param {any[]} rows
+ * @param {(n: number) => string} money
+ */
+export function accountStatementSections(rows, money) {
+  return [
+    {
+      title: 'Transactions',
+      columns: ['Date', 'Type', 'Details', 'Method', 'In', 'Out', 'Balance'],
+      widths: [1.1, 1.1, 3, 1.2, 1.1, 1.1, 1.2],
+      numeric: [4, 5, 6],
+      rows: rows.map((r) => [
+        r.paidOn,
+        STATEMENT_TYPES[r.type],
+        [r.label, r.entry?.reason, r.beforeOpening ? 'before the opening date' : '']
+          .filter(Boolean)
+          .join(' · '),
+        r.method,
+        r.amountIn ? money(r.amountIn) : '',
+        r.amountOut ? money(r.amountOut) : '',
+        r.beforeOpening ? '' : money(r.balance),
+      ]),
+    },
+  ];
+}

@@ -152,7 +152,7 @@ export function customerStatement(
   };
 }
 
-const naira = (kobo) => (kobo / 100).toFixed(2);
+export const naira = (kobo) => (kobo / 100).toFixed(2);
 const lower = (value) => String(value ?? '').toLowerCase();
 const matchesQuery = (query, values) => {
   const q = lower(query).trim();

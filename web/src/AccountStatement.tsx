@@ -1,7 +1,12 @@
 import { useMemo, useState } from 'react';
 import Icon from './Icon';
 import PeriodFilter, { allDates, periodLabel, type Period } from './PeriodFilter';
-import { accountStatement, filterStatement, STATEMENT_TYPES } from './account-statement.mjs';
+import {
+  accountStatement,
+  accountStatementSections,
+  filterStatement,
+  STATEMENT_TYPES,
+} from './account-statement.mjs';
 import { currency } from './app/shared';
 import { downloadCsv, type ReportSection } from './export-csv';
 import type { Branding } from './useBusinessBranding';
@@ -62,25 +67,7 @@ export default function AccountStatement({
     `Opening ${currency(statement.opening)} · Closing ${currency(statement.closing)}`,
     ...(filtered ? ['Filtered list: the balance column is the account balance after each line.'] : []),
   ];
-  const sections = (): ReportSection[] => [
-    {
-      title: 'Transactions',
-      columns: ['Date', 'Type', 'Details', 'Method', 'In', 'Out', 'Balance'],
-      widths: [1.1, 1.1, 3, 1.2, 1.1, 1.1, 1.2],
-      numeric: [4, 5, 6],
-      rows: rows.map((r) => [
-        r.paidOn,
-        STATEMENT_TYPES[r.type as Kind],
-        [r.label, r.entry?.reason, r.beforeOpening ? 'before the opening date' : '']
-          .filter(Boolean)
-          .join(' · '),
-        r.method,
-        r.amountIn ? currency(r.amountIn) : '',
-        r.amountOut ? currency(r.amountOut) : '',
-        r.beforeOpening ? '' : currency(r.balance),
-      ]),
-    },
-  ];
+  const sections = (): ReportSection[] => accountStatementSections(rows, currency);
   const totals = [
     period.preset === 'all'
       ? `Opening ${currency(account.openingBalance)} on ${day(account.openingDate)}`

@@ -2,7 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { emptyLedger } from '../src/domain.mjs';
 import { accountBalance } from '../src/operations.mjs';
-import { accountStatement, filterStatement } from '../src/account-statement.mjs';
+import {
+  accountStatement,
+  accountStatementSections,
+  filterStatement,
+} from '../src/account-statement.mjs';
 
 const ledger = {
   ...emptyLedger(),
@@ -108,4 +112,12 @@ test('rows can be filtered by type, direction and words, and sorted', () => {
   assert.equal(filterStatement(rows, { search: 'instalment' })[0].type, 'repayment');
   assert.equal(filterStatement(rows, { sort: 'amount-desc' })[0].type, 'loan');
   assert.equal(filterStatement(rows, { sort: 'date-desc' })[0].type, 'repayment');
+});
+
+test('the statement as report sections, for the PDF and spreadsheet', () => {
+  const { rows } = accountStatement(ledger, 'bank', { ...names, from: '2026-11-04', to: '2026-11-04' });
+  const [section] = accountStatementSections(rows, (n) => (n / 100).toFixed(2));
+  assert.deepEqual(section.columns, ['Date', 'Type', 'Details', 'Method', 'In', 'Out', 'Balance']);
+  const recon = ['2026-11-04', 'Reconcile', 'Reconcile difference', '', '', '1.00', '314.00'];
+  assert.deepEqual(section.rows[1], recon);
 });
