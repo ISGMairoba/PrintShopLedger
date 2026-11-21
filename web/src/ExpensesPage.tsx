@@ -111,9 +111,9 @@ export default function ExpensesPage({
   const categoryChoices = [...new Set([...expenseCategories, ...ledger.expenses.map((e) => e.category)])].map(
     (value) => ({ value, label: value }),
   );
-  const staffChoices = [...new Map(ledger.expenses.map((e) => [e.createdBy, e.createdByLabel])).entries()].map(
-    ([value, label]) => ({ value, label }),
-  );
+  const staffChoices = [
+    ...new Map(ledger.expenses.map((e) => [e.createdBy, e.createdByLabel])).entries(),
+  ].map(([value, label]) => ({ value, label }));
   const dates = useDateFilter('expenses');
   const from = dates.period.preset === 'all' ? '' : dates.period.from,
     to = dates.period.preset === 'all' ? '' : dates.period.to;
