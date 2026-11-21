@@ -151,6 +151,16 @@ try {
     })(),
   ]);
   assert.match(a4.suggestedFilename(), /^Receipt-[0-9A-F]{8}-A4\.png$/);
+  // On a phone, the choices open below the screen's edge: the receipt scrolls them into view.
+  await page.setViewportSize({ width: 390, height: 700 });
+  await page.getByRole('dialog').getByRole('button', { name: 'Share', exact: true }).click();
+  const shareRow = page.getByRole('dialog').getByRole('group', { name: 'Share' });
+  await shareRow.waitFor();
+  await page.waitForTimeout(800);
+  const box = await shareRow.boundingBox();
+  assert.ok(box && box.y >= 0 && box.y + box.height <= 700 + 1, 'the Share choices are on screen');
+  await page.getByRole('dialog').getByRole('button', { name: 'Share', exact: true }).click();
+  await page.setViewportSize({ width: 1280, height: 900 });
   await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
   await nav('Materials');
   assert.match(await page.locator('table').innerText(), /Blue pen[\s\S]*\b3\b/);

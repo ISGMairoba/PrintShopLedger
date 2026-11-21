@@ -4995,4 +4995,20 @@ label .customer-elsewhere > small {
 .reconcile-difference p {
   margin: 0;
   flex-basis: 100%;
+/* Opening a row of choices: one soft glow, so the eye finds it after the scroll. */
+.receipt-choices {
+  animation: receipt-choices-glow 1.2s ease-out 1;
+}
+@keyframes receipt-choices-glow {
+  from {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand-accent) 55%, transparent);
+  }
+  to {
+    box-shadow: 0 0 0 4px transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .receipt-choices {
+    animation: none;
+  }
 }
