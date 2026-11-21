@@ -1,4 +1,5 @@
 import { useMessages } from './MessagesContext';
+import SearchSelect from './SearchSelect';
 import { Fragment, createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { comparisonText } from './comparison-doc.mjs';
 import { copyText, shareText } from './share-text';
@@ -638,28 +639,24 @@ export function TemplateCalculator({
       <div className="form-grid">
         <label>
           Template
-          <select
-            aria-label="Template"
+          <SearchSelect
+            label="Template"
             value={template.id}
-            onChange={(e) => {
-              const next = active.find((t) => t.id === e.target.value)!;
+            onChange={(id) => {
+              const next = active.find((t) => t.id === id);
+              if (!next) return;
               setId(next.id);
               setInputs(templateDefaults(next));
               setQuantity(startQuantity(next));
             }}
-          >
-            {alphabetical(active, (t) =>
-              t.category && t.category.toLowerCase() !== t.name.toLowerCase()
-                ? `${t.category} · ${t.name}`
-                : t.name,
-            ).map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.category && t.category.toLowerCase() !== t.name.toLowerCase()
+            options={active.map((t) => ({
+              value: t.id,
+              label:
+                t.category && t.category.toLowerCase() !== t.name.toLowerCase()
                   ? `${t.category} · ${t.name}`
-                  : t.name}
-              </option>
-            ))}
-          </select>
+                  : t.name,
+            }))}
+          />
           {template.description && <small>{template.description}</small>}
         </label>
         <label className={priced.field === 'quantity' ? 'has-error' : undefined}>

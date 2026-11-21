@@ -1,4 +1,5 @@
 import { settingsSection } from './settings-navigation.mjs';
+import { choose } from './choose.mjs';
 /**
  * New businesses follow Added → Processing → Completed → Collected. Checks that move jobs through
  * several stages first save a workflow with these steps as the usual one.
@@ -12,7 +13,7 @@ export async function useUsualSteps(page, nav, steps = ['In Queue', 'Printing'],
     await page.getByRole('button', { name: 'Add step', exact: true }).last().click();
   for (const [i, step] of steps.entries())
     await page.getByLabel(`${name}: step ${i + 1} name`, { exact: true }).fill(step);
-  await page.getByLabel('Usual steps', { exact: true }).selectOption({ label: name });
+  await choose(page, 'Usual steps', name);
   await page.getByRole('button', { name: 'Save dropdown settings', exact: true }).click();
   await page.getByText('Dropdown settings saved.', { exact: true }).waitFor();
 }

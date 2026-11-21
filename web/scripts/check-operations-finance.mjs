@@ -4,6 +4,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from 'playwright';
 import { readCopy } from './local-copy.mjs';
 import { pick } from './pick.mjs';
+import { choose } from './choose.mjs';
 const port = 4196,
   base = `http://127.0.0.1:${port}`;
 const server = spawn(
@@ -134,7 +135,7 @@ try {
     await dialog().getByLabel('Description', { exact: true }).fill('Paper purchase');
     await dialog().getByLabel('Total cost (₦)').fill('50');
     await pick(dialog(), 'Expense payee', { label: 'Paper House' });
-    await dialog().getByLabel('Payment method', { exact: true }).selectOption({ label: 'Transfer' });
+    await choose(dialog(), 'Payment method', 'Transfer');
     assert.equal(
       await dialog().getByLabel('Pay from account').locator('option:checked').innerText(),
       'Main Bank',

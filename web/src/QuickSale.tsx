@@ -1,4 +1,5 @@
 import { minOrderRule } from './min-order.mjs';
+import SearchSelect from './SearchSelect';
 import { stockBelowZeroBlocked } from './stock-rule.mjs';
 import { defaultMethod, defaultSource } from './business-options.mjs';
 import { alphabetical } from './alphabetical.mjs';
@@ -804,29 +805,28 @@ function PayDialog({
         <div className="form-grid">
           <label>
             {w('Source')}
-            <select value={source} onChange={(e) => setSource(e.target.value)}>
-              {options.jobSources.map((s) => (
-                <option key={s}>{s}</option>
-              ))}
-            </select>
+            <SearchSelect
+              label={w('Source')}
+              value={source}
+              onChange={setSource}
+              options={options.jobSources.map((s) => ({ value: s, label: s }))}
+            />
           </label>
           <label>
             Payment method
-            <select
+            <SearchSelect
+              label="Payment method"
               value={splitRows ? SPLIT : methodLabel}
-              onChange={(e) => {
-                if (e.target.value !== SPLIT) {
+              onChange={(next) => {
+                if (next !== SPLIT) {
                   setSplitRows(null);
-                  return setMethodLabel(e.target.value);
+                  return setMethodLabel(next);
                 }
                 setSplitRows(startSplit(methods, methodLabel, ((tendered ?? due) / 100).toFixed(2)));
               }}
-            >
-              {alphabetical(methods, (m) => m.label).map((m) => (
-                <option key={m.label}>{m.label}</option>
-              ))}
-              {methods.length > 1 && <option value={SPLIT}>Split between methods…</option>}
-            </select>
+              options={methods.map((m) => ({ value: m.label, label: m.label }))}
+              pinned={methods.length > 1 ? [{ value: SPLIT, label: 'Split between methods…' }] : []}
+            />
           </label>
         </div>
         {splitRows && (
@@ -864,14 +864,13 @@ function PayDialog({
               {canChooseWorkflow && (options.workflows ?? []).length > 0 && (
                 <label>
                   {w('Workflow')}
-                  <select value={workflowId} onChange={(e) => setWorkflowId(e.target.value)}>
-                    <option value="">Each item's usual steps</option>
-                    {(options.workflows ?? []).map((wf) => (
-                      <option key={wf.id} value={wf.id}>
-                        {wf.name}
-                      </option>
-                    ))}
-                  </select>
+                  <SearchSelect
+                    label={w('Workflow')}
+                    value={workflowId}
+                    onChange={setWorkflowId}
+                    pinned={[{ value: '', label: "Each item's usual steps" }]}
+                    options={(options.workflows ?? []).map((wf) => ({ value: wf.id, label: wf.name }))}
+                  />
                 </label>
               )}
               <label>

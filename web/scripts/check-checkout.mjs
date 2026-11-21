@@ -6,6 +6,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from 'playwright';
 import { pick, pickedValue, pickOptions } from './pick.mjs';
 import { useUsualSteps } from './usual-steps.mjs';
+import { choose } from './choose.mjs';
 const server = spawn(
   process.execPath,
   ['node_modules/vite/bin/vite.js', 'preview', '--host', '127.0.0.1', '--port', '4175', '--strictPort'],
@@ -88,7 +89,7 @@ try {
     await pick(line, 'Service', { index: 0 });
     await line.getByLabel('Job description').fill(description);
     await line.getByLabel('Quantity', { exact: true }).fill(String(quantity));
-    await line.getByLabel('Job received through').selectOption('WhatsApp');
+    await choose(line, 'Job received through', 'WhatsApp');
   }
   let pdfChecked = false;
   async function finish() {

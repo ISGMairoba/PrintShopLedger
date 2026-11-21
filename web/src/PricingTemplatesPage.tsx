@@ -1,4 +1,5 @@
 import ResponsiveTable from './ResponsiveTable';
+import SearchSelect from './SearchSelect';
 import CostImportDialog, { type ImportedCosts } from './CostImportDialog';
 import { readCostFile, MAX_COST_FILE_BYTES } from './cost-transfer.mjs';
 import { TemplateExportDialog, TemplateImportDialog, type TemplatePackage } from './TemplateTransfer';
@@ -379,29 +380,23 @@ export default function PricingTemplatesPage({
                 aria-label="Filter and sort"
               >
                 <label className="job-filter-field">
-                  <select
-                    aria-label="Template category"
+                  <SearchSelect
+                    label="Template category"
                     value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                  >
-                    <option value="">All categories</option>
-                    {categories.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setCategory}
+                    pinned={[{ value: '', label: 'All categories' }]}
+                    options={categories.map((c) => ({ value: c, label: c }))}
+                  />
                 </label>
                 {tags.length > 0 && (
                   <label className="job-filter-field">
-                    <select aria-label="Template tag" value={tag} onChange={(e) => setTag(e.target.value)}>
-                      <option value="">All tags</option>
-                      {tags.map((t) => (
-                        <option key={t} value={t}>
-                          {t}
-                        </option>
-                      ))}
-                    </select>
+                    <SearchSelect
+                      label="Template tag"
+                      value={tag}
+                      onChange={setTag}
+                      pinned={[{ value: '', label: 'All tags' }]}
+                      options={tags.map((t) => ({ value: t, label: t }))}
+                    />
                   </label>
                 )}
                 <label className="check-label job-filter-check">
@@ -798,17 +793,15 @@ export default function PricingTemplatesPage({
                 </label>
                 <label>
                   {w('Stock item')} (optional)
-                  <select name="material" defaultValue={editingCost?.materialId ?? ''}>
-                    <option value="">No stock — cost only</option>
-                    {alphabetical(
-                      ledger.materials.filter((m) => !m.archived),
-                      (m) => m.name,
-                    ).map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name} ({m.measurementUnit})
-                      </option>
-                    ))}
-                  </select>
+                  <SearchSelect
+                    label={w('Stock item')}
+                    name="material"
+                    defaultValue={editingCost?.materialId ?? ''}
+                    pinned={[{ value: '', label: 'No stock — cost only' }]}
+                    options={ledger.materials
+                      .filter((m) => !m.archived)
+                      .map((m) => ({ value: m.id, label: `${m.name} (${m.measurementUnit})` }))}
+                  />
                   <small>Link a material when templates should take it out of stock.</small>
                 </label>
               </div>

@@ -1,4 +1,5 @@
 import { PERIOD_CHOICES } from './expense-periods.mjs';
+import SearchSelect from './SearchSelect';
 import Icon from './Icon';
 import { StepBuilder } from './StepBuilder';
 import { useFeedbackMessage } from './Feedback';
@@ -230,20 +231,13 @@ export default function BusinessOptionsEditor({
           </fieldset>
           <label>
             {w('New jobs come in through')}
-            <select
-              aria-label="Usual sales channel"
+            <SearchSelect
+              label="Usual sales channel"
               value={value.defaultJobSource ?? ''}
-              onChange={(e) => update('defaultJobSource', e.target.value)}
-            >
-              <option value="">The first in the list ({value.jobSources[0] ?? '—'})</option>
-              {value.jobSources
-                .filter((s) => s.trim())
-                .map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-            </select>
+              onChange={(next) => update('defaultJobSource', next)}
+              pinned={[{ value: '', label: `The first in the list (${value.jobSources[0] ?? '—'})` }]}
+              options={value.jobSources.filter((s) => s.trim()).map((s) => ({ value: s, label: s }))}
+            />
             <small>{w('The sales channel each new job starts with; staff can still change it.')}</small>
           </label>
           <label>
@@ -308,33 +302,23 @@ export default function BusinessOptionsEditor({
               <div className="form-grid">
                 <label>
                   {w('Money received: usual method')}
-                  <select
-                    aria-label="Usual method for money received"
+                  <SearchSelect
+                    label="Usual method for money received"
                     value={value.defaultIncomeMethod ?? ''}
-                    onChange={(e) => update('defaultIncomeMethod', e.target.value)}
-                  >
-                    <option value="">The first in the list</option>
-                    {orderMethods(methods, value.methodOrder).map((m) => (
-                      <option key={methodKey(m)} value={methodKey(m)}>
-                        {m.displayLabel || m.label}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(next) => update('defaultIncomeMethod', next)}
+                    pinned={[{ value: '', label: 'The first in the list' }]}
+                    options={methods.map((m) => ({ value: methodKey(m), label: m.displayLabel || m.label }))}
+                  />
                 </label>
                 <label>
                   {w('Expenses: usual "paid from"')}
-                  <select
-                    aria-label="Usual method for expenses"
+                  <SearchSelect
+                    label="Usual method for expenses"
                     value={value.defaultExpenseMethod ?? ''}
-                    onChange={(e) => update('defaultExpenseMethod', e.target.value)}
-                  >
-                    <option value="">The first in the list</option>
-                    {orderMethods(methods, value.methodOrder).map((m) => (
-                      <option key={methodKey(m)} value={methodKey(m)}>
-                        {m.displayLabel || m.label}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(next) => update('defaultExpenseMethod', next)}
+                    pinned={[{ value: '', label: 'The first in the list' }]}
+                    options={methods.map((m) => ({ value: methodKey(m), label: m.displayLabel || m.label }))}
+                  />
                 </label>
               </div>
             </fieldset>
@@ -348,20 +332,18 @@ export default function BusinessOptionsEditor({
             </p>
             <label>
               {w('Items without their own steps follow')}
-              <select
-                aria-label="Usual steps"
+              <SearchSelect
+                label="Usual steps"
                 value={value.defaultWorkflowId ?? ''}
-                onChange={(e) => onChange({ ...value, defaultWorkflowId: e.target.value || null })}
-              >
-                <option value="">
-                  {stage('Added')} → {stage('Processing')} → {stage('Completed')}
-                </option>
-                {(value.workflows ?? []).map((wf) => (
-                  <option key={wf.id} value={wf.id}>
-                    {wf.name || 'Unnamed workflow'}
-                  </option>
-                ))}
-              </select>
+                onChange={(next) => onChange({ ...value, defaultWorkflowId: next || null })}
+                pinned={[
+                  { value: '', label: `${stage('Added')} → ${stage('Processing')} → ${stage('Completed')}` },
+                ]}
+                options={(value.workflows ?? []).map((wf) => ({
+                  value: wf.id,
+                  label: wf.name || 'Unnamed workflow',
+                }))}
+              />
               <small>
                 {w(
                   'A step without a time shares the time to the due date evenly; jobs without a due date are then not checked.',
@@ -377,18 +359,16 @@ export default function BusinessOptionsEditor({
               ).map(([key, label]) => (
                 <label key={key}>
                   {w(label)}
-                  <select
-                    aria-label={label}
+                  <SearchSelect
+                    label={label}
                     value={value[key] ?? ''}
-                    onChange={(e) => onChange({ ...value, [key]: e.target.value || null })}
-                  >
-                    <option value="">The usual steps above</option>
-                    {(value.workflows ?? []).map((wf) => (
-                      <option key={wf.id} value={wf.id}>
-                        {wf.name || 'Unnamed workflow'}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(next) => onChange({ ...value, [key]: next || null })}
+                    pinned={[{ value: '', label: 'The usual steps above' }]}
+                    options={(value.workflows ?? []).map((wf) => ({
+                      value: wf.id,
+                      label: wf.name || 'Unnamed workflow',
+                    }))}
+                  />
                 </label>
               ))}
             </div>

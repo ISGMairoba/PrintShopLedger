@@ -10,6 +10,7 @@ import { applyEvent } from '../src/domain.mjs';
 import { navigationPages } from '../src/page-access.mjs';
 import { pageName as shownName } from '../src/terms.mjs';
 import { pick } from './pick.mjs';
+import { choose } from './choose.mjs';
 
 const out = process.argv[2] ?? '/tmp/ui-screens';
 mkdirSync(out, { recursive: true });
@@ -343,7 +344,7 @@ try {
       if (await pay.getByLabel('Discount', { exact: true }).count())
         await pay.getByLabel('Discount', { exact: true }).selectOption('percent');
       await pay.screenshot({ path: `${out}/${mode}-95-quick-sale-payment-later.png` });
-      await pay.getByLabel('Payment method').selectOption('__split');
+      await choose(pay, 'Payment method', 'Split between methods');
       await pay.getByLabel('Split amount 2').fill('100');
       await pay.locator('.split-payment').scrollIntoViewIfNeeded();
       await pay.screenshot({ path: `${out}/${mode}-95-quick-sale-payment-split.png` });

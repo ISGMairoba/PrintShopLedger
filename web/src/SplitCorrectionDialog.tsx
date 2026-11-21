@@ -1,4 +1,4 @@
-import { alphabetical } from './alphabetical.mjs';
+import SearchSelect from './SearchSelect';
 import { useId, useState } from 'react';
 import DialogActions from './DialogActions';
 import Modal from './Modal';
@@ -155,20 +155,20 @@ export default function SplitCorrectionDialog({
               </label>
               <label>
                 {`Part ${index + 1}: method`}
-                <select
+                <SearchSelect
+                  label={`Part ${index + 1}: method`}
                   value={part.method}
                   required
-                  onChange={(e) =>
-                    setParts((all) => all.map((p, i) => (i === index ? { ...p, method: e.target.value } : p)))
+                  onChange={(method) =>
+                    setParts((all) => all.map((p, i) => (i === index ? { ...p, method } : p)))
                   }
-                >
-                  {!methods.some((m) => m.label === part.method) && <option>{part.method}</option>}
-                  {alphabetical(methods, (m) => m.label).map((m) => (
-                    <option key={m.label} value={m.label}>
-                      {m.displayLabel || m.label}
-                    </option>
-                  ))}
-                </select>
+                  options={[
+                    ...(methods.some((m) => m.label === part.method)
+                      ? []
+                      : [{ value: part.method, label: part.method }]),
+                    ...methods.map((m) => ({ value: m.label, label: m.displayLabel || m.label })),
+                  ]}
+                />
               </label>
             </div>
           ))}

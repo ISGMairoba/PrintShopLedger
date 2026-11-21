@@ -1081,15 +1081,15 @@ export default function CheckoutEditor({
                         )}
                         <label>
                           {w('Job received through')}
-                          <select
-                            aria-label={w('Job received through')}
+                          <SearchSelect
+                            label={w('Job received through')}
                             value={item.source}
-                            onChange={(e) => editLine(item.id, 'source', e.target.value)}
-                          >
-                            {[...new Set([...jobSources, item.source])].map((s) => (
-                              <option key={s}>{s}</option>
-                            ))}
-                          </select>
+                            onChange={(next) => editLine(item.id, 'source', next)}
+                            options={[...new Set([...jobSources, item.source])].map((s) => ({
+                              value: s,
+                              label: s,
+                            }))}
+                          />
                         </label>
                         <label>
                           Source details
@@ -1164,11 +1164,12 @@ export default function CheckoutEditor({
                             (options.workflows ?? []).length > 0 && (
                               <label className="job-steps-copy">
                                 {w('Copy a saved workflow')}
-                                <select
-                                  aria-label={`${w('Job')} ${index + 1}: copy a saved workflow`}
+                                <SearchSelect
+                                  label={`${w('Job')} ${index + 1}: copy a saved workflow`}
                                   value=""
-                                  onChange={(e) => {
-                                    const wf = (options.workflows ?? []).find((x) => x.id === e.target.value);
+                                  placeholder={w('Choose…')}
+                                  onChange={(id) => {
+                                    const wf = (options.workflows ?? []).find((x) => x.id === id);
                                     if (!wf) return;
                                     setLines((items) =>
                                       items.map((l) =>
@@ -1182,14 +1183,11 @@ export default function CheckoutEditor({
                                       ),
                                     );
                                   }}
-                                >
-                                  <option value="">{w('Choose…')}</option>
-                                  {(options.workflows ?? []).map((wf) => (
-                                    <option key={wf.id} value={wf.id}>
-                                      {wf.name}
-                                    </option>
-                                  ))}
-                                </select>
+                                  options={(options.workflows ?? []).map((wf) => ({
+                                    value: wf.id,
+                                    label: wf.name,
+                                  }))}
+                                />
                               </label>
                             )}
                           {canChooseWorkflow && stepsFor === item.id && item.steps && (
@@ -1447,26 +1445,26 @@ export default function CheckoutEditor({
                     <option value="none">{preview?.data.walletUsed ? 'Wallet' : 'None'}</option>
                   </select>
                 ) : (
-                  <select
-                    aria-label="Payment method"
+                  <SearchSelect
+                    label="Payment method"
                     value={splitRows ? SPLIT : methodLabel}
-                    onChange={(e) => {
-                      if (e.target.value !== SPLIT) {
+                    onChange={(next) => {
+                      if (next !== SPLIT) {
                         setSplitRows(null);
-                        return setMethodLabel(e.target.value);
+                        return setMethodLabel(next);
                       }
                       setSplitRows(startSplit(paymentMethods, methodLabel, cash));
                     }}
-                  >
-                    {paymentMethods.map((item) => (
-                      <option key={item.label} value={item.label}>
-                        {('displayLabel' in item && item.displayLabel) || item.label}
-                      </option>
-                    ))}
-                    {!initialCheckout && paymentMethods.length > 1 && (
-                      <option value={SPLIT}>Split between methods…</option>
-                    )}
-                  </select>
+                    options={paymentMethods.map((item) => ({
+                      value: item.label,
+                      label: ('displayLabel' in item && item.displayLabel) || item.label,
+                    }))}
+                    pinned={
+                      !initialCheckout && paymentMethods.length > 1
+                        ? [{ value: SPLIT, label: 'Split between methods…' }]
+                        : []
+                    }
+                  />
                 )}
               </label>
               <label>

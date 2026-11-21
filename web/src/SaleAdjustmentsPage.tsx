@@ -1,4 +1,3 @@
-import { alphabetical } from './alphabetical.mjs';
 import Icon from './Icon';
 import { useId, useState } from 'react';
 import DialogActions from './DialogActions';
@@ -798,13 +797,16 @@ export function SaleAdjustmentEditor({
                         </label>
                         <label>
                           Refund method
-                          <select value={method} onChange={(e) => setMethod(e.target.value)} required>
-                            {alphabetical(methods, (m) => m.label).map((m) => (
-                              <option key={m.label} value={m.label}>
-                                {m.displayLabel || m.label}
-                              </option>
-                            ))}
-                          </select>
+                          <SearchSelect
+                            label="Refund method"
+                            value={method}
+                            onChange={setMethod}
+                            required
+                            options={methods.map((m) => ({
+                              value: m.label,
+                              label: m.displayLabel || m.label,
+                            }))}
+                          />
                         </label>
                       </div>
                       <p className="muted">
@@ -991,11 +993,13 @@ export function SaleAdjustmentEditor({
                     </label>
                     <label>
                       Corrected payment method
-                      <select
+                      <SearchSelect
+                        label="Corrected payment method"
                         value={edit.methodLabel}
                         required
-                        onChange={(event) => {
-                          const chosen = methods.find((m) => m.label === event.target.value)!;
+                        onChange={(next) => {
+                          const chosen = methods.find((m) => m.label === next);
+                          if (!chosen) return;
                           setPaymentEdits((current) =>
                             current.map((p, i) =>
                               i === index
@@ -1008,16 +1012,13 @@ export function SaleAdjustmentEditor({
                             ),
                           );
                         }}
-                      >
-                        {!methods.some((m) => m.label === edit.methodLabel) && (
-                          <option>{edit.methodLabel}</option>
-                        )}
-                        {alphabetical(methods, (m) => m.label).map((m) => (
-                          <option key={m.label} value={m.label}>
-                            {m.displayLabel || m.label}
-                          </option>
-                        ))}
-                      </select>
+                        options={[
+                          ...(methods.some((m) => m.label === edit.methodLabel)
+                            ? []
+                            : [{ value: edit.methodLabel, label: edit.methodLabel }]),
+                          ...methods.map((m) => ({ value: m.label, label: m.displayLabel || m.label })),
+                        ]}
+                      />
                     </label>
                     <label>
                       Corrected payment reference
@@ -1073,16 +1074,18 @@ export function SaleAdjustmentEditor({
                 </label>
                 <label>
                   Corrected payment method
-                  <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} required>
-                    {!methods.some((m) => m.label === paymentMethod) && paymentMethod && (
-                      <option>{paymentMethod}</option>
-                    )}
-                    {alphabetical(methods, (m) => m.label).map((m) => (
-                      <option key={m.label} value={m.label}>
-                        {m.displayLabel || m.label}
-                      </option>
-                    ))}
-                  </select>
+                  <SearchSelect
+                    label="Corrected payment method"
+                    value={paymentMethod}
+                    onChange={setPaymentMethod}
+                    required
+                    options={[
+                      ...(!methods.some((m) => m.label === paymentMethod) && paymentMethod
+                        ? [{ value: paymentMethod, label: paymentMethod }]
+                        : []),
+                      ...methods.map((m) => ({ value: m.label, label: m.displayLabel || m.label })),
+                    ]}
+                  />
                 </label>
                 <label>
                   Corrected payment date
@@ -1148,13 +1151,13 @@ export function SaleAdjustmentEditor({
                 </label>
                 <label>
                   Refund method
-                  <select value={method} onChange={(e) => setMethod(e.target.value)} required>
-                    {alphabetical(methods, (m) => m.label).map((m) => (
-                      <option key={m.label} value={m.label}>
-                        {m.displayLabel || m.label}
-                      </option>
-                    ))}
-                  </select>
+                  <SearchSelect
+                    label="Refund method"
+                    value={method}
+                    onChange={setMethod}
+                    required
+                    options={methods.map((m) => ({ value: m.label, label: m.displayLabel || m.label }))}
+                  />
                 </label>
               </div>
               {methods.find((m) => m.label === method)?.kind === 'Cash' && (

@@ -1,4 +1,5 @@
 import Icon from './Icon';
+import SearchSelect from './SearchSelect';
 import { useWords } from './Words';
 import { checkDraft, checkLines, lineOptions } from './material-check.mjs';
 import type { Job, Ledger } from './types';
@@ -78,17 +79,15 @@ export default function MaterialCheckFields({
             </p>
             {rows.map(({ r, index }) => (
               <div className="material-check-row" key={index}>
-                <select
-                  aria-label={`${line.name}: material`}
+                <SearchSelect
+                  label={`${line.name}: material`}
                   value={r.materialId}
-                  onChange={(e) => set(index, { materialId: e.target.value })}
-                >
-                  {options.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name} · {m.available} in stock
-                    </option>
-                  ))}
-                </select>
+                  onChange={(materialId) => set(index, { materialId })}
+                  options={options.map((m) => ({
+                    value: m.id,
+                    label: `${m.name} · ${m.available} in stock`,
+                  }))}
+                />
                 <span className="input-with-unit">
                   <input
                     aria-label={`${line.name}: amount used`}

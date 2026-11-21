@@ -1,3 +1,4 @@
+import SearchSelect from './SearchSelect';
 import { useState } from 'react';
 import Modal from './Modal';
 import Icon from './Icon';
@@ -149,20 +150,16 @@ export function BranchPages({
       </p>
       <label>
         Branch
-        <select
+        <SearchSelect
+          label="Branch"
           value={branch}
           disabled={busy}
-          onChange={(e) => {
-            setBranch(e.target.value);
-            setOn(start(e.target.value));
+          onChange={(next) => {
+            setBranch(next);
+            setOn(start(next));
           }}
-        >
-          {branches.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name}
-            </option>
-          ))}
-        </select>
+          options={branches.map((b) => ({ value: b.id, label: b.name }))}
+        />
       </label>
       <div className="table-wrap">
         <table className="access-matrix" aria-label="Pages at this branch by rank">
