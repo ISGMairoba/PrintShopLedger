@@ -12,6 +12,7 @@ import { useBusinessOptions } from './BusinessOptionsContext';
 import { accountSummary } from './account-summary.mjs';
 import { MONEY_TYPES, lenderBalances } from './money-moves.mjs';
 import AccountStatement from './AccountStatement';
+import SearchSelect, { type SearchOption } from './SearchSelect';
 import type { Branding } from './useBusinessBranding';
 import ExpenseEditor from './ExpenseEditor';
 import { amountError } from './currency-input.mjs';
@@ -131,16 +132,11 @@ export default function AccountsPage({
     const b = accountBranch(a);
     return b === '*' ? ' · shared' : ` · ${branches.find((x) => x.id === b)?.name ?? 'closed branch'}`;
   };
-  const accountOptions = active
+  const pickLabel = (a: MoneyAccount) => `${a.name}${whose(a)}${a.hidden ? ' (hidden)' : ''}`;
+  const accountOptions: SearchOption[] = active
     // Payments can't be put in a hidden account; it takes transfers (and money in / out) only.
     .filter((a) => !(action === 'assign' && a.hidden))
-    .map((a) => (
-      <option key={a.id} value={a.id}>
-        {a.name}
-        {whose(a)}
-        {a.hidden ? ' (hidden)' : ''}
-      </option>
-    ));
+    .map((a) => ({ value: a.id, label: pickLabel(a) }));
   // Shared accounts hold other branches' money too: only those who see every branch count them.
   // Hidden accounts (savings) are left out of the totals and shown on their own.
   const counted = active.filter((a) => !a.hidden);
@@ -729,14 +725,13 @@ export default function AccountsPage({
               <fieldset disabled={busy}>
                 <label>
                   {action === 'transfer' ? 'From account' : 'Account'}
-                  <select
-                    aria-label="Source account"
+                  <SearchSelect
+                    label="Source account"
                     required
                     value={selected}
-                    onChange={(e) => setSelected(e.target.value)}
-                  >
-                    {accountOptions}
-                  </select>
+                    onChange={setSelected}
+                    options={accountOptions}
+                  />
                 </label>
                 <label>
                   Date
@@ -752,18 +747,16 @@ export default function AccountsPage({
                   <>
                     <label>
                       To account
-                      <select aria-label="Destination account" name="destination" required>
-                        <option value="">Choose another account</option>
-                        {active
+                      <SearchSelect
+                        key={selected}
+                        label="Destination account"
+                        name="destination"
+                        required
+                        placeholder="Choose another account"
+                        options={active
                           .filter((a) => a.id !== selected)
-                          .map((a) => (
-                            <option value={a.id} key={a.id}>
-                              {a.name}
-                              {whose(a)}
-                              {a.hidden ? ' (hidden)' : ''}
-                            </option>
-                          ))}
-                      </select>
+                          .map((a) => ({ value: a.id, label: pickLabel(a) }))}
+                      />
                     </label>
                     <label>
                       Amount (₦)
@@ -803,24 +796,21 @@ export default function AccountsPage({
                     {MONEY_TYPES[moneyType].lender && (
                       <label>
                         Lender
-                        <select
-                          aria-label="Lender"
+                        <SearchSelect
+                          label="Lender"
                           required
                           value={lender}
-                          onChange={(e) => setLender(e.target.value)}
-                        >
-                          <option value="">Choose the lender</option>
-                          {(moneyType === 'loan_in'
+                          onChange={setLender}
+                          placeholder="Choose the lender"
+                          pinned={moneyType === 'loan_in' ? [{ value: NEW_LENDER, label: 'New lender…' }] : []}
+                          options={(moneyType === 'loan_in'
                             ? payees.filter((p) => !p.archived)
                             : payees.filter((p) => owedTo[p.id])
-                          ).map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.name}
-                              {owedTo[p.id] ? ` · owed ${currency(owedTo[p.id])}` : ''}
-                            </option>
-                          ))}
-                          {moneyType === 'loan_in' && <option value={NEW_LENDER}>New lender…</option>}
-                        </select>
+                          ).map((p) => ({
+                            value: p.id,
+                            label: `${p.name}${owedTo[p.id] ? ` · owed ${currency(owedTo[p.id])}` : ''}`,
+                          }))}
+                        />
                         <small>Lenders are saved with your payees.</small>
                       </label>
                     )}
@@ -1131,42 +1121,35 @@ function CorrectEntry({
                   </label>
                   <label>
                     {entry.action === 'transfer' ? 'From account' : 'Account'}
-                    <select aria-label="Entry account" name="account" defaultValue={entry.accountId}>
-                      {accounts.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.name}
-                        </option>
-                      ))}
-                    </select>
+                    <SearchSelect
+                      label="Entry account"
+                      name="account"
+                      defaultValue={entry.accountId}
+                      options={accounts.map((a) => ({ value: a.id, label: a.name }))}
+                    />
                   </label>
                   {entry.action === 'transfer' && (
                     <label>
                       To account
-                      <select
-                        aria-label="Entry destination account"
+                      <SearchSelect
+                        label="Entry destination account"
                         name="to"
                         defaultValue={entry.toAccountId}
-                      >
-                        {accounts.map((a) => (
-                          <option key={a.id} value={a.id}>
-                            {a.name}
-                          </option>
-                        ))}
-                      </select>
+                        options={accounts.map((a) => ({ value: a.id, label: a.name }))}
+                      />
                     </label>
                   )}
                   {entry.lenderId && (
                     <label>
                       Lender
-                      <select aria-label="Entry lender" name="lender" defaultValue={entry.lenderId}>
-                        {payees
+                      <SearchSelect
+                        label="Entry lender"
+                        name="lender"
+                        defaultValue={entry.lenderId}
+                        options={payees
                           .filter((p) => !p.archived || p.id === entry.lenderId)
-                          .map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.name}
-                            </option>
-                          ))}
-                      </select>
+                          .map((p) => ({ value: p.id, label: p.name }))}
+                      />
                     </label>
                   )}
                 </>

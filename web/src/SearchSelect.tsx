@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 export type SearchOption = {
   value: string;
@@ -25,16 +25,27 @@ export function optionMatches(option: SearchOption, query: string) {
   return words(query).every((word) => haystack.includes(word));
 }
 
+/** The first option whose name starts with what was typed (for filling in the rest). */
+export function completion(options: SearchOption[], typed: string) {
+  const start = typed.toLowerCase();
+  if (!start.trim()) return undefined;
+  return options.find((o) => !o.disabled && o.label.toLowerCase().startsWith(start));
+}
+
 /**
  * A drop-down you can type into: shows the chosen option; typing filters the list (every word
- * must match); arrows and Enter choose; Escape or leaving the box keeps the previous choice.
- * Options are listed alphabetically. `pinned` options (No material, All materials…) stay first.
+ * must match) and fills in the rest of the first name that starts with what was typed (selected,
+ * so the next letter replaces it); arrows and Enter choose; Escape or leaving the box keeps the
+ * previous choice. Options are listed alphabetically. `pinned` options (No material, All
+ * materials…) stay first. Without `value` it keeps its own choice (from `defaultValue`), for forms
+ * read on submit through `name`.
  */
 export default function SearchSelect({
   label,
-  value,
+  value: controlled,
+  defaultValue = '',
   options,
-  onChange,
+  onChange: report,
   pinned = [],
   placeholder,
   required = false,
@@ -43,9 +54,11 @@ export default function SearchSelect({
   className,
 }: {
   label: string;
-  value: string;
+  value?: string;
+  /** The first choice when the box keeps its own (no `value`). */
+  defaultValue?: string;
   options: SearchOption[];
-  onChange: (value: string) => void;
+  onChange?: (value: string) => void;
   pinned?: SearchOption[];
   placeholder?: string;
   required?: boolean;
@@ -56,15 +69,31 @@ export default function SearchSelect({
 }) {
   const id = useId();
   const input = useRef<HTMLInputElement>(null);
+  const [own, setOwn] = useState(defaultValue);
+  const value = controlled ?? own;
+  const onChange = (next: string) => {
+    if (controlled === undefined) setOwn(next);
+    report?.(next);
+  };
+  // What was really typed (the rest of a filled-in name is not part of it), and the text to select.
+  const [typedText, setTypedText] = useState('');
+  const fill = useRef<[number, number] | null>(null);
+  useLayoutEffect(() => {
+    if (fill.current && input.current) input.current.setSelectionRange(...fill.current);
+    fill.current = null;
+  });
   const all = useMemo(() => [...pinned, ...sortOptions(options)], [pinned, options]);
   const chosen = all.find((o) => o.value === value);
   const [open, setOpen] = useState(false),
     [query, setQuery] = useState<string | null>(null),
     [active, setActive] = useState(0);
-  const typing = query !== null && query !== (chosen?.label ?? '');
-  const shown = typing ? all.filter((o) => optionMatches(o, query!)) : all;
+  const typing = query !== null && typedText !== '';
+  const shown = typing ? all.filter((o) => optionMatches(o, typedText)) : all;
   useEffect(() => {
-    if (!open) setQuery(null);
+    if (!open) {
+      setQuery(null);
+      setTypedText('');
+    }
   }, [open]);
   // A required choice must come from the list, not from loose typing.
   useEffect(() => {
@@ -100,7 +129,7 @@ export default function SearchSelect({
           aria-label={label}
           aria-expanded={open}
           aria-controls={`${id}-list`}
-          aria-autocomplete="list"
+          aria-autocomplete="both"
           aria-activedescendant={open && shown[active] ? `${id}-option-${active}` : undefined}
           data-value={value}
           value={query ?? chosen?.label ?? ''}
@@ -114,9 +143,22 @@ export default function SearchSelect({
           onFocus={(e) => e.currentTarget.select()}
           onClick={() => !open && show()}
           onChange={(e) => {
-            setQuery(e.target.value);
+            const typed = e.target.value;
+            setTypedText(typed);
             setOpen(true);
-            setActive(0);
+            // Typing (not deleting) at the end: fill in the rest of the first name that starts so.
+            const adding = (e.nativeEvent as InputEvent).inputType?.startsWith('insert') ?? true;
+            const caretAtEnd = e.target.selectionStart === typed.length;
+            const match = adding && caretAtEnd ? completion(all, typed) : undefined;
+            const matches = all.filter((o) => optionMatches(o, typed));
+            if (match) {
+              setQuery(typed + match.label.slice(typed.length));
+              fill.current = [typed.length, match.label.length];
+              setActive(Math.max(0, matches.indexOf(match)));
+            } else {
+              setQuery(typed);
+              setActive(0);
+            }
           }}
           onBlur={() => setOpen(false)}
           onKeyDown={(e) => {
@@ -134,7 +176,8 @@ export default function SearchSelect({
               e.preventDefault();
               e.stopPropagation();
               setOpen(false);
-            } else if (e.key === 'Tab' && open && typing && shown.length === 1) choose(shown[0]);
+            } else if (e.key === 'Tab' && open && typing && (shown.length === 1 || query !== typedText))
+              choose(shown[active]);
           }}
         />
         <button

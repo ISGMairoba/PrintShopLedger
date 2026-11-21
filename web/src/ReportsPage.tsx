@@ -39,6 +39,7 @@ import { useWords } from './Words';
 import { useFeedback } from './Feedback';
 import Icon from './Icon';
 import ListedCombobox from './ListedCombobox';
+import SearchSelect from './SearchSelect';
 
 /** How a customer appears in the statement picker: name, phone, and archived when it is. */
 const customerOption = (c: { name: string; phone: string; archived?: boolean }) =>
@@ -640,15 +641,13 @@ function AccountStatementTab({ ledger, freshness, busy, error, pdf, csv }: TabPr
       <section className="panel dashboard-filters report-filters">
         <label className="wide">
           Account
-          <select aria-label="Account" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-            <option value="">Choose an account</option>
-            {accounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-                {a.archived ? ' (archived)' : ''}
-              </option>
-            ))}
-          </select>
+          <SearchSelect
+            label="Account"
+            value={accountId}
+            onChange={setAccountId}
+            placeholder="Choose an account"
+            options={accounts.map((a) => ({ value: a.id, label: `${a.name}${a.archived ? ' (archived)' : ''}` }))}
+          />
         </label>
         {controls}
         <small>Dates use Africa/Lagos.</small>
