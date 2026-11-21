@@ -564,18 +564,13 @@ export default function AccountsPage({
                 {branches && (
                   <label>
                     Belongs to
-                    <select
-                      aria-label="Belongs to"
+                    <SearchSelect
+                      label="Belongs to"
                       name="branch"
                       defaultValue={editor === 'new' ? currentBranch : accountBranch(editor)}
-                    >
-                      {branches.map((b) => (
-                        <option key={b.id} value={b.id}>
-                          {b.name}
-                        </option>
-                      ))}
-                      <option value="*">Shared by all branches</option>
-                    </select>
+                      pinned={[{ value: '*', label: 'Shared by all branches' }]}
+                      options={branches.map((b) => ({ value: b.id, label: b.name }))}
+                    />
                     <small>
                       A branch's accounts (its POS terminal, till, own bank accounts) are used only there. A
                       shared account, such as the general business account, can be used by every branch.

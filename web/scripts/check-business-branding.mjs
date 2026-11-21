@@ -5,6 +5,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { readFile } from 'node:fs/promises';
 import { chromium } from 'playwright';
 import { pick, pickedValue, pickOptions } from './pick.mjs';
+import { choose } from './choose.mjs';
 const openMore = async (scope) => {
   // Pages with a single extra action show it directly; others put it under More.
   const toggle = scope.locator('.toolbar-actions .more-menu > button').first();
@@ -122,7 +123,7 @@ try {
     await page.getByLabel('Studio: step 3 name', { exact: true }).fill('Finishing');
     await page.getByLabel('Studio: Finishing time', { exact: true }).fill('30');
     await page.getByLabel('Studio: Finishing unit', { exact: true }).selectOption('m');
-    await page.getByLabel('Usual steps', { exact: true }).selectOption({ label: 'Studio' });
+    await choose(page, 'Usual steps', 'Studio');
     await settingsSection(page, /Profile & logo/);
     await page.getByLabel('Email', { exact: true }).fill('invalid');
     await page.getByRole('button', { name: 'Save logo', exact: true }).click();
@@ -243,8 +244,8 @@ try {
     await customer.waitFor({ state: 'detached' });
     await pick(dialog, 'Service', { index: 0 });
     await dialog.getByLabel('Job description').fill('Client cap');
-    assert.equal(await dialog.getByLabel('Job received through').inputValue(), 'Instagram DM');
-    await dialog.getByLabel('Payment method', { exact: true }).selectOption('Transfer');
+    assert.equal(await dialog.getByLabel('Job received through', { exact: true }).inputValue(), 'Instagram DM');
+    await choose(dialog, 'Payment method', 'Transfer');
     await dialog.getByLabel('Money received (₦)').fill('5000');
     await dialog.getByRole('button', { name: 'Complete checkout', exact: true }).click();
     await dialog.waitFor({ state: 'detached' });
@@ -275,7 +276,7 @@ try {
     await nav('Business Settings');
     await settingsSection(page, /Dropdowns & workflow/);
     // Changing the usual steps leaves jobs already sold on theirs.
-    await page.getByLabel('Usual steps', { exact: true }).selectOption('');
+    await choose(page, 'Usual steps', 'Added');
     await page.getByRole('button', { name: 'Save business settings', exact: true }).click();
     await page.getByText('Business settings saved.', { exact: true }).waitFor();
     await nav('Point of Service');

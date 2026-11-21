@@ -6,6 +6,7 @@ import { emptyLedger, applyEvent } from '../src/domain.mjs';
 import { prepareCheckout, walletBalance } from '../src/checkout.mjs';
 import { drawerSnapshot } from '../src/my-sales.mjs';
 import { pick, pickedValue, pickOptions } from './pick.mjs';
+import { choose } from './choose.mjs';
 const openMore = async (scope) => {
   // Pages with a single extra action show it directly; others put it under More.
   const toggle = scope.locator('.toolbar-actions .more-menu > button').first();
@@ -403,7 +404,7 @@ try {
         d = page.getByRole('dialog');
         await d.getByLabel('Adjustment type').selectOption('payment.corrected');
         await d.getByLabel('Corrected amount paid (₦)').fill('100');
-        await d.getByLabel('Corrected payment method').selectOption('POS');
+        await choose(d, 'Corrected payment method', 'POS');
         await d.getByLabel('Reason', { exact: true }).fill('Wrong recorded method and amount');
         await d.getByRole('checkbox').check();
         await d.getByRole('button', { name: 'Approve and save adjustment' }).click();
@@ -467,7 +468,7 @@ try {
         await d.getByLabel('Corrected quantity', { exact: true }).fill('4');
         await d.getByLabel('Material usage treatment').selectOption('reconcile');
         await d.getByLabel('Corrected amount paid (₦)').fill('300');
-        await d.getByLabel('Corrected payment method').selectOption('POS');
+        await choose(d, 'Corrected payment method', 'POS');
         await d.getByLabel('Corrected payment reference').fill('Combined reference');
         await d.getByLabel('Reason', { exact: true }).fill('Wrong quantity and payment');
         await d.getByRole('checkbox').check();

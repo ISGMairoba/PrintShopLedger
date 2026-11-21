@@ -1,3 +1,4 @@
+import SearchSelect from './SearchSelect';
 import { useState } from 'react';
 import Icon from './Icon';
 import Modal from './Modal';
@@ -261,18 +262,16 @@ export function RequestStockModal({
         <fieldset disabled={busy}>
           <label>
             Ask
-            <select aria-label="Ask location" value={from} onChange={(e) => setFrom(e.target.value)}>
-              {others.map((l) => {
+            <SearchSelect
+              label="Ask location"
+              value={from}
+              onChange={setFrom}
+              options={others.map((l) => {
                 const at = atOf(l.id);
-                return (
-                  <option key={l.id} value={l.id}>
-                    {l.name}
-                    {l.kind === 'store' ? ' (store)' : ''}
-                    {at === undefined ? '' : ` · ${qty(at)} ${material.measurementUnit} there`}
-                  </option>
-                );
+                const there = at === undefined ? '' : ` · ${qty(at)} ${material.measurementUnit} there`;
+                return { value: l.id, label: `${l.name}${l.kind === 'store' ? ' (store)' : ''}${there}` };
               })}
-            </select>
+            />
           </label>
           <label>
             Quantity ({material.measurementUnit})

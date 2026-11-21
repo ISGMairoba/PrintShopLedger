@@ -1,4 +1,5 @@
 import Icon from './Icon';
+import SearchSelect from './SearchSelect';
 import { useWords } from './Words';
 import { choiceGroups, suggestedUsage } from './material-choice.mjs';
 import type { Job, Ledger } from './types';
@@ -86,17 +87,15 @@ export default function MaterialUsedFields({
                 <div className="material-used-row" key={index}>
                   <label>
                     {w('Material')}
-                    <select
-                      aria-label={`Material used ${n}`}
+                    <SearchSelect
+                      label={`Material used ${n}`}
                       value={r.materialId}
-                      onChange={(e) => set(index, { materialId: e.target.value })}
-                    >
-                      {options.map((m) => (
-                        <option key={m!.id} value={m!.id}>
-                          {m!.name} · {m!.available} {m!.measurementUnit} in stock
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(materialId) => set(index, { materialId })}
+                      options={options.map((m) => ({
+                        value: m!.id,
+                        label: `${m!.name} · ${m!.available} ${m!.measurementUnit} in stock`,
+                      }))}
+                    />
                   </label>
                   <label>
                     {w('Amount used')} ({material?.measurementUnit ?? unit})

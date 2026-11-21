@@ -6,6 +6,7 @@ import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from 'playwright';
 import { pick, pickedValue, pickOptions } from './pick.mjs';
+import { choose } from './choose.mjs';
 
 const port = 4181;
 const server = spawn(
@@ -122,9 +123,9 @@ try {
   await items().click();
   await d.getByRole('button', { name: /^Pay ₦500\.00/ }).click();
   pay = page.getByRole('dialog', { name: 'Payment' });
-  await pay.getByLabel('Payment method').selectOption('__split');
+  await choose(pay, 'Payment method', 'Split between methods');
   await pay.getByLabel('Split amount 1').fill('200');
-  await pay.getByLabel('Split method 2').selectOption('Transfer');
+  await choose(pay, 'Split method 2', 'Transfer');
   await pay.getByLabel('Split amount 2').fill('300');
   assert.match(await pay.locator('.split-foot').innerText(), /Total of the parts ₦500\.00/);
   assert.equal(await pay.getByLabel('Money received (₦)').inputValue(), '500.00');

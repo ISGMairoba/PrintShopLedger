@@ -1,3 +1,4 @@
+import SearchSelect from './SearchSelect';
 import ItemTilesSettings from './ItemTilesSettings';
 import { mergeOptionsSection } from './options-sections.mjs';
 import BranchesSettings, { type BranchStaff } from './BranchesSettings';
@@ -345,19 +346,14 @@ export default function BusinessSettingsPage({
       {branchList && branchList.length > 0 && (
         <label className="settings-scope">
           Settings for
-          <select
-            aria-label="Settings for"
+          <SearchSelect
+            label="Settings for"
             value={scope}
             disabled={dirty || busy}
-            onChange={(event) => setScope(event.target.value)}
-          >
-            <option value="">The whole business</option>
-            {branchList.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name} (its own)
-              </option>
-            ))}
-          </select>
+            onChange={setScope}
+            pinned={[{ value: '', label: 'The whole business' }]}
+            options={branchList.map((b) => ({ value: b.id, label: `${b.name} (its own)` }))}
+          />
           <small>
             {dirty
               ? 'Save or undo your changes before switching.'

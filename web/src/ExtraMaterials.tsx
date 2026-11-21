@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import SearchSelect from './SearchSelect';
 import Icon from './Icon';
 import Modal from './Modal';
 import { currency } from './receipts.mjs';
@@ -118,25 +119,18 @@ export default function ExtraMaterials({
               <div className="form-row" key={i}>
                 <label>
                   Material
-                  <select
-                    aria-label={`Material ${i + 1}`}
+                  <SearchSelect
+                    label={`Material ${i + 1}`}
                     value={r.materialId}
                     disabled={cancelled}
-                    onChange={(e) =>
-                      setRows(rows.map((x, j) => (j === i ? { ...x, materialId: e.target.value } : x)))
-                    }
-                  >
-                    <option value="">Choose a material…</option>
-                    {choices.map((c) => (
-                      <option
-                        key={c.id}
-                        value={c.id}
-                        disabled={c.id !== r.materialId && rows.some((x) => x.materialId === c.id)}
-                      >
-                        {c.name} · {qty(c.available)} {c.measurementUnit} in stock
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="Choose a material…"
+                    onChange={(materialId) => setRows(rows.map((x, j) => (j === i ? { ...x, materialId } : x)))}
+                    options={choices.map((c) => ({
+                      value: c.id,
+                      label: `${c.name} · ${qty(c.available)} ${c.measurementUnit} in stock`,
+                      disabled: c.id !== r.materialId && rows.some((x) => x.materialId === c.id),
+                    }))}
+                  />
                 </label>
                 <label>
                   Amount used{m ? ` (${m.measurementUnit})` : ''}

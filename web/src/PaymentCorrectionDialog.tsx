@@ -1,4 +1,4 @@
-import { alphabetical } from './alphabetical.mjs';
+import SearchSelect from './SearchSelect';
 import { useId, useState } from 'react';
 import DialogActions from './DialogActions';
 import Modal from './Modal';
@@ -152,14 +152,16 @@ export default function PaymentCorrectionDialog({
             </label>
             <label>
               Payment method
-              <select value={method} onChange={(e) => setMethod(e.target.value)} required>
-                {!methods.some((m) => m.label === method) && method && <option>{method}</option>}
-                {alphabetical(methods, (m) => m.label).map((m) => (
-                  <option key={m.label} value={m.label}>
-                    {m.displayLabel || m.label}
-                  </option>
-                ))}
-              </select>
+              <SearchSelect
+                label="Payment method"
+                value={method}
+                onChange={setMethod}
+                required
+                options={[
+                  ...(!methods.some((m) => m.label === method) && method ? [{ value: method, label: method }] : []),
+                  ...methods.map((m) => ({ value: m.label, label: m.displayLabel || m.label })),
+                ]}
+              />
             </label>
             <label>
               Payment date

@@ -6,6 +6,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from 'playwright';
 import { defaultBranding } from '../src/business-branding.mjs';
 import { emptyLedger } from '../src/domain.mjs';
+import { choose } from './choose.mjs';
 const port = 4203;
 const server = spawn(
   process.execPath,
@@ -170,7 +171,7 @@ try {
   assert.equal(await page.getByText('Kano job', { exact: true }).count(), 0);
   // My Account switches the device back to the main branch.
   await nav.getByRole('button', { name: 'My Account', exact: true }).click();
-  await page.getByLabel('Switch this device to').selectOption('main');
+  await choose(page, 'Switch this device to', 'Kano Road');
   await page.locator('.eyebrow').filter({ hasText: 'PrintShopLedger · Kano Road' }).waitFor();
   await nav.getByRole('button', { name: 'Jobs', exact: true }).click();
   await page.getByText('Kano job', { exact: true }).first().waitFor();
@@ -190,7 +191,7 @@ try {
   await op.getByRole('button', { name: /Kano Road/ }).click();
   const ownerNav = op.getByRole('navigation', { name: 'Main' });
   await ownerNav.getByRole('button', { name: 'Dashboard', exact: true }).click();
-  assert.equal(await op.getByLabel('Show branch').inputValue(), 'all');
+  assert.equal(await op.getByRole('combobox', { name: 'Show branch' }).inputValue(), 'All branches');
   const compare = op.getByRole('table', { name: 'Branches side by side' });
   await compare.waitFor();
   assert.match(
@@ -198,7 +199,7 @@ try {
     /Kano Road[\s\S]*₦10\.00[\s\S]*Zoo Road[\s\S]*₦20\.00[\s\S]*All branches[\s\S]*₦30\.00/i,
   );
   // One branch at a time hides the comparison.
-  await op.getByLabel('Show branch').selectOption('b-zoo0000001');
+  await choose(op, 'Show branch', 'Zoo Road');
   await compare.waitFor({ state: 'detached' });
   await op.screenshot({ path: '/tmp/branches-owner.png', fullPage: true });
   assert.deepEqual(errors, []);

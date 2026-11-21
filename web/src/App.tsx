@@ -1,4 +1,5 @@
 import ShareChooser from './ShareChooser';
+import SearchSelect from './SearchSelect';
 import { accountPaymentOptions } from './account-methods.mjs';
 import {
   allBranchesLedger,
@@ -640,14 +641,13 @@ export default function App() {
   const branchControl = ownerView ? (
     <label className="branch-view">
       Branch
-      <select aria-label="Show branch" value={masterBranch} onChange={(e) => setMasterBranch(e.target.value)}>
-        <option value="all">All branches</option>
-        {salesBranches.map((b) => (
-          <option key={b.id} value={b.id}>
-            {b.name}
-          </option>
-        ))}
-      </select>
+      <SearchSelect
+        label="Show branch"
+        value={masterBranch}
+        onChange={setMasterBranch}
+        pinned={[{ value: 'all', label: 'All branches' }]}
+        options={salesBranches.map((b) => ({ value: b.id, label: b.name }))}
+      />
     </label>
   ) : undefined;
   // Receipts and documents show the branch's own phone and address when it has them.

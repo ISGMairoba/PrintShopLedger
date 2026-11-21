@@ -1,4 +1,5 @@
 import Icon from './Icon';
+import SearchSelect from './SearchSelect';
 import CurrencyInput from './CurrencyInput';
 import { currency } from './receipts.mjs';
 import { money } from './domain.mjs';
@@ -82,20 +83,15 @@ export default function SplitPayment({
         <div className="split-row" key={index}>
           <label>
             {`Method ${index + 1}`}
-            <select
-              aria-label={`Split method ${index + 1}`}
+            <SearchSelect
+              label={`Split method ${index + 1}`}
               value={row.methodLabel}
-              onChange={(e) => set(index, { methodLabel: e.target.value })}
-            >
-              {!row.methodLabel && <option value="">Choose…</option>}
-              {methods
+              onChange={(methodLabel) => set(index, { methodLabel })}
+              placeholder="Choose…"
+              options={methods
                 .filter((m) => m.label === row.methodLabel || !rows.some((r) => r.methodLabel === m.label))
-                .map((m) => (
-                  <option key={m.label} value={m.label}>
-                    {m.displayLabel || m.label}
-                  </option>
-                ))}
-            </select>
+                .map((m) => ({ value: m.label, label: m.displayLabel || m.label }))}
+            />
           </label>
           <label>
             Amount (₦)

@@ -1,3 +1,4 @@
+import SearchSelect from './SearchSelect';
 /** My Account → Branch: which branch this device works in (shown when there is a choice). */
 export default function BranchSwitch({
   branches,
@@ -21,19 +22,13 @@ export default function BranchSwitch({
       </p>
       <label>
         Switch this device to
-        <select
+        <SearchSelect
+          label="Switch this device to"
           value={activeId}
           disabled={pending > 0}
-          onChange={(e) =>
-            onChange(e.target.value, branches.find((b) => b.id === e.target.value)?.name ?? '')
-          }
-        >
-          {branches.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name}
-            </option>
-          ))}
-        </select>
+          onChange={(id) => onChange(id, branches.find((b) => b.id === id)?.name ?? '')}
+          options={branches.map((b) => ({ value: b.id, label: b.name }))}
+        />
         {pending > 0 && <small>Wait until all work on this device has synced before switching.</small>}
       </label>
     </section>
