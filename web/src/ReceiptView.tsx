@@ -1,7 +1,7 @@
 import { useMessages } from './MessagesContext';
 import { AdjustmentHistory } from './SaleAdjustmentsPage';
 import { useFeedbackMessage, FeedbackBanner } from './Feedback';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Modal from './Modal';
 import Icon from './Icon';
 import {
@@ -115,6 +115,14 @@ export default function ReceiptView({
   }
   const [menu, setMenu] = useState<'' | 'print' | 'share' | 'download'>('');
   const toggle = (next: 'print' | 'share' | 'download') => setMenu((m) => (m === next ? '' : next));
+  // The choices open under the buttons, which on a phone is below the screen's edge: bring them into
+  // view (smoothly, unless the device asks for less motion); the row glows once (CSS) to show where.
+  const choices = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!menu) return;
+    const calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    choices.current?.scrollIntoView({ block: 'nearest', behavior: calm ? 'auto' : 'smooth' });
+  }, [menu]);
   /** Do one of the choices, then close the choices. */
   async function run(action: () => Promise<void>) {
     await action();
@@ -218,7 +226,7 @@ export default function ReceiptView({
         )}
       </div>
       {menu === 'print' && (
-        <div className="receipt-choices" role="group" aria-label="Print">
+        <div ref={choices} className="receipt-choices" role="group" aria-label="Print">
           <button disabled={busy} onClick={() => void run(print)}>
             <Icon name="services" /> Print ({settings.paper})
           </button>
@@ -232,7 +240,7 @@ export default function ReceiptView({
         </div>
       )}
       {menu === 'share' && (
-        <div className="receipt-choices" role="group" aria-label="Share">
+        <div ref={choices} className="receipt-choices" role="group" aria-label="Share">
           <button disabled={busy} onClick={() => void run(() => share('pdf'))}>
             <Icon name="share" /> PDF
           </button>
@@ -253,7 +261,7 @@ export default function ReceiptView({
         </div>
       )}
       {menu === 'download' && (
-        <div className="receipt-choices" role="group" aria-label="Download">
+        <div ref={choices} className="receipt-choices" role="group" aria-label="Download">
           <button disabled={busy} onClick={() => void run(() => pdf('a4'))}>
             <Icon name="export" /> PDF (A4)
           </button>
