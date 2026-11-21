@@ -250,7 +250,10 @@ export const videos = [
         .click();
       await page.getByRole('button', { name: 'Quick sale', exact: true }).click();
       const q = page.getByRole('dialog', { name: 'Quick sale' });
-      await q.getByRole('group', { name: 'Items' }).getByRole('button', { name: /^Art card/ }).click();
+      await q
+        .getByRole('group', { name: 'Items' })
+        .getByRole('button', { name: /^Art card/ })
+        .click();
       await q.getByRole('button', { name: /^Pay / }).click();
       await page
         .getByRole('dialog', { name: 'Payment' })
