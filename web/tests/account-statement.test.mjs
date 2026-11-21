@@ -89,7 +89,10 @@ test('a period starts from the balance carried into it', () => {
   const s = accountStatement(ledger, 'bank', { ...names, from: '2026-11-04', to: '2026-11-04' });
   assert.equal(s.opening, 10000 + 5000 + 20000 - 2000 - 1000);
   assert.equal(s.closing, s.opening - 500 - 100);
-  assert.deepEqual(s.rows.map((r) => r.type), ['refund', 'reconcile']);
+  assert.deepEqual(
+    s.rows.map((r) => r.type),
+    ['refund', 'reconcile'],
+  );
   const cash = accountStatement(ledger, 'cash', { ...names, to: '2026-11-30' });
   assert.equal(cash.closing, accountBalance(ledger, 'cash', '2026-11-30').balance);
   assert.equal(cash.rows.find((r) => r.type === 'transfer').label, 'Transfer from Bank');
@@ -97,7 +100,10 @@ test('a period starts from the balance carried into it', () => {
 
 test('rows can be filtered by type, direction and words, and sorted', () => {
   const { rows } = accountStatement(ledger, 'bank', { ...names, to: '2026-11-30' });
-  assert.deepEqual(filterStatement(rows, { direction: 'in' }).map((r) => r.type), ['sale', 'loan', 'sale']);
+  assert.deepEqual(
+    filterStatement(rows, { direction: 'in' }).map((r) => r.type),
+    ['sale', 'loan', 'sale'],
+  );
   assert.equal(filterStatement(rows, { type: 'repayment' }).length, 1);
   assert.equal(filterStatement(rows, { search: 'instalment' })[0].type, 'repayment');
   assert.equal(filterStatement(rows, { sort: 'amount-desc' })[0].type, 'loan');

@@ -165,7 +165,9 @@ try {
       .click();
     await dialog().locator('.statement-tag.tag-reconcile').waitFor();
     await dialog().locator('.statement-tag.tag-expense').waitFor();
-    await dialog().getByRole('button', { name: /Filters/ }).click();
+    await dialog()
+      .getByRole('button', { name: /Filters/ })
+      .click();
     await dialog().getByLabel('Transaction type').selectOption('reconcile');
     assert.equal(await dialog().locator('.statement-table tbody tr').count(), 1);
     const [sheet] = await Promise.all([

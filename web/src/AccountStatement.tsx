@@ -182,9 +182,7 @@ export default function AccountStatement({
           {error}
         </p>
       )}
-      <p className="statement-totals">
-        {totals}
-      </p>
+      <p className="statement-totals">{totals}</p>
       <div className="table-wrap">
         <table className="statement-table">
           <thead>
