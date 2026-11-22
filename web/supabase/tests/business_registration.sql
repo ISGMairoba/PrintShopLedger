@@ -5,8 +5,8 @@ begin
  insert into auth.users(id,email,email_confirmed_at) values(owner,'registration-test@example.invalid',now()),(dev,'staff-developer-test@staff.printshopledger.invalid',now()),(other,'unverified@example.invalid',null);
  r:=public.complete_business_registration(owner,dev,'Registration test','Test Owner',repeat('a',64),'https://print-shop-ledger.vercel.app/#developer_activation='||repeat('a',64));s:=(r->>'shopId')::uuid;
  if (select count(*) from public.shop_members where shop_id=s)<>2 then raise exception 'Missing accounts';end if;
- if not exists(select 1 from public.shop_members where shop_id=s and user_id=owner and rank=3 and access_level=3 and username='manager') then raise exception 'Manager access missing';end if;
- if not exists(select 1 from public.shop_members where shop_id=s and user_id=dev and rank=4 and access_level=0 and username='developer') then raise exception 'Developer must await activation';end if;
+ if not exists(select 1 from public.shop_members where shop_id=s and user_id=owner and role='general_manager' and rank=4 and access_level=4 and username='manager') then raise exception 'General Manager access missing';end if;
+ if not exists(select 1 from public.shop_members where shop_id=s and user_id=dev and rank=5 and access_level=0 and username='developer') then raise exception 'Developer must await activation';end if;
  if (select recipient from private.registration_mail where shop_id=s)<>'mairobaprints@gmail.com' then raise exception 'Wrong recipient';end if;
  r2:=public.complete_business_registration(owner,dev,'Changed name','Other Owner',repeat('b',64),'https://print-shop-ledger.vercel.app/#developer_activation='||repeat('b',64));
  if r2->>'shopId'<>s::text or (r2->>'created')::boolean then raise exception 'Retry duplicated registration';end if;
@@ -21,7 +21,7 @@ begin
  failed:=false;begin perform public.claim_developer_activation(repeat('a',64),gen_random_uuid());exception when others then failed:=true;end;
  if not failed then raise exception 'Concurrent activation accepted';end if;
  perform public.finish_developer_activation(repeat('a',64),c,true);
- if not exists(select 1 from public.shop_members where shop_id=s and user_id=dev and access_level=4) then raise exception 'Developer not activated';end if;
+ if not exists(select 1 from public.shop_members where shop_id=s and user_id=dev and access_level=5) then raise exception 'Developer not activated';end if;
  failed:=false;begin perform public.claim_developer_activation(repeat('a',64),gen_random_uuid());exception when others then failed:=true;end;
  if not failed then raise exception 'Used token accepted';end if;
  if has_function_privilege('authenticated','public.complete_business_registration(uuid,uuid,text,text,text,text)','EXECUTE') or has_function_privilege('anon','public.claim_developer_activation(text,uuid)','EXECUTE') then raise exception 'Provisioning function exposed';end if;

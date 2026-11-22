@@ -4,7 +4,9 @@ declare owner_id uuid=gen_random_uuid(); cashier uuid=gen_random_uuid(); admin_i
  settings jsonb='{"businessName":"Mairoba QA","address":"Kano","phones":"080111","email":"studio@example.com","website":"https://example.com","socials":"@studio","logo":"","primary":"#124b40","accent":"#d9a126","theme":"system","receipt":{"showLogo":true,"showAddress":true,"showContacts":true,"footer":"Thank you"}}';
 begin
  insert into auth.users(id,email,raw_user_meta_data,created_at)select id,id::text||'@example.invalid','{}',now()from unnest(array[owner_id,cashier,admin_id,outsider])id;
- perform set_config('request.jwt.claim.sub',owner_id::text,true);shop=public.create_shop('Branding QA');
+ perform set_config('request.jwt.claim.sub',owner_id::text,true);shop=test.new_shop('Branding QA');
+ -- Business settings are made and maintained by the Developer.
+ perform test.make_developer(shop,owner_id);
  perform public.provision_shop_user(shop,owner_id,jsonb_build_object('userId',cashier,'name','Cashier','username','cashier','role','cashier'));
  perform public.provision_shop_user(shop,owner_id,jsonb_build_object('userId',admin_id,'name','Admin','username','admin','role','admin'));
  result=public.save_business_settings(shop,0,settings);
