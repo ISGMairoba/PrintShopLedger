@@ -116,6 +116,10 @@ try {
       .getByText(/deadline extends/)
       .first()
       .waitFor({ state: 'detached' });
+    // On a phone the actions are in the job's details: close it before using the menu.
+    while (await page.getByRole('dialog').count()) {
+      await page.getByRole('dialog').last().getByRole('button', { name: 'Close', exact: true }).first().click();
+    }
     await nav('Business Settings');
     await settingsSection(page, 'Messages');
     assert.match(await page.locator('main').innerText(), /Order on hold/);
