@@ -8,7 +8,7 @@ import { pick } from './pick.mjs';
 
 // Holding a job: "Hold and extend deadline", the held message, and resuming.
 
-const port = 4191;
+const port = 4250;
 const server = spawn(
   process.execPath,
   ['node_modules/vite/bin/vite.js', 'preview', '--host', '127.0.0.1', '--port', String(port), '--strictPort'],
