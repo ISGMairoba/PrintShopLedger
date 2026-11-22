@@ -81,7 +81,11 @@ const tests = readdirSync(join(root, 'tests'))
   .sort();
 let failed = 0;
 for (const name of tests) {
-  const result = psql(join(root, 'tests', name), [], fixtureEnv);
+  // Before the fixture rolls back, check the download on its data (test.ledger_same, NEW-02).
+  const file = join(work, name);
+  const text = readFileSync(join(root, 'tests', name), 'utf8');
+  writeFileSync(file, text.replace(/rollback;\s*$/i, 'reset role;\nselect test.ledger_same();\nrollback;\n'));
+  const result = psql(file, [], fixtureEnv);
   if (result.ok) console.log(`ok   ${name}`);
   else {
     failed++;

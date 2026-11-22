@@ -112,3 +112,36 @@ language sql security definer set search_path = '' as $f$
    where shop_id = p_shop and user_id = p_user
 $f$;
 grant execute on function test.make_developer(uuid, uuid) to authenticated;
+
+-- NEW-02: the one-pass download must equal the old layered one, byte for byte, for every member of
+-- every business and every branch they could ask for. sql-tests.mjs runs this at the end of each
+-- fixture, before its rollback, so it sees that fixture's data.
+create or replace function test.ledger_same() returns int language plpgsql as $$
+declare s record; m record; b text; a jsonb; o jsonb; k text; n int := 0;
+begin
+  if to_regprocedure('private.get_ledger_layered(uuid)') is null then return 0; end if;
+  for s in select id from public.shops loop
+    for m in select user_id from public.shop_members where shop_id = s.id loop
+      for b in select null union all
+               select distinct x->>'id' from public.business_settings bs, jsonb_array_elements(coalesce(bs.settings->'branches', '[]'::jsonb)) x
+               where bs.shop_id = s.id loop
+        perform set_config('request.jwt.claims', jsonb_build_object('sub', m.user_id, 'role', 'authenticated')::text, true);
+        perform set_config('request.jwt.claim.sub', m.user_id::text, true);
+        perform set_config('request.headers', case when b is null then '{}' else jsonb_build_object('x-psl-branch', b)::text end, true);
+        perform set_config('psl.branch', '', true);
+        perform set_config('psl.price_branch', '', true);
+        begin a := public.get_ledger(s.id); exception when others then a := to_jsonb('refused: ' || sqlerrm); end;
+        begin o := private.get_ledger_layered(s.id); exception when others then o := to_jsonb('refused: ' || sqlerrm); end;
+        if a::text is distinct from o::text then
+          if jsonb_typeof(a) = 'object' and jsonb_typeof(o) = 'object' then
+            select string_agg(key, ', ') into k from (select key from jsonb_each(a) union select key from jsonb_each(o)) x
+              where a->key is distinct from o->key;
+          else k := a::text || ' vs ' || o::text; end if;
+          raise exception 'One-pass download differs from the layered one (shop %, user %, branch %): %', s.id, m.user_id, b, k;
+        end if;
+        n := n + 1;
+      end loop;
+    end loop;
+  end loop;
+  return n;
+end $$;
