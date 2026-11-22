@@ -117,7 +117,10 @@ export const MESSAGE_KINDS = [
       ['items', 'Items and quantities'],
       ['reason', 'Why it is on hold, e.g. "waiting for your design approval"'],
       ['note', 'The note added when holding it (empty if none)'],
-      ['deadline', 'Whether the collection date moves, e.g. "Your collection date moves by the time it is on hold."'],
+      [
+        'deadline',
+        'Whether the collection date moves, e.g. "Your collection date moves by the time it is on hold."',
+      ],
       ['due', 'The current collection date and time (empty if none)'],
       ['business', 'Business name'],
       ...placeHolders,

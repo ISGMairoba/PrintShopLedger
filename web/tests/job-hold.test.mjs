@@ -115,7 +115,12 @@ test('a plain hold, or a job with no deadline, leaves the due date alone', () =>
   let m = base();
   m = applyEvent(
     m,
-    holdEvent(m.jobs[0], { reason: 'Other', note: 'Ink', extendDeadline: true }, actor, '2026-11-07T09:00:00Z'),
+    holdEvent(
+      m.jobs[0],
+      { reason: 'Other', note: 'Ink', extendDeadline: true },
+      actor,
+      '2026-11-07T09:00:00Z',
+    ),
   );
   assert.equal(m.jobs[0].hold.extendDeadline, undefined);
   m = applyEvent(m, holdEvent(m.jobs[0], null, actor, '2026-11-08T09:00:00Z'));

@@ -99,14 +99,20 @@ try {
     );
     await d.getByRole('button', { name: 'Hold and extend deadline', exact: true }).click();
     await d.waitFor({ state: 'detached' });
-    await page.getByText(/On hold: Waiting for design approval · deadline extends/).first().waitFor();
+    await page
+      .getByText(/On hold: Waiting for design approval · deadline extends/)
+      .first()
+      .waitFor();
     // The customer can be told it is on hold.
     assert.ok(
       (await page.getByTitle('Send the customer a message that their job is on hold').count()) > 0,
       'Tell customer offers the held message',
     );
     await page.getByRole('button', { name: 'Resume', exact: true }).first().click();
-    await page.getByText(/deadline extends/).first().waitFor({ state: 'detached' });
+    await page
+      .getByText(/deadline extends/)
+      .first()
+      .waitFor({ state: 'detached' });
     await nav('Business Settings');
     await settingsSection(page, 'Messages');
     assert.match(await page.locator('main').innerText(), /Order on hold/);
