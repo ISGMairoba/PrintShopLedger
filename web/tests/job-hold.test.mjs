@@ -75,3 +75,58 @@ test('a hold needs a reason, and Other needs a note', () => {
     /waiting for/,
   );
 });
+
+test('a hold that extends the deadline moves the due date by the time on hold when resumed', () => {
+  let l = base();
+  l = { ...l, jobs: [{ ...l.jobs[0], dueAt: '2026-11-10T17:00:00.000Z' }] };
+  const start = '2026-11-07T09:00:00.000Z',
+    end = '2026-11-08T12:30:00.000Z'; // 27.5 hours later
+  l = applyEvent(
+    l,
+    holdEvent(
+      l.jobs[0],
+      { reason: 'Waiting for design approval', note: '', extendDeadline: true },
+      actor,
+      start,
+    ),
+  );
+  assert.equal(l.jobs[0].hold.extendDeadline, true);
+  assert.equal(l.jobs[0].dueAt, '2026-11-10T17:00:00.000Z', 'Unchanged while on hold');
+  l = applyEvent(l, holdEvent(l.jobs[0], null, actor, end));
+  assert.equal(l.jobs[0].dueAt, '2026-11-11T20:30:00.000Z');
+  const last = l.jobs[0].dueHistory.at(-1);
+  assert.equal(last.from, '2026-11-10T17:00:00.000Z');
+  assert.equal(last.to, '2026-11-11T20:30:00.000Z');
+  assert.match(last.reason, /^On hold: Waiting for design approval/);
+});
+
+test('a plain hold, or a job with no deadline, leaves the due date alone', () => {
+  let l = base();
+  l = { ...l, jobs: [{ ...l.jobs[0], dueAt: '2026-11-10T17:00:00.000Z' }] };
+  l = applyEvent(
+    l,
+    holdEvent(l.jobs[0], { reason: 'Waiting for materials', note: '' }, actor, '2026-11-07T09:00:00Z'),
+  );
+  assert.equal(l.jobs[0].hold.extendDeadline, undefined);
+  l = applyEvent(l, holdEvent(l.jobs[0], null, actor, '2026-11-08T09:00:00Z'));
+  assert.equal(l.jobs[0].dueAt, '2026-11-10T17:00:00.000Z');
+  assert.equal(l.jobs[0].dueHistory, undefined);
+  // No deadline: asking to extend is ignored.
+  let m = base();
+  m = applyEvent(
+    m,
+    holdEvent(m.jobs[0], { reason: 'Other', note: 'Ink', extendDeadline: true }, actor, '2026-11-07T09:00:00Z'),
+  );
+  assert.equal(m.jobs[0].hold.extendDeadline, undefined);
+  m = applyEvent(m, holdEvent(m.jobs[0], null, actor, '2026-11-08T09:00:00Z'));
+  assert.equal(m.jobs[0].dueAt, undefined);
+});
+
+test('holds caused by the customer extend the deadline by default', async () => {
+  const { extendsByDefault } = await import('../src/job-hold.mjs');
+  assert.equal(extendsByDefault('Waiting for design approval'), true);
+  assert.equal(extendsByDefault('Waiting for balance payment'), true);
+  assert.equal(extendsByDefault('Customer not reachable'), true);
+  assert.equal(extendsByDefault('Waiting for materials'), false);
+  assert.equal(extendsByDefault('Other'), false);
+});

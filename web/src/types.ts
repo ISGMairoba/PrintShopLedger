@@ -223,7 +223,16 @@ export interface Job {
   workflowName?: string;
   stageHours?: Record<string, number>;
   /** On hold: what it waits for, who held it and at which stage. */
-  hold?: { reason: string; note: string; heldBy: string; heldByLabel: string; heldAt: string; stage: string };
+  hold?: {
+    reason: string;
+    note: string;
+    heldBy: string;
+    heldByLabel: string;
+    heldAt: string;
+    stage: string;
+    /** The deadline moves later by the time on hold when the job is resumed. */
+    extendDeadline?: boolean;
+  };
   holdHistory?: {
     reason: string;
     note: string;

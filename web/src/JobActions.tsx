@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { jobWorkflow } from './business-options.mjs';
 import Icon from './Icon';
 import Modal from './Modal';
-import { HOLD_REASONS } from './job-hold.mjs';
+import { extendsByDefault, HOLD_REASONS } from './job-hold.mjs';
 import type { Job } from './types';
 import { useWords } from './Words';
 import { TellCustomer } from './ReadyMessage';
 export type ProgressMode = 'next' | 'set' | 'complete';
-export type HoldChange = { reason: string; note: string } | null;
+export type HoldChange = { reason: string; note: string; extendDeadline?: boolean } | null;
 export default function JobActions({
   job,
   busy,
@@ -31,6 +31,19 @@ export default function JobActions({
   const [asking, setAsking] = useState(false);
   const [reason, setReason] = useState(HOLD_REASONS[0]);
   const [note, setNote] = useState('');
+  // Extend the deadline by the time on hold: on by default when the wait is on the customer's side.
+  const [extend, setExtend] = useState<boolean | null>(null);
+  const hasDeadline = !!job.dueAt && !Number.isNaN(Date.parse(job.dueAt));
+  const extending = hasDeadline && (extend ?? extendsByDefault(reason));
+  const dueText = hasDeadline
+    ? new Date(job.dueAt as string).toLocaleString('en-GB', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+        hour: 'numeric',
+        minute: '2-digit',
+      })
+    : '';
   const [error, setError] = useState('');
   const inProduction = !['Completed', 'Collected', 'Cancelled'].includes(job.productionStatus ?? 'Added');
   const run = async (hold: HoldChange) => {
@@ -87,6 +100,7 @@ export default function JobActions({
           onClick={() => {
             setReason(HOLD_REASONS[0]);
             setNote('');
+            setExtend(null);
             setError('');
             setAsking(true);
           }}
@@ -129,12 +143,30 @@ export default function JobActions({
               onChange={(e) => setNote(e.target.value)}
             />
           </label>
+          {hasDeadline && (
+            <label className="check-label">
+              <input
+                type="checkbox"
+                aria-label="Extend the deadline"
+                checked={extending}
+                onChange={(e) => setExtend(e.target.checked)}
+              />
+              <span>
+                Extend the deadline by the time it is on hold
+                <small className="muted"> Now due {dueText}. It moves when you resume the job.</small>
+              </span>
+            </label>
+          )}
           <div className="material-actions">
             <button type="button" className="secondary" onClick={() => setAsking(false)}>
               Cancel
             </button>
-            <button type="button" disabled={busy} onClick={() => void run({ reason, note })}>
-              Put on hold
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void run({ reason, note, ...(extending ? { extendDeadline: true } : {}) })}
+            >
+              {extending ? 'Hold and extend deadline' : 'Put on hold'}
             </button>
           </div>
         </Modal>

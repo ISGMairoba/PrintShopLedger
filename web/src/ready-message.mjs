@@ -18,9 +18,60 @@ export function partReady(job) {
   return jobParts(job).ready;
 }
 
-/** Whether "Tell customer" can be used: the job is ready or collected, or part of it is ready. */
+/** Whether "Tell customer" can be used: the job is ready, collected or on hold, or part of it is ready. */
 export const canTellCustomer = (job) =>
-  job.productionStatus === 'Completed' || job.productionStatus === 'Collected' || partReady(job) > 0;
+  !!job.hold ||
+  job.productionStatus === 'Completed' ||
+  job.productionStatus === 'Collected' ||
+  partReady(job) > 0;
+
+/** How each hold reason reads to the customer. */
+const HOLD_WORDS = {
+  'Waiting for design approval': 'waiting for your design approval',
+  'Waiting for balance payment': 'waiting for the balance payment',
+  'Waiting for materials': 'waiting for materials',
+  'Customer not reachable': 'we have not been able to reach you',
+};
+
+/** The "order on hold" message: why, the note, and whether the collection date moves. */
+export function heldMessage(ledger, job, { business, terms, messages }) {
+  const customer = ledger.customers.find((c) => c.id === job.customerId);
+  const hold = job.hold ?? {};
+  const own = String(hold.note ?? '').trim();
+  // "Other": the note says what it is waiting for, so it becomes the reason.
+  const other = hold.reason === 'Other';
+  const note = other ? '' : own;
+  const due = job.dueAt && !Number.isNaN(Date.parse(job.dueAt)) ? new Date(job.dueAt) : null;
+  const values = {
+    ...customerNames(customer?.name, customer?.calledAs),
+    job: terms?.job ?? 'order',
+    number: `#${job.id.slice(0, 8).toUpperCase()}`,
+    items: itemText(job),
+    reason: other
+      ? own.replace(/[.!?]+$/, '') || 'waiting for something'
+      : (HOLD_WORDS[hold.reason] ?? String(hold.reason ?? '').toLowerCase()),
+    note: note ? (/[.!?]$/.test(note) ? note : `${note}.`) : '',
+    deadline: hold.extendDeadline ? 'Your collection date moves by the time it is on hold.' : '',
+    due: due
+      ? due.toLocaleString('en-GB', {
+          weekday: 'short',
+          day: 'numeric',
+          month: 'short',
+          hour: 'numeric',
+          minute: '2-digit',
+        })
+      : '',
+    business: business || 'our shop',
+  };
+  const text = messageText(messages, 'held', values);
+  return {
+    text,
+    link: whatsappLink(customer?.phone, text),
+    phone: customer?.phone ?? '',
+    jobs: [job],
+    mode: messageMode(messages, 'held'),
+  };
+}
 
 export const READY_PLACEHOLDERS = ['customer', 'job', 'number', 'items', 'is', 'business', 'balance'];
 export const DEFAULT_READY_MESSAGE =
@@ -84,6 +135,7 @@ function partReadyMessage(ledger, job, { business, messages }) {
  * @param {{ business: string, template?: string, terms?: { job: string, jobs: string }, messages?: any }} options
  */
 export function readyMessage(ledger, job, { business, template, terms, messages }) {
+  if (job.hold) return heldMessage(ledger, job, { business, terms, messages });
   if (job.productionStatus === 'Collected')
     return collectedMessage(ledger, job, { business, terms, messages });
   // A part order with only some items ready: the "part ready" message.
