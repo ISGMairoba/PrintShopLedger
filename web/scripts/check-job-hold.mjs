@@ -57,6 +57,7 @@ try {
     // New jobs are due three days after they are added.
     await nav('Business Settings');
     await settingsSection(page, 'Jobs & payments');
+    await page.getByLabel('Job description entry').selectOption('optional');
     await page.getByLabel('Duration', { exact: true }).fill('3');
     await page.getByRole('button', { name: 'Save job and payment settings', exact: true }).click();
     await nav('Point of Service');
@@ -71,7 +72,9 @@ try {
     await pick(d.locator('.cart-line').first(), 'Service', { label: 'Pressing — ₦1,000.00' });
     await d.getByLabel('Money received (₦)').fill('0');
     await d.getByRole('button', { name: 'Complete checkout', exact: true }).click();
-    await d.waitFor({ state: 'detached' });
+    await d.waitFor({ state: 'detached', timeout: 8000 }).catch(async () => {
+      throw Error(`Checkout did not finish: ${(await d.innerText()).slice(0, 600)}`);
+    });
     await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
 
     await nav('Jobs');
