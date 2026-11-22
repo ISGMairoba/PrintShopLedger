@@ -22,14 +22,20 @@ export function TellCustomer({ job, busy }: { job: Job; busy?: boolean }) {
       className="text-button"
       disabled={busy}
       title={w(
-        job.productionStatus === 'Collected'
-          ? 'Send the customer a message that their job was collected'
-          : 'Send the customer a message that their job is ready',
+        job.hold
+          ? 'Send the customer a message that their job is on hold'
+          : job.productionStatus === 'Collected'
+            ? 'Send the customer a message that their job was collected'
+            : 'Send the customer a message that their job is ready',
       )}
       onClick={() => {
         const { text, phone, mode } = message(job);
         void shareText(text, {
-          title: job.productionStatus === 'Collected' ? 'Order collected' : 'Order ready',
+          title: job.hold
+            ? 'Order on hold'
+            : job.productionStatus === 'Collected'
+              ? 'Order collected'
+              : 'Order ready',
           phone,
           mode: mode as ShareMode,
         });

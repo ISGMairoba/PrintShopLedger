@@ -1,6 +1,8 @@
 // On hold: a job waiting on something (design approval, a balance payment, materials…). It stays
 // at its stage; the stage clock stops until it is resumed. Anyone who can move jobs may hold and
 // resume them. The server applies the same rules (apply_job_hold_event).
+// A hold may also extend the deadline: when the job is resumed, its due date moves later by the time it
+// was on hold (and the change is kept in its due-date history).
 
 export const HOLD_REASONS = [
   'Waiting for design approval',
@@ -10,6 +12,13 @@ export const HOLD_REASONS = [
   'Other',
 ];
 const finished = ['Completed', 'Collected', 'Cancelled'];
+/** Waits on the customer's side: the hold dialog offers to extend the deadline for these by default. */
+export const CUSTOMER_REASONS = [
+  'Waiting for design approval',
+  'Waiting for balance payment',
+  'Customer not reachable',
+];
+export const extendsByDefault = (reason) => CUSTOMER_REASONS.includes(reason);
 
 /** The event putting a job on hold, or resuming it. */
 export function holdEvent(job, hold, actor, now = new Date().toISOString()) {
@@ -19,13 +28,21 @@ export function holdEvent(job, hold, actor, now = new Date().toISOString()) {
     data: {
       id: job.id,
       baseVersion: job.version ?? 1,
-      ...(hold ? { reason: hold.reason, note: String(hold.note ?? '').trim() } : {}),
+      ...(hold
+        ? {
+            reason: hold.reason,
+            note: String(hold.note ?? '').trim(),
+            ...(hold.extendDeadline ? { extendDeadline: true } : {}),
+          }
+        : {}),
       modifiedBy: actor.id,
       modifiedByLabel: actor.label,
       modifiedAt: now,
     },
   };
 }
+
+const validDue = (value) => typeof value === 'string' && !Number.isNaN(Date.parse(value));
 
 export function applyJobHold(ledger, event) {
   const d = event.data;
@@ -51,14 +68,35 @@ export function applyJobHold(ledger, event) {
         heldByLabel: d.modifiedByLabel,
         heldAt: d.modifiedAt,
         stage: job.productionStatus ?? 'Added',
+        ...(d.extendDeadline === true && validDue(job.dueAt) ? { extendDeadline: true } : {}),
       },
     };
   } else if (event.kind === 'job.resumed') {
     if (!job.hold) throw Error('This job is not on hold.');
     const { hold, ...rest } = job;
     const held = Math.max(0, Date.parse(d.modifiedAt) - Date.parse(hold.heldAt));
+    const extended =
+      hold.extendDeadline && validDue(job.dueAt) && held > 0
+        ? new Date(Date.parse(job.dueAt) + held).toISOString()
+        : '';
     next = {
       ...rest,
+      ...(extended
+        ? {
+            dueAt: extended,
+            dueHistory: [
+              ...(job.dueHistory ?? []),
+              {
+                id: event.id,
+                from: job.dueAt,
+                to: extended,
+                reason: `On hold: ${hold.reason} (deadline extended by the time on hold)`,
+                changedBy: d.modifiedByLabel,
+                changedAt: d.modifiedAt,
+              },
+            ],
+          }
+        : {}),
       // Time on hold at this stage does not count towards its time.
       stageHeldMs: (job.stageHeldMs ?? 0) + (hold.stage === (job.productionStatus ?? 'Added') ? held : 0),
       holdHistory: [

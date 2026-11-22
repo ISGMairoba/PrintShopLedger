@@ -233,6 +233,7 @@ export default function JobTable({
                     <small className="job-held">
                       On hold: {job.hold.reason}
                       {job.hold.note ? ` — ${job.hold.note}` : ''}
+                      {job.hold.extendDeadline ? ' · deadline extends' : ''}
                     </small>
                   )}
                   {partsLine(job) && stage !== 'Collected' && (

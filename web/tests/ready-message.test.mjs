@@ -82,3 +82,36 @@ test('A collected order gets the "collected" message: who collected it, when, an
   l.jobs[0] = { ...l.jobs[0], progress: undefined, modifiedAt: '2026-11-19T09:00:00Z' };
   assert.match(readyMessage(l, l.jobs[0], { business: 'Mairoba' }).text, /was collected on 19 Nov 2026/);
 });
+
+test('a job on hold gets the held message: reason, note and whether the date moves', async () => {
+  const { readyMessage, canTellCustomer } = await import('../src/ready-message.mjs');
+  const ledger = {
+    customers: [{ id: 'c', name: 'Ada Obi', phone: '08030000000' }],
+    jobs: [],
+    payments: [],
+  };
+  const job = {
+    id: 'abcdef12-0000',
+    customerId: 'c',
+    service: 'Flyers',
+    quantity: 100,
+    productionStatus: 'Design',
+    dueAt: '2026-11-25T16:00:00.000Z',
+    hold: { reason: 'Waiting for design approval', note: 'Please check the proof', extendDeadline: true },
+  };
+  ledger.jobs.push(job);
+  assert.equal(canTellCustomer(job), true);
+  const { text } = readyMessage(ledger, job, { business: 'SMGraphics' });
+  assert.match(
+    text,
+    /^Hello Ada, your order #ABCDEF12 \(.*\) at SMGraphics is on hold: waiting for your design approval\./,
+  );
+  assert.match(text, /Please check the proof\. Your collection date moves by the time it is on hold\./);
+  const other = readyMessage(
+    ledger,
+    { ...job, hold: { reason: 'Other', note: 'Waiting for the courier.' } },
+    { business: 'X' },
+  );
+  assert.match(other.text, /on hold: Waiting for the courier\. We will let you know/);
+  assert.doesNotMatch(other.text, /collection date/);
+});
