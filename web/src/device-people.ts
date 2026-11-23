@@ -7,10 +7,23 @@ import type { Session } from '@supabase/supabase-js';
 import { readSealed, writeSealed } from './pin-store';
 import { keepPeople, type RememberedPerson } from './remembered-people.mjs';
 
+// One change at a time: two changes read at once would each write back what they read, and the
+// later write would drop the other's person (two sign-ins close together, a refresh while someone
+// signs in). Each reads what the one before it wrote.
+let queue: Promise<unknown> = Promise.resolve();
+function inTurn<T>(change: () => Promise<T>): Promise<T> {
+  const run = queue.then(change, change);
+  queue = run.catch(() => undefined);
+  return run;
+}
+
 export type { RememberedPerson };
 const name = (shopId: string) => `people:${shopId}`;
 
-export async function listPeople(shopId: string, days: number, max: number, now = new Date()) {
+export function listPeople(shopId: string, days: number, max: number, now = new Date()) {
+  return inTurn(() => readPeople(shopId, days, max, now));
+}
+async function readPeople(shopId: string, days: number, max: number, now: Date) {
   const all = (await readSealed<RememberedPerson[]>(name(shopId))) ?? [];
   const kept = keepPeople(all, { days, max, now: now.toISOString() });
   if (kept.length !== all.length) await writeSealed(name(shopId), kept);
@@ -18,7 +31,10 @@ export async function listPeople(shopId: string, days: number, max: number, now 
 }
 
 /** Keep (or refresh) this person's sign-in. password: they just signed in with their password. */
-export async function rememberPerson(
+export function rememberPerson(...args: Parameters<typeof keepPerson>) {
+  return inTurn(() => keepPerson(...args));
+}
+async function keepPerson(
   shopId: string,
   person: Omit<RememberedPerson, 'passwordAt' | 'seenAt' | 'session'> & { session: Session },
   {
@@ -44,7 +60,10 @@ export async function rememberPerson(
   await writeSealed(name(shopId), kept);
 }
 
-export async function forgetPerson(shopId: string, userId: string) {
+export function forgetPerson(shopId: string, userId: string) {
+  return inTurn(() => dropPerson(shopId, userId));
+}
+async function dropPerson(shopId: string, userId: string) {
   const all = (await readSealed<RememberedPerson[]>(name(shopId))) ?? [];
   await writeSealed(
     name(shopId),
@@ -52,4 +71,4 @@ export async function forgetPerson(shopId: string, userId: string) {
   );
 }
 
-export const forgetEveryone = (shopId: string) => writeSealed(name(shopId), null);
+export const forgetEveryone = (shopId: string) => inTurn(() => writeSealed(name(shopId), null));
