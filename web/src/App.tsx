@@ -130,7 +130,13 @@ import { useAutoLock } from './app/useAutoLock';
 import usePinLock from './app/usePinLock';
 import { validPinHash } from './pin.mjs';
 import { lockedFlag, readPin, setLockedFlag, writePin } from './pin-store';
-import { forgetEveryone, forgetPerson, listPeople, rememberPerson, type RememberedPerson } from './device-people';
+import {
+  forgetEveryone,
+  forgetPerson,
+  listPeople,
+  rememberPerson,
+  type RememberedPerson,
+} from './device-people';
 import { sessionKey } from './app/useSessions';
 import { checkPin } from './pin.mjs';
 import { noteLockout, sendLockouts, switchedIn } from './lock-notes';
@@ -2994,9 +3000,7 @@ export default function App() {
                                       }
                                       disabled={busy}
                                       setBusy={setBusy}
-                                      onMessage={(text, tone) =>
-                                        setMessage(text, tone ?? 'success')
-                                      }
+                                      onMessage={(text, tone) => setMessage(text, tone ?? 'success')}
                                     />
                                   ) : undefined
                                 }

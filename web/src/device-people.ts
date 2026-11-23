@@ -46,7 +46,10 @@ export async function rememberPerson(
 
 export async function forgetPerson(shopId: string, userId: string) {
   const all = (await readSealed<RememberedPerson[]>(name(shopId))) ?? [];
-  await writeSealed(name(shopId), all.filter((p) => p.userId !== userId));
+  await writeSealed(
+    name(shopId),
+    all.filter((p) => p.userId !== userId),
+  );
 }
 
 export const forgetEveryone = (shopId: string) => writeSealed(name(shopId), null);

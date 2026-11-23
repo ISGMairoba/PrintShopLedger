@@ -58,7 +58,9 @@ export default function PinForm({
             maxLength={6}
             required
           />
-          <small>{min === 6 ? '6 digits' : `${min} to 6 digits`}, not easy to guess (not 1111 or 1234).</small>
+          <small>
+            {min === 6 ? '6 digits' : `${min} to 6 digits`}, not easy to guess (not 1111 or 1234).
+          </small>
         </label>
         <label>
           Type it again

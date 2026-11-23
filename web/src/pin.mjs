@@ -18,8 +18,7 @@ function obvious(pin) {
 /** Why a new PIN can't be used ('' when it can). min: the business's minimum length (4 to 6). */
 export function pinProblem(pin, again, min = 4) {
   const value = String(pin ?? '');
-  if (!PIN.test(value) || value.length < min)
-    return min === 6 ? 'Use 6 digits.' : `Use ${min} to 6 digits.`;
+  if (!PIN.test(value) || value.length < min) return min === 6 ? 'Use 6 digits.' : `Use ${min} to 6 digits.`;
   if (obvious(value)) return 'Choose a PIN that is harder to guess (not 1111 or 1234).';
   if (again !== undefined && value !== String(again)) return 'The two PINs do not match.';
   return '';

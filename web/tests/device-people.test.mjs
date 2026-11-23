@@ -18,7 +18,10 @@ test('a device remembers people for the chosen days after their password sign-in
     [person('ada', '2026-11-01T11:00:00.000Z'), person('tunde', '2026-11-29T09:00:00.000Z')],
     { days: 28, max: 10, now },
   );
-  assert.deepEqual(kept.map((p) => p.userId), ['tunde']);
+  assert.deepEqual(
+    kept.map((p) => p.userId),
+    ['tunde'],
+  );
 });
 
 test('at most the chosen number of people, keeping the most recently seen', () => {
@@ -26,5 +29,8 @@ test('at most the chosen number of people, keeping the most recently seen', () =
   const people = ['a', 'b', 'c'].map((id, i) =>
     person(id, '2026-11-29T00:00:00.000Z', `2026-11-29T0${i}:00:00.000Z`),
   );
-  assert.deepEqual(keepPeople(people, { days: 30, max: 2, now }).map((p) => p.userId), ['c', 'b']);
+  assert.deepEqual(
+    keepPeople(people, { days: 30, max: 2, now }).map((p) => p.userId),
+    ['c', 'b'],
+  );
 });
