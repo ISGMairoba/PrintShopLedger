@@ -494,11 +494,11 @@ export default function CheckoutEditor({
   );
   const paymentMethods: { label: string; kind: string; enabled: boolean; displayLabel?: string }[] =
     missing.length
-    ? [
-        ...missing.map((m) => ({ ...m, enabled: true })),
-        ...availableMethods.filter((item) => !missing.some((m) => m.label === item.label)),
-      ]
-    : availableMethods;
+      ? [
+          ...missing.map((m) => ({ ...m, enabled: true })),
+          ...availableMethods.filter((item) => !missing.some((m) => m.label === item.label)),
+        ]
+      : availableMethods;
   const method = paymentMethods.find((item) => item.label === methodLabel)?.kind ?? '';
   const [accountChoice, setAccountChoice] = useState<string | null>(
     initialCheckout ? (initialCheckout.accountId ?? '') : null,
