@@ -251,9 +251,7 @@ export default function SplitStock({
                 />
                 <span>%</span>
               </span>
-              <small>
-                The pieces share what the {material.name} cost, less this share lost as offcuts.
-              </small>
+              <small>The pieces share what the {material.name} cost, less this share lost as offcuts.</small>
             </label>
           )}
           <label>

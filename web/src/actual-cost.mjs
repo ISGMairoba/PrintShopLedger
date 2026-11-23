@@ -202,7 +202,8 @@ export function stockValuation(ledger) {
       m = { quantity: sv.quantity, unitCost: new Map(), actual: new Set(), materialId: sv.materialId };
       places.set(key, m);
     }
-    m.average = Number.isFinite(sv.average) && (sv.quantity > 0 || sv.restocks > 0) ? sv.average : (m.average ?? null);
+    m.average =
+      Number.isFinite(sv.average) && (sv.quantity > 0 || sv.restocks > 0) ? sv.average : (m.average ?? null);
     m.value = m.average === null ? 0 : Math.max(0, m.quantity) * m.average;
     m.restocks = sv.restocks ?? 0;
     m.noCost = sv.noCost ?? 0;

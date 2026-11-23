@@ -240,8 +240,7 @@ export function applyExpenseEvent(input, event) {
     // What each material cost (Actual cost method): on every line or none, adding up to the total.
     const priced = materials.filter((line) => line.amount !== undefined);
     if (priced.length) {
-      if (priced.length !== materials.length)
-        throw Error('Enter an amount for every material, or for none.');
+      if (priced.length !== materials.length) throw Error('Enter an amount for every material, or for none.');
       if (priced.some((line) => !Number.isSafeInteger(line.amount) || line.amount < 0))
         throw Error('Enter each material’s amount in naira.');
       if (priced.reduce((n, line) => n + line.amount, 0) !== data.amount)

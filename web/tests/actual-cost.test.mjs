@@ -284,18 +284,44 @@ test('Server figures: the download’s stock values, line costs and late costs a
   l = applyEvent(l, {
     id: 'm1',
     kind: 'material.created',
-    data: { id: 'paper', name: 'Paper', measurementUnit: 'sheet', available: 0, requireSize: false, ...audit(0) },
+    data: {
+      id: 'paper',
+      name: 'Paper',
+      measurementUnit: 'sheet',
+      available: 0,
+      requireSize: false,
+      ...audit(0),
+    },
   });
   l = applyEvent(l, stock('r1', 1, 10, { supplierPrice: 10000 }));
   const line = l.materialHistory.at(-1);
   const server = {
     ...l,
-    materialHistory: l.materialHistory.map((h) => (h.id === line.id ? { ...h, unitCost: 1500, costActual: true } : h)),
+    materialHistory: l.materialHistory.map((h) =>
+      h.id === line.id ? { ...h, unitCost: 1500, costActual: true } : h,
+    ),
     stockValues: [
-      { id: 'main|paper', location: 'main', materialId: 'paper', quantity: 10, value: 15000, average: 1500, restocks: 1, noCost: 0 },
+      {
+        id: 'main|paper',
+        location: 'main',
+        materialId: 'paper',
+        quantity: 10,
+        value: 15000,
+        average: 1500,
+        restocks: 1,
+        noCost: 0,
+      },
     ],
     lateCosts: [
-      { id: 'c1', expenseId: 'e1', restockId: line.id, materialId: 'paper', location: 'main', amount: 700, at: at(5) },
+      {
+        id: 'c1',
+        expenseId: 'e1',
+        restockId: line.id,
+        materialId: 'paper',
+        location: 'main',
+        amount: 700,
+        at: at(5),
+      },
     ],
   };
   const v = stockValuation(server).get('paper');
@@ -333,7 +359,9 @@ test('Expense stock lines with amounts are priced restocks; a split’s Waste % 
       payee: '',
       note: '',
       receiptReference: '',
-      materials: [{ materialId: 'a4', name: 'A4', measurementUnit: 'sheet', quantity: 10, amount: amounts[0] }],
+      materials: [
+        { materialId: 'a4', name: 'A4', measurementUnit: 'sheet', quantity: 10, amount: amounts[0] },
+      ],
       stockIds: { a4: `s-${amounts.join('-')}` },
       ...audit(1),
     },
@@ -350,7 +378,12 @@ test('Expense stock lines with amounts are priced restocks; a split’s Waste % 
       quantity: 10,
       wastePercent: 10,
       pieces: [
-        { toId: 'a5', toBaseVersion: l.materials.find((m) => m.id === 'a5').version, toEventId: 'split1-a5', yield: 2 },
+        {
+          toId: 'a5',
+          toBaseVersion: l.materials.find((m) => m.id === 'a5').version,
+          toEventId: 'split1-a5',
+          yield: 2,
+        },
       ],
       reason: '',
       ...audit(2),

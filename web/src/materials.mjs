@@ -127,7 +127,9 @@ function splitMaterial(ledger, event, existing, audit, record) {
   // Waste % (Actual cost method): the share of the material lost in cutting.
   if (
     d.wastePercent !== undefined &&
-    (typeof d.wastePercent !== 'number' || !(d.wastePercent >= 0 && d.wastePercent <= 100) || (d.join && d.wastePercent))
+    (typeof d.wastePercent !== 'number' ||
+      !(d.wastePercent >= 0 && d.wastePercent <= 100) ||
+      (d.join && d.wastePercent))
   )
     throw new Error('Waste must be from 0 to 100%, and only when splitting.');
   const seen = new Set([existing.id]);

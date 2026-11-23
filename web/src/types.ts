@@ -842,7 +842,15 @@ export interface Ledger {
     noCost: number;
   }[];
   /** Late cost adjustments: the part of a late bill for stock already used. */
-  lateCosts?: { id: string; expenseId: string; restockId: string; materialId: string; location: string; amount: number; at: string }[];
+  lateCosts?: {
+    id: string;
+    expenseId: string;
+    restockId: string;
+    materialId: string;
+    location: string;
+    amount: number;
+    at: string;
+  }[];
   payees?: Payee[];
   moneyAccounts?: MoneyAccount[];
   accountEntries?: Record<string, any>[];
