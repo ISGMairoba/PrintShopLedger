@@ -2,10 +2,10 @@
 // When on, the device keeps the sign-in of each person who signs in here with their password, so
 // Switch user on the lock screen can change over with their PIN, even offline. Each person's work is
 // kept and synced under their own sign-in. Kept encrypted with the device key that protects PINs
-// (pin-store.ts). The pure rules (who is still remembered, who drops off) are in device-people.mjs.
+// (pin-store.ts). The pure rules (who is still remembered, who drops off) are in remembered-people.mjs.
 import type { Session } from '@supabase/supabase-js';
 import { readSealed, writeSealed } from './pin-store';
-import { keepPeople, type RememberedPerson } from './device-people.mjs';
+import { keepPeople, type RememberedPerson } from './remembered-people.mjs';
 
 export type { RememberedPerson };
 const name = (shopId: string) => `people:${shopId}`;

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { keepPeople } from '../src/device-people.mjs';
+import { keepPeople } from '../src/remembered-people.mjs';
 
 const person = (userId, passwordAt, seenAt = passwordAt) => ({
   userId,
