@@ -23,6 +23,7 @@ import PayeesPage from './PayeesPage';
 import AccountsPage from './AccountsPage';
 import { defaultMoneyAccount } from './operations.mjs';
 import { locationUnitCost, stockValuation } from './actual-cost.mjs';
+import { materialUnitCost } from './profit.mjs';
 import type { Ledger, OperationsEvent, FieldEvent } from './types';
 import { applySaleAdjustment } from './sale-adjustments.mjs';
 import DueDateDialog from './DueDateDialog';
@@ -63,7 +64,8 @@ import { setBusinessKeep, setKeepChoice } from './history-keep.mjs';
 import { orderMethods } from './business-options.mjs';
 import { STALE_EVENT } from './stale-app.mjs';
 import { confirmMaterialsRank, extraMaterialsRank } from './production-materials.mjs';
-import { lockSettings } from './business-branding.mjs';
+import { costMethodOf, lockSettings } from './business-branding.mjs';
+import { CostMethodContext } from './CostMethodContext';
 import { holdEvent } from './job-hold.mjs';
 import type { HoldChange } from './JobActions';
 import { dismissLowStockReminder } from './low-stock-locations.mjs';
@@ -3398,6 +3400,7 @@ export default function App() {
                                 materials={ledger.materials.filter((m) => !m.hiddenHere)}
                                 history={ledger.materialHistory}
                                 valuation={stockValuation(ledger)}
+                                unitCost={(materialId) => materialUnitCost(ledger, materialId)}
                                 ready={ready}
                                 busy={(!demo && shop?.role === 'cashier') || busy || hasConflict}
                                 actor={catalogueActor}
@@ -4033,7 +4036,11 @@ export default function App() {
   return (
     <>
       <div className="app-layer" hidden={!!lockScreen} inert={!!lockScreen}>
-        <AppLayer.Provider value>{app}</AppLayer.Provider>
+        <AppLayer.Provider value>
+          <CostMethodContext.Provider value={costMethodOf(branding.settings)}>
+            {app}
+          </CostMethodContext.Provider>
+        </AppLayer.Provider>
       </div>
       {lockScreen}
     </>

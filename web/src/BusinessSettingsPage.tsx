@@ -1152,7 +1152,30 @@ export default function BusinessSettingsPage({
                     'The "order ready" message and every other message the app sends are now in the Messages tab.',
                   )}
                 </p>
-                {sectionSave('Job and payment settings', ['jobs'])}
+                {!scope && (
+                  <>
+                    <h3>Costs and profit</h3>
+                    <label>
+                      Cost method
+                      <select
+                        aria-label="Cost method"
+                        value={draft.costMethod ?? 'estimated'}
+                        onChange={(event) => field('costMethod', event.target.value)}
+                      >
+                        <option value="estimated">
+                          Estimated: from each material&apos;s cost price (default)
+                        </option>
+                        <option value="actual">Actual: from what stock really cost</option>
+                      </select>
+                    </label>
+                    <p>
+                      {(draft.costMethod ?? 'estimated') === 'estimated'
+                        ? 'Job costs and profit are worked out from the cost price set on each material (Materials), so nobody has to enter supplier prices or link bills to restocks. Reports say "estimated".'
+                        : 'Job costs and profit come from what stock really cost: the supplier price when stock is added, bills for deliveries linked to restocks, and the cost moving with transfers and splits.'}
+                    </p>
+                  </>
+                )}
+                {sectionSave('Job and payment settings', scope ? ['jobs'] : ['jobs', 'costMethod'])}
               </fieldset>
               <fieldset hidden={tab !== 'Messages'} disabled={busy || !ready}>
                 <legend>Messages</legend>

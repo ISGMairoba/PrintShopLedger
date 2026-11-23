@@ -45,6 +45,18 @@ export function normalizeLedger(ledger) {
   };
 }
 export function validateMaterial(data) {
+  // Cost price per unit (kobo; Estimated cost method), optional.
+  const price = data.costPrice;
+  if (
+    price !== undefined &&
+    price !== null &&
+    (typeof price !== 'number' ||
+      !Number.isFinite(price) ||
+      price < 0 ||
+      price > 100000000000 ||
+      Math.abs(price * 100 - Math.round(price * 100)) > 0.001)
+  )
+    throw new Error('Cost price must be zero or more, to the kobo.');
   const minimum = data.minimumStock ?? 0;
   if (
     typeof minimum !== 'number' ||
@@ -112,6 +124,14 @@ function splitMaterial(ledger, event, existing, audit, record) {
     throw new Error('Stock note must be up to 500 characters.');
   const pieces = splitPieces(d);
   if (pieces.length < 1 || pieces.length > 20) throw new Error('Add between 1 and 20 pieces.');
+  // Waste % (Actual cost method): the share of the material lost in cutting.
+  if (
+    d.wastePercent !== undefined &&
+    (typeof d.wastePercent !== 'number' ||
+      !(d.wastePercent >= 0 && d.wastePercent <= 100) ||
+      (d.join && d.wastePercent))
+  )
+    throw new Error('Waste must be from 0 to 100%, and only when splitting.');
   const seen = new Set([existing.id]);
   const events = new Set([event.id]);
   let fromAvailable = existing.available;
@@ -148,6 +168,8 @@ function splitMaterial(ledger, event, existing, audit, record) {
   const fromNext = { ...existing, available: fromAvailable, ...audit, version: existing.version + 1 };
   validateMaterial(fromNext);
   const main = record(fromNext);
+  if (d.wastePercent > 0)
+    main.after = { ...main.after, wasteQuantity: Math.round(d.quantity * d.wastePercent * 10) / 1000 };
   const seconds = history.map(({ to, toNext, eventId }) => ({
     ...main,
     id: eventId,
@@ -215,6 +237,7 @@ export function applyMaterialEvent(input, event) {
       requireSize: data.requireSize,
       minimumStock: data.minimumStock ?? 0,
       canSplit: data.canSplit ?? false,
+      ...(typeof data.costPrice === 'number' ? { costPrice: data.costPrice } : {}),
       archived: false,
       version: 1,
       createdBy: data.modifiedBy,
@@ -246,6 +269,11 @@ export function applyMaterialEvent(input, event) {
       ...audit,
       version: existing.version + 1,
     };
+    // Cost price: changed when sent (null clears it), kept otherwise.
+    if ('costPrice' in data) {
+      if (typeof data.costPrice === 'number') next.costPrice = data.costPrice;
+      else delete next.costPrice;
+    }
   } else if (event.kind === 'material.stock_added' || event.kind === 'material.stock_set') {
     if (existing.archived) throw new Error('Restore this material before changing stock.');
     validateMaterial({ ...existing, available: data.quantity });

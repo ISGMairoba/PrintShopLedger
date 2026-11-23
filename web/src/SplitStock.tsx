@@ -3,6 +3,7 @@ import DialogActions from './DialogActions';
 import Modal from './Modal';
 import Icon from './Icon';
 import SearchSelect from './SearchSelect';
+import { useCostMethod } from './CostMethodContext';
 import { splitPlan } from './materials.mjs';
 import { materialCode } from './material-display.mjs';
 import type { Material, MaterialEvent } from './types';
@@ -53,7 +54,12 @@ export default function SplitStock({
     [pieces, setPieces] = useState<Piece[]>(() => [newPiece()]),
     [quantity, setQuantity] = useState(''),
     [reason, setReason] = useState(''),
+    [waste, setWaste] = useState(''),
     [error, setError] = useState('');
+  // Waste in cutting only matters where stock is costed from what it really cost.
+  const showWaste = useCostMethod() === 'actual' && !join;
+  const wastePercent = showWaste && waste.trim() ? Number(waste) : 0;
+  const wasteValid = wastePercent >= 0 && wastePercent <= 100;
   const q = Number(quantity);
   const rows = pieces.map((p) => {
     const to = materials.find((m) => m.id === p.toId);
@@ -66,7 +72,7 @@ export default function SplitStock({
       }
     return { piece: p, to, plan };
   });
-  const ready = rows.every((r) => r.to && r.plan);
+  const ready = rows.every((r) => r.to && r.plan) && wasteValid;
   const update = (key: string, change: Partial<Piece>) =>
     setPieces((list) => list.map((p) => (p.key === key ? { ...p, ...change } : p)));
   const fromAfter = rows[0]?.plan?.from;
@@ -112,6 +118,7 @@ export default function SplitStock({
                 })),
                 quantity: q,
                 join,
+                ...(wastePercent > 0 ? { wastePercent } : {}),
                 reason:
                   reason.trim() ||
                   (join
@@ -228,6 +235,24 @@ export default function SplitStock({
                 </span>
               ))}
             </p>
+          )}
+          {showWaste && (
+            <label>
+              Waste in cutting (optional)
+              <span className="input-with-unit">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  max="100"
+                  step="any"
+                  value={waste}
+                  onChange={(e) => setWaste(e.target.value)}
+                />
+                <span>%</span>
+              </span>
+              <small>The pieces share what the {material.name} cost, less this share lost as offcuts.</small>
+            </label>
           )}
           <label>
             Note (optional)

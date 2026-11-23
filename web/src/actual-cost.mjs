@@ -161,7 +161,11 @@ export function stockValuation(ledger) {
         m.restocks += 1;
         m.actual.add(entry.id);
       }
-    } else if (entry.action === 'material.stock_added' && cost && change > 0) {
+    } else if (
+      (entry.action === 'material.stock_added' || entry.action === 'material.expense_stock_changed') &&
+      cost &&
+      change > 0
+    ) {
       // A restock: its price (and timely extras) join the stock at the average so far.
       const landed = cost.supplierPrice + (timely.get(entry.id) ?? 0);
       const held = Math.max(0, m.quantity);
@@ -182,6 +186,32 @@ export function stockValuation(ledger) {
       m.unitCost.set(entry.id, m.average);
       if (m.restocks) m.actual.add(entry.id);
     }
+    // The server's figure for this line, when the download carries it (the same on every device).
+    if (Number.isFinite(entry.unitCost)) {
+      m.unitCost.set(entry.id, entry.unitCost);
+      if (entry.costActual) m.actual.add(entry.id);
+      else m.actual.delete(entry.id);
+    }
+  }
+  // The server's valuation of each location, when the download carries it: its average and counts,
+  // applied to the stock this device holds (which may include work not yet sent).
+  for (const sv of ledger.stockValues ?? []) {
+    const key = `${sv.location}|${sv.materialId}`;
+    let m = places.get(key);
+    if (!m) {
+      m = { quantity: sv.quantity, unitCost: new Map(), actual: new Set(), materialId: sv.materialId };
+      places.set(key, m);
+    }
+    m.average =
+      Number.isFinite(sv.average) && (sv.quantity > 0 || sv.restocks > 0) ? sv.average : (m.average ?? null);
+    m.value = m.average === null ? 0 : Math.max(0, m.quantity) * m.average;
+    m.restocks = sv.restocks ?? 0;
+    m.noCost = sv.noCost ?? 0;
+  }
+  if (Array.isArray(ledger.lateCosts)) {
+    lateCosts.length = 0;
+    for (const c of ledger.lateCosts)
+      lateCosts.push({ day: c.at, amount: c.amount, materialId: c.materialId, expenseId: c.expenseId });
   }
   placesCache.set(ledger, places);
   for (const m of places.values()) {
@@ -266,19 +296,21 @@ export function actualJobCost(ledger, job) {
 }
 
 /**
- * Waste not linked to a job (a period cost), from `from` to `to` (Lagos days), at the average of
- * each moment. unknown: lines with no cost to go on.
+ * Waste not linked to a job (a period cost), and waste in cutting splits, from `from` to `to` (Lagos
+ * days), at the average of each moment. unknown: lines with no cost to go on.
  */
 export function wasteCost(ledger, from, to) {
   const valuation = stockValuation(ledger);
   let kobo = 0,
     unknown = 0;
   for (const h of ledger.materialHistory ?? []) {
-    if (h.action !== 'material.wasted' || h.jobId) continue;
+    // Waste in cutting a split (its Waste %) is lost value too.
+    const cut = h.action === 'material.split' ? Number(h.after?.wasteQuantity ?? 0) : 0;
+    if ((h.action !== 'material.wasted' || h.jobId) && !(cut > 0)) continue;
     const day = businessDay(h.changedAt);
     if (day < from || day > to) continue;
     const rate = valuation.get(h.materialId)?.unitCost.get(h.id) ?? null;
-    const taken = (h.beforeAvailable ?? 0) - (h.afterAvailable ?? 0);
+    const taken = cut > 0 ? cut : (h.beforeAvailable ?? 0) - (h.afterAvailable ?? 0);
     if (rate === null) unknown += 1;
     else kobo += taken * rate;
   }

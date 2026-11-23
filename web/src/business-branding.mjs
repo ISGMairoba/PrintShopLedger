@@ -43,6 +43,12 @@ const HISTORY_KEEP = ['all', '7d', '14d', '30d', '3m', '6m', '12m'];
  * @typedef {{ minPinLength: number, pinTries: number, requirePin: boolean, rememberPeople: boolean,
  *   rememberDays: number, rememberMax: number, allowBiometric: boolean }} LockChoices
  */
+/** The business's cost method: 'actual' only when chosen (Business Settings → Costs). */
+export const costMethodOf = (settings) =>
+  /** @type {{ costMethod?: string } | undefined} */ (settings)?.costMethod === 'actual'
+    ? 'actual'
+    : 'estimated';
+
 /** Lock screen choices and their defaults (plans/lock-screen.md). */
 export const LOCK_DEFAULTS = /** @type {Readonly<LockChoices>} */ (
   Object.freeze({
@@ -171,6 +177,12 @@ export const defaultBackgrounds = () => ({
   dark: { canvas: '', surface: '', surfaceAlt: '' },
 });
 export const defaultBranding = () => ({
+  /**
+   * How job costs and profit are worked out (plans/actual-cost-v2.md): 'estimated' (the default) from
+   * each material's cost price, with no cost entry asked for; 'actual' from what stock really cost.
+   * @type {'estimated' | 'actual'}
+   */
+  costMethod: /** @type {'estimated' | 'actual'} */ ('estimated'),
   businessName: '',
   address: '',
   phones: '',
@@ -277,6 +289,11 @@ export function validLogo(value) {
 }
 export function validateBranding(input) {
   const value = structuredClone(input);
+  if (value && typeof value === 'object') {
+    value.costMethod ??= 'estimated';
+    if (!['estimated', 'actual'].includes(value.costMethod))
+      throw Error('Choose the cost method: Estimated or Actual.');
+  }
   for (const [key, max] of Object.entries({
     businessName: 160,
     address: 500,

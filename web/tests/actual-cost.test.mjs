@@ -169,7 +169,7 @@ test('Actual job cost, waste, expenses for restocks (on time and late) and profi
   assert.equal(materialValuation(l, 'paper').value, 16 * 22500 + 80000);
   assert.equal(lateCostsIn(l, '2026-11-16', '2026-11-16').length, 0);
   // Profit & loss: sales ₦1,000 − goods used ₦300; the deliveries are in the stock, not expenses.
-  const pl = profitLoss(l, '2026-11-16', '2026-11-16');
+  const pl = profitLoss(l, '2026-11-16', '2026-11-16', 'actual');
   assert.deepEqual(
     [pl.sales, pl.jobCost, pl.operating, pl.linkedToRestocks, pl.net],
     [100000, 30000, 0, 130000, 70000],
@@ -275,4 +275,120 @@ test('Stock received from another location arrives at its cost there', async () 
   const branch = locationUnitCost(ledger, 'paper', 'b-shop000001');
   assert.deepEqual(branch, { unitCost: 2000, actual: true });
   assert.equal(locationUnitCost(ledger, 'paper', 'b-other00001'), null);
+});
+
+test('Server figures: the download’s stock values, line costs and late costs are used as they are', async () => {
+  const { stockValuation, lateCostsIn } = await import('../src/actual-cost.mjs');
+  version = 1;
+  let l = emptyLedger();
+  l = applyEvent(l, {
+    id: 'm1',
+    kind: 'material.created',
+    data: {
+      id: 'paper',
+      name: 'Paper',
+      measurementUnit: 'sheet',
+      available: 0,
+      requireSize: false,
+      ...audit(0),
+    },
+  });
+  l = applyEvent(l, stock('r1', 1, 10, { supplierPrice: 10000 }));
+  const line = l.materialHistory.at(-1);
+  const server = {
+    ...l,
+    materialHistory: l.materialHistory.map((h) =>
+      h.id === line.id ? { ...h, unitCost: 1500, costActual: true } : h,
+    ),
+    stockValues: [
+      {
+        id: 'main|paper',
+        location: 'main',
+        materialId: 'paper',
+        quantity: 10,
+        value: 15000,
+        average: 1500,
+        restocks: 1,
+        noCost: 0,
+      },
+    ],
+    lateCosts: [
+      {
+        id: 'c1',
+        expenseId: 'e1',
+        restockId: line.id,
+        materialId: 'paper',
+        location: 'main',
+        amount: 700,
+        at: at(5),
+      },
+    ],
+  };
+  const v = stockValuation(server).get('paper');
+  assert.equal(v.average, 1500);
+  assert.equal(v.value, 15000);
+  assert.equal(v.unitCost.get(line.id), 1500);
+  assert.ok(v.actual.has(line.id));
+  assert.deepEqual(
+    lateCostsIn(server, '2026-11-16', '2026-11-16').map((c) => c.amount),
+    [700],
+  );
+});
+
+test('Expense stock lines with amounts are priced restocks; a split’s Waste % is cutting waste', async () => {
+  const { wasteCost } = await import('../src/actual-cost.mjs');
+  let l = emptyLedger();
+  for (const [id, name, canSplit] of [
+    ['a4', 'A4', true],
+    ['a5', 'A5', false],
+  ])
+    l = applyEvent(l, {
+      id: `m-${id}`,
+      kind: 'material.created',
+      data: { id, name, canSplit, measurementUnit: 'sheet', available: 0, requireSize: false, ...audit(0) },
+    });
+  const expense = (amounts) => ({
+    id: `e-${amounts.join('-')}`,
+    kind: 'expense.created',
+    data: {
+      id: `x-${amounts.join('-')}`,
+      description: 'Paper',
+      category: 'Materials',
+      incurredOn: '2026-11-16',
+      amount: 200000,
+      payee: '',
+      note: '',
+      receiptReference: '',
+      materials: [
+        { materialId: 'a4', name: 'A4', measurementUnit: 'sheet', quantity: 10, amount: amounts[0] },
+      ],
+      stockIds: { a4: `s-${amounts.join('-')}` },
+      ...audit(1),
+    },
+  });
+  assert.throws(() => applyEvent(l, expense([1000])), /add up/);
+  l = applyEvent(l, expense([200000]));
+  assert.equal(materialValuation(l, 'a4').average, 20000);
+  l = applyEvent(l, {
+    id: 'split1',
+    kind: 'material.split',
+    data: {
+      id: 'a4',
+      baseVersion: l.materials.find((m) => m.id === 'a4').version,
+      quantity: 10,
+      wastePercent: 10,
+      pieces: [
+        {
+          toId: 'a5',
+          toBaseVersion: l.materials.find((m) => m.id === 'a5').version,
+          toEventId: 'split1-a5',
+          yield: 2,
+        },
+      ],
+      reason: '',
+      ...audit(2),
+    },
+  });
+  assert.equal(l.materialHistory.find((h) => h.id === 'split1').after.wasteQuantity, 1);
+  assert.equal(wasteCost(l, '2026-11-16', '2026-11-16').kobo, 20000);
 });

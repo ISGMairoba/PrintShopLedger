@@ -234,8 +234,18 @@ export function applyExpenseEvent(input, event) {
         name: old?.name ?? material.name,
         measurementUnit: line.measurementUnit,
         quantity: line.quantity,
+        ...(line.amount !== undefined && line.amount !== null ? { amount: line.amount } : {}),
       };
     });
+    // What each material cost (Actual cost method): on every line or none, adding up to the total.
+    const priced = materials.filter((line) => line.amount !== undefined);
+    if (priced.length) {
+      if (priced.length !== materials.length) throw Error('Enter an amount for every material, or for none.');
+      if (priced.some((line) => !Number.isSafeInteger(line.amount) || line.amount < 0))
+        throw Error('Enter each material’s amount in naira.');
+      if (priced.reduce((n, line) => n + line.amount, 0) !== data.amount)
+        throw Error('The materials’ amounts must add up to the expense amount.');
+    }
     const payments = existing?.payments ?? (data.payment ? [payment(data.payment, audit)] : []);
     next = {
       ...existing,
@@ -340,6 +350,13 @@ export function applyExpenseEvent(input, event) {
     new Set(Object.values(data.stockIds)).size !== deltas.length
   )
     throw Error('Stock update identifiers are incomplete.');
+  // Stock bought with its amount entered is a priced restock (the part for the quantity added).
+  const pricedCost = (expense, delta) => {
+    const line = expense.materials?.find((item) => item.materialId === delta.materialId);
+    if (expense.voided || !(delta.quantity > 0) || !line || line.amount === undefined || !(line.quantity > 0))
+      return {};
+    return { cost: { supplierPrice: Math.round((line.amount * delta.quantity) / line.quantity) } };
+  };
   let materials = ledger.materials,
     materialHistory = ledger.materialHistory;
   for (const delta of deltas) {
@@ -379,7 +396,7 @@ export function applyExpenseEvent(input, event) {
         changedByLabel: audit.modifiedByLabel,
         changedAt: audit.modifiedAt,
         before: materialSnapshot(before),
-        after: materialSnapshot(after),
+        after: { ...materialSnapshot(after), ...pricedCost(next, delta) },
         detailsComplete: true,
       },
     ];

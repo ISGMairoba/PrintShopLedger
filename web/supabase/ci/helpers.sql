@@ -131,6 +131,13 @@ begin
         perform set_config('psl.branch', '', true);
         perform set_config('psl.price_branch', '', true);
         begin a := public.get_ledger(s.id); exception when others then a := to_jsonb('refused: ' || sqlerrm); end;
+        -- Fields added after NEW-02 are not in the old download: left out of the comparison.
+        if jsonb_typeof(a) = 'object' then
+          a := jsonb_set(a, '{materials}', (select coalesce(jsonb_agg(x - 'costPrice' order by i), '[]'::jsonb)
+            from jsonb_array_elements(a->'materials') with ordinality m(x, i)));
+          a := jsonb_set(a, '{materialHistory}', (select coalesce(jsonb_agg(x - 'unitCost' - 'costActual' order by i), '[]'::jsonb)
+            from jsonb_array_elements(a->'materialHistory') with ordinality m(x, i))) - 'stockValues' - 'lateCosts';
+        end if;
         begin o := private.get_ledger_layered(s.id); exception when others then o := to_jsonb('refused: ' || sqlerrm); end;
         if a::text is distinct from o::text then
           if jsonb_typeof(a) = 'object' and jsonb_typeof(o) = 'object' then

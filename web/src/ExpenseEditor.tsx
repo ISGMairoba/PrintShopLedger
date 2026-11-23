@@ -25,6 +25,7 @@ import type {
 import { useWords } from './Words';
 import { renameActive as wt } from './Words';
 import SearchSelect from './SearchSelect';
+import { useCostMethod } from './CostMethodContext';
 const currency = (value: number) =>
   new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(value / 100);
 type Props = {
@@ -88,6 +89,7 @@ export default function ExpenseEditor({
   // The orders this expense was for (its cost counts in their profit).
   const [jobIds, setJobIds] = useState<string[]>(expense?.jobIds ?? []);
   const [restockIds, setRestockIds] = useState<string[]>(expense?.restockIds ?? []);
+  const costMethod = useCostMethod();
   const [newPayee, setNewPayee] = useState<{ name: string; phone: string } | null>(null);
   const { w } = useWords();
   const options = useBusinessOptions(),
@@ -205,6 +207,20 @@ export default function ExpenseEditor({
       : recommendedPaid && !amountError(recommendedPaid)
         ? Number(recommendedPaid)
         : 1000000000;
+  // What each material cost (Actual cost method, or kept when already entered): on every line or none.
+  const [lineAmounts, setLineAmounts] = useState<string[]>(() =>
+    (expense?.materials ?? prefill?.materials ?? []).map((line) =>
+      line.amount === undefined ? '' : String(line.amount / 100),
+    ),
+  );
+  const showLineAmounts = costMethod === 'actual' || lineAmounts.some((text) => text.trim());
+  const pricedLines = () => {
+    const priced = showLineAmounts && lineAmounts.slice(0, lines.length).some((text) => text.trim());
+    return lines.map((line, i) => {
+      const { amount: _old, ...rest } = line;
+      return priced ? { ...rest, amount: money(lineAmounts[i] || '0') } : rest;
+    });
+  };
   const update = (index: number, patch: Partial<ExpenseMaterial>) =>
     setLines((items) => items.map((item, i) => (i === index ? { ...item, ...patch } : item)));
   async function submit(e: FormEvent<HTMLFormElement>) {
@@ -280,7 +296,7 @@ export default function ExpenseEditor({
                       expense && !expense.incurredAt && !whenTouched ? expense.incurredOn : when.slice(0, 10),
                       period,
                     ),
-            materials: stock ? lines : [],
+            materials: stock ? pricedLines() : [],
             ...(payment ? { payment } : {}),
             ...(newId && !expense ? { id: newId } : {}),
           };
@@ -297,6 +313,9 @@ export default function ExpenseEditor({
       setError(cause instanceof Error ? cause.message : 'Could not save expense.');
     }
   }
+  // Linking bills to restocks is part of the Actual cost method (kept when already linked).
+  const showRestocks =
+    !stock && !jobIds.length && restocks.length > 0 && (costMethod === 'actual' || restockIds.length > 0);
   return (
     <Modal
       title={
@@ -470,7 +489,8 @@ export default function ExpenseEditor({
                   />
                 </label>
               </div>
-              {!stock && !jobIds.length && restocks.length > 0 && (
+              {/* Linking bills to restocks is part of the Actual cost method (kept when already linked). */}
+              {showRestocks && (
                 <div className="expense-orders">
                   <SearchSelect
                     label="For restocks (optional)"
@@ -601,11 +621,30 @@ export default function ExpenseEditor({
                             required
                           />
                         </label>
+                        {showLineAmounts && (
+                          <label>
+                            Amount (₦, optional)
+                            <CurrencyInput
+                              aria-label={`Amount ${index + 1}`}
+                              value={lineAmounts[index] ?? ''}
+                              onValueChange={(text) =>
+                                setLineAmounts((list) => {
+                                  const next = [...list];
+                                  next[index] = text;
+                                  return next;
+                                })
+                              }
+                            />
+                          </label>
+                        )}
                         <button
                           type="button"
                           className="text-button danger-text"
                           aria-label={wt(`Remove material ${index + 1}`)}
-                          onClick={() => setLines((items) => items.filter((_, i) => i !== index))}
+                          onClick={() => {
+                            setLines((items) => items.filter((_, i) => i !== index));
+                            setLineAmounts((list) => list.filter((_, i) => i !== index));
+                          }}
                         >
                           <Icon name="close" />
                         </button>
@@ -624,6 +663,13 @@ export default function ExpenseEditor({
                     >
                       <Icon name="add" /> {wt('Add material')}
                     </button>
+                    {showLineAmounts && (
+                      <p className="muted">
+                        {lineAmounts.some((text) => text.trim())
+                          ? `Materials add up to ${currency(lines.reduce((n, _, i) => n + money(lineAmounts[i] || '0'), 0))} of ${currency(money(total || '0'))}.`
+                          : 'Enter what each material cost to value the stock at what it really cost (every line or none, adding up to the amount).'}
+                      </p>
+                    )}
                     {!materials.some((m) => !m.archived) && (
                       <p className="notice">{wt('Create a material on the Materials page first.')}</p>
                     )}

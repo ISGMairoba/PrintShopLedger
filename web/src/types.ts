@@ -341,6 +341,8 @@ export interface Material {
   /** The minimum set at this device's branch or store (branches.mjs withLocationMinimums). */
   minimumHere?: number;
   minimumStock?: number;
+  /** Cost price per unit in kobo (Estimated cost method; plans/actual-cost-v2.md). */
+  costPrice?: number;
   id: string;
   name: string;
   available: number;
@@ -360,6 +362,7 @@ export interface Material {
 }
 export interface MaterialCommand {
   minimumStock?: number;
+  costPrice?: number | null;
   id: string;
   name?: string;
   available?: number;
@@ -380,6 +383,8 @@ export interface MaterialCommand {
   /** material.split into several smaller materials (replaces toId/toBaseVersion/yield/toEventId). */
   pieces?: { toId: string; toBaseVersion: number; toEventId: string; yield: number }[];
   join?: boolean;
+  /** Split: the share lost in cutting (Actual cost method), 0 to 100. */
+  wastePercent?: number;
   modifiedBy: string;
   modifiedByLabel: string;
   modifiedAt: string;
@@ -404,6 +409,8 @@ export interface RestockCost {
 export interface MaterialSnapshot {
   /** On a restock's history line: its supplier price. */
   cost?: RestockCost;
+  /** On a split's line: the quantity lost in cutting (its Waste %). */
+  wasteQuantity?: number;
   minimumStock?: number;
   name?: string;
   available?: number;
@@ -436,6 +443,9 @@ export interface MaterialHistoryEntry {
   before: MaterialSnapshot | null;
   after: MaterialSnapshot;
   detailsComplete: boolean;
+  /** The server's cost per unit this line moved at (kobo), and whether it was an actual cost. */
+  unitCost?: number;
+  costActual?: boolean;
 }
 export interface Service {
   /** Its icon on the Quick sale screen (ItemIcon names) and its category. */
@@ -820,6 +830,27 @@ export interface Ledger {
   locationStock?: { id: string; materialId: string; location: string; available: number }[];
   /** With branches: stock requests between locations this person works with. */
   stockRequests?: StockRequest[];
+  /** The server's stock valuation per location (Actual cost method). */
+  stockValues?: {
+    id: string;
+    location: string;
+    materialId: string;
+    quantity: number;
+    value: number;
+    average: number | null;
+    restocks: number;
+    noCost: number;
+  }[];
+  /** Late cost adjustments: the part of a late bill for stock already used. */
+  lateCosts?: {
+    id: string;
+    expenseId: string;
+    restockId: string;
+    materialId: string;
+    location: string;
+    amount: number;
+    at: string;
+  }[];
   payees?: Payee[];
   moneyAccounts?: MoneyAccount[];
   accountEntries?: Record<string, any>[];
@@ -885,6 +916,8 @@ export interface ExpenseMaterial {
   name: string;
   measurementUnit: string;
   quantity: number;
+  /** What this material cost, in kobo (Actual cost method): on every line or none. */
+  amount?: number;
 }
 export interface ExpensePayment {
   accountId?: string;

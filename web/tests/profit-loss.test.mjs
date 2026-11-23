@@ -199,3 +199,63 @@ test('expenses linked to orders count in their job cost, not under expenses', as
   assert.throws(() => expenseJobIds(l, ['nope']), /not found/);
   assert.throws(() => expenseJobIds(l, ['a', 'a']), /once/);
 });
+
+test('Estimated cost method: material cost price for jobs, waste and cancelled order losses', () => {
+  const line = (id, jobId, action, before, after, day) => ({
+    id,
+    materialId: 'm',
+    jobId,
+    action,
+    beforeAvailable: before,
+    afterAvailable: after,
+    changedAt: `2026-11-${day}T10:00:00Z`,
+  });
+  const l = {
+    ...emptyLedger(),
+    // No restock prices anywhere: the material's own cost price is all there is.
+    materials: [{ id: 'm', name: 'Art paper', available: 80, measurementUnit: 'sheet', costPrice: 5000 }],
+    services: [{ id: 's', description: 'Flyers', price: 20000, archived: false, materialId: 'm' }],
+    jobs: [
+      {
+        id: 'sold',
+        serviceId: 's',
+        materialId: 'm',
+        materialNeeded: 10,
+        service: 'Flyers',
+        description: 'Sold',
+        quantity: '10',
+        amount: 200000,
+        productionStatus: 'Completed',
+        createdAt: '2026-11-05T10:00:00Z',
+      },
+      {
+        id: 'gone',
+        serviceId: 's',
+        materialId: 'm',
+        materialNeeded: 6,
+        service: 'Flyers',
+        description: 'Cancelled',
+        quantity: '6',
+        amount: 120000,
+        productionStatus: 'Cancelled',
+        createdAt: '2026-11-06T10:00:00Z',
+      },
+    ],
+    materialHistory: [
+      line('h1', 'sold', 'material.job_used', 100, 90, '05'),
+      line('h2', 'gone', 'material.job_used', 90, 84, '06'),
+      line('h3', 'gone', 'material.job_corrected', 84, 86, '07'), // 2 of the 6 sheets came back
+      line('h4', null, 'material.wasted', 86, 83, '08'),
+    ],
+  };
+  const r = profitLoss(l, '2026-11-01', '2026-11-30');
+  assert.equal(r.method, 'estimated');
+  assert.equal(r.jobCost, 50000, '10 sheets at ₦50');
+  assert.equal(r.waste, 15000, '3 sheets wasted');
+  assert.equal(r.cancelledLoss, 20000, '4 sheets kept by the cancelled order');
+  assert.equal(r.lateCost, 0);
+  assert.equal(r.grossProfit, 200000 - 50000 - 15000 - 20000);
+  const rows = profitLossSections(r, { money: String })[0].rows.map((row) => row[0]);
+  assert.ok(rows.includes('Cost of goods used (estimated)'));
+  assert.ok(!rows.includes('Late cost adjustments'));
+});

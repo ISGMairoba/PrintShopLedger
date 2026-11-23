@@ -9,8 +9,13 @@ import { actualJobCost } from './actual-cost.mjs';
 import { businessDay } from './dashboard.mjs';
 import { extraMaterialsCost, extraUsages } from './production-materials.mjs';
 
-/** Kobo per unit of a material, from an active cost linked to it; null when none is set. */
+/**
+ * Kobo per unit of a material: its own cost price (Materials), else an active cost linked to it;
+ * null when none is set.
+ */
 export function materialUnitCost(ledger, materialId) {
+  const own = ledger.materials?.find((m) => m.id === materialId)?.costPrice;
+  if (typeof own === 'number') return own;
   const costed = ledger.services.find(
     (s) => s.materialId === materialId && !s.archived && s.costing?.amount != null,
   );
