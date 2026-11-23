@@ -37,18 +37,22 @@ declare
       $a$(s.settings->'discounts'->'maxPercent'->>m.access_level::text)::numeric$a$,
       $b$(private.branch_settings(p_shop, private.request_branch(p_shop))->'discounts'->'maxPercent'->>m.access_level::text)::numeric$b$]
   ];
-  r text[];
+  r text[]; old_text text; new_text text;
 begin
   foreach r slice 1 in array rules loop
     n := 0;
+    -- Pasted into the SQL editor from Windows, this file's own line breaks arrive as CR LF: compare
+    -- without CRs on both sides.
+    old_text := replace(r[2], E'\r', '');
+    new_text := replace(r[3], E'\r', '');
     for f in select p.oid from pg_proc p join pg_namespace s on s.oid = p.pronamespace
               where s.nspname || '.' || p.proname = r[1] loop
       src := replace(pg_get_functiondef(f.oid), E'\r', '');
       n := n + 1;
       -- Already changed (run before): nothing to do.
-      if strpos(src, r[2]) = 0 and strpos(src, r[3]) > 0 then continue; end if;
-      if strpos(src, r[2]) = 0 then raise exception 'AUD-10: % does not read the setting as expected', r[1]; end if;
-      execute replace(src, r[2], r[3]);
+      if strpos(src, old_text) = 0 and strpos(src, new_text) > 0 then continue; end if;
+      if strpos(src, old_text) = 0 then raise exception 'AUD-10: % does not read the setting as expected', r[1]; end if;
+      execute replace(src, old_text, new_text);
     end loop;
     if n = 0 then raise exception 'AUD-10: % not found', r[1]; end if;
   end loop;
