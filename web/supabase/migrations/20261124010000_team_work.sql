@@ -23,7 +23,9 @@ alter table public.team_records enable row level security;
 drop policy if exists member_read on public.team_records;
 create policy member_read on public.team_records for select to authenticated
   using (shop_id in (select private.my_shops()) and current_setting('psl.ledger', true) = 'on');
-revoke insert, update, delete on public.team_records from anon, authenticated;
+-- Read only, through the row rule: changes go through apply_team_event (no direct writes or truncate).
+revoke all on public.team_records from public, anon, authenticated;
+grant select on public.team_records to authenticated;
 drop trigger if exists touch_sync_xid on public.team_records;
 create trigger touch_sync_xid before insert or update on public.team_records
   for each row execute function private.touch_sync_xid();
