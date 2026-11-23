@@ -438,6 +438,18 @@ export function branchLedger(ledger, id = localBranch) {
       .filter((a) => others.has(a.id))
       .map((a) => ({ id: a.id, name: a.name, branch: branchOf(a) }));
   }
+  // AUD-30: another location's view counts that location's stock (the server sends every location
+  // this person may see). This device's own location keeps its stock, with work not yet sent.
+  if (id !== localBranch && Array.isArray(ledger?.locationStock) && Array.isArray(ledger?.materials)) {
+    const here = new Map(
+      ledger.locationStock.filter((s) => s.location === id).map((s) => [s.materialId, s.available]),
+    );
+    if (here.size || id !== MAIN)
+      out.materials = ledger.materials.map((m) => ({
+        ...m,
+        available: here.get(m.id) ?? (id === MAIN ? m.available : 0),
+      }));
+  }
   // An expense's change history goes with the expense.
   if (Array.isArray(ledger?.expenseHistory) && Array.isArray(out.expenses)) {
     const kept = new Set(out.expenses.map((e) => e.id));
