@@ -1621,9 +1621,24 @@ function TeamTab({ freshness, busy, error, pdf, csv }: TabProps) {
         <Exports
           busy={busy}
           onCsv={() =>
-            csv(file, title, subtitle, teamSections(report, { money: (k: number) => (k / 100).toFixed(2), commission: team.settings.commission }))
+            csv(
+              file,
+              title,
+              subtitle,
+              teamSections(report, {
+                money: (k: number) => (k / 100).toFixed(2),
+                commission: team.settings.commission,
+              }),
+            )
           }
-          onPdf={() => void pdf(file, title, subtitle, teamSections(report, { money: currency, commission: team.settings.commission }))}
+          onPdf={() =>
+            void pdf(
+              file,
+              title,
+              subtitle,
+              teamSections(report, { money: currency, commission: team.settings.commission }),
+            )
+          }
         />
       </section>
       {error && (

@@ -51,7 +51,8 @@ export function validateTeamSettings(input) {
       const kept = Object.fromEntries(
         Object.entries(value).filter(([, ids]) => Array.isArray(ids) && ids.length),
       );
-      if (Object.values(kept).some((ids) => ids.length > 20)) throw Error('Choose up to 20 people per stage.');
+      if (Object.values(kept).some((ids) => ids.length > 20))
+        throw Error('Choose up to 20 people per stage.');
       if (Object.keys(kept).length) out.usual = kept;
       continue;
     } else if (DAYS.includes(key)) {

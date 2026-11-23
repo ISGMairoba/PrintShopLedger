@@ -33,7 +33,9 @@ export default function TeamWorkSettings({
   const stages = [
     ...new Set([
       ...(options.jobStages ?? []),
-      ...(options.workflows ?? []).flatMap((wf: { steps: { name: string }[] }) => wf.steps.map((s) => s.name)),
+      ...(options.workflows ?? []).flatMap((wf: { steps: { name: string }[] }) =>
+        wf.steps.map((s) => s.name),
+      ),
     ]),
   ].filter((s) => !['Added', 'Completed', 'Collected', 'Cancelled'].includes(s));
   const setUsual = (stage: string, ids: string[]) => {

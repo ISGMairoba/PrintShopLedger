@@ -188,7 +188,12 @@ test('Team report: stages, time against target, rework, late recording, value sp
 
 test('Commission due: per unit for the work and a percent of sales', async () => {
   const { teamReport } = await import('../src/team-report.mjs');
-  const done = { ...job, productionStatus: 'Collected', createdBy: 'u-cash', createdAt: '2026-11-20T09:00:00.000Z' };
+  const done = {
+    ...job,
+    productionStatus: 'Collected',
+    createdBy: 'u-cash',
+    createdAt: '2026-11-20T09:00:00.000Z',
+  };
   const l = {
     ...ledger(),
     jobs: [done],
@@ -222,7 +227,12 @@ test('Commission due: per unit for the work and a percent of sales', async () =>
 test('The usual people per stage are assigned at checkout', async () => {
   const { usualAssignEvents } = await import('../src/team.mjs');
   const fresh = { ...job, productionStatus: 'Added' };
-  const events = usualAssignEvents(ledger(), [fresh], { teamWork: { usual: { Printing: ['p-ada'] } } }, admin);
+  const events = usualAssignEvents(
+    ledger(),
+    [fresh],
+    { teamWork: { usual: { Printing: ['p-ada'] } } },
+    admin,
+  );
   assert.deepEqual(
     events.map((e) => [e.data.stage, e.data.personIds, e.data.usual]),
     [['Printing', ['p-ada'], true]],

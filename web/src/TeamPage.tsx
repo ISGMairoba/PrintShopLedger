@@ -361,7 +361,13 @@ export default function TeamPage({
             {
               index: 0,
               label: 'Person',
-              details: [1, 2, 3, ...(team.settings.commission ? [4] : []), ...(branches ? [team.settings.commission ? 5 : 4] : [])],
+              details: [
+                1,
+                2,
+                3,
+                ...(team.settings.commission ? [4] : []),
+                ...(branches ? [team.settings.commission ? 5 : 4] : []),
+              ],
             },
             { index: -1, label: 'Actions', actions: true },
           ]}
@@ -681,7 +687,9 @@ function TermsDialog({
 }) {
   const [kind, setKind] = useState<CommissionTerms['kind']>(current?.kind ?? 'none');
   const [rate, setRate] = useState(
-    current && current.kind !== 'none' ? String(current.kind === 'percent' ? current.rate : current.rate / 100) : '',
+    current && current.kind !== 'none'
+      ? String(current.kind === 'percent' ? current.rate : current.rate / 100)
+      : '',
   );
   const [sales, setSales] = useState(current?.salesRate ? String(current.salesRate) : '');
   const [error, setError] = useState('');
@@ -729,7 +737,11 @@ function TermsDialog({
       )}
       <label>
         For their work
-        <select aria-label="Commission for their work" value={kind} onChange={(e) => setKind(e.target.value as CommissionTerms['kind'])}>
+        <select
+          aria-label="Commission for their work"
+          value={kind}
+          onChange={(e) => setKind(e.target.value as CommissionTerms['kind'])}
+        >
           <option value="none">None</option>
           <option value="percent">A percent of the value credited to them</option>
           <option value="perJob">An amount per job</option>
