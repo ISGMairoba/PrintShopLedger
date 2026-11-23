@@ -1,3 +1,4 @@
+import TeamWorkSettings from './TeamWorkSettings';
 import SearchSelect from './SearchSelect';
 import ItemTilesSettings from './ItemTilesSettings';
 import { mergeOptionsSection } from './options-sections.mjs';
@@ -75,6 +76,7 @@ export default function BusinessSettingsPage({
   demo,
   modifiedAt,
   accessLevel,
+  teamReady = false,
   onSave,
   onReload,
   loadStaff,
@@ -102,6 +104,8 @@ export default function BusinessSettingsPage({
   modifiedAt?: string;
   /** The person's rank: Developer (5) sees every tab; others only the tabs given to their rank. */
   accessLevel: number;
+  /** The server keeps Team work (its SQL has run): the switch can be offered. */
+  teamReady?: boolean;
   onSave: (settings: Branding, version: number) => Promise<unknown>;
   onReload: () => Promise<void>;
   /** The business's staff, for Branches → Who works where (not available everywhere). */
@@ -1175,7 +1179,17 @@ export default function BusinessSettingsPage({
                     </p>
                   </>
                 )}
-                {sectionSave('Job and payment settings', scope ? ['jobs'] : ['jobs', 'costMethod'])}
+                {!scope && teamReady && (
+                  <TeamWorkSettings
+                    value={draft.teamWork}
+                    canSwitch={accessLevel >= 4}
+                    onChange={(next) => field('teamWork', next)}
+                  />
+                )}
+                {sectionSave(
+                  'Job and payment settings',
+                  scope ? ['jobs'] : ['jobs', 'costMethod', ...(teamReady ? (['teamWork'] as const) : [])],
+                )}
               </fieldset>
               <fieldset hidden={tab !== 'Messages'} disabled={busy || !ready}>
                 <legend>Messages</legend>

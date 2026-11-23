@@ -1,3 +1,5 @@
+import { useTeam } from './TeamContext';
+import { myWork, toConfirm } from './team.mjs';
 import PeriodFilter, { usePeriod } from './PeriodFilter';
 import { stockLevel } from './material-display.mjs';
 import { useMemo, useState, type ReactNode } from 'react';
@@ -52,6 +54,7 @@ export default function DashboardPage({
   onReceipt?: (record: CheckoutRecord) => void;
 }) {
   const { w, stage } = useWords();
+  const team = useTeam();
   const [period, setPeriod] = usePeriod('dashboard');
   // Auto: daily for short ranges, monthly for ranges over two months.
   const [trendInterval, setTrendInterval] = useState('auto');
@@ -290,6 +293,18 @@ export default function DashboardPage({
           <h2>Current position</h2>
           <p>These balances and stock figures cover all dates, not only the selected period.</p>
           <section className="stats dashboard-stats" aria-label="Current balances">
+            {team && (
+              <article key="my-work">
+                <span>My work</span>
+                <strong>{myWork(team.ledger, team.actor.id).length}</strong>
+                <small>{w('Jobs assigned to you now (Jobs → Filter → Assigned to me)')}</small>
+                {toConfirm(team.ledger).length > 0 && team.actor.level >= team.settings.confirmRank && (
+                  <small>
+                    {toConfirm(team.ledger).length} work records to confirm (Users → Work to confirm)
+                  </small>
+                )}
+              </article>
+            )}
             {access.sales &&
               access.payments &&
               card(

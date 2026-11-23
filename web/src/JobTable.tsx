@@ -1,3 +1,4 @@
+import { AssignButton, TeamChips } from './TeamAssign';
 import { jobBalanceFast, lastPaymentFast } from './balances.mjs';
 import DeadlineProgress from './DeadlineProgress';
 import { partsLine } from './JobParts';
@@ -90,6 +91,7 @@ export default function JobTable({
     );
   const actions = (items: Job[]) => (
     <div className="job-bulk-actions">
+      <AssignButton jobs={items} />
       {onDue && (
         <button
           className="secondary"
@@ -195,6 +197,7 @@ export default function JobTable({
                       {job.service}
                     </button>
                     <small>{job.description}</small>
+                    <TeamChips job={job} />
                     {job.quantity !== undefined && (
                       <small>
                         Quantity: {job.quantity}

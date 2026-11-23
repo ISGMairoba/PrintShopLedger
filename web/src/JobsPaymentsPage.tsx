@@ -1,3 +1,5 @@
+import { useTeam } from './TeamContext';
+import { myWork } from './team.mjs';
 import { jobBalanceFast, lastPaymentFast } from './balances.mjs';
 import jobViewItems from './JobViewControls';
 import ToolbarActions from './ToolbarActions';
@@ -101,9 +103,14 @@ export default function JobsPaymentsPage({
   const [stageRange, setStageRange] = useState<StageRange>('only');
   // Jobs → Payment: paid in full, part paid, unpaid, or still owing.
   const [payFilter, setPayFilter] = useState<PayFilter>('');
+  // Team work: only the jobs assigned to me now (their current stage, or the whole job).
+  const team = useTeam();
+  const [mine, setMine] = useState(false);
+  const myJobs =
+    team && mine ? new Set(myWork(team.ledger, team.actor.id).map((j: { id: string }) => j.id)) : null;
   // The Filter button opens a second row with the stage, payment and sort boxes.
   const [filtersOpen, setFiltersOpen] = useState(() => !!stageFilter);
-  const activeFilters = (stageFilter ? 1 : 0) + (payFilter ? 1 : 0);
+  const activeFilters = (stageFilter ? 1 : 0) + (payFilter ? 1 : 0) + (myJobs ? 1 : 0);
   // The usual steps, then any other step a job follows (items can have their own).
   const stageOrder = useMemo(
     () => [
@@ -128,6 +135,7 @@ export default function JobsPaymentsPage({
   const matchingJobs = jobSorting.sortRows(
     ledger.jobs.filter(
       (job) =>
+        (!myJobs || myJobs.has(job.id)) &&
         inStage(job) &&
         inPeriod(job.createdAt, period) &&
         `${job.createdByLabel ?? ''} ${job.modifiedByLabel ?? ''} ${job.description} ${job.service} ${customerName(job.customerId)} ${customersById.get(job.customerId)?.phone ?? ''} ${job.productionStatus ?? 'Added'} ${job.id}`
@@ -347,6 +355,17 @@ export default function JobsPaymentsPage({
                           ))}
                         </select>
                       </label>
+                      {team && (
+                        <label className="check-label job-filter-field">
+                          <input
+                            type="checkbox"
+                            aria-label="Assigned to me"
+                            checked={mine}
+                            onChange={(e) => setMine(e.target.checked)}
+                          />{' '}
+                          Assigned to me ({myWork(team.ledger, team.actor.id).length})
+                        </label>
+                      )}
                     </>
                   );
                 })()}

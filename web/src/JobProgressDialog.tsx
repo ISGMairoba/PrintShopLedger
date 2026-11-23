@@ -8,6 +8,9 @@ import MaterialCheckFields, { checkDraftFor, checkUsagesFrom, type CheckDraft } 
 import { materialConfirmDue } from './material-choice.mjs';
 import type { ProgressMode } from './JobActions';
 import { useWords } from './Words';
+import { useTeam } from './TeamContext';
+import { assignedTo, stagesFinished } from './team.mjs';
+import DoneByFields, { draftWork, workDraft, type WorkDraft } from './DoneByFields';
 export default function JobProgressDialog({
   ledger,
   job,
@@ -28,6 +31,8 @@ export default function JobProgressDialog({
   onSave: (
     target: string,
     usages: { line: string; materialId: string; quantity: number }[] | null,
+    /** Team work: the "Done by" step's work record (team.mjs workEvents), when asked. */
+    work?: Record<string, any> | null,
   ) => Promise<void>;
 }) {
   const { w, stage } = useWords();
@@ -39,6 +44,19 @@ export default function JobProgressDialog({
   const path = jobStatuses.slice(index + 1, jobStatuses.indexOf(target) + 1);
   const confirming = materialConfirmDue(job, target);
   const [draft, setDraft] = useState<CheckDraft>(() => checkDraftFor(ledger, job));
+  // Team work: who did the stages this move finishes.
+  const team = useTeam();
+  const finishing = stagesFinished(job, target).filter((s: string) => s !== 'Added');
+  const askDoneBy = !!team && team.settings.askDoneBy && finishing.length > 0;
+  const [done, setDone] = useState<WorkDraft>(() =>
+    workDraft(
+      team
+        ? assignedTo(team.ledger, job).filter(
+            (id: string) => team.settings.othersRank <= team.actor.level || id === team.actor.id,
+          )
+        : [],
+    ),
+  );
   return (
     <Modal
       title={mode === 'set' ? w('Set job stage') : w(`Move job to ${stage(target)}?`)}
@@ -59,7 +77,13 @@ export default function JobProgressDialog({
           if (busy) return;
           setError('');
           try {
-            await onSave(target, confirming ? checkUsagesFrom(draft) : null);
+            let work: Record<string, any> | null = null;
+            if (askDoneBy && team) {
+              const checked = draftWork(done, job, job.stageAt, team.settings.doneAtDays);
+              if (checked.problem) throw Error(checked.problem);
+              work = checked.work ?? null;
+            }
+            await onSave(target, confirming ? checkUsagesFrom(draft) : null, work);
           } catch (cause) {
             setError(cause instanceof Error ? cause.message : String(cause));
           }
@@ -85,6 +109,9 @@ export default function JobProgressDialog({
             onChange={setDraft}
             confirms={confirms}
           />
+        )}
+        {askDoneBy && (
+          <DoneByFields job={job} stage={finishing.map(stage).join(', ')} value={done} onChange={setDone} />
         )}
         <p>Proceed in order: {path.map(stage).join(' → ')}</p>
         <p className="muted">

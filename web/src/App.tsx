@@ -24,7 +24,7 @@ import AccountsPage from './AccountsPage';
 import { defaultMoneyAccount } from './operations.mjs';
 import { locationUnitCost, stockValuation } from './actual-cost.mjs';
 import { materialUnitCost } from './profit.mjs';
-import type { Ledger, OperationsEvent, FieldEvent } from './types';
+import type { Ledger, OperationsEvent, FieldEvent, TeamEvent } from './types';
 import { applySaleAdjustment } from './sale-adjustments.mjs';
 import DueDateDialog from './DueDateDialog';
 import useSubscription, { subscriptionNotice } from './useSubscription';
@@ -37,7 +37,7 @@ import { setMinOrderRule } from './min-order.mjs';
 import useSyncConflicts from './app/useSyncConflicts';
 import BatchJobProgressDialog from './BatchJobProgressDialog';
 import PricingTemplatesPage from './PricingTemplatesPage';
-import { batchProgressEvents } from './job-batches.mjs';
+import { batchProgressEvents, batchProgressPlan } from './job-batches.mjs';
 import { BusinessSignup, DeveloperActivation, registrationError } from './BusinessRegistration';
 import { validateBusinessRegistration, validActivationToken } from './registration.mjs';
 import SaleAdjustmentsPage, { SaleAdjustmentEditor } from './SaleAdjustmentsPage';
@@ -230,6 +230,18 @@ import { useMobileLayout } from './ResponsiveTable';
 import { PendingChecksBanner } from './MaterialCheckSection';
 import { setMessageSender } from './messages.mjs';
 import { setCustomerLink } from './customer-link';
+import { TeamContext, type TeamWork } from './TeamContext';
+import TeamPage, { UsersTabs } from './TeamPage';
+import {
+  autoWorkEvents,
+  correctionAlerts,
+  teamOn,
+  teamReady,
+  teamSettings,
+  usualAssignEvents,
+  withTrialMember,
+  workEvents,
+} from './team.mjs';
 
 const DashboardPage = lazy(() => import('./DashboardPage'));
 const ReportsPage = lazy(() => import('./ReportsPage'));
@@ -264,6 +276,7 @@ export default function App() {
   // The Help panel: closed (undefined), the whole manual (null) or a page's own topic.
   const [helpFor, setHelpFor] = useState<string | null | undefined>(undefined);
   const [staffEpoch, setStaffEpoch] = useState(0);
+  const [usersTab, setUsersTab] = useState<'users' | 'team' | 'confirm'>('users');
   const [authEpoch, setAuthEpoch] = useState(0);
   const [demo, setDemo] = useState(!supabase);
   const { session, setSession, businessSession, setBusinessSession, authReady, authStartupError, keptStaff } =
@@ -326,6 +339,19 @@ export default function App() {
     : businessSession && session && shop && shop.userId === session.user.id && shop.accessLevel > 0
       ? `${session.user.id}:${shop.id}`
       : '';
+  // Team work: the latest correction alert dismissed on this device (scope changes reload it).
+  const [teamSeenFor, setTeamSeenFor] = useState({ scope: '', at: '' });
+  const teamSeen =
+    teamSeenFor.scope === scope
+      ? teamSeenFor.at
+      : (() => {
+          try {
+            return localStorage.getItem(`psl-team-seen:${scope}`) ?? '';
+          } catch {
+            return '';
+          }
+        })();
+  const setTeamSeen = (at: string) => setTeamSeenFor({ scope, at });
   // Trusted printing signs QZ Tray requests with this business's key (staff sign-in required).
   const signingShop = !demo && scope && supabase ? (shop?.id ?? '') : '';
   useEffect(() => {
@@ -984,6 +1010,17 @@ export default function App() {
       let next = await saveEvent(target, operation, !demo);
       if (activeScope.current !== target)
         throw Error('Workspace changed. The checkout was saved in the original workspace.');
+      // Team work: the usual people for each stage are assigned to the new jobs.
+      if (teamWork.on) {
+        const ids = new Set(operation.data.jobs.map((j) => j.id));
+        const assign = usualAssignEvents(
+          next.ledger,
+          next.ledger.jobs.filter((j) => ids.has(j.id)),
+          branding.settings,
+          teamWork.actor,
+        );
+        if (assign.length) next = await saveEvents(target, assign, !demo);
+      }
       setState(next);
       channel.current?.postMessage('changed');
       let syncProblem = '';
@@ -1354,7 +1391,39 @@ export default function App() {
     setNoticesOpen(false);
     setPage(target);
   };
+  // Team work: a Manager corrected one of my entries (owner's rule): I am told, until I dismiss it.
+  const teamAlerts =
+    session && teamOn(ledger, branding.settings) ? correctionAlerts(ledger, session.user.id, teamSeen) : [];
   const alerts: NoticeAlert[] = [
+    ...(teamAlerts.length
+      ? [
+          {
+            key: 'team-corrections',
+            text: teamAlerts
+              .slice(0, 3)
+              .map(
+                ({ record, c }) =>
+                  `Your entry on job #${record.jobId.slice(0, 8).toUpperCase()} was corrected by ${c.byLabel ?? 'a Manager'} (Manager): ${c.reason}`,
+              )
+              .join(' · '),
+            action: {
+              label: 'Open the job',
+              icon: 'jobs' as const,
+              run: () => {
+                setSelectedJob(teamAlerts[0].record.jobId);
+                goTo('Jobs');
+              },
+            },
+            dismiss: () => {
+              const at = teamAlerts[0].c.at;
+              setTeamSeen(at);
+              try {
+                localStorage.setItem(`psl-team-seen:${scope}`, at);
+              } catch {}
+            },
+          },
+        ]
+      : []),
     ...(loansDue.length
       ? [
           {
@@ -1712,6 +1781,31 @@ export default function App() {
     ...catalogueActor,
     level: demo ? 5 : (shop?.accessLevel ?? 0),
     confirms: demo || (shop?.accessLevel ?? 0) >= confirmMaterialsRank(branding.settings),
+  };
+  // Team work (plans/job-assignment.md): on when the business switched it on and its server has it.
+  async function saveTeam(events: TeamEvent[]) {
+    if (busy || !ready || hasConflict || !scope || (!demo && (!session || !shop || shop.accessLevel === 0)))
+      throw new Error('Please wait until the staff workspace is ready.');
+    const target = scope;
+    setBusy(true);
+    setMessage('');
+    try {
+      const next = await saveEvents(target, events, !demo);
+      if (activeScope.current !== target) return;
+      setState(next);
+      channel.current?.postMessage('changed');
+    } finally {
+      setBusy(false);
+    }
+  }
+  const teamLedger = demo ? withTrialMember(ledger) : ledger;
+  const teamWork: TeamWork = {
+    on: teamOn(teamLedger, branding.settings),
+    settings: teamSettings(branding.settings),
+    ledger: teamLedger,
+    actor: { id: checkActor.id, label: checkActor.label, level: checkActor.level },
+    busy,
+    save: saveTeam,
   };
   const currentJob = ledger.jobs.find((job) => job.id === selectedJob);
   // Auto-lock (Business Settings → Security): sign the user out after the idle time. The business
@@ -3108,6 +3202,7 @@ export default function App() {
                           ) : page === 'Business Settings' ? (
                             <BusinessSettingsPage
                               key={scope}
+                              teamReady={demo || teamReady(state.ledger)}
                               settings={businessBranding.settings}
                               branchList={
                                 !demo && multiBranch
@@ -3348,22 +3443,34 @@ export default function App() {
                                 scope && setHeld(removeHeld(deviceStorage(), scope, sale.id))
                               }
                             />
+                          ) : page === 'Users' && teamWork.on && usersTab !== 'users' ? (
+                            <>
+                              <UsersTabs value={usersTab} onChange={setUsersTab} />
+                              <TeamPage
+                                section={usersTab}
+                                branches={multiBranch ? openBranches : undefined}
+                                refused={state.teamRefused}
+                              />
+                            </>
                           ) : page === 'Users' ? (
-                            <UsersPage
-                              key={scope}
-                              shopId={shop?.id ?? ''}
-                              actorId={session?.user.id ?? ''}
-                              businessUserId={businessSession?.user.id ?? ''}
-                              role={shop?.role ?? ''}
-                              online={online}
-                              demo={demo}
-                              onChanged={() => setStaffEpoch((value) => value + 1)}
-                              branchNames={multiBranch ? branchNames : undefined}
-                              branchName={multiBranch ? activeBranch?.name : undefined}
-                              pageAccess={branding.settings.pageAccess}
-                              branches={multiBranch ? openBranches : undefined}
-                              onPagesChanged={pageLimit.reload}
-                            />
+                            <>
+                              {teamWork.on && <UsersTabs value={usersTab} onChange={setUsersTab} />}
+                              <UsersPage
+                                key={scope}
+                                shopId={shop?.id ?? ''}
+                                actorId={session?.user.id ?? ''}
+                                businessUserId={businessSession?.user.id ?? ''}
+                                role={shop?.role ?? ''}
+                                online={online}
+                                demo={demo}
+                                onChanged={() => setStaffEpoch((value) => value + 1)}
+                                branchNames={multiBranch ? branchNames : undefined}
+                                branchName={multiBranch ? activeBranch?.name : undefined}
+                                pageAccess={branding.settings.pageAccess}
+                                branches={multiBranch ? openBranches : undefined}
+                                onPagesChanged={pageLimit.reload}
+                              />
+                            </>
                           ) : page === 'Print Settings' ? (
                             <PrintSettingsPage
                               key={scope}
@@ -3971,9 +4078,17 @@ export default function App() {
                               { ledger: state.ledger, usages },
                             );
                             if (!events.length) throw Error('No selected items can take this action.');
+                            // Team work: moving several at once credits the people assigned.
+                            const teamEvents: TeamEvent[] = !teamWork.on
+                              ? []
+                              : batchProgressPlan(batchToAdvance.jobs, batchToAdvance.mode, targetStage)
+                                  .filter((row) => !row.reason)
+                                  .flatMap((row) =>
+                                    autoWorkEvents(state.ledger, row.job, row.target, teamWork.actor),
+                                  );
                             setBusy(true);
                             try {
-                              const next = await saveEvents(targetScope, events, !demo);
+                              const next = await saveEvents(targetScope, [...events, ...teamEvents], !demo);
                               if (activeScope.current === targetScope) {
                                 setState(next);
                                 channel.current?.postMessage('changed');
@@ -3996,7 +4111,7 @@ export default function App() {
                           busy={busy}
                           confirms={checkActor.confirms}
                           onClose={() => setJobToAdvance(null)}
-                          onSave={async (targetStage, usages) => {
+                          onSave={async (targetStage, usages, work) => {
                             if (busy || !ready || !scope || legacyConflict)
                               throw Error('Wait until the workspace is ready.');
                             const targetScope = scope;
@@ -4017,7 +4132,14 @@ export default function App() {
                                 },
                                 usages,
                               );
-                              const next = await saveEvents(targetScope, events, !demo);
+                              // Team work: the "Done by" step's records, or the people assigned.
+                              const job = jobToAdvance.job;
+                              const teamEvents: TeamEvent[] = !teamWork.on
+                                ? []
+                                : work
+                                  ? workEvents(job, targetStage, work, teamWork.actor)
+                                  : autoWorkEvents(state.ledger, job, targetStage, teamWork.actor);
+                              const next = await saveEvents(targetScope, [...events, ...teamEvents], !demo);
                               if (activeScope.current === targetScope) {
                                 setState(next);
                                 channel.current?.postMessage('changed');
@@ -4048,7 +4170,7 @@ export default function App() {
       <div className="app-layer" hidden={!!lockScreen} inert={!!lockScreen}>
         <AppLayer.Provider value>
           <CostMethodContext.Provider value={costMethodOf(branding.settings)}>
-            {app}
+            <TeamContext.Provider value={teamWork}>{app}</TeamContext.Provider>
           </CostMethodContext.Provider>
         </AppLayer.Provider>
       </div>
