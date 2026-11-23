@@ -64,26 +64,40 @@ try {
     };
     await useUsualSteps(page, nav);
 
-    // A job that takes stock: lamination with a choice of two papers.
+    // A job that takes stock: printing on paper.
+    await nav('Materials');
+    await page.getByRole('button', { name: 'Add material', exact: true }).click();
+    let d = page.getByRole('dialog');
+    await d.getByLabel('Name', { exact: true }).fill('Paper');
+    await d.getByLabel('Measurement unit', { exact: true }).fill('sheet');
+    await d.getByRole('button', { name: 'Save material', exact: true }).click();
+    await d.waitFor({ state: 'detached' });
+    await page.getByRole('button', { name: 'Add to stock', exact: true }).click();
+    d = page.getByRole('dialog');
+    await d.getByLabel('Quantity to add').fill('50');
+    await d.getByRole('button', { name: 'Add to stock', exact: true }).click();
+    await d.waitFor({ state: 'detached' });
     await nav('Services');
     await page.getByRole('button', { name: 'Add service', exact: true }).click();
-    let d = page.getByRole('dialog').first();
-    await d.getByLabel('Service description').fill('Lamination (A4)');
-    await pick(d, 'Base material', '__choice');
-    await d.getByRole('checkbox', { name: /Paper 70gsm/ }).check();
-    await d.getByRole('checkbox', { name: /Paper 80gsm/ }).check();
-    await d.getByRole('textbox', { name: 'Price (₦)' }).fill('300');
-    await d.getByRole('button', { name: /Save service/ }).click();
+    d = page.getByRole('dialog');
+    await d.getByLabel('Service description').fill('Flyer printing');
+    await pick(d, 'Base material', { text: 'Paper' });
+    await d.getByLabel('Price (₦)').fill('100');
+    await d.getByRole('button', { name: 'Save service', exact: true }).click();
     await d.waitFor({ state: 'detached' });
     await nav('Point of Service');
     await page.getByRole('button', { name: 'Add job', exact: true }).click();
     d = page.getByRole('dialog', { name: 'New checkout' });
+    await d.getByRole('button', { name: 'Add new customer', exact: true }).click();
+    const cd = page.getByRole('dialog', { name: 'Add customer' });
+    await cd.getByLabel('Full name').fill('Material customer');
+    await cd.getByLabel('Phone number').fill('08012345670');
+    await cd.getByRole('button', { name: 'Save customer', exact: true }).click();
+    await cd.waitFor({ state: 'detached' });
     const line = d.locator('.cart-line').first();
-    await pick(line, 'Service', { text: 'Lamination' });
+    await pick(line, 'Service', { text: 'Flyer printing' });
     await line.getByLabel('Quantity', { exact: true }).fill('10');
-    await line.getByLabel('Job description').fill('Laminate certificates');
-    await d.getByRole('combobox', { name: 'Customer name or phone' }).fill('Book');
-    await d.getByRole('listbox', { name: 'Customer suggestions' }).getByRole('option').first().click();
+    await d.getByLabel('Money received (₦)').fill('0');
     await d.getByRole('button', { name: 'Complete checkout', exact: true }).click();
     await d.waitFor({ state: 'detached', timeout: 8000 }).catch(async () => {
       throw Error(`Checkout did not finish: ${(await d.innerText()).slice(0, 600)}`);
@@ -92,7 +106,7 @@ try {
 
     // Marking it complete confirms the film used.
     await nav('Jobs');
-    await page.getByText('Laminate certificates').first().click();
+    await page.getByRole('button', { name: 'Flyer printing', exact: true }).first().click();
     const job = page.getByRole('dialog').last();
     await job.getByRole('button', { name: 'Mark as Complete', exact: true }).click();
     d = page.getByRole('dialog', { name: /^Move job to/ });
