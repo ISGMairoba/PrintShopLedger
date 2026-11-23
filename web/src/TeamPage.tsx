@@ -5,6 +5,8 @@ import Modal from './Modal';
 import ResponsiveTable from './ResponsiveTable';
 import { useTeam } from './TeamContext';
 import DoneByFields, { draftFrom, draftWork } from './DoneByFields';
+import { MaterialCorrectionRequest } from './MaterialCorrection';
+import { pendingMaterialCorrections } from './material-corrections.mjs';
 import {
   approverRank,
   canConfirm,
@@ -102,7 +104,7 @@ export function UsersTabs({
   onChange: (next: 'users' | 'team' | 'confirm') => void;
 }) {
   const team = useTeam();
-  const waiting = team ? toConfirm(team.ledger).length : 0;
+  const waiting = team ? toConfirm(team.ledger).length + pendingMaterialCorrections(team.ledger).length : 0;
   const tabs: ['users' | 'team' | 'confirm', string][] = [
     ['users', 'Users'],
     ['team', 'Team'],
@@ -159,13 +161,25 @@ export default function TeamPage({
   const jobOf = (id: string) => ledger.jobs.find((j) => j.id === id);
   if (section === 'confirm') {
     const requests = pendingCorrections(ledger) as WorkCorrection[];
+    const materialRequests = pendingMaterialCorrections(ledger) as Job[];
     const waiting = toConfirm(ledger) as WorkRecord[];
     const mine = waiting.filter((r) => canConfirm(ledger, r, actor, { teamWork: team.settings }));
     return (
       <section className="panel">
-        {!!requests.length && (
+        {!!(requests.length || materialRequests.length) && (
           <>
             <h2>Correction requests</h2>
+            {materialRequests.map((job) => (
+              <MaterialCorrectionRequest
+                key={job.id}
+                ledger={ledger}
+                job={job}
+                busy={busy}
+                actor={actor}
+                onSave={team.saveJob}
+                showJob
+              />
+            ))}
             <ul className="request-list">
               {requests.map((c) => {
                 const record = (ledger.workRecords ?? []).find((r) => r.id === c.recordId);

@@ -65,6 +65,8 @@ jobs:
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/run-check.mjs node scripts/check-team-work.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: node scripts/run-check.mjs node scripts/check-material-corrections.mjs
+      - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/run-check.mjs node scripts/check-pricing-templates.mjs
       - if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: node scripts/run-check.mjs node scripts/check-template-variants.mjs

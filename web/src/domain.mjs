@@ -1,5 +1,6 @@
 import { applyFieldEvent } from './item-fields.mjs';
 import { applyMaterialsCheck } from './material-check.mjs';
+import { applyMaterialCorrection } from './material-corrections.mjs';
 import { routeMoneyEvent, routeMoneyResult } from './account-methods.mjs';
 import { applyJobExtraMaterials } from './production-materials.mjs';
 import { applyJobHold } from './job-hold.mjs';
@@ -113,6 +114,8 @@ function applyEventCore(ledger, event) {
   if (event.kind === 'job.material_used') return applyJobMaterial(ledger, event);
   if (event.kind === 'job.extra_materials_set') return applyJobExtraMaterials(ledger, event);
   if (event.kind === 'job.materials_checked') return applyMaterialsCheck(ledger, event);
+  if (event.kind === 'job.materials_corrected' || event.kind === 'job.material_correction_decided')
+    return applyMaterialCorrection(ledger, event);
   if (event.kind === 'job.held' || event.kind === 'job.resumed') return applyJobHold(ledger, event);
   if (
     event.kind === 'job.done_recorded' ||

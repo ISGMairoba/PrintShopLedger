@@ -4,7 +4,16 @@ import Modal from './Modal';
 import DialogActions from './DialogActions';
 import MaterialCheckFields, { checkDraftFor, checkUsagesFrom, type CheckDraft } from './MaterialCheckFields';
 import { checkLines, checksMaterials, materialsCheckEvent, pendingChecks } from './material-check.mjs';
-import type { Job, JobMaterialsCheckEvent, Ledger } from './types';
+import { canDecide, correctionBlocked, pendingMaterialCorrections } from './material-corrections.mjs';
+import {
+  MaterialCorrectionDialog,
+  MaterialCorrectionHistory,
+  MaterialCorrectionRequest,
+  useCorrectionSettings,
+} from './MaterialCorrection';
+import type { Job, JobMaterialCorrectionEvent, JobMaterialsCheckEvent, Ledger } from './types';
+
+type CheckSave = (event: JobMaterialsCheckEvent | JobMaterialCorrectionEvent) => Promise<void>;
 import { useWords } from './Words';
 
 const qty = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 3 });
@@ -96,25 +105,29 @@ export default function MaterialCheckSection({
   job: Job;
   busy: boolean;
   actor?: { id: string; label: string; level: number; confirms: boolean };
-  onSave?: (event: JobMaterialsCheckEvent) => Promise<void>;
+  onSave?: CheckSave;
 }) {
   const { w } = useWords();
+  const settings = useCorrectionSettings();
   const [open, setOpen] = useState(false);
+  const [correcting, setCorrecting] = useState(false);
   if (!checksMaterials(job) || !checkLines(ledger, job).length) return null;
   const check = job.materialCheck;
   const name = (id: string) => ledger.materials.find((m) => m.id === id)?.name ?? 'Material';
   const unit = (id: string) => ledger.materials.find((m) => m.id === id)?.measurementUnit ?? '';
   const cancelled = job.productionStatus === 'Cancelled';
   const admin = !!actor?.confirms;
-  // Who may act: an Admin any time; others while nothing is confirmed.
-  const canAct = !!actor && !!onSave && !cancelled && (admin || check?.status !== 'confirmed');
+  // Before confirming: enter, send or approve. Once confirmed: a correction, with a reason (anyone may ask).
+  const canAct = !!actor && !!onSave && !cancelled && check?.status !== 'confirmed';
+  const blocked = check?.status === 'confirmed' ? correctionBlocked(job, settings) : '';
+  const canCorrect = !!actor && !!onSave && check?.status === 'confirmed' && !blocked;
   const label = !check
     ? job.materialUsed
       ? w('Confirmed (before materials checks)')
       : w('Not confirmed yet')
     : check.status === 'pending'
       ? `${w('Waiting for approval')} · ${w('entered by')} ${check.requestedByLabel}`
-      : `${w('Confirmed by')} ${check.confirmedByLabel}${check.requestedByLabel ? ` · ${w('entered by')} ${check.requestedByLabel}` : ''}`;
+      : `${w('Confirmed by')} ${check.confirmedByLabel}${check.requestedByLabel ? ` · ${w('entered by')} ${check.requestedByLabel}` : ''}${check.correctedAt ? ` · ${w('corrected')}${check.recordedByLabel ? ` (${check.recordedByLabel})` : ''}` : ''}`;
   return (
     <section className="job-detail-stage" aria-labelledby={`check-${job.id}`}>
       <h3 id={`check-${job.id}`}>{w('Materials used')}</h3>
@@ -136,12 +149,35 @@ export default function MaterialCheckSection({
             ? admin
               ? w('Confirm materials used')
               : w('Enter materials used')
-            : check.status === 'pending'
-              ? admin
-                ? w('Review and approve')
-                : w('Change entry')
-              : w('Correct materials used')}
+            : admin
+              ? w('Review and approve')
+              : w('Change entry')}
         </button>
+      )}
+      <MaterialCorrectionRequest ledger={ledger} job={job} busy={busy} actor={actor} onSave={onSave} />
+      {canCorrect && (
+        <button
+          type="button"
+          className="secondary self-start"
+          disabled={busy}
+          onClick={() => setCorrecting(true)}
+        >
+          <Icon name="edit" /> {w('Correct materials used')}
+        </button>
+      )}
+      {check?.status === 'confirmed' && blocked && !job.materialCorrection && !cancelled && (
+        <p className="muted">{w(blocked)}</p>
+      )}
+      <MaterialCorrectionHistory ledger={ledger} job={job} />
+      {correcting && actor && onSave && (
+        <MaterialCorrectionDialog
+          ledger={ledger}
+          job={job}
+          busy={busy}
+          actor={actor}
+          onSave={onSave}
+          onClose={() => setCorrecting(false)}
+        />
       )}
       {open && actor && onSave && (
         <MaterialCheckDialog
@@ -167,20 +203,23 @@ export function PendingChecksBanner({
   ledger: Ledger;
   busy: boolean;
   actor: { id: string; label: string; level: number; confirms: boolean };
-  onSave: (event: JobMaterialsCheckEvent) => Promise<void>;
+  onSave: CheckSave;
 }) {
   const { w } = useWords();
   const [list, setList] = useState(false);
   const [review, setReview] = useState<string | null>(null);
-  const waiting = pendingChecks(ledger);
-  if (!actor.confirms || !waiting.length) return null;
+  const waiting = actor.confirms ? pendingChecks(ledger) : [];
+  const corrections = (pendingMaterialCorrections(ledger) as Job[]).filter((j) =>
+    canDecide(j.materialCorrection, actor),
+  );
+  const count = waiting.length + corrections.length;
+  if (!count) return null;
   const job = review ? ledger.jobs.find((j) => j.id === review) : undefined;
   return (
     <>
       <div className="notice notice-warning pending-checks" role="status">
         <span>
-          <strong>{waiting.length}</strong>{' '}
-          {w(waiting.length === 1 ? 'job has materials' : 'jobs have materials')}{' '}
+          <strong>{count}</strong> {w(count === 1 ? 'job has materials' : 'jobs have materials')}{' '}
           {w('waiting for your approval')}.
         </span>
         <button type="button" className="secondary" onClick={() => setList(true)}>
@@ -204,6 +243,21 @@ export function PendingChecksBanner({
               </li>
             ))}
           </ul>
+          {!!corrections.length && (
+            <div className="request-list">
+              {corrections.map((j) => (
+                <MaterialCorrectionRequest
+                  key={j.id}
+                  ledger={ledger}
+                  job={j}
+                  busy={busy}
+                  actor={actor}
+                  onSave={onSave}
+                  showJob
+                />
+              ))}
+            </div>
+          )}
         </Modal>
       )}
       {job && (

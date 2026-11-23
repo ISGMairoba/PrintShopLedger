@@ -291,6 +291,26 @@ export interface Job {
     confirmedBy?: string;
     confirmedByLabel?: string;
     confirmedAt?: string;
+    /** Who last recorded the usages (after a correction), and their rank. */
+    recordedBy?: string;
+    recordedByLabel?: string;
+    recordedByRank?: number;
+    correctedAt?: string;
+    /** Every correction, applied or declined (material-corrections.mjs). */
+    corrections?: MaterialCorrectionEntry[];
+  };
+  /** A correction of the confirmed materials waiting for approval. */
+  materialCorrection?: {
+    id: string;
+    usages: MaterialCheckUsage[];
+    before: MaterialCheckUsage[];
+    reason: string;
+    requestedBy: string;
+    requestedByLabel: string;
+    requestedByRank: number;
+    requestedAt: string;
+    approverRank: number;
+    counted?: boolean;
   };
   /** The material(s) confirmed as used in production. */
   materialUsed?: {
@@ -525,6 +545,63 @@ export type JobExtraMaterialsEvent = {
     modifiedAt: string;
   };
 };
+export type MaterialCheckUsage = { id: string; line: string; materialId: string; quantity: number };
+export type MaterialCorrectionEntry = {
+  id: string;
+  status: 'applied' | 'declined';
+  at: string;
+  by: string;
+  byLabel: string;
+  byRank?: number;
+  reason: string;
+  before: MaterialCheckUsage[];
+  after: MaterialCheckUsage[];
+  counted?: boolean;
+  alert?: boolean;
+  alertFor?: string;
+  approvedBy?: string;
+  approvedByLabel?: string;
+  approvedAt?: string;
+  decidedBy?: string;
+  decidedByLabel?: string;
+  decidedAt?: string;
+  note?: string;
+};
+export type JobMaterialCorrectionEvent =
+  | {
+      id: string;
+      kind: 'job.materials_corrected';
+      data: {
+        id: string;
+        baseVersion: number;
+        requestId: string;
+        route: 'direct' | 'request' | 'alert';
+        reason: string;
+        usages: MaterialCheckUsage[];
+        stockIds?: Record<string, string>;
+        counted?: boolean;
+        modifiedBy: string;
+        modifiedByLabel: string;
+        modifiedByRank: number;
+        modifiedAt: string;
+      };
+    }
+  | {
+      id: string;
+      kind: 'job.material_correction_decided';
+      data: {
+        id: string;
+        baseVersion: number;
+        requestId: string;
+        approve: boolean;
+        note: string;
+        stockIds?: Record<string, string>;
+        modifiedBy: string;
+        modifiedByLabel: string;
+        modifiedByRank: number;
+        modifiedAt: string;
+      };
+    };
 export type JobMaterialsCheckEvent = {
   id: string;
   kind: 'job.materials_checked';
@@ -898,6 +975,7 @@ export type LedgerEvent =
   | JobMaterialEvent
   | JobExtraMaterialsEvent
   | JobMaterialsCheckEvent
+  | JobMaterialCorrectionEvent
   | JobHoldEvent
   | JobHandoverEvent
   | FieldEvent

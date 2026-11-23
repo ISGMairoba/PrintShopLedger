@@ -13,7 +13,14 @@ import JobActions, { type HoldChange, type ProgressMode } from './JobActions';
 import { AdjustmentHistory } from './SaleAdjustmentsPage';
 import { paymentName } from './business-options.mjs';
 import { currency, dateLabel, shortId } from './app/shared';
-import type { JobExtraMaterialsEvent, JobHandoverEvent, JobMaterialsCheckEvent, Job, Ledger } from './types';
+import type {
+  JobExtraMaterialsEvent,
+  JobHandoverEvent,
+  JobMaterialCorrectionEvent,
+  JobMaterialsCheckEvent,
+  Job,
+  Ledger,
+} from './types';
 import { useWords } from './Words';
 
 const lagosTime = (value: string) =>
@@ -50,7 +57,7 @@ type Props = {
   onExtraMaterials?: (event: JobExtraMaterialsEvent) => Promise<void>;
   /** The materials check (confirm, approve, correct); level decides approval. */
   checkActor?: { id: string; label: string; level: number; confirms: boolean };
-  onMaterialsCheck?: (event: JobMaterialsCheckEvent) => Promise<void>;
+  onMaterialsCheck?: (event: JobMaterialsCheckEvent | JobMaterialCorrectionEvent) => Promise<void>;
   onHold?: (job: Job, hold: HoldChange) => Promise<void>;
   /** Part orders: record done so far and hand over parts (left out: view only). */
   onParts?: (event: JobHandoverEvent) => Promise<void>;
