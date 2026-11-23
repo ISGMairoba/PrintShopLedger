@@ -366,7 +366,10 @@ export const pendingMaterialCorrections = (ledger) =>
       (a.materialCorrection.requestedAt ?? '').localeCompare(b.materialCorrection.requestedAt ?? ''),
     );
 
-/** Manager corrections of this person's materials entries (they are told), newest first. */
+/**
+ * Manager corrections of this person's materials entries (they are told), newest first.
+ * @returns {{ job: import('./types').Job, c: import('./types').MaterialCorrectionEntry }[]}
+ */
 export function materialCorrectionAlerts(ledger, userId, since = '') {
   return ledger.jobs
     .flatMap((job) =>
