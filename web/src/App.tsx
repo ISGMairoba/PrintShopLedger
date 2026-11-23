@@ -1773,8 +1773,10 @@ export default function App() {
   useEffect(() => {
     if (demo || !supabase || !session || !shop || !scope || !settingsKnownEarly) return;
     if (!lockChoices.rememberPeople) {
-      // Only the business's own settings (not defaults read offline) turn remembering off.
-      if (branding.version > 0 || (branding.ready && online)) void forgetEveryone(shop.id);
+      // Only the business's own saved settings turn remembering off: for a moment after opening,
+      // the settings can be the defaults (off), and that must not forget anyone. (Remembering is
+      // only ever turned on by saving the settings, so a business with none has nobody to forget.)
+      if (branding.version > 0) void forgetEveryone(shop.id);
       return;
     }
     const password = freshPassword.current;
