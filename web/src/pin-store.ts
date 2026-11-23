@@ -43,31 +43,35 @@ async function deviceKey(): Promise<CryptoKey> {
 const id = (scope: string, userId: string) => `${scope}:${userId}`;
 const flag = (scope: string) => `printshopledger:locked:v1:${scope}`;
 
-export async function readPin(scope: string, userId: string): Promise<PinRecord | null> {
+/** Anything kept encrypted on this device under a name (PINs, remembered people). */
+export async function readSealed<T>(name: string): Promise<T | null> {
   try {
     const box = await run<{ iv: Uint8Array<ArrayBuffer>; data: ArrayBuffer } | undefined>('readonly', (s) =>
-      s.get(id(scope, userId)),
+      s.get(name),
     );
     if (!box) return null;
     const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: box.iv }, await deviceKey(), box.data);
-    return JSON.parse(new TextDecoder().decode(plain)) as PinRecord;
+    return JSON.parse(new TextDecoder().decode(plain)) as T;
   } catch {
     return null;
   }
 }
-export async function writePin(scope: string, userId: string, record: PinRecord | null) {
-  if (!record) {
-    await run('readwrite', (s) => s.delete(id(scope, userId)));
+export async function writeSealed(name: string, value: unknown) {
+  if (value === null || value === undefined) {
+    await run('readwrite', (s) => s.delete(name));
     return;
   }
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const data = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv },
     await deviceKey(),
-    new TextEncoder().encode(JSON.stringify(record)),
+    new TextEncoder().encode(JSON.stringify(value)),
   );
-  await run('readwrite', (s) => s.put({ iv, data }, id(scope, userId)));
+  await run('readwrite', (s) => s.put({ iv, data }, name));
 }
+export const readPin = (scope: string, userId: string) => readSealed<PinRecord>(id(scope, userId));
+export const writePin = (scope: string, userId: string, record: PinRecord | null) =>
+  writeSealed(id(scope, userId), record);
 
 /** Which person this device is locked for (also kept outside the encrypted store, see above). */
 export function lockedFlag(scope: string): string | null {

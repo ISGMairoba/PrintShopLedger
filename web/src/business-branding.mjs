@@ -38,6 +38,43 @@ import { validateBusinessType } from './business-type.mjs';
 const HISTORY_KEEP = ['all', '7d', '14d', '30d', '3m', '6m', '12m'];
 // What each business shows on its receipts. headline: the bold line for each job ('description' or 'service');
 // showSubline: print the other one beneath it. Older saved settings fill in these defaults.
+
+/** Lock screen choices and their defaults (plans/lock-screen.md). */
+export const LOCK_DEFAULTS = Object.freeze({
+  minPinLength: 4,
+  pinTries: 5,
+  requirePin: true,
+  rememberPeople: false,
+  rememberDays: 30,
+  rememberMax: 10,
+  allowBiometric: true,
+});
+const whole = (low, high) => (v) => Number.isInteger(v) && v >= low && v <= high;
+const yesNo = (v) => typeof v === 'boolean';
+/** @type {[keyof typeof LOCK_DEFAULTS, (v: unknown) => boolean, string][]} */
+const LOCK_CHECKS = [
+  ['minPinLength', whole(4, 6), 'Choose a minimum PIN length of 4, 5 or 6 digits.'],
+  ['pinTries', (v) => [3, 5, 10].includes(/** @type {number} */ (v)), 'Choose 3, 5 or 10 PIN tries.'],
+  ['requirePin', yesNo, 'Choose whether staff must have a PIN.'],
+  ['rememberPeople', yesNo, 'Choose whether devices remember the people who sign in.'],
+  ['rememberDays', whole(1, 90), 'Choose how long a device remembers someone: 1 to 90 days.'],
+  ['rememberMax', whole(2, 20), 'Choose how many people a device remembers: 2 to 20.'],
+  ['allowBiometric', yesNo, 'Choose whether face/fingerprint unlock is allowed.'],
+];
+/**
+ * The business's lock screen choices, with the defaults filled in.
+ * @param {{ security?: Partial<typeof LOCK_DEFAULTS> }} settings
+ */
+export const lockSettings = (settings) =>
+  /** @type {typeof LOCK_DEFAULTS} */ (
+    Object.fromEntries(
+      Object.entries(LOCK_DEFAULTS).map(([key, fallback]) => [
+        key,
+        /** @type {Record<string, unknown>} */ (settings?.security ?? {})[key] ?? fallback,
+      ]),
+    )
+  );
+
 export const receiptContentDefaults = () => ({
   headline: 'description',
   showSubline: true,
@@ -162,7 +199,7 @@ export const defaultBranding = () => ({
   // syncMinutes: how often devices check for changes made on other devices.
   // historyKeep: how much history devices keep by default (left out = Everything).
   security:
-    /** @type {{ autoLockMinutes: number, syncMinutes: number, lockOnOpen: boolean, limitsBlockActions: boolean, historyKeep?: string }} */ ({
+    /** @type {{ autoLockMinutes: number, syncMinutes: number, lockOnOpen: boolean, limitsBlockActions: boolean, historyKeep?: string, minPinLength?: number, pinTries?: number, requirePin?: boolean, rememberPeople?: boolean, rememberDays?: number, rememberMax?: number, allowBiometric?: boolean }} */ ({
       autoLockMinutes: 0,
       syncMinutes: 2,
       lockOnOpen: true,
@@ -357,6 +394,13 @@ export function validateBranding(input) {
   // Lock when the app opens: the PIN (or password, without a PIN) is asked each time it is opened.
   if (typeof value.security.lockOnOpen !== 'boolean')
     throw Error('Choose whether the app locks when opened.');
+  // Lock screen choices (plans/lock-screen.md). Kept only when changed from the default (lockSettings).
+  for (const [key, ok, problem] of LOCK_CHECKS) {
+    const own = value.security[key];
+    if (own === undefined) continue;
+    if (!ok(own)) throw Error(problem);
+    if (own === LOCK_DEFAULTS[key]) delete value.security[key];
+  }
   const lock = value.security.autoLockMinutes;
   const sync = value.security.syncMinutes;
   if (!Number.isInteger(sync) || sync < 1 || sync > 60)
@@ -369,7 +413,14 @@ export function validateBranding(input) {
   if (
     Object.keys(value.security).some(
       (key) =>
-        !['autoLockMinutes', 'syncMinutes', 'historyKeep', 'lockOnOpen', 'limitsBlockActions'].includes(key),
+        ![
+          'autoLockMinutes',
+          'syncMinutes',
+          'historyKeep',
+          'lockOnOpen',
+          'limitsBlockActions',
+          ...Object.keys(LOCK_DEFAULTS),
+        ].includes(key),
     ) ||
     !Number.isInteger(lock) ||
     lock < 0 ||

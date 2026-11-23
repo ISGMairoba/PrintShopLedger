@@ -22,3 +22,11 @@ test('a PIN is kept only as a salted hash, and checks against it', async () => {
   assert.equal(await checkPin('2581', stored), false);
   assert.equal(await checkPin('2580', 'nonsense'), false);
 });
+
+test('the business minimum PIN length is enforced for new PINs', () => {
+  assert.equal(pinProblem('2580', '2580', 6), 'Use 6 digits.');
+  assert.equal(pinProblem('25801', '25801', 5), '');
+  assert.equal(pinProblem('2580', '2580', 5), 'Use 5 to 6 digits.');
+  assert.equal(pinProblem('258013', '258013', 6), '');
+  assert.equal(pinProblem('2580', '2580'), '');
+});

@@ -28,6 +28,7 @@ import {
   suggestedPalette,
   contrastText,
   POWERED_BY_MAX,
+  lockSettings,
 } from './business-branding.mjs';
 import type { Branding } from './useBusinessBranding';
 import type { Service } from './types';
@@ -1478,10 +1479,9 @@ export default function BusinessSettingsPage({
                   </select>
                 </label>
                 <p>
-                  When nobody taps, clicks or types for this long, the signed-in user is signed out and the
-                  staff sign-in shows with empty fields. The business stays signed in, and unsaved work on the
-                  device is kept. While the device is offline it locks only once it is back online, so nobody
-                  is locked out of selling without a connection.
+                  When nobody taps, clicks or types for this long, the app locks: people with a PIN unlock it
+                  with their PIN (even offline) and find their work as they left it; people without one are
+                  signed out and sign in again with their password. The business stays signed in.
                 </p>
                 <label>
                   Check for other devices' changes every
@@ -1535,6 +1535,125 @@ export default function BusinessSettingsPage({
                   records when it opens. Nothing is deleted from the business. Keep office computers on
                   Everything from their own setting.
                 </p>
+                <h3>Lock screen and PIN</h3>
+                {(() => {
+                  const lock = lockSettings(draft);
+                  const set = (key: string, value: unknown) =>
+                    field('security', { ...draft.security, [key]: value });
+                  return (
+                    <>
+                      <label className="check-label">
+                        <input
+                          type="checkbox"
+                          checked={lock.requirePin}
+                          onChange={(event) => set('requirePin', event.target.checked)}
+                        />
+                        Staff must have a PIN
+                      </label>
+                      <p>
+                        While auto-lock is on, anyone without a PIN is asked to set one straight after signing
+                        in with their password, so the app can lock even when offline. Default: on.
+                      </p>
+                      <label>
+                        Shortest PIN allowed
+                        <select
+                          aria-label="Shortest PIN allowed"
+                          value={lock.minPinLength}
+                          onChange={(event) => set('minPinLength', Number(event.target.value))}
+                        >
+                          {[4, 5, 6].map((n) => (
+                            <option key={n} value={n}>
+                              {n} digits{n === 4 ? ' (default)' : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <p>Anyone whose PIN is shorter chooses a new one the next time they unlock.</p>
+                      <label>
+                        Wrong PINs before the password is needed
+                        <select
+                          aria-label="Wrong PINs before the password is needed"
+                          value={lock.pinTries}
+                          onChange={(event) => set('pinTries', Number(event.target.value))}
+                        >
+                          {[3, 5, 10].map((n) => (
+                            <option key={n} value={n}>
+                              {n}
+                              {n === 5 ? ' (default)' : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <p>Counted for each person. Admins and above get a notice when someone reaches it.</p>
+                      <label className="check-label">
+                        <input
+                          type="checkbox"
+                          checked={lock.rememberPeople}
+                          onChange={(event) => set('rememberPeople', event.target.checked)}
+                        />
+                        Remember people on each device
+                      </label>
+                      <p>
+                        Each device remembers the people who sign in on it with their password, and Switch
+                        user on the lock screen lets them change over with their PIN, even without internet.
+                        Each person&apos;s work stays under their own name and syncs as them. Useful where the
+                        network is often down; the risk is that a device holds several people&apos;s sign-ins.
+                        Default: off.
+                      </p>
+                      {lock.rememberPeople && (
+                        <div className="form-grid">
+                          <label>
+                            Remember each person for
+                            <select
+                              aria-label="Remember each person for"
+                              value={lock.rememberDays}
+                              onChange={(event) => set('rememberDays', Number(event.target.value))}
+                            >
+                              {[...new Set([7, 14, 30, 60, 90, lock.rememberDays])]
+                                .sort((x, y) => x - y)
+                                .map((n) => (
+                                  <option key={n} value={n}>
+                                    {n} days after their last password sign-in{n === 30 ? ' (default)' : ''}
+                                  </option>
+                                ))}
+                            </select>
+                          </label>
+                          <label>
+                            People per device
+                            <select
+                              aria-label="People per device"
+                              value={lock.rememberMax}
+                              onChange={(event) => set('rememberMax', Number(event.target.value))}
+                            >
+                              {[...new Set([2, 5, 10, 15, 20, lock.rememberMax])]
+                                .sort((x, y) => x - y)
+                                .map((n) => (
+                                  <option key={n} value={n}>
+                                    Up to {n}
+                                    {n === 10 ? ' (default)' : ''}
+                                  </option>
+                                ))}
+                            </select>
+                          </label>
+                        </div>
+                      )}
+                      <label className="check-label">
+                        <input
+                          type="checkbox"
+                          checked={lock.allowBiometric}
+                          onChange={(event) => set('allowBiometric', event.target.checked)}
+                        />
+                        Allow face/fingerprint unlock
+                      </label>
+                      <p>
+                        A person can let their own device&apos;s face or fingerprint unlock (Face ID, Touch
+                        ID, Android, Windows Hello) unlock the app instead of the PIN, in My Account. It
+                        always signs in as that person, so it is for devices one person uses. The PIN always
+                        works too. Default: on.
+                      </p>
+                    </>
+                  );
+                })()}
                 {sectionSave('Security settings', ['security'])}
               </fieldset>
               <fieldset hidden={tab !== 'Branches'} disabled={busy || !ready}>

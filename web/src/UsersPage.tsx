@@ -80,6 +80,7 @@ export default function UsersPage({
   const [confirmation, setConfirmation] = useState<Staff | null>(null);
   const [accessChange, setAccessChange] = useState<Staff | null>(null);
   const [passwordReset, setPasswordReset] = useState<Staff | null>(null);
+  const [pinClear, setPinClear] = useState<Staff | null>(null);
   const [pagesFor, setPagesFor] = useState<Staff | null>(null);
   const [branchPages, setBranchPages] = useState(false);
   const [limits, setLimits] = useState<PageLimits>({ branches: {}, people: {} });
@@ -93,6 +94,13 @@ export default function UsersPage({
   const canTurnOff = (user: Staff) => editable(user) && (user.role !== GENERAL_MANAGER || actor?.rank === 5);
   // Page limits: Managers and above for people of a lower rank; General Managers for each branch.
   const canSetPages = (user: Staff) => !!actor && actor.rank >= 3 && user.rank < actor.rank;
+  // Clear someone's PIN (they set a new one at their next sign-in): Admins and above, for someone of
+  // lower rank; a Developer for anyone. The server checks the same.
+  const canClearPin = (user: Staff) =>
+    !!actor &&
+    actor.accessLevel >= 2 &&
+    user.userId !== actorId &&
+    (actor.rank === 5 || user.rank < actor.rank);
   const canSetBranchPages = !!actor && actor.rank >= 4 && !!branches && branches.length > 1;
   async function loadLimits() {
     if (!supabase || !online || !actor || actor.rank < 3) return;
@@ -507,6 +515,18 @@ export default function UsersPage({
                               >
                                 <Icon name="sync" /> Reset password
                               </button>
+                              {canClearPin(user) && (
+                                <button
+                                  className="text-button"
+                                  disabled={busy || !online}
+                                  onClick={() => {
+                                    setPinClear(user);
+                                    setFormError('');
+                                  }}
+                                >
+                                  <Icon name="lock" /> Clear PIN
+                                </button>
+                              )}
                               {canSetPages(user) && (
                                 <button
                                   className="text-button"
@@ -756,6 +776,52 @@ export default function UsersPage({
               </button>
             </div>
           </form>
+        </Modal>
+      )}
+      {pinClear && (
+        <Modal
+          title={`Clear PIN: ${pinClear.name}`}
+          busy={busy}
+          onClose={() => setPinClear(null)}
+          footer={
+            <>
+              <button type="button" className="secondary" disabled={busy} onClick={() => setPinClear(null)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={busy || !online}
+                onClick={async () => {
+                  setBusy(true);
+                  setFormError('');
+                  try {
+                    const { error: failure } = await supabase!.rpc('clear_member_pin', {
+                      p_shop: shopId,
+                      p_user: pinClear.userId,
+                    });
+                    if (failure) throw Error(failure.message);
+                    setError(`${pinClear.name}'s PIN was cleared.`, 'success');
+                    setPinClear(null);
+                  } catch (failure) {
+                    setFormError(failure instanceof Error ? failure.message : String(failure));
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                <Icon name="lock" /> Clear PIN
+              </button>
+            </>
+          }
+        >
+          {formError && (
+            <div className="notice" role="alert">
+              {formError}
+            </div>
+          )}
+          <p>
+            {`${pinClear.name} will set a new PIN the next time they sign in with their password. Their face/fingerprint unlock stops working on every device until they turn it on again. Use this when they forgot their PIN or someone else may know it.`}
+          </p>
         </Modal>
       )}
     </>
