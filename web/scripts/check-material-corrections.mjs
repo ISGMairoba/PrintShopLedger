@@ -64,10 +64,20 @@ try {
     };
     await useUsualSteps(page, nav);
 
-    // A job that takes stock: laminating with a choice of film.
+    // A job that takes stock: lamination with a choice of two papers.
+    await nav('Services');
+    await page.getByRole('button', { name: 'Add service', exact: true }).click();
+    let d = page.getByRole('dialog').first();
+    await d.getByLabel('Service description').fill('Lamination (A4)');
+    await pick(d, 'Base material', '__choice');
+    await d.getByRole('checkbox', { name: /Paper 70gsm/ }).check();
+    await d.getByRole('checkbox', { name: /Paper 80gsm/ }).check();
+    await d.getByRole('textbox', { name: 'Price (₦)' }).fill('300');
+    await d.getByRole('button', { name: /Save service/ }).click();
+    await d.waitFor({ state: 'detached' });
     await nav('Point of Service');
     await page.getByRole('button', { name: 'Add job', exact: true }).click();
-    let d = page.getByRole('dialog', { name: 'New checkout' });
+    d = page.getByRole('dialog', { name: 'New checkout' });
     const line = d.locator('.cart-line').first();
     await pick(line, 'Service', { text: 'Lamination' });
     await line.getByLabel('Quantity', { exact: true }).fill('10');
