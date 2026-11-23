@@ -232,7 +232,7 @@ import { setMessageSender } from './messages.mjs';
 import { setCustomerLink } from './customer-link';
 import { TeamContext, type TeamWork } from './TeamContext';
 import TeamPage, { UsersTabs } from './TeamPage';
-import { autoWorkEvents, teamOn, teamReady, teamSettings, workEvents } from './team.mjs';
+import { autoWorkEvents, teamOn, teamReady, teamSettings, withTrialMember, workEvents } from './team.mjs';
 
 const DashboardPage = lazy(() => import('./DashboardPage'));
 const ReportsPage = lazy(() => import('./ReportsPage'));
@@ -1733,10 +1733,11 @@ export default function App() {
       setBusy(false);
     }
   }
+  const teamLedger = demo ? withTrialMember(ledger) : ledger;
   const teamWork: TeamWork = {
-    on: teamOn(ledger, branding.settings),
+    on: teamOn(teamLedger, branding.settings),
     settings: teamSettings(branding.settings),
-    ledger,
+    ledger: teamLedger,
     actor: { id: checkActor.id, label: checkActor.label, level: checkActor.level },
     busy,
     save: saveTeam,
@@ -3126,7 +3127,7 @@ export default function App() {
                           ) : page === 'Business Settings' ? (
                             <BusinessSettingsPage
                               key={scope}
-                              teamReady={teamReady(state.ledger)}
+                              teamReady={demo || teamReady(state.ledger)}
                               settings={businessBranding.settings}
                               branchList={
                                 !demo && multiBranch

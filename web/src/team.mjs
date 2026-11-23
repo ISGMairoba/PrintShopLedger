@@ -49,6 +49,13 @@ export function validateTeamSettings(input) {
 }
 /** Whether the server keeps Team work yet (its download lists the app users on the Team). */
 export const teamReady = (ledger) => (ledger?.teamPeople?.length ?? 0) > 0;
+/** The local trial (demo) has no server: its one user is on the Team so Team work can be tried. */
+export function withTrialMember(ledger) {
+  const people = ledger.teamPeople ?? [];
+  if (people.some((p) => p.id === 'local-trial')) return ledger;
+  const me = { id: 'local-trial', name: 'Local trial user', member: true, rank: 4, role: 'General Manager' };
+  return { ...ledger, teamPeople: [me, ...people] };
+}
 /** Team work is on and the server keeps it. */
 export const teamOn = (ledger, settings) => teamReady(ledger) && teamSettings(settings).enabled;
 
