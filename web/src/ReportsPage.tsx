@@ -36,6 +36,8 @@ import type { Ledger } from './types';
 import './dashboard.css';
 import './reports.css';
 import { useCostMethod } from './CostMethodContext';
+import { useTeam } from './TeamContext';
+import { teamReport, teamSections } from './team-report.mjs';
 import { useWords } from './Words';
 import { useFeedback } from './Feedback';
 import Icon from './Icon';
@@ -89,7 +91,8 @@ type Tab =
   | 'Transactions'
   | 'Summary'
   | 'Profit'
-  | 'Profit & loss';
+  | 'Profit & loss'
+  | 'Team';
 type StatementJob = {
   id: string;
   ref: string;
@@ -351,6 +354,8 @@ export default function ReportsPage({
     void import('./report-pdf');
     void import('./share-pdf');
   }, []);
+  // Team work: its report shows when Team work is on.
+  const team = useTeam();
   const tabs = (
     [
       'Customer statement',
@@ -360,9 +365,11 @@ export default function ReportsPage({
       'Summary',
       'Profit',
       'Profit & loss',
+      'Team',
     ] as Tab[]
   ).filter(
     (t) =>
+      (t !== 'Team' || (!!team && access.jobs)) &&
       (t !== 'Customer statement' || (access.customers && access.jobs && access.payments)) &&
       (t !== 'Payee statement' || access.expenses) &&
       (t !== 'Account statement' || !!access.accounts) &&
@@ -533,6 +540,8 @@ export default function ReportsPage({
           <PayeeStatementTab {...shared} payeeId={payeeId} onPayeeChange={onPayeeChange} />
         ) : tab === 'Account statement' ? (
           <AccountStatementTab {...shared} />
+        ) : tab === 'Team' ? (
+          <TeamTab {...shared} />
         ) : tab === 'Transactions' ? (
           <TransactionsTab {...shared} access={access} />
         ) : (
@@ -1565,6 +1574,102 @@ function TransactionsTab({
   );
 }
 
+/** Reports → Team: each person's work over a period (team-report.mjs). */
+function TeamTab({ freshness, busy, error, pdf, csv }: TabProps) {
+  const team = useTeam();
+  const { range, valid, controls } = useRange();
+  const [includeRecorded, setIncludeRecorded] = useState(false);
+  const ledger = team?.ledger;
+  const report = useMemo(
+    () => (valid && ledger ? teamReport(ledger, range.from, range.to, { includeRecorded }) : null),
+    [ledger, range.from, range.to, valid, includeRecorded],
+  );
+  if (!team || !report) return null;
+  const title = 'Team performance';
+  const subtitle = [
+    `Period: ${report.from} to ${report.to}`,
+    includeRecorded ? 'Confirmed and recorded work.' : 'Confirmed work only.',
+    "A job's value is credited when it is completed, split equally between the people who did it.",
+  ];
+  const file = reportFileName('Team', `${report.from} to ${report.to}`);
+  return (
+    <>
+      <section className="panel dashboard-filters report-filters">
+        {controls}
+        <label className="check-label">
+          <input
+            type="checkbox"
+            aria-label="Include work not yet confirmed"
+            checked={includeRecorded}
+            onChange={(e) => setIncludeRecorded(e.target.checked)}
+          />{' '}
+          Include work not yet confirmed{report.waiting ? ` (${report.waiting} waiting)` : ''}
+        </label>
+        <small>Work counts on the day it was done (Done at), in Africa/Lagos.</small>
+      </section>
+      {freshness}
+      <section className="panel report-header">
+        <div>
+          <h2>
+            {report.from} to {report.to}
+          </h2>
+          <small>
+            On time compares each stage with its target hours in the job&apos;s workflow. Recorded late:
+            entered more than a day after it was done.
+          </small>
+        </div>
+        <Exports
+          busy={busy}
+          onCsv={() =>
+            csv(file, title, subtitle, teamSections(report, { money: (k: number) => (k / 100).toFixed(2) }))
+          }
+          onPdf={() => void pdf(file, title, subtitle, teamSections(report, { money: currency }))}
+        />
+      </section>
+      {error && (
+        <p role="alert" className="dashboard-warning">
+          {error}
+        </p>
+      )}
+      {!report.rows.length ? (
+        <div className="empty">No work in this period.</div>
+      ) : (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Person</th>
+                <th className="numeric">Assigned now</th>
+                <th className="numeric">Stages done</th>
+                <th className="numeric">Jobs</th>
+                <th className="numeric">Hours per stage</th>
+                <th className="numeric">On time</th>
+                <th className="numeric">Rework caused</th>
+                <th className="numeric">Recorded late</th>
+                <th className="numeric">Value credited</th>
+              </tr>
+            </thead>
+            <tbody>
+              {report.rows.map((r) => (
+                <tr key={r.personId}>
+                  <td>{r.name}</td>
+                  <td className="numeric">{r.assignedNow}</td>
+                  <td className="numeric">{r.stages}</td>
+                  <td className="numeric">{r.jobs}</td>
+                  <td className="numeric">{r.averageHours ?? '—'}</td>
+                  <td className="numeric">{r.onTimeRate === null ? '—' : `${r.onTimeRate}%`}</td>
+                  <td className="numeric">{r.rework}</td>
+                  <td className="numeric">{r.late}</td>
+                  <td className="numeric">{currency(r.value)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </>
+  );
+}
 function ProfitTab({ ledger, freshness, busy, error, pdf, csv }: TabProps) {
   const { range, valid, controls } = useRange();
   // Actual figures only for a business on the Actual cost method.

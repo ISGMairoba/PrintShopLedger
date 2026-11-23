@@ -172,7 +172,10 @@ try {
     await d.getByRole('button', { name: 'Save correction', exact: true }).click();
     await d.waitFor({ state: 'detached' });
     await job.getByText('Ada Finisher 80%, Local trial user 20%').first().waitFor();
-    await job.getByText(/Corrected 1×/).first().waitFor();
+    await job
+      .getByText(/Corrected 1×/)
+      .first()
+      .waitFor();
     await closeDialogs();
     assert.deepEqual(errors, []);
     await browser.close();

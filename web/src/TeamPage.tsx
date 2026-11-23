@@ -162,8 +162,8 @@ export default function TeamPage({
                 return (
                   <li key={c.id} className="request-item pending">
                     <div>
-                      <strong>{job?.service ?? 'Job'}</strong> · {record ? stage(record.stage) : ''} · asked by{' '}
-                      {c.requestedByLabel} on {when(c.requestedAt)}
+                      <strong>{job?.service ?? 'Job'}</strong> · {record ? stage(record.stage) : ''} · asked
+                      by {c.requestedByLabel} on {when(c.requestedAt)}
                       <br />
                       <small>
                         {record ? creditText(ledger, record) : '—'} →{' '}
@@ -540,7 +540,15 @@ function PersonDialog({
 }
 
 /** Correct a work record: saved at once, sent for approval, or saved with whoever recorded it told. */
-export function CorrectWorkDialog({ record, job, onClose }: { record: WorkRecord; job: Job; onClose: () => void }) {
+export function CorrectWorkDialog({
+  record,
+  job,
+  onClose,
+}: {
+  record: WorkRecord;
+  job: Job;
+  onClose: () => void;
+}) {
   const team = useTeam();
   const { stage } = useWords();
   const [draft, setDraft] = useState(() => draftFrom(record));
@@ -548,12 +556,13 @@ export function CorrectWorkDialog({ record, job, onClose }: { record: WorkRecord
   const [error, setError] = useState('');
   if (!team) return null;
   const route = correctionRoute(record, team.actor, { teamWork: team.settings });
+  const approver = roleNames[approverRank(record, { teamWork: team.settings }) as 1] ?? 'higher rank';
   const outcome =
     route === 'direct'
       ? 'Your correction is saved at once, with the reason and what it was before.'
       : route === 'alert'
         ? `Your correction is saved at once, and ${record.recordedByLabel ?? 'whoever recorded it'} is told.`
-        : `Your correction goes for approval by a ${roleNames[approverRank(record, { teamWork: team.settings }) as 1] ?? 'higher rank'} or above.`;
+        : `Your correction goes for approval by a ${approver} or above.`;
   const save = async () => {
     setError('');
     try {

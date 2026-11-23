@@ -303,7 +303,9 @@ export const pendingCorrections = (ledger) =>
 /** Corrections of this person's entries by a Manager (they are told), newest first. */
 export function correctionAlerts(ledger, userId, since = '') {
   return (ledger?.workRecords ?? [])
-    .flatMap((r) => (r.corrections ?? []).filter((c) => c.alert && c.alertFor === userId).map((c) => ({ record: r, c })))
+    .flatMap((r) =>
+      (r.corrections ?? []).filter((c) => c.alert && c.alertFor === userId).map((c) => ({ record: r, c })),
+    )
     .filter((x) => (x.c.at ?? '') > since)
     .sort((a, b) => (b.c.at ?? '').localeCompare(a.c.at ?? ''));
 }

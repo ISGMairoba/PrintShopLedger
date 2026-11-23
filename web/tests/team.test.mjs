@@ -135,3 +135,53 @@ test('Without "Done by", the people assigned to each finished stage are credited
   assert.equal(autoWorkEvents(l, job, 'Collected', admin).length, 2);
   assert.throws(() => applyTeamEvent(l, { id: 'x', kind: 'team.unknown', data: { id: 'x' } }), /Unknown/);
 });
+
+test('Team report: stages, time against target, rework, late recording, value split equally', async () => {
+  const { teamReport, shareOf } = await import('../src/team-report.mjs');
+  const done = { ...job, productionStatus: 'Completed', stageHours: { Printing: 4 } };
+  const l = {
+    ...ledger(),
+    jobs: [done],
+    workRecords: [
+      {
+        id: 'w1',
+        jobId: 'j1',
+        stage: 'Printing',
+        unit: 'quantity',
+        shares: [
+          { personId: 'p-ada', share: 600 },
+          { personId: 'u-cash', share: 400 },
+        ],
+        doneAt: '2026-11-20T12:00:00.000Z',
+        recordedAt: '2026-11-22T12:00:00.000Z',
+        status: 'confirmed',
+        redo: { responsibleId: 'u-cash' },
+        version: 1,
+      },
+      {
+        id: 'w2',
+        jobId: 'j1',
+        stage: 'Finishing',
+        unit: 'percent',
+        shares: [{ personId: 'p-ada', share: 100 }],
+        doneAt: '2026-11-20T13:00:00.000Z',
+        recordedAt: '2026-11-20T13:00:00.000Z',
+        status: 'recorded',
+        version: 1,
+      },
+    ],
+  };
+  assert.equal(shareOf(l.workRecords[0], done, 'p-ada'), 0.6);
+  let r = teamReport(l, '2026-11-20', '2026-11-20');
+  const ada = r.rows.find((x) => x.personId === 'p-ada');
+  const cash = r.rows.find((x) => x.personId === 'u-cash');
+  // Added 09:00, printed by 12:00: 3 hours against a 4-hour target.
+  assert.deepEqual(
+    [ada.stages, ada.averageHours, ada.onTimeRate, ada.late, ada.value],
+    [1, 3, 100, 1, 250000],
+  );
+  assert.deepEqual([cash.rework, cash.value], [1, 250000]);
+  assert.equal(r.waiting, 1);
+  r = teamReport(l, '2026-11-20', '2026-11-20', { includeRecorded: true });
+  assert.equal(r.rows.find((x) => x.personId === 'p-ada').stages, 2);
+});
