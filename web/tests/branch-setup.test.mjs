@@ -293,7 +293,7 @@ test('Viewing another branch counts that branch’s wallet, not the device’s',
   assert.equal(walletBalance(ledger, 'c'), 700);
 });
 
-test('AUD-30: another location’s view counts that location’s stock; this device keeps its own', async () => {
+test('AUD-30: another location’s view counts its stock; this device keeps its own', async () => {
   const { branchLedger, setLocalBranch } = await import('../src/branches.mjs');
   setLocalBranch('main');
   const ledger = {
