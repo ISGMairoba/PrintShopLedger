@@ -239,3 +239,28 @@ test('the sync check time defaults to two minutes and stays from 1 to 60 minutes
       /sync check/,
     );
 });
+
+test('lock screen choices: defaults are left out when saving, wrong values are refused', async () => {
+  const { lockSettings, LOCK_DEFAULTS } = await import('../src/business-branding.mjs');
+  const base = { ...defaultBranding(), businessName: 'Lock test' };
+  const saved = validateBranding({
+    ...base,
+    security: { ...base.security, pinTries: 5, minPinLength: 6, rememberPeople: true },
+  });
+  // Unchanged choices are not saved (the server accepts them once its SQL is live).
+  assert.equal('pinTries' in saved.security, false);
+  assert.equal(saved.security.minPinLength, 6);
+  assert.equal(saved.security.rememberPeople, true);
+  assert.deepEqual(lockSettings(saved), { ...LOCK_DEFAULTS, minPinLength: 6, rememberPeople: true });
+  for (const patch of [
+    { minPinLength: 3 },
+    { minPinLength: 7 },
+    { pinTries: 4 },
+    { requirePin: 'yes' },
+    { rememberDays: 0 },
+    { rememberDays: 91 },
+    { rememberMax: 1 },
+    { allowBiometric: 1 },
+  ])
+    assert.throws(() => validateBranding({ ...base, security: { ...base.security, ...patch } }));
+});

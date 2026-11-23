@@ -15,6 +15,9 @@ export default function usePinLock({
   online,
   fetchHash,
   signOut,
+  maxTries = MAX_TRIES,
+  minLength = 4,
+  onLockout,
 }: {
   scope: string;
   userId: string;
@@ -22,7 +25,14 @@ export default function usePinLock({
   /** The person's PIN hash from the server (null: none set). Throws when it can't be read. */
   fetchHash: () => Promise<string | null>;
   signOut: (message: string) => void;
+  /** Wrong PINs before the password is needed (Business Settings → Security). */
+  maxTries?: number;
+  /** The business's minimum PIN length: a shorter PIN still unlocks, then a new one is asked for. */
+  minLength?: number;
+  /** The tries ran out (before signing out): Admins are told (lock-notes.ts). */
+  onLockout?: () => void;
 }) {
+  const [shortPin, setShortPin] = useState(false);
   const [hasPin, setHasPin] = useState(false);
   const [locked, setLocked] = useState(false);
   const [checked, setChecked] = useState('');
@@ -102,28 +112,41 @@ export default function usePinLock({
         await writePin(scope, userId, { ...record, tries: 0, locked: false });
         setLockedFlag(scope, null);
         setLocked(false);
+        if (pin.length < minLength) setShortPin(true);
         return '';
       }
       const tries = record.tries + 1;
-      if (tries >= MAX_TRIES) {
+      if (tries >= maxTries) {
+        onLockout?.();
         await writePin(scope, userId, { ...record, tries: 0, locked: false });
         setLockedFlag(scope, null);
         setLocked(false);
-        signOut(`${MAX_TRIES} wrong PINs. Sign in with your password to continue.`);
+        signOut(`${maxTries} wrong PINs. Sign in with your password to continue.`);
         return 'Too many wrong PINs.';
       }
       await writePin(scope, userId, { ...record, tries });
-      const left = MAX_TRIES - tries;
+      const left = maxTries - tries;
       return `Wrong PIN. ${left} ${left === 1 ? 'try' : 'tries'} left before your password is needed.`;
     },
-    [scope, userId, signOut],
+    [scope, userId, signOut, maxTries, minLength, onLockout],
   );
+
+  /** Unlocked another way the device trusts (its face/fingerprint unlock, for this person). */
+  const unlockTrusted = useCallback(async () => {
+    const record = await readPin(scope, userId);
+    if (!record) return 'Sign in with your password.';
+    await writePin(scope, userId, { ...record, tries: 0, locked: false });
+    setLockedFlag(scope, null);
+    setLocked(false);
+    return '';
+  }, [scope, userId]);
 
   /** After saving a new PIN (or removing it) in My Account. */
   const saved = useCallback(
     async (hash: string | null) => {
       await writePin(scope, userId, hash ? { hash, tries: 0, locked: false } : null);
       setHasPin(!!hash);
+      setShortPin(false);
     },
     [scope, userId],
   );
@@ -136,5 +159,16 @@ export default function usePinLock({
     setLocked(false);
   }, [scope, userId]);
 
-  return { hasPin, locked, ready: checked === `${scope}:${userId}`, lock, unlock, saved, clear };
+  return {
+    hasPin,
+    locked,
+    /** The PIN just used is shorter than the business now requires: ask for a new one. */
+    shortPin,
+    ready: checked === `${scope}:${userId}`,
+    lock,
+    unlock,
+    unlockTrusted,
+    saved,
+    clear,
+  };
 }

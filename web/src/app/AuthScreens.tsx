@@ -434,33 +434,84 @@ export function PinLockScreen({
   onUnlock,
   onSwitchUser,
   onSignOutBusiness,
+  loadPeople,
+  onSwitchTo,
+  biometric,
 }: {
   name: string;
   username: string;
   minutes: number;
   /** '' when unlocked, else the message to show. */
   onUnlock: (pin: string) => Promise<string>;
+  /** Someone else signs in with their password. */
   onSwitchUser: () => void;
   /** Managers and above only. */
   onSignOutBusiness?: () => void;
+  /** Others this device remembers (Remember people on this device): they switch in with their PIN. */
+  loadPeople?: () => Promise<{ userId: string; name: string; username: string }[]>;
+  /** '' when switching (the app reopens as them), else the message to show. */
+  onSwitchTo?: (userId: string, pin: string) => Promise<string>;
+  /** This device's face/fingerprint unlock: who it signs in as. */
+  biometric?: { name: string; onUse: () => Promise<string> };
 }) {
   const [pin, setPin] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // Switch user: choosing who (people listed), then that person's PIN.
+  const [choosing, setChoosing] = useState(false);
+  const [people, setPeople] = useState<{ userId: string; name: string; username: string }[]>([]);
+  const [other, setOther] = useState<{ userId: string; name: string; username: string } | null>(null);
+  const showing = other ?? { name, username };
+  const first = (full: string) => full.split(/\s+/)[0];
+  if (choosing && !other)
+    return (
+      <AuthShell>
+        <span className="badge auth-badge">Locked</span>
+        <h1>Who is using the app?</h1>
+        <p className="muted">Choose yourself and enter your PIN. It works without internet.</p>
+        <div className="branch-choices">
+          {people.map((person) => (
+            <button
+              key={person.userId}
+              type="button"
+              onClick={() => {
+                setOther(person);
+                setPin('');
+                setError('');
+              }}
+            >
+              <Icon name="account" /> {person.name || person.username}
+              <small>{person.username}</small>
+            </button>
+          ))}
+        </div>
+        <button type="button" className="secondary auth-demo" onClick={onSwitchUser}>
+          <Icon name="switchUser" /> Someone else (sign in with password)
+        </button>
+        <button type="button" className="text-button auth-register" onClick={() => setChoosing(false)}>
+          Back to {first(name) || username}
+        </button>
+      </AuthShell>
+    );
   return (
     <AuthShell>
       <span className="badge auth-badge">Locked</span>
-      <h1>Welcome back{name ? `, ${name.split(/\s+/)[0]}` : ''}.</h1>
+      <h1>
+        {other
+          ? `Hello, ${first(other.name) || other.username}.`
+          : `Welcome back${name ? `, ${first(name)}` : ''}.`}
+      </h1>
       <p className="muted">
-        This device locked after {minutes} minute{minutes === 1 ? '' : 's'} without use. Enter your PIN to
-        carry on where you left off.
+        {other
+          ? 'Enter your PIN to switch to your account on this device.'
+          : `This device locked after ${minutes} minute${minutes === 1 ? '' : 's'} without use. Enter your PIN to carry on where you left off.`}
       </p>
       <form
         onSubmit={async (event) => {
           event.preventDefault();
           if (busy) return;
           setBusy(true);
-          const problem = await onUnlock(pin);
+          const problem = other && onSwitchTo ? await onSwitchTo(other.userId, pin) : await onUnlock(pin);
           setBusy(false);
           setPin('');
           setError(problem);
@@ -468,7 +519,7 @@ export function PinLockScreen({
       >
         <label>
           Username
-          <input value={username} readOnly aria-readonly="true" />
+          <input value={showing.username} readOnly aria-readonly="true" />
         </label>
         <label>
           PIN
@@ -489,6 +540,21 @@ export function PinLockScreen({
           {busy ? 'Checking…' : 'Unlock'} <Icon name="next" />
         </button>
       </form>
+      {biometric && !other && (
+        <button
+          type="button"
+          className="secondary auth-demo"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            const problem = await biometric.onUse();
+            setBusy(false);
+            setError(problem);
+          }}
+        >
+          <Icon name="lock" /> Unlock as {first(biometric.name)} (face/fingerprint)
+        </button>
+      )}
       {error && (
         <p role="alert" className="notice">
           {error}
@@ -497,9 +563,34 @@ export function PinLockScreen({
       <div className="auth-divider" role="separator">
         Not you?
       </div>
-      <button type="button" className="secondary auth-demo" onClick={onSwitchUser}>
-        <Icon name="switchUser" /> Switch user
-      </button>
+      {other ? (
+        <button
+          type="button"
+          className="secondary auth-demo"
+          onClick={() => {
+            setOther(null);
+            setError('');
+          }}
+        >
+          <Icon name="switchUser" /> Choose someone else
+        </button>
+      ) : (
+        <button
+          type="button"
+          className="secondary auth-demo"
+          disabled={busy}
+          onClick={async () => {
+            // Read who this device remembers now (not when the screen locked), so a quick tap
+            // still finds them.
+            const list = loadPeople && onSwitchTo ? await loadPeople() : [];
+            if (!list.length) return onSwitchUser();
+            setPeople(list);
+            setChoosing(true);
+          }}
+        >
+          <Icon name="switchUser" /> Switch user
+        </button>
+      )}
       {onSignOutBusiness && (
         <button type="button" className="text-button auth-register danger-text" onClick={onSignOutBusiness}>
           Sign out business on this device

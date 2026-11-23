@@ -1,5 +1,5 @@
 import Icon from './Icon';
-import { useLayoutEffect, useId, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useLayoutEffect, useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 type Props = {
   title: string;
@@ -14,6 +14,21 @@ type Props = {
 };
 let openModals = 0;
 let previousOverflow = '';
+
+// The lock screen: while the app is locked, its open windows step out of the way (closed, but kept
+// with everything typed in them) and come back in the same order when the same person unlocks.
+// Windows of the lock screen itself are outside AppLayer and are not affected.
+export const AppLayer = createContext(false);
+let appLocked = false;
+const shown: HTMLDialogElement[] = [];
+export function setAppLocked(locked: boolean) {
+  if (locked === appLocked) return;
+  appLocked = locked;
+  for (const element of shown) {
+    if (locked && element.open) element.close();
+    else if (!locked && !element.open && element.isConnected) element.showModal();
+  }
+}
 export default function Modal({
   title,
   children,
@@ -26,6 +41,7 @@ export default function Modal({
 }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const titleId = useId();
+  const inApp = useContext(AppLayer);
   useLayoutEffect(() => {
     const element = dialog.current!;
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -33,7 +49,8 @@ export default function Modal({
       previousOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
     }
-    element.showModal();
+    if (inApp) shown.push(element);
+    if (!(inApp && appLocked)) element.showModal();
     window.dispatchEvent(new Event('feedback:modal'));
     const input = element.querySelector<HTMLElement>(
       'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])',
@@ -42,6 +59,7 @@ export default function Modal({
     if (window.matchMedia('(pointer: fine)').matches) input?.focus();
     else element.focus({ preventScroll: true });
     return () => {
+      if (inApp) shown.splice(shown.indexOf(element), 1);
       element.close();
       window.dispatchEvent(new Event('feedback:modal'));
       if (--openModals === 0) document.body.style.overflow = previousOverflow;
@@ -49,6 +67,7 @@ export default function Modal({
         if (opener?.isConnected && !document.querySelector('dialog[open]')) opener.focus();
       });
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return createPortal(
     <dialog

@@ -5,7 +5,7 @@ import { keepChoice, keepCutoff, needsFreshWindow } from './history-keep.mjs';
 import { requireConflictReviewer } from './conflict-review';
 import { resolveExpenseState } from './expense-conflicts.mjs';
 import { checkoutReviewBase, replacePendingCheckout, adoptJobStatus } from './checkout-conflicts.mjs';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
 import { branchFetch } from './device-branch';
 import { applyEvent } from './domain.mjs';
 import { mutateState, readState } from './storage';
@@ -99,10 +99,10 @@ export const businessAuth =
 export const consoleAuth =
   url && key ? createClient(url, key, { auth: { storageKey: 'printshopledger-console-auth' } }) : null;
 
-async function synchronize(scope: string, shopId: string) {
-  if (!supabase || !navigator.onLine) throw Error('Connect to the internet to sync.');
+async function synchronize(scope: string, shopId: string, db: SupabaseClient = supabase!) {
+  if (!db || !navigator.onLine) throw Error('Connect to the internet to sync.');
   const check = async () => {
-    const { data, error } = await supabase!.auth.getSession();
+    const { data, error } = await db.auth.getSession();
     if (error || data.session?.user.id !== scope.split(':')[0])
       throw Error('Your sign-in changed. Sign in again before syncing this workspace.');
   };
@@ -110,7 +110,7 @@ async function synchronize(scope: string, shopId: string) {
   let state = await readState(scope);
   const conflictIds = Object.keys(state.syncConflicts ?? {});
   if (conflictIds.length) {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .rpc('list_sync_conflicts', { p_shop: shopId, p_events: conflictIds })
       .abortSignal(AbortSignal.timeout(30000));
     if (error) throw Error(error.message);
@@ -119,7 +119,7 @@ async function synchronize(scope: string, shopId: string) {
     for (const id of conflictIds.filter((id) => !known.has(id))) {
       const event = state.pending.find((item) => item.id === id);
       if (!event) continue;
-      const { error: uploadError } = await supabase
+      const { error: uploadError } = await db
         .rpc('submit_sync_conflict', { p_shop: shopId, p_event: event, p_message: state.syncConflicts![id] })
         .abortSignal(AbortSignal.timeout(30000));
       // A kind of change the remote review cannot take yet stays held on this device (it is shown
@@ -133,7 +133,7 @@ async function synchronize(scope: string, shopId: string) {
       (data as RemoteConflict[]).filter((item) => item.status === 'resolved').map((item) => item.event_id),
     );
     if (resolved.size) {
-      const { data: latest, error: readError } = await supabase
+      const { data: latest, error: readError } = await db
         .rpc('get_ledger', { p_shop: shopId })
         .abortSignal(AbortSignal.timeout(60000));
       if (readError) throw Error(readError.message);
@@ -152,7 +152,7 @@ async function synchronize(scope: string, shopId: string) {
     const current = await readState(scope);
     if (!current.pending.some((item) => item.id === event.id) || blockedWork(current).eventIds.has(event.id))
       continue;
-    const { error } = await supabase
+    const { error } = await db
       .rpc(
         event.kind === 'job.due_changed' ||
           event.kind.startsWith('payee.') ||
@@ -202,7 +202,7 @@ async function synchronize(scope: string, shopId: string) {
         ...current,
         syncConflicts: { ...current.syncConflicts, [event.id]: error.message },
       }));
-      const { error: uploadError } = await supabase
+      const { error: uploadError } = await db
         .rpc('submit_sync_conflict', { p_shop: shopId, p_event: event, p_message: error.message })
         .abortSignal(AbortSignal.timeout(30000));
       if (uploadError)
@@ -231,8 +231,8 @@ async function synchronize(scope: string, shopId: string) {
   const full = needsFullSync(before) || !!cutoff !== !!before.ledger.historySummary?.cutoff;
   const { data, error } =
     full && cutoff
-      ? await windowCopy(shopId, cutoff)
-      : await supabase
+      ? await windowCopy(shopId, cutoff, db)
+      : await db
           .rpc('get_ledger_changes', {
             p_shop: shopId,
             p_since: full ? null : before.syncCursor,
@@ -431,8 +431,8 @@ export async function resolveRemoteConflict(
 }
 
 /** The recent-history copy from the ledger-window server function (same shape as a full sync). */
-async function windowCopy(shopId: string, cutoff: string) {
-  const { data, error } = await supabase!.functions.invoke('ledger-window', { body: { shopId, cutoff } });
+async function windowCopy(shopId: string, cutoff: string, db: SupabaseClient = supabase!) {
+  const { data, error } = await db.functions.invoke('ledger-window', { body: { shopId, cutoff } });
   if (!error) return { data, error: null };
   let message = error.message;
   const response = (error as { context?: Response }).context;
@@ -448,6 +448,41 @@ export const requestFullSync = (scope: string) =>
 export async function syncLedger(scope: string, shopId: string) {
   if (!navigator.locks) throw new Error('Cloud sync requires a browser with Web Locks support.');
   return navigator.locks.request(`printshopledger-sync:${scope}`, () => synchronize(scope, shopId));
+}
+
+/**
+ * Remember people on this device (device-people.ts): send another remembered person's waiting work
+ * as them, with their own sign-in, while someone else uses the app. Their renewed sign-in is kept
+ * (saveSession) before anything is sent, because Supabase replaces it on every renewal.
+ * Throws AuthApiError when their sign-in has ended (the caller forgets them).
+ */
+export async function syncRememberedWork(
+  scope: string,
+  shopId: string,
+  session: { access_token: string; refresh_token: string },
+  saveSession: (session: Session) => Promise<void>,
+) {
+  if (!url || !key || !navigator.locks) return;
+  const db = createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    global: { fetch: branchFetch },
+  });
+  const { data, error } = await db.auth.setSession({
+    access_token: session.access_token,
+    refresh_token: session.refresh_token,
+  });
+  if (error || !data.session) throw error ?? Error('Their sign-in has ended.');
+  await saveSession(data.session);
+  try {
+    return await navigator.locks.request(`printshopledger-sync:${scope}`, () =>
+      synchronize(scope, shopId, db),
+    );
+  } finally {
+    // Keep whatever the sync renewed, then let this one-off client go without signing out.
+    const { data: after } = await db.auth.getSession();
+    if (after.session && after.session.refresh_token !== data.session.refresh_token)
+      await saveSession(after.session);
+  }
 }
 
 export async function resolveCloudMaterial(

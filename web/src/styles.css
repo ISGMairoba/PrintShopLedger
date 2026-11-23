@@ -90,6 +90,10 @@ p {
   color: #6c7f74;
   line-height: 1.6;
 }
+/* Holds the app; hidden (not removed) while the lock screen shows, so open work is kept. */
+.app-layer[hidden] {
+  display: none !important;
+}
 .app {
   --sidebar-width: 280px;
   display: block;
@@ -1105,6 +1109,7 @@ nav button {
     min-inline-size: 0;
   }
   .app,
+  .app-layer,
   #root,
   main,
   .panel,

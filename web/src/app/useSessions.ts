@@ -19,6 +19,28 @@ export function useOnline() {
   return online;
 }
 
+/** Where a client keeps its sign-in on this device (Supabase's own storage key). */
+export const sessionKey = (client: typeof supabase) =>
+  (client?.auth as unknown as { storageKey?: string } | undefined)?.storageKey ?? '';
+
+/**
+ * Offline, Supabase can't renew a sign-in whose short-lived token has run out, and reports no
+ * session. The sign-in is still kept on the device, so local work goes on with it; Supabase renews
+ * it as soon as the connection is back, before anything syncs (sync needs a live sign-in).
+ */
+function keptOffline(client: typeof supabase, result: { data: { session: Session | null }; error: unknown }) {
+  if (result.data.session || !result.error) return result.data.session;
+  const offline =
+    !navigator.onLine || (result.error as { name?: string } | null)?.name === 'AuthRetryableFetchError';
+  if (!offline) return null;
+  try {
+    const kept = JSON.parse(localStorage.getItem(sessionKey(client)) ?? 'null') as Session | null;
+    return kept?.user?.id && kept.refresh_token ? kept : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * The two signed-in identities: the business account (businessAuth) and the staff member
  * using the till (supabase). Restores saved sessions on start and follows sign-in changes.
@@ -48,11 +70,13 @@ export function useAuthSessions(
       .then(([staff, business]) => {
         if (!active) return;
         clearTimeout(deadline);
-        if (staff.error || business.error)
+        const staffSession = keptOffline(supabase, staff);
+        const businessKept = keptOffline(businessAuth, business);
+        if ((staff.error && !staffSession) || (business.error && !businessKept))
           setMessage(staff.error?.message || business.error?.message || '', 'error');
-        setSession(staff.data.session);
-        setKeptStaff((kept) => (kept === undefined ? (staff.data.session?.user.id ?? null) : kept));
-        setBusinessSession(business.data.session);
+        setSession(staffSession);
+        setKeptStaff((kept) => (kept === undefined ? (staffSession?.user.id ?? null) : kept));
+        setBusinessSession(businessKept);
         setAuthReady(true);
       })
       .catch((error) => {
@@ -62,11 +86,12 @@ export function useAuthSessions(
           setAuthReady(true);
         }
       });
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, current) => {
-      if (active) setSession(current);
+    // Offline, a sign-in Supabase can't renew is kept (keptOffline); only a real sign-out clears it.
+    const { data: listener } = supabase.auth.onAuthStateChange((event, current) => {
+      if (active && (current || event === 'SIGNED_OUT')) setSession(current);
     });
-    const { data: businessListener } = businessAuth!.auth.onAuthStateChange((_event, current) => {
-      if (active) setBusinessSession(current);
+    const { data: businessListener } = businessAuth!.auth.onAuthStateChange((event, current) => {
+      if (active && (current || event === 'SIGNED_OUT')) setBusinessSession(current);
     });
     return () => {
       active = false;

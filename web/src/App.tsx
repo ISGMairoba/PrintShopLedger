@@ -63,6 +63,7 @@ import { setBusinessKeep, setKeepChoice } from './history-keep.mjs';
 import { orderMethods } from './business-options.mjs';
 import { STALE_EVENT } from './stale-app.mjs';
 import { confirmMaterialsRank, extraMaterialsRank } from './production-materials.mjs';
+import { lockSettings } from './business-branding.mjs';
 import { holdEvent } from './job-hold.mjs';
 import type { HoldChange } from './JobActions';
 import { dismissLowStockReminder } from './low-stock-locations.mjs';
@@ -97,12 +98,15 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type FormEvent,
 } from 'react';
-import Modal from './Modal';
+import Modal, { AppLayer, setAppLocked } from './Modal';
+import PinForm from './PinForm';
+import DeviceLockOptions from './DeviceLockOptions';
 import JobsPaymentsPage from './JobsPaymentsPage';
 import JobDetails from './JobDetails';
 import { discountPolicy } from './discounts.mjs';
@@ -125,7 +129,26 @@ import { useAuthSessions, useOnline, useWorkspaces } from './app/useSessions';
 import { useAutoLock } from './app/useAutoLock';
 import usePinLock from './app/usePinLock';
 import { validPinHash } from './pin.mjs';
-import { lockedFlag } from './pin-store';
+import { lockedFlag, readPin, setLockedFlag, writePin } from './pin-store';
+import {
+  forgetEveryone,
+  forgetPerson,
+  listPeople,
+  rememberPerson,
+  type RememberedPerson,
+} from './device-people';
+import { sessionKey } from './app/useSessions';
+import { checkPin } from './pin.mjs';
+import { noteLockout, sendLockouts, switchedIn } from './lock-notes';
+import {
+  biometricOwner,
+  biometricSupported,
+  registerBiometric,
+  removeBiometric,
+  setNeedsPin,
+  verifyBiometric,
+  type BiometricOwner,
+} from './biometric';
 import HelpPanel from './HelpPanel';
 import {
   AuthShell,
@@ -167,6 +190,7 @@ import {
   answerStockRequest,
   cancelStockRequest,
   transferStock,
+  syncRememberedWork,
 } from './cloud';
 import { readState, saveEvent, saveEvents, mutateState, storageHealth } from './storage';
 import { holdSale, listHeld, removeHeld } from './held-sales.mjs';
@@ -1080,6 +1104,7 @@ export default function App() {
       if (activeScope.current !== target)
         throw Error('Handover saved. Sign in as the receiving user to continue.');
       await supabase!.auth.signOut({ scope: 'local' });
+      freshPassword.current = true;
       const { error: sessionError } = await supabase!.auth.setSession({
         access_token: data.access_token,
         refresh_token: data.refresh_token,
@@ -1538,6 +1563,7 @@ export default function App() {
         password: String(data.get('password')),
       });
       if (error || !business.session) throw error || new Error('Could not sign in to the business.');
+      freshPassword.current = true;
       const { error: staffError } = await supabase!.auth.signInWithPassword({
         email: String(data.get('email')),
         password: String(data.get('password')),
@@ -1650,11 +1676,16 @@ export default function App() {
           } catch {}
         throw new Error(message);
       }
-      const { error: failure } = await supabase!.auth.setSession({
+      freshPassword.current = true;
+      const { data: started, error: failure } = await supabase!.auth.setSession({
         access_token: data.access_token,
         refresh_token: data.refresh_token,
       });
       if (failure) throw failure;
+      // After a password sign-in, the next face/fingerprint unlock asks for the PIN once.
+      void biometricOwner(shop.id).then((owner) => {
+        if (owner?.userId === started.session?.user.id) void setNeedsPin(shop.id, true);
+      });
       setSwitchUser(false);
       setStaffEpoch((value) => value + 1);
       setPage('Point of Service');
@@ -1687,6 +1718,9 @@ export default function App() {
   setStockBelowZeroBlocked(branding.settings.jobs.stockBelowZero === 'block');
   setMinOrderRule(branding.settings.jobs.minOrder);
   const lockMinutes = branding.settings.security.autoLockMinutes;
+  const lockChoices = lockSettings(branding.settings);
+  // The settings kept on the device are enough to decide; the server's copy isn't waited for.
+  const settingsKnownEarly = branding.ready || branding.version > 0;
   // PIN lock (My Account → PIN): the screen locks without signing out, and the PIN unlocks it on
   // this device, online or not. People without a PIN are signed out as before.
   const signOutStaff = (text: string) =>
@@ -1696,6 +1730,8 @@ export default function App() {
       setSession(null);
       setMessage(text, 'info');
     });
+  // Who the app was last shown unlocked to on this page (see the lock screen below).
+  const unlockedFor = useRef('');
   const pinLock = usePinLock({
     scope: demo ? '' : scope,
     userId: !demo && shop && session && shop.userId === session.user.id ? session.user.id : '',
@@ -1706,7 +1742,239 @@ export default function App() {
       return typeof data === 'string' && validPinHash(data) ? data : null;
     },
     signOut: signOutStaff,
+    maxTries: lockChoices.pinTries,
+    minLength: lockChoices.minPinLength,
+    onLockout: () => {
+      if (!shop || !session) return;
+      noteLockout(shop.id, session.user.id);
+      void setNeedsPin(shop.id, true);
+    },
   });
+  // A PIN is needed (Business Settings → Security → Staff must have a PIN, while auto-lock is on), or
+  // the one just used is shorter than the business now requires: asked for before going on.
+  const pinNeeded =
+    !demo &&
+    !!session &&
+    !!supabase &&
+    pinLock.ready &&
+    !pinLock.locked &&
+    ((lockChoices.requirePin && lockMinutes > 0 && !pinLock.hasPin && online) || pinLock.shortPin);
+  // While locked, the app's open windows step aside (Modal.tsx), before anything is painted.
+  const appLocked =
+    !demo &&
+    !!session &&
+    !!scope &&
+    (pinLock.locked || (lockedFlag(scope) === session.user.id && !pinLock.ready));
+  useLayoutEffect(() => setAppLocked(appLocked), [appLocked]);
+  // Remember people on this device (Business Settings → Security; device-people.ts): each
+  // sign-in kept up to date as Supabase renews it; nobody is kept when the business turns it off.
+  const freshPassword = useRef(false);
+  const remembering = !demo && !!supabase && lockChoices.rememberPeople;
+  useEffect(() => {
+    if (demo || !supabase || !session || !shop || !scope || !settingsKnownEarly) return;
+    if (!lockChoices.rememberPeople) {
+      // Only the business's own saved settings turn remembering off: for a moment after opening,
+      // the settings can be the defaults (off), and that must not forget anyone. (Remembering is
+      // only ever turned on by saving the settings, so a business with none has nobody to forget.)
+      if (branding.version > 0) void forgetEveryone(shop.id);
+      return;
+    }
+    const password = freshPassword.current;
+    freshPassword.current = false;
+    void rememberPerson(
+      shop.id,
+      {
+        userId: session.user.id,
+        name: shop.staffName,
+        username: shop.username,
+        rank: shop.accessLevel,
+        session,
+      },
+      { password, days: lockChoices.rememberDays, max: lockChoices.rememberMax },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    session,
+    scope,
+    settingsKnownEarly,
+    lockChoices.rememberPeople,
+    lockChoices.rememberDays,
+    lockChoices.rememberMax,
+  ]);
+  // Signing the business out of this device forgets everyone it remembered for that business.
+  const lastShop = useRef('');
+  useEffect(() => {
+    if (shop?.id && businessSession) lastShop.current = shop.id;
+    else if (!businessSession && lastShop.current) {
+      void forgetEveryone(lastShop.current);
+      lastShop.current = '';
+    }
+  }, [shop?.id, businessSession]);
+  const [others, setOthers] = useState<RememberedPerson[]>([]);
+  useEffect(() => {
+    if (!remembering || !shop || !session || !pinLock.locked) {
+      setOthers([]);
+      return;
+    }
+    let live = true;
+    void listPeople(shop.id, lockChoices.rememberDays, lockChoices.rememberMax).then((people) => {
+      if (live) setOthers(people.filter((p) => p.userId !== session.user.id));
+    });
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [remembering, shop?.id, session?.user.id, pinLock.locked]);
+  /** Switch user with a PIN on the lock screen (remembered people): '' when switching, else why not. */
+  async function switchTo(person: RememberedPerson, pin: string) {
+    const shopId = shop!.id;
+    const theirs = `${person.userId}:${shopId}`;
+    const first = person.name.split(/\s+/)[0] || person.username;
+    const record = await readPin(theirs, person.userId);
+    if (!record) return `${first} has no PIN on this device. Choose "Someone else" and use their password.`;
+    if (!(await checkPin(pin, record.hash))) {
+      const tries = record.tries + 1;
+      if (tries >= lockChoices.pinTries) {
+        await writePin(theirs, person.userId, { ...record, tries: 0, locked: false });
+        await forgetPerson(shopId, person.userId);
+        if (biometric?.userId === person.userId) await setNeedsPin(shopId, true);
+        setOthers((all) => all.filter((p) => p.userId !== person.userId));
+        void reportPinLockout(person.userId);
+        return `${lockChoices.pinTries} wrong PINs. ${first} must sign in with their password.`;
+      }
+      await writePin(theirs, person.userId, { ...record, tries });
+      const left = lockChoices.pinTries - tries;
+      return `Wrong PIN. ${left} ${left === 1 ? 'try' : 'tries'} left before ${first}'s password is needed.`;
+    }
+    if (biometric?.userId === person.userId) await setNeedsPin(shopId, false);
+    return enterAs(person);
+  }
+  /** Open the app as a remembered person (their PIN or the device's face/fingerprint was checked). */
+  async function enterAs(person: RememberedPerson) {
+    const theirs = `${person.userId}:${shop!.id}`;
+    const record = await readPin(theirs, person.userId);
+    if (record) await writePin(theirs, person.userId, { ...record, tries: 0, locked: false });
+    setLockedFlag(theirs, null);
+    // The current person's latest sign-in is already remembered (above); put the chosen person's in
+    // its place and open the app as them. Offline this works like reopening the app (keptOffline).
+    localStorage.setItem(sessionKey(supabase), JSON.stringify(person.session));
+    switchedIn(person.userId);
+    window.location.reload();
+    return '';
+  }
+  // Face/fingerprint unlock on this device (biometric.ts): who it belongs to, while it still matches
+  // their PIN on this device (a changed or cleared PIN turns it off).
+  const [biometric, setBiometric] = useState<BiometricOwner | null>(null);
+  const [canBiometric, setCanBiometric] = useState(false);
+  const [biometricEpoch, setBiometricEpoch] = useState(0);
+  useEffect(() => {
+    void biometricSupported().then(setCanBiometric);
+  }, []);
+  useEffect(() => {
+    if (demo || !shop) {
+      setBiometric(null);
+      return;
+    }
+    let live = true;
+    void (async () => {
+      let owner = await biometricOwner(shop.id);
+      if (owner) {
+        const record = await readPin(`${owner.userId}:${shop.id}`, owner.userId);
+        if (!record || record.hash !== owner.pinHash || !lockChoices.allowBiometric) {
+          if (!record || record.hash !== owner.pinHash) await removeBiometric(shop.id);
+          owner = null;
+        }
+      }
+      if (live) setBiometric(owner);
+    })();
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    demo,
+    shop?.id,
+    session?.user.id,
+    pinLock.hasPin,
+    pinLock.locked,
+    lockChoices.allowBiometric,
+    biometricEpoch,
+  ]);
+  /** Too many wrong PINs: Admins and above get a notice (sent now, or when next online). */
+  async function reportPinLockout(userId: string) {
+    if (!shop) return;
+    noteLockout(shop.id, userId);
+    if (online) await sendPinLockouts();
+  }
+  const sendPinLockouts = () =>
+    shop && supabase && session
+      ? sendLockouts(shop.id, (userId, device) =>
+          supabase!.rpc('report_pin_lockout', { p_shop: shop.id, p_user: userId, p_device: device }),
+        )
+      : Promise.resolve();
+  useEffect(() => {
+    if (online && scope && !pinLock.locked) void sendPinLockouts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [online, scope, pinLock.locked]);
+  // Remembered people's waiting work goes up as them, with their own sign-in, while someone else
+  // uses the app. Someone whose sign-in has ended, or who left the business, is forgotten.
+  useEffect(() => {
+    if (!remembering || !online || !shop || !session) return;
+    const shopId = shop.id;
+    const me = session.user.id;
+    const { rememberDays: days, rememberMax: max } = lockChoices;
+    let live = true;
+    const run = async () => {
+      for (const person of await listPeople(shopId, days, max)) {
+        if (!live || person.userId === me) continue;
+        const theirs = `${person.userId}:${shopId}`;
+        if (!(await readState(theirs)).pending.length) continue;
+        try {
+          await syncRememberedWork(
+            theirs,
+            shopId,
+            person.session as { access_token: string; refresh_token: string },
+            (renewed) =>
+              rememberPerson(
+                shopId,
+                { ...person, session: renewed },
+                { password: false, days, max, seen: false },
+              ),
+          );
+        } catch (error) {
+          const text = String((error as { message?: string })?.message ?? error);
+          if ((error as { name?: string })?.name === 'AuthApiError' || /access denied/i.test(text))
+            await forgetPerson(shopId, person.userId);
+        }
+      }
+    };
+    void run();
+    const timer = setInterval(run, (branding.settings.security.syncMinutes ?? 2) * 60000);
+    return () => {
+      live = false;
+      clearInterval(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [remembering, online, shop?.id, session?.user.id, lockChoices.rememberDays, lockChoices.rememberMax]);
+  /** The others this device remembers, read now. */
+  const loadOthers = async () =>
+    shop && session
+      ? (await listPeople(shop.id, lockChoices.rememberDays, lockChoices.rememberMax)).filter(
+          (p) => p.userId !== session.user.id,
+        )
+      : [];
+  /** Whether this device remembers the person signed in now (so stepping away keeps them). */
+  const isRemembered = async () =>
+    !!shop &&
+    !!session &&
+    (await listPeople(shop.id, lockChoices.rememberDays, lockChoices.rememberMax)).some(
+      (p) => p.userId === session.user.id,
+    );
+  /** Someone else signs in with their password; the remembered people stay remembered. */
+  const stepAway = () => {
+    localStorage.removeItem(sessionKey(supabase));
+    window.location.reload();
+  };
   // Lock when the app opens (Business Settings → Security, on by default): a sign-in kept from
   // before opens at the PIN, or at the password for someone without a PIN (offline, without a PIN,
   // it stays open so work can go on). A sign-in made now is not locked again.
@@ -1714,13 +1982,19 @@ export default function App() {
   // shows the last screen before the lock screen.
   const [openChecked, setOpenChecked] = useState('');
   // The settings kept on the device are enough to decide; the server's copy isn't waited for.
-  const settingsKnown = branding.ready || branding.version > 0;
+  const settingsKnown = settingsKnownEarly;
   useEffect(() => {
     if (demo || !session || !scope || keptStaff === undefined || !pinLock.ready || !settingsKnown) return;
     const id = session.user.id;
     if (openChecked === id) return;
     // Automated checks (navigator.webdriver) reload pages constantly; they are not "opening the app".
-    if (keptStaff !== id || branding.settings.security.lockOnOpen === false || navigator.webdriver) {
+    if (
+      keptStaff !== id ||
+      branding.settings.security.lockOnOpen === false ||
+      navigator.webdriver ||
+      switchedIn() === id
+    ) {
+      switchedIn(null);
       setOpenChecked(id);
       return;
     }
@@ -1863,16 +2137,46 @@ export default function App() {
   // the open lock are checked only a plain screen shows.
   const flaggedNow = !demo && !!session && !!scope && lockedFlag(scope) === session.user.id;
   const lockPending = !demo && !!session && !!scope && (!pinLock.ready || openChecked !== session.user.id);
-  if (!demo && session && (pinLock.locked || (flaggedNow && !pinLock.ready)))
-    return (
+  const lockScreen =
+    !demo && session && (pinLock.locked || (flaggedNow && !pinLock.ready)) ? (
       <PinLockScreen
         name={shop?.staffName ?? ''}
         username={shop?.username ?? ''}
         minutes={lockMinutes}
-        onUnlock={pinLock.unlock}
+        onUnlock={async (pin) => {
+          const problem = await pinLock.unlock(pin);
+          if (!problem && biometric?.userId === session.user.id) await setNeedsPin(shop!.id, false);
+          return problem;
+        }}
+        biometric={
+          biometric &&
+          canBiometric &&
+          !biometric.needsPin &&
+          (biometric.userId === session.user.id ||
+            (remembering && others.some((p) => p.userId === biometric.userId)))
+            ? {
+                name: biometric.name || biometric.username,
+                onUse: async () => {
+                  if (!(await verifyBiometric(biometric)))
+                    return 'Face/fingerprint not recognised. Use the PIN.';
+                  if (biometric.userId === session.user.id) return pinLock.unlockTrusted();
+                  const person = (await loadOthers()).find((p) => p.userId === biometric.userId);
+                  return person ? enterAs(person) : 'Use the PIN.';
+                },
+              }
+            : undefined
+        }
         onSwitchUser={async () => {
+          // Remembering people: step away without signing out, so this person can come back with
+          // their PIN. Otherwise sign out as before.
+          if (remembering && (await isRemembered())) return stepAway();
           await pinLock.clear();
           signOutStaff('Signed out. The next person can sign in.');
+        }}
+        loadPeople={remembering ? loadOthers : undefined}
+        onSwitchTo={async (userId, pin) => {
+          const person = (await loadOthers()).find((p) => p.userId === userId);
+          return person ? switchTo(person, pin) : 'Choose who you are again.';
         }}
         onSignOutBusiness={
           (shop?.accessLevel ?? 0) >= 3
@@ -1895,9 +2199,16 @@ export default function App() {
             : undefined
         }
       />
-    );
-  if (lockPending) return <StartupScreen error="" onRetry={() => setAuthEpoch((value) => value + 1)} />;
-  if (needBranchChoice)
+    ) : null;
+  // Locked while working: the app stays in place behind the lock screen (hidden and unreachable), so
+  // an open sale or form is still there after unlocking. Only the person it was locked for can unlock
+  // into it; switching to someone else reloads the app. A device that opens already locked shows only
+  // the lock screen: nothing of the app has been drawn yet.
+  if (lockScreen && unlockedFor.current !== session?.user.id) return lockScreen;
+  if (!lockScreen && session && !lockPending) unlockedFor.current = session.user.id;
+  if (lockPending && !lockScreen)
+    return <StartupScreen error="" onRetry={() => setAuthEpoch((value) => value + 1)} />;
+  if (needBranchChoice && !lockScreen)
     return (
       <AuthShell>
         <h1>Choose your branch</h1>
@@ -1913,7 +2224,7 @@ export default function App() {
       </AuthShell>
     );
 
-  if (restriction === 'locked')
+  if (restriction === 'locked' && !lockScreen)
     return (
       <AuthShell>
         <h1>{shop?.name ?? 'PrintShopLedger'}</h1>
@@ -1940,7 +2251,7 @@ export default function App() {
       </AuthShell>
     );
 
-  return (
+  const app = (
     <BusinessOptionsContext.Provider
       value={{
         ...branding.settings.options,
@@ -2196,6 +2507,29 @@ export default function App() {
                           businessName={businessName}
                           onClose={() => setHelpFor(undefined)}
                         />
+                      )}
+                      {pinNeeded && (
+                        <Modal
+                          title={pinLock.shortPin ? 'Choose a longer PIN' : 'Set your PIN'}
+                          busy={busy}
+                          closeLabel="Sign out"
+                          onClose={() => void signOutStaff('Signed out. Set a PIN next time you sign in.')}
+                        >
+                          <p>
+                            {pinLock.shortPin
+                              ? `${businessName} now asks for a PIN of at least ${lockChoices.minPinLength} digits. Choose a new one to go on.`
+                              : `${businessName} asks everyone to have a PIN. When the app locks, your PIN unlocks it, even without internet.`}
+                          </p>
+                          <PinForm
+                            has={pinLock.hasPin}
+                            min={lockChoices.minPinLength}
+                            required
+                            disabled={busy}
+                            setBusy={setBusy}
+                            save={savePin}
+                            onMessage={(text, tone) => setMessage(text, tone ?? 'success')}
+                          />
+                        </Modal>
                       )}
                       {switchUser && (
                         <Modal title="Switch user" busy={busy} onClose={() => setSwitchUser(false)}>
@@ -2630,7 +2964,56 @@ export default function App() {
                                 setThemePreference={branding.setTheme}
                                 staffName={shop?.staffName ?? ''}
                                 initials={shop?.initials ?? ''}
-                                pin={!demo && supabase ? { has: pinLock.hasPin, save: savePin } : undefined}
+                                pin={
+                                  !demo && supabase
+                                    ? {
+                                        has: pinLock.hasPin,
+                                        min: lockChoices.minPinLength,
+                                        required: lockChoices.requirePin && lockMinutes > 0,
+                                        save: savePin,
+                                      }
+                                    : undefined
+                                }
+                                deviceControls={
+                                  !demo && supabase && shop && session ? (
+                                    <DeviceLockOptions
+                                      name={shop.staffName || shop.username}
+                                      remembering={remembering}
+                                      rememberDays={lockChoices.rememberDays}
+                                      onForgetMe={async () => {
+                                        await forgetPerson(shop.id, session.user.id);
+                                      }}
+                                      biometric={
+                                        lockChoices.allowBiometric && canBiometric
+                                          ? {
+                                              owner: biometric?.name || biometric?.username || null,
+                                              mine: biometric?.userId === session.user.id,
+                                              hasPin: pinLock.hasPin,
+                                              onTurnOn: async () => {
+                                                const scopeHere = `${session.user.id}:${shop.id}`;
+                                                const record = await readPin(scopeHere, session.user.id);
+                                                if (!record) throw Error('Set a PIN first.');
+                                                await registerBiometric(shop.id, {
+                                                  userId: session.user.id,
+                                                  name: shop.staffName || shop.username,
+                                                  username: shop.username,
+                                                  pinHash: record.hash,
+                                                });
+                                                setBiometricEpoch((value) => value + 1);
+                                              },
+                                              onTurnOff: async () => {
+                                                await removeBiometric(shop.id);
+                                                setBiometricEpoch((value) => value + 1);
+                                              },
+                                            }
+                                          : undefined
+                                      }
+                                      disabled={busy}
+                                      setBusy={setBusy}
+                                      onMessage={(text, tone) => setMessage(text, tone ?? 'success')}
+                                    />
+                                  ) : undefined
+                                }
                                 onChanged={(message) => {
                                   setMessage(message);
                                   setStaffEpoch((value) => value + 1);
@@ -3645,5 +4028,14 @@ export default function App() {
         </ReadyMessageContext.Provider>
       </TermsProvider>
     </BusinessOptionsContext.Provider>
+  );
+  // The same shape locked or not, so React keeps the app (and what is open in it) while locked.
+  return (
+    <>
+      <div className="app-layer" hidden={!!lockScreen} inert={!!lockScreen}>
+        <AppLayer.Provider value>{app}</AppLayer.Provider>
+      </div>
+      {lockScreen}
+    </>
   );
 }
