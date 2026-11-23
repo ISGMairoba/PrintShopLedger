@@ -6,7 +6,7 @@ do $test$
 declare
   owner uuid := gen_random_uuid(); shop uuid; c uuid := gen_random_uuid(); j uuid := gen_random_uuid();
   paper uuid := gen_random_uuid(); a4 uuid := gen_random_uuid(); a5 uuid := gen_random_uuid(); bought uuid := gen_random_uuid();
-  split_event uuid := gen_random_uuid(); x uuid := gen_random_uuid(); v record; unit numeric;
+  split_event uuid := gen_random_uuid(); x uuid := gen_random_uuid(); ink_line uuid; board uuid := gen_random_uuid(); bill uuid := gen_random_uuid(); dl jsonb; v record; unit numeric;
   mat jsonb := jsonb_build_object('measurementUnit', 'sheet', 'requireSize', false, 'available', 0);
   ev jsonb;
 begin
@@ -93,6 +93,48 @@ begin
   select * into v from private.stock_values where shop_id = shop and location = 'b-ikeja001' and material_id = paper;
   if v.quantity <> 20 or round(v.average, 2) <> round(unit, 2) then
     raise exception 'Transfer arrived at % (main''s average %)', v.average, unit;
+  end if;
+  -- A late delivery bill of ₦2,000 for 20 boards (₦400 each) after 5 of them were used: ₦1,500 joins the 15
+  -- boards held, ₦500 is a late cost. Voiding the bill takes both back.
+  set local role authenticated;
+  perform public.apply_material_event(shop, jsonb_build_object('id', gen_random_uuid(), 'kind', 'material.created', 'data',
+    mat || jsonb_build_object('id', board, 'name', 'Board', 'canSplit', false, 'modifiedBy', owner, 'modifiedByLabel', 'Owner', 'modifiedAt', now())));
+  perform public.apply_material_event(shop, jsonb_build_object('id', gen_random_uuid(), 'kind', 'material.stock_added', 'data',
+    jsonb_build_object('id', board, 'baseVersion', 1, 'quantity', 20, 'reason', 'Restock', 'cost', jsonb_build_object('supplierPrice', 800000),
+      'modifiedBy', owner, 'modifiedByLabel', 'Owner', 'modifiedAt', now())));
+  reset role;
+  select id into ink_line from public.material_stock_changes where shop_id = shop and material_id = board and action = 'material.stock_added';
+  insert into public.material_stock_changes(id, shop_id, material_id, action, before_available, after_available, reason, actor_id,
+    actor_label, created_at, material_name, measurement_unit, before_values, after_values, details_complete, job_id)
+  values (gen_random_uuid(), shop, board, 'material.job_used', 20, 15, '', owner, 'Owner', now(), 'Board', 'sheet', '{}', '{}', true, j);
+  set local role authenticated;
+  ev := jsonb_build_object('id', bill, 'description', 'Ink delivery', 'category', 'Delivery', 'incurredOn', '2026-11-21', 'amount', 200000,
+    'payee', '', 'note', '', 'receiptReference', '', 'materials', '[]'::jsonb, 'stockIds', '{}'::jsonb, 'restockIds', jsonb_build_array(ink_line),
+    'modifiedBy', owner, 'modifiedByLabel', 'Owner', 'modifiedAt', now());
+  perform public.apply_expense_event(shop, jsonb_build_object('id', gen_random_uuid(), 'kind', 'expense.created', 'data', ev));
+  reset role;
+  select * into v from private.stock_values where shop_id = shop and location = 'main' and material_id = board;
+  if round(v.value) <> 750000 then raise exception 'Late bill: boards held worth % (expected ₦7,500)', v.value / 100; end if;
+  if (select round(sum(amount)) from private.late_costs where shop_id = shop and expense_id = bill) <> 50000 then
+    raise exception 'Late cost: %', (select sum(amount) from private.late_costs where shop_id = shop and expense_id = bill);
+  end if;
+  -- The download carries the figures to every device.
+  set local role authenticated;
+  dl := public.get_ledger(shop);
+  if jsonb_array_length(dl->'lateCosts') <> 1 or (dl->'lateCosts'->0->>'amount')::numeric <> 50000 then raise exception 'Download late costs: %', dl->'lateCosts'; end if;
+  if not exists (select 1 from jsonb_array_elements(dl->'stockValues') e where e->>'id' = 'main|' || board and (e->>'value')::numeric = 750000) then
+    raise exception 'Download stock values: %', dl->'stockValues';
+  end if;
+  if not exists (select 1 from jsonb_array_elements(dl->'materialHistory') e where e->>'id' = ink_line::text and (e->>'unitCost')::numeric = 40000
+      and (e->>'costActual')::boolean) then raise exception 'Download history cost missing'; end if;
+  dl := public.get_ledger_changes(shop, (pg_current_xact_id()::text::bigint - 1)::text);
+  if not (dl->'ledger' ? 'stockValues') then raise exception 'Sync without stock values: %', jsonb_object_keys(dl->'ledger'); end if;
+  perform public.apply_expense_event(shop, jsonb_build_object('id', gen_random_uuid(), 'kind', 'expense.voided', 'data',
+    jsonb_build_object('id', bill, 'baseVersion', 1, 'reason', 'Wrong bill', 'stockIds', '{}'::jsonb, 'modifiedBy', owner, 'modifiedByLabel', 'Owner', 'modifiedAt', now())));
+  reset role;
+  select * into v from private.stock_values where shop_id = shop and location = 'main' and material_id = board;
+  if round(v.value) <> 600000 or (select round(sum(amount)) from private.late_costs where expense_id = bill) <> 0 then
+    raise exception 'Voided bill not taken back: % held, % late', v.value, (select sum(amount) from private.late_costs where expense_id = bill);
   end if;
   raise notice 'Actual cost rules passed';
 end $test$;

@@ -124,6 +124,12 @@ function splitMaterial(ledger, event, existing, audit, record) {
     throw new Error('Stock note must be up to 500 characters.');
   const pieces = splitPieces(d);
   if (pieces.length < 1 || pieces.length > 20) throw new Error('Add between 1 and 20 pieces.');
+  // Waste % (Actual cost method): the share of the material lost in cutting.
+  if (
+    d.wastePercent !== undefined &&
+    (typeof d.wastePercent !== 'number' || !(d.wastePercent >= 0 && d.wastePercent <= 100) || (d.join && d.wastePercent))
+  )
+    throw new Error('Waste must be from 0 to 100%, and only when splitting.');
   const seen = new Set([existing.id]);
   const events = new Set([event.id]);
   let fromAvailable = existing.available;
@@ -160,6 +166,8 @@ function splitMaterial(ledger, event, existing, audit, record) {
   const fromNext = { ...existing, available: fromAvailable, ...audit, version: existing.version + 1 };
   validateMaterial(fromNext);
   const main = record(fromNext);
+  if (d.wastePercent > 0)
+    main.after = { ...main.after, wasteQuantity: Math.round(d.quantity * d.wastePercent * 10) / 1000 };
   const seconds = history.map(({ to, toNext, eventId }) => ({
     ...main,
     id: eventId,
