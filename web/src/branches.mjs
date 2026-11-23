@@ -441,7 +441,9 @@ export function branchLedger(ledger, id = localBranch) {
   // AUD-30: another location's view counts that location's stock (the server sends every location
   // this person may see). This device's own location keeps its stock, with work not yet sent.
   if (id !== localBranch && Array.isArray(ledger?.locationStock) && Array.isArray(ledger?.materials)) {
-    const here = new Map(ledger.locationStock.filter((s) => s.location === id).map((s) => [s.materialId, s.available]));
+    const here = new Map(
+      ledger.locationStock.filter((s) => s.location === id).map((s) => [s.materialId, s.available]),
+    );
     if (here.size || id !== MAIN)
       out.materials = ledger.materials.map((m) => ({
         ...m,
