@@ -1,4 +1,9 @@
-import { TEAM_DEFAULTS, teamSettings } from './team.mjs';
+import { useContext } from 'react';
+import { TEAM_DEFAULTS, teamPeople, teamSettings } from './team.mjs';
+import { TeamContext } from './TeamContext';
+import { useBusinessOptions } from './BusinessOptionsContext';
+import { useWords } from './Words';
+import type { TeamPerson } from './types';
 
 type TeamChoices = typeof TEAM_DEFAULTS;
 const RANKS: [number, string][] = [
@@ -20,8 +25,26 @@ export default function TeamWorkSettings({
   onChange: (next: Partial<TeamChoices> | undefined) => void;
 }) {
   const t = teamSettings({ teamWork: value }) as TeamChoices;
+  const team = useContext(TeamContext);
+  const options = useBusinessOptions();
+  const { stage: stageName } = useWords();
+  const people = (team ? teamPeople(team.ledger) : []) as TeamPerson[];
+  // Work stages from the usual steps and every saved workflow.
+  const stages = [
+    ...new Set([
+      ...(options.jobStages ?? []),
+      ...(options.workflows ?? []).flatMap((wf: { steps: { name: string }[] }) => wf.steps.map((s) => s.name)),
+    ]),
+  ].filter((s) => !['Added', 'Completed', 'Collected', 'Cancelled'].includes(s));
+  const setUsual = (stage: string, ids: string[]) => {
+    const usual = { ...(t.usual ?? {}), [stage]: ids };
+    if (!ids.length) delete usual[stage];
+    const next: Record<string, unknown> = { ...(value ?? {}), usual };
+    if (!Object.keys(usual).length) delete next.usual;
+    onChange(Object.keys(next).length ? (next as Partial<TeamChoices>) : undefined);
+  };
   const set = (key: keyof TeamChoices, v: boolean | number) => {
-    const next: Record<string, boolean | number> = { ...(value ?? {}), [key]: v };
+    const next: Record<string, unknown> = { ...(value ?? {}), [key]: v };
     if (v === TEAM_DEFAULTS[key]) delete next[key];
     onChange(Object.keys(next).length ? (next as Partial<TeamChoices>) : undefined);
   };
@@ -98,11 +121,43 @@ export default function TeamWorkSettings({
             'Work records need confirming',
             'Recorded work counts in reports once someone confirms it.',
           )}
+          {check(
+            'commission',
+            'Commission',
+            'Set commission terms for each person (Users → Team) and see commission due in Reports → Team.',
+          )}
           {rank('assignRank', 'Who can assign work')}
           {rank('othersRank', 'Who can record work for someone else')}
           {rank('earlierRank', 'Who can set an earlier "Done at"')}
           {rank('confirmRank', 'Who confirms work')}
+          {rank('correctRank', 'Who can correct work records without approval')}
+          {t.commission && rank('termsRank', 'Who can set commission terms')}
           {days('doneAtDays', '"Done at" can be up to (days back)')}
+          {days('correctionDays', 'Work records can be corrected up to (days after collection)')}
+          {!!people.length && !!stages.length && (
+            <details>
+              <summary>Usual people per stage (assigned to new jobs at checkout)</summary>
+              {stages.map((s) => (
+                <fieldset key={s} className="page-limit-list">
+                  <legend>{stageName(s)}</legend>
+                  {people.map((p) => (
+                    <label key={p.id} className="check-label">
+                      <input
+                        type="checkbox"
+                        aria-label={`Usual for ${s}: ${p.name}`}
+                        checked={(t.usual?.[s] ?? []).includes(p.id)}
+                        onChange={(e) => {
+                          const ids = t.usual?.[s] ?? [];
+                          setUsual(s, e.target.checked ? [...ids, p.id] : ids.filter((id) => id !== p.id));
+                        }}
+                      />
+                      {p.name}
+                    </label>
+                  ))}
+                </fieldset>
+              ))}
+            </details>
+          )}
         </>
       )}
     </>

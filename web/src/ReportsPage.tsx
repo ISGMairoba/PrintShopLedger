@@ -1621,9 +1621,9 @@ function TeamTab({ freshness, busy, error, pdf, csv }: TabProps) {
         <Exports
           busy={busy}
           onCsv={() =>
-            csv(file, title, subtitle, teamSections(report, { money: (k: number) => (k / 100).toFixed(2) }))
+            csv(file, title, subtitle, teamSections(report, { money: (k: number) => (k / 100).toFixed(2), commission: team.settings.commission }))
           }
-          onPdf={() => void pdf(file, title, subtitle, teamSections(report, { money: currency }))}
+          onPdf={() => void pdf(file, title, subtitle, teamSections(report, { money: currency, commission: team.settings.commission }))}
         />
       </section>
       {error && (
@@ -1647,6 +1647,8 @@ function TeamTab({ freshness, busy, error, pdf, csv }: TabProps) {
                 <th className="numeric">Rework caused</th>
                 <th className="numeric">Recorded late</th>
                 <th className="numeric">Value credited</th>
+                {team.settings.commission && <th className="numeric">Sold</th>}
+                {team.settings.commission && <th className="numeric">Commission due</th>}
               </tr>
             </thead>
             <tbody>
@@ -1661,6 +1663,10 @@ function TeamTab({ freshness, busy, error, pdf, csv }: TabProps) {
                   <td className="numeric">{r.rework}</td>
                   <td className="numeric">{r.late}</td>
                   <td className="numeric">{currency(r.value)}</td>
+                  {team.settings.commission && <td className="numeric">{currency(r.sold)}</td>}
+                  {team.settings.commission && (
+                    <td className="numeric">{r.commission === null ? '—' : currency(r.commission)}</td>
+                  )}
                 </tr>
               ))}
             </tbody>

@@ -20,11 +20,15 @@ export const TEAM_DEFAULTS = Object.freeze({
   assignRank: 2,
   /** Lowest rank that corrects work records directly (below: a request for approval). */
   correctRank: 2,
+  /** Lowest rank that sets commission terms (pay): General Manager. */
+  termsRank: 4,
   /** How long after collection a work record can be corrected (days). */
   correctionDays: 7,
   commission: false,
+  /** The usual people per stage, assigned to new jobs at checkout: { stage: [person ids] }. */
+  usual: /** @type {Record<string, string[]>} */ ({}),
 });
-const RANKED = ['othersRank', 'earlierRank', 'confirmRank', 'assignRank', 'correctRank'];
+const RANKED = ['othersRank', 'earlierRank', 'confirmRank', 'assignRank', 'correctRank', 'termsRank'];
 const DAYS = ['doneAtDays', 'correctionDays'];
 const SWITCHES = ['enabled', 'askDoneBy', 'needsConfirming', 'commission'];
 
@@ -42,6 +46,14 @@ export function validateTeamSettings(input) {
       if (typeof value !== 'boolean') throw Error('Invalid Team work setting.');
     } else if (RANKED.includes(key)) {
       if (![1, 2, 3, 4].includes(value)) throw Error('Choose a rank for each Team work choice.');
+    } else if (key === 'usual') {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) throw Error('Invalid usual people.');
+      const kept = Object.fromEntries(
+        Object.entries(value).filter(([, ids]) => Array.isArray(ids) && ids.length),
+      );
+      if (Object.values(kept).some((ids) => ids.length > 20)) throw Error('Choose up to 20 people per stage.');
+      if (Object.keys(kept).length) out.usual = kept;
+      continue;
     } else if (DAYS.includes(key)) {
       if (!Number.isInteger(value) || value < 0 || value > 90) throw Error('Choose 0 to 90 days.');
     } else throw Error('Unknown Team work setting.');
@@ -266,6 +278,22 @@ export function correctionRoute(record, actor, settings) {
 /** The rank that approves a correction request for this record. */
 export const approverRank = (record, settings) =>
   Math.max(teamSettings(settings).correctRank, record.recordedByRank ?? 0);
+/**
+ * At checkout: the usual people for each stage (Business Settings → Team work) are assigned to the
+ * new jobs' stages.
+ * @returns {import('./types').TeamEvent[]}
+ */
+export function usualAssignEvents(ledger, jobs, settings, actor, now = new Date().toISOString()) {
+  const usual = teamSettings(settings).usual ?? {};
+  return jobs.flatMap((job) =>
+    jobWorkflow(job)
+      .filter((stage) => usual[stage]?.length)
+      .map((stage) => {
+        const event = assignEvent(ledger, job, stage, usual[stage], actor, now);
+        return { ...event, data: { ...event.data, usual: true } };
+      }),
+  );
+}
 /** A correction of a work record: the whole new Done by (unit, shares, doneAt, redo, vendor). */
 export function correctEvent(record, changes, reason, actor, now = new Date().toISOString()) {
   return {
@@ -308,6 +336,24 @@ export function correctionAlerts(ledger, userId, since = '') {
     )
     .filter((x) => (x.c.at ?? '') > since)
     .sort((a, b) => (b.c.at ?? '').localeCompare(a.c.at ?? ''));
+}
+/** A person's commission terms, if any (kind: percent | perJob | perStage | perUnit; salesRate %). */
+export const termsOf = (ledger, personId) =>
+  (ledger?.teamTerms ?? []).find((t) => t.id === personId)?.commission ?? null;
+export function termsEvent(ledger, personId, commission, actor, now = new Date().toISOString()) {
+  const current = (ledger?.teamTerms ?? []).find((t) => t.id === personId);
+  return {
+    id: crypto.randomUUID(),
+    kind: 'team.terms_set',
+    data: {
+      id: personId,
+      baseVersion: current?.version ?? 0,
+      commission,
+      modifiedBy: actor.id,
+      modifiedByLabel: actor.label,
+      modifiedAt: now,
+    },
+  };
 }
 /** Recorded noticeably after it was done (the report flags late recording). */
 export const recordedLate = (record, hours = 24) =>
@@ -380,6 +426,13 @@ export function applyTeamEvent(ledger, event) {
           : r,
       ),
     };
+  }
+  if (event.kind === 'team.terms_set') {
+    const list = ledger.teamTerms ?? [];
+    const old = list.find((t) => t.id === d.id);
+    if ((old?.version ?? 0) !== (d.baseVersion ?? 0)) throw Error('These terms were changed elsewhere.');
+    const next = { id: d.id, commission: d.commission, version: (old?.version ?? 0) + 1, modifiedAt: now };
+    return { ...ledger, teamTerms: old ? list.map((t) => (t.id === d.id ? next : t)) : [...list, next] };
   }
   if (event.kind === 'team.work_corrected') {
     const records = ledger.workRecords ?? [];

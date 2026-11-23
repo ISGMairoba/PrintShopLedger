@@ -201,6 +201,36 @@ begin
   exception when others then refused := sqlerrm;
   end;
   if refused not like 'Give a reason%' then raise exception 'No reason: %', refused; end if;
+  -- The usual people for a stage: a cashier's checkout assigns them; anything else is refused.
+  reset role;
+  update public.business_settings set settings = jsonb_set(settings, '{teamWork,usual}', jsonb_build_object('Printing', jsonb_build_array(ada)))
+    where shop_id = shop;
+  perform set_config('request.jwt.claim.sub', cashier::text, true);
+  set local role authenticated;
+  perform public.apply_team_event(shop, jsonb_build_object('id', gen_random_uuid(), 'kind', 'team.assigned', 'data',
+    jsonb_build_object('id', gen_random_uuid(), 'baseVersion', 0, 'jobId', j, 'stage', 'Printing', 'usual', true, 'personIds', jsonb_build_array(ada))));
+  refused := '';
+  begin
+    perform public.apply_team_event(shop, jsonb_build_object('id', gen_random_uuid(), 'kind', 'team.assigned', 'data',
+      jsonb_build_object('id', gen_random_uuid(), 'baseVersion', 0, 'jobId', j, 'stage', 'Printing', 'usual', true, 'personIds', jsonb_build_array(cashier))));
+  exception when others then refused := sqlerrm;
+  end;
+  if refused not like 'You cannot assign work%' then raise exception 'Cashier assigned others than the usual: %', refused; end if;
+  perform set_config('request.jwt.claim.sub', manager::text, true);
+  -- Commission terms: a Manager cannot set them (General Manager and above by default); the owner can.
+  refused := '';
+  begin
+    perform public.apply_team_event(shop, jsonb_build_object('id', gen_random_uuid(), 'kind', 'team.terms_set', 'data',
+      jsonb_build_object('id', ada, 'baseVersion', 0, 'commission', jsonb_build_object('kind', 'percent', 'rate', 5))));
+  exception when others then refused := sqlerrm;
+  end;
+  if refused not like 'You cannot set commission terms%' then raise exception 'Manager set terms: %', refused; end if;
+  perform set_config('request.jwt.claim.sub', owner::text, true);
+  perform public.apply_team_event(shop, jsonb_build_object('id', gen_random_uuid(), 'kind', 'team.terms_set', 'data',
+    jsonb_build_object('id', ada, 'baseVersion', 0, 'commission', jsonb_build_object('kind', 'perUnit', 'rate', 50, 'salesRate', 2))));
+  if jsonb_array_length(public.get_ledger(shop)->'teamTerms') <> 1 then raise exception 'Owner does not see terms'; end if;
+  perform set_config('request.jwt.claim.sub', cashier::text, true);
+  if jsonb_array_length(public.get_ledger(shop)->'teamTerms') <> 0 then raise exception 'Cashier sees others'' terms'; end if;
   reset role;
   select data into r from public.team_records where shop_id = shop and id = w1;
   if r->'shares'->0->>'share' <> '350' or r->>'status' <> 'confirmed' or r->'corrections'->0->>'approvedBy' <> admin::text then

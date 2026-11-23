@@ -1,7 +1,7 @@
 // Reports → Team (plans/job-assignment.md): each person's work over a period — stages done, time per
 // stage against its target, on time, rework, late recording and the value credited to them.
 import { businessDay } from './dashboard.mjs';
-import { personName, recordedLate, teamPeople, myWork } from './team.mjs';
+import { personName, recordedLate, teamPeople, myWork, termsOf } from './team.mjs';
 
 /** A person's part of one work record, 0 to 1 (percent of 100, or quantity of the job's). */
 export function shareOf(record, job, personId) {
@@ -54,7 +54,11 @@ export function teamReport(ledger, from, to, { includeRecorded = false } = {}) {
         rework: 0,
         late: 0,
         jobs: new Set(),
+        countedJobs: 0,
+        countedStages: 0,
+        units: 0,
         value: 0,
+        sold: 0,
       });
     return rows.get(personId);
   };
@@ -64,6 +68,11 @@ export function teamReport(ledger, from, to, { includeRecorded = false } = {}) {
       const p = row(s.personId);
       p.stages += 1;
       p.share += shareOf(r, job, s.personId);
+      // Pay per stage and per unit count only work on completed jobs.
+      if (counted(job)) {
+        p.countedStages += 1;
+        p.units += r.unit === 'quantity' ? s.share : (job?.quantity ?? 1) * (s.share / 100);
+      }
       p.jobs.add(r.jobId);
       if (recordedLate(r)) p.late += 1;
       const hours = hoursFor.get(r.id);
@@ -86,13 +95,40 @@ export function teamReport(ledger, from, to, { includeRecorded = false } = {}) {
     const job = jobs.get(jobId);
     if (!counted(job) || !people.size) continue;
     const each = Math.floor(job.amount / people.size);
-    for (const id of people) row(id).value += each;
+    for (const id of people) {
+      row(id).value += each;
+      row(id).countedJobs += 1;
+    }
+  }
+  // Sales commission: jobs a person sold (added), sold in the period and since completed.
+  for (const job of ledger.jobs ?? []) {
+    const day = businessDay(job.createdAt);
+    if (!job.createdBy || day < from || day > to || !counted(job)) continue;
+    if (!termsOf(ledger, job.createdBy)?.salesRate) continue;
+    row(job.createdBy).sold += job.amount;
   }
   for (const person of teamPeople(ledger))
     if (!rows.has(person.id) && myWork(ledger, person.id).length) row(person.id);
+  const commissionOf = (p) => {
+    const t = termsOf(ledger, p.personId);
+    if (!t) return null;
+    const work =
+      t.kind === 'percent'
+        ? Math.round((p.value * t.rate) / 100)
+        : t.kind === 'perJob'
+          ? p.countedJobs * t.rate
+          : t.kind === 'perStage'
+            ? p.countedStages * t.rate
+            : t.kind === 'perUnit'
+              ? Math.round(p.units * t.rate)
+              : 0;
+    return work + Math.round((p.sold * (t.salesRate ?? 0)) / 100);
+  };
   const list = [...rows.values()]
     .map((p) => ({
       ...p,
+      commission: commissionOf(p),
+      units: Math.round(p.units * 100) / 100,
       jobs: p.jobs.size,
       assignedNow: myWork(ledger, p.personId).length,
       share: Math.round(p.share * 100) / 100,
@@ -120,7 +156,7 @@ export function teamReport(ledger, from, to, { includeRecorded = false } = {}) {
 }
 
 /** The report as sections for PDF and CSV. */
-export function teamSections(report, { money }) {
+export function teamSections(report, { money, commission = false }) {
   return [
     {
       title: 'Team performance',
@@ -134,8 +170,9 @@ export function teamSections(report, { money }) {
         'Rework caused',
         'Recorded late',
         'Value credited',
+        ...(commission ? ['Sold', 'Commission due'] : []),
       ],
-      numeric: [1, 2, 3, 4, 6, 7, 8],
+      numeric: [1, 2, 3, 4, 6, 7, 8, ...(commission ? [9, 10] : [])],
       rows: report.rows.map((r) => [
         r.name,
         r.assignedNow,
@@ -146,6 +183,7 @@ export function teamSections(report, { money }) {
         r.rework,
         r.late,
         money(r.value),
+        ...(commission ? [money(r.sold), r.commission === null ? '—' : money(r.commission)] : []),
       ]),
     },
     ...(report.vendors.length

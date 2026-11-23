@@ -856,6 +856,8 @@ export interface Ledger {
   jobAssignments?: JobAssignment[];
   workRecords?: WorkRecord[];
   workCorrections?: WorkCorrection[];
+  /** Commission terms (pay): only those who set them, and each person their own. */
+  teamTerms?: { id: string; commission: CommissionTerms | null; version: number; modifiedAt?: string }[];
   payees?: Payee[];
   moneyAccounts?: MoneyAccount[];
   accountEntries?: Record<string, any>[];
@@ -968,6 +970,13 @@ export interface WorkRecord {
   }[];
   version: number;
 }
+export interface CommissionTerms {
+  kind: 'none' | 'percent' | 'perJob' | 'perStage' | 'perUnit';
+  /** percent: % of value credited; otherwise kobo per job, stage or unit. */
+  rate: number;
+  /** % of the jobs they sold (sales commission). */
+  salesRate?: number;
+}
 /** A request to correct a work record, for approval. */
 export interface WorkCorrection {
   id: string;
@@ -993,7 +1002,8 @@ export type TeamEvent =
   | { id: string; kind: 'team.work_recorded'; data: Record<string, any> & { id: string } }
   | { id: string; kind: 'team.work_confirmed'; data: Record<string, any> & { id: string } }
   | { id: string; kind: 'team.work_corrected'; data: Record<string, any> & { id: string } }
-  | { id: string; kind: 'team.correction_decided'; data: Record<string, any> & { id: string } };
+  | { id: string; kind: 'team.correction_decided'; data: Record<string, any> & { id: string } }
+  | { id: string; kind: 'team.terms_set'; data: Record<string, any> & { id: string } };
 export interface LocalState {
   syncConflicts?: Record<string, string>;
   ledger: Ledger;

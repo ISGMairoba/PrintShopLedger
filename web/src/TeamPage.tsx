@@ -18,9 +18,20 @@ import {
   personName,
   recordedLate,
   teamPeople,
+  termsEvent,
+  termsOf,
   toConfirm,
 } from './team.mjs';
-import type { Job, LocalState, TeamEvent, TeamPerson, WorkCorrection, WorkRecord } from './types';
+import type {
+  CommissionTerms,
+  Job,
+  LocalState,
+  TeamEvent,
+  TeamPerson,
+  WorkCorrection,
+  WorkRecord,
+} from './types';
+import { currency } from './receipts.mjs';
 import { roleNames } from './page-access.mjs';
 import { useWords } from './Words';
 
@@ -130,6 +141,7 @@ export default function TeamPage({
   const { stage } = useWords();
   const [editing, setEditing] = useState<TeamPerson | 'new' | null>(null);
   const [removing, setRemoving] = useState<TeamPerson | null>(null);
+  const [terms, setTerms] = useState<TeamPerson | null>(null);
   const [picked, setPicked] = useState<string[]>([]);
   const [error, setError] = useState('');
   if (!team) return null;
@@ -300,6 +312,16 @@ export default function TeamPage({
     );
   }
   const people = teamPeople(ledger, { all: true }) as TeamPerson[];
+  const setsTerms = team.settings.commission && actor.level >= team.settings.termsRank;
+  const termsText = (id: string) => {
+    const t = termsOf(ledger, id) as CommissionTerms | null;
+    if (!t || t.kind === 'none') return t?.salesRate ? `${t.salesRate}% of sales` : '—';
+    const work =
+      t.kind === 'percent'
+        ? `${t.rate}% of value`
+        : `${currency(t.rate)} per ${t.kind === 'perJob' ? 'job' : t.kind === 'perStage' ? 'stage' : 'unit'}`;
+    return t.salesRate ? `${work} + ${t.salesRate}% of sales` : work;
+  };
   const branchName = (id?: string | null) =>
     !id ? 'Every branch' : (branches?.find((b) => b.id === id)?.name ?? id);
   return (
@@ -336,7 +358,11 @@ export default function TeamPage({
       <div className="table-wrap">
         <ResponsiveTable
           columns={[
-            { index: 0, label: 'Person', details: branches ? [1, 2, 3, 4] : [1, 2, 3] },
+            {
+              index: 0,
+              label: 'Person',
+              details: [1, 2, 3, ...(team.settings.commission ? [4] : []), ...(branches ? [team.settings.commission ? 5 : 4] : [])],
+            },
             { index: -1, label: 'Actions', actions: true },
           ]}
         >
@@ -347,6 +373,7 @@ export default function TeamPage({
                 <th>Role</th>
                 <th>Phone</th>
                 <th>Assigned now</th>
+                {team.settings.commission && <th>Commission</th>}
                 {branches && <th>Branch</th>}
                 <th>Actions</th>
               </tr>
@@ -363,6 +390,22 @@ export default function TeamPage({
                   <td>{p.role || '—'}</td>
                   <td>{p.phone || '—'}</td>
                   <td className="cell-fit">{myWork(ledger, p.id).length}</td>
+                  {team.settings.commission && (
+                    <td>
+                      {termsText(p.id)}
+                      {setsTerms && !p.archived && (
+                        <button
+                          type="button"
+                          className="text-button"
+                          disabled={busy}
+                          data-opens-dialog
+                          onClick={() => setTerms(p)}
+                        >
+                          <Icon name="edit" /> Terms
+                        </button>
+                      )}
+                    </td>
+                  )}
                   {branches && <td>{p.member ? '—' : branchName(p.branchId)}</td>}
                   <td>
                     {p.member ? (
@@ -411,6 +454,15 @@ export default function TeamPage({
           onSave={(fields) =>
             team.save([personEvent(editing === 'new' ? null : editing, fields, actor) as TeamEvent])
           }
+        />
+      )}
+      {terms && (
+        <TermsDialog
+          person={terms}
+          current={termsOf(ledger, terms.id) as CommissionTerms | null}
+          busy={busy}
+          onClose={() => setTerms(null)}
+          onSave={(commission) => team.save([termsEvent(ledger, terms.id, commission, actor) as TeamEvent])}
         />
       )}
       {removing && (
@@ -609,6 +661,113 @@ export function CorrectWorkDialog({
           onChange={(e) => setReason(e.target.value)}
         />
       </label>
+    </Modal>
+  );
+}
+
+/** A person's commission terms (Team work → Commission on). */
+function TermsDialog({
+  person,
+  current,
+  busy,
+  onClose,
+  onSave,
+}: {
+  person: TeamPerson;
+  current: CommissionTerms | null;
+  busy: boolean;
+  onClose: () => void;
+  onSave: (commission: CommissionTerms | null) => Promise<void>;
+}) {
+  const [kind, setKind] = useState<CommissionTerms['kind']>(current?.kind ?? 'none');
+  const [rate, setRate] = useState(
+    current && current.kind !== 'none' ? String(current.kind === 'percent' ? current.rate : current.rate / 100) : '',
+  );
+  const [sales, setSales] = useState(current?.salesRate ? String(current.salesRate) : '');
+  const [error, setError] = useState('');
+  const save = async () => {
+    setError('');
+    try {
+      const value = Number(rate || 0);
+      const salesRate = Number(sales || 0);
+      if (!(value >= 0) || (kind === 'percent' && value > 100)) throw Error('Enter a percent from 0 to 100.');
+      if (!(salesRate >= 0 && salesRate <= 100)) throw Error('Enter a sales percent from 0 to 100.');
+      const commission: CommissionTerms | null =
+        kind === 'none' && !salesRate
+          ? null
+          : {
+              kind,
+              rate: kind === 'percent' ? value : Math.round(value * 100),
+              ...(salesRate ? { salesRate } : {}),
+            };
+      await onSave(commission);
+      onClose();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    }
+  };
+  return (
+    <Modal
+      title={`Commission for ${person.name}`}
+      busy={busy}
+      onClose={onClose}
+      footer={
+        <div className="dialog-action-buttons">
+          <button type="button" className="secondary" disabled={busy} onClick={onClose}>
+            <Icon name="close" /> Cancel
+          </button>
+          <button type="button" disabled={busy} onClick={() => void save()}>
+            <Icon name="save" /> Save terms
+          </button>
+        </div>
+      }
+    >
+      {error && (
+        <p className="notice" role="alert">
+          {error}
+        </p>
+      )}
+      <label>
+        For their work
+        <select aria-label="Commission for their work" value={kind} onChange={(e) => setKind(e.target.value as CommissionTerms['kind'])}>
+          <option value="none">None</option>
+          <option value="percent">A percent of the value credited to them</option>
+          <option value="perJob">An amount per job</option>
+          <option value="perStage">An amount per stage</option>
+          <option value="perUnit">An amount per unit (pay per piece)</option>
+        </select>
+      </label>
+      {kind !== 'none' && (
+        <label>
+          {kind === 'percent' ? 'Percent' : 'Amount (₦)'}
+          <input
+            aria-label={kind === 'percent' ? 'Commission percent' : 'Commission amount'}
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="any"
+            value={rate}
+            onChange={(e) => setRate(e.target.value)}
+          />
+        </label>
+      )}
+      <label>
+        Sales commission (% of the jobs they sold, optional)
+        <input
+          aria-label="Sales commission percent"
+          type="number"
+          inputMode="decimal"
+          min="0"
+          max="100"
+          step="any"
+          value={sales}
+          onChange={(e) => setSales(e.target.value)}
+        />
+      </label>
+      <p className="muted">
+        Work counts once the job is completed. A job&apos;s value is split equally between the people who did
+        it.
+      </p>
     </Modal>
   );
 }

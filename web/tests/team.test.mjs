@@ -185,3 +185,49 @@ test('Team report: stages, time against target, rework, late recording, value sp
   r = teamReport(l, '2026-11-20', '2026-11-20', { includeRecorded: true });
   assert.equal(r.rows.find((x) => x.personId === 'p-ada').stages, 2);
 });
+
+test('Commission due: per unit for the work and a percent of sales', async () => {
+  const { teamReport } = await import('../src/team-report.mjs');
+  const done = { ...job, productionStatus: 'Collected', createdBy: 'u-cash', createdAt: '2026-11-20T09:00:00.000Z' };
+  const l = {
+    ...ledger(),
+    jobs: [done],
+    teamTerms: [
+      { id: 'p-ada', commission: { kind: 'perUnit', rate: 50 }, version: 1 },
+      { id: 'u-cash', commission: { kind: 'percent', rate: 10, salesRate: 2 }, version: 1 },
+    ],
+    workRecords: [
+      {
+        id: 'w1',
+        jobId: 'j1',
+        stage: 'Printing',
+        unit: 'quantity',
+        shares: [
+          { personId: 'p-ada', share: 600 },
+          { personId: 'u-cash', share: 400 },
+        ],
+        doneAt: '2026-11-20T12:00:00.000Z',
+        recordedAt: '2026-11-20T12:00:00.000Z',
+        status: 'confirmed',
+        version: 1,
+      },
+    ],
+  };
+  const rows = teamReport(l, '2026-11-20', '2026-11-20').rows;
+  // Ada: 600 pieces × ₦0.50. Cashier: 10% of ₦2,500 credited + 2% of the ₦5,000 sold.
+  assert.equal(rows.find((r) => r.personId === 'p-ada').commission, 30000);
+  assert.equal(rows.find((r) => r.personId === 'u-cash').commission, 25000 + 10000);
+});
+
+test('The usual people per stage are assigned at checkout', async () => {
+  const { usualAssignEvents } = await import('../src/team.mjs');
+  const fresh = { ...job, productionStatus: 'Added' };
+  const events = usualAssignEvents(ledger(), [fresh], { teamWork: { usual: { Printing: ['p-ada'] } } }, admin);
+  assert.deepEqual(
+    events.map((e) => [e.data.stage, e.data.personIds, e.data.usual]),
+    [['Printing', ['p-ada'], true]],
+  );
+  assert.deepEqual(validateTeamSettings({ usual: { Printing: ['p-ada'], Finishing: [] } }), {
+    usual: { Printing: ['p-ada'] },
+  });
+});

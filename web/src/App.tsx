@@ -238,6 +238,7 @@ import {
   teamOn,
   teamReady,
   teamSettings,
+  usualAssignEvents,
   withTrialMember,
   workEvents,
 } from './team.mjs';
@@ -1009,6 +1010,17 @@ export default function App() {
       let next = await saveEvent(target, operation, !demo);
       if (activeScope.current !== target)
         throw Error('Workspace changed. The checkout was saved in the original workspace.');
+      // Team work: the usual people for each stage are assigned to the new jobs.
+      if (teamWork.on) {
+        const ids = new Set(operation.data.jobs.map((j) => j.id));
+        const assign = usualAssignEvents(
+          next.ledger,
+          next.ledger.jobs.filter((j) => ids.has(j.id)),
+          branding.settings,
+          teamWork.actor,
+        );
+        if (assign.length) next = await saveEvents(target, assign, !demo);
+      }
       setState(next);
       channel.current?.postMessage('changed');
       let syncProblem = '';

@@ -10,7 +10,7 @@
 
 create table if not exists public.team_records (
   shop_id uuid not null references public.shops(id) on delete cascade,
-  collection text not null check (collection in ('teamPeople', 'jobAssignments', 'workRecords', 'workCorrections')),
+  collection text not null check (collection in ('teamPeople', 'jobAssignments', 'workRecords', 'workCorrections', 'teamTerms')),
   id uuid not null,
   data jsonb not null check (jsonb_typeof(data) = 'object'),
   branch_id text,
@@ -32,7 +32,7 @@ create trigger touch_sync_xid before insert or update on public.team_records
 create or replace function private.team_settings(p_shop uuid) returns jsonb
 language sql stable security definer set search_path to '' as $f$
   select jsonb_build_object('enabled', false, 'askDoneBy', true, 'othersRank', 2, 'earlierRank', 2, 'doneAtDays', 7,
-    'needsConfirming', true, 'confirmRank', 2, 'assignRank', 2, 'correctRank', 2, 'correctionDays', 7)
+    'needsConfirming', true, 'confirmRank', 2, 'assignRank', 2, 'correctRank', 2, 'termsRank', 4, 'correctionDays', 7)
     || coalesce((select settings->'teamWork' from public.business_settings where shop_id = p_shop), '{}'::jsonb)
 $f$;
 revoke all on function private.team_settings(uuid) from public, anon, authenticated;
@@ -52,8 +52,15 @@ begin
   for k in select jsonb_object_keys(t) loop
     if k in ('enabled', 'askDoneBy', 'needsConfirming', 'commission') then
       if jsonb_typeof(t->k) is distinct from 'boolean' then raise exception 'Invalid Team work setting %', k; end if;
-    elsif k in ('othersRank', 'earlierRank', 'confirmRank', 'assignRank', 'correctRank') then
+    elsif k in ('othersRank', 'earlierRank', 'confirmRank', 'assignRank', 'correctRank', 'termsRank') then
       if coalesce(t->>k, '') not in ('1', '2', '3', '4') then raise exception 'Choose a rank for %', k; end if;
+    elsif k = 'usual' then
+      -- The usual people per stage, assigned to new jobs at checkout: { stage: [person ids] }.
+      if jsonb_typeof(t->k) is distinct from 'object' or exists (select 1 from jsonb_each(t->k) e
+          where jsonb_typeof(e.value) <> 'array' or jsonb_array_length(e.value) > 20 or length(e.key) > 60
+             or exists (select 1 from jsonb_array_elements(e.value) x where jsonb_typeof(x) <> 'string' or (x#>>'{}') !~ '^[0-9a-f-]{36}$')) then
+        raise exception 'Invalid usual people per stage';
+      end if;
     elsif k in ('doneAtDays', 'correctionDays') then
       if jsonb_typeof(t->k) is distinct from 'number' or (t->>k) !~ '^[0-9]+$' or (t->>k)::int not between 0 and 90 then
         raise exception 'Choose 0 to 90 days for %', k;
@@ -154,7 +161,12 @@ begin
       on conflict (shop_id, collection, id) do update set data = excluded.data, branch_id = excluded.branch_id;
 
   elsif k = 'team.assigned' then
-    if lvl < (tw->>'assignRank')::int then raise exception 'You cannot assign work'; end if;
+    -- The usual people for a stage (Business Settings) are assigned at checkout by whoever sells it.
+    if lvl < (tw->>'assignRank')::int and not (coalesce((d->>'usual')::boolean, false) and coalesce(d->>'stage', '') <> ''
+        and coalesce((d->>'baseVersion')::int, 0) = 0
+        and (tw->'usual'->(d->>'stage')) @> (d->'personIds') and (d->'personIds') @> (tw->'usual'->(d->>'stage'))) then
+      raise exception 'You cannot assign work';
+    end if;
     select * into j from public.jobs where shop_id = p_shop and id = (d->>'jobId')::uuid;
     if not found then raise exception 'Job not found'; end if;
     flow := coalesce(j.metadata->'workflow', '["Added","In Queue","Printing","Completed","Collected"]'::jsonb);
@@ -240,6 +252,28 @@ begin
           'confirmedAt', now(), 'version', (data->>'version')::int + 1)
         where shop_id = p_shop and collection = 'workRecords' and id = existing.id;
     end loop;
+  elsif k = 'team.terms_set' then
+    -- Commission terms per person (pay): General Manager and above by default (termsRank).
+    if lvl < (tw->>'termsRank')::int then raise exception 'You cannot set commission terms'; end if;
+    if not private.team_person(p_shop, rid, false) then raise exception 'Choose someone on the Team'; end if;
+    if jsonb_typeof(d->'commission') not in ('object', 'null') or (jsonb_typeof(d->'commission') = 'object' and (
+         coalesce(d->'commission'->>'kind', '') not in ('none', 'percent', 'perJob', 'perStage', 'perUnit')
+         or jsonb_typeof(d->'commission'->'rate') is distinct from 'number' or (d->'commission'->>'rate')::numeric < 0
+         or (d->'commission'->>'kind' = 'percent' and (d->'commission'->>'rate')::numeric > 100)
+         or (d->'commission'->>'rate')::numeric > 100000000000
+         or (d->'commission' ? 'salesRate' and (jsonb_typeof(d->'commission'->'salesRate') is distinct from 'number'
+             or (d->'commission'->>'salesRate')::numeric not between 0 and 100)))) then
+      raise exception 'Enter commission as a percent (0 to 100) or an amount';
+    end if;
+    select * into existing from public.team_records where shop_id = p_shop and collection = 'teamTerms' and id = rid for update;
+    if coalesce((existing.data->>'version')::int, 0) <> coalesce((d->>'baseVersion')::int, 0) then
+      raise exception 'These terms were changed elsewhere. Close and try again.' using errcode = 'PT409';
+    end if;
+    nxt := jsonb_build_object('id', rid, 'commission', d->'commission', 'version', coalesce((existing.data->>'version')::int, 0) + 1,
+      'modifiedBy', me, 'modifiedByLabel', label, 'modifiedAt', now());
+    insert into public.team_records(shop_id, collection, id, data) values (p_shop, 'teamTerms', rid, nxt)
+      on conflict (shop_id, collection, id) do update set data = excluded.data;
+
   elsif k = 'team.work_corrected' then
     -- A correction (plans/job-assignment.md, owner's rule of 23 Nov): saved at once by someone cleared
     -- (correctRank), or sent for approval. An entry recorded by a higher rank needs that rank or above
@@ -336,7 +370,11 @@ begin
           and (p_keep is null or coalesce(r.branch_id, 'main') = p_keep)),
     'workCorrections', (select coalesce(jsonb_agg(r.data order by r.data->>'requestedAt', r.id), '[]'::jsonb) from public.team_records r
         where r.shop_id = p_shop and r.collection = 'workCorrections' and (p_since is null or r.sync_xid >= p_since)
-          and (p_keep is null or coalesce(r.branch_id, 'main') = p_keep)));
+          and (p_keep is null or coalesce(r.branch_id, 'main') = p_keep)),
+    -- Commission terms are pay: only those who set them, and each person their own, see them.
+    'teamTerms', (select coalesce(jsonb_agg(r.data order by r.id), '[]'::jsonb) from public.team_records r
+        where r.shop_id = p_shop and r.collection = 'teamTerms' and (p_since is null or r.sync_xid >= p_since)
+          and (r.id = auth.uid() or coalesce((select n.lvl from private.notice_member(p_shop) n), 0) >= (private.team_settings(p_shop)->>'termsRank')::int)));
 end $f$;
 revoke all on function private.team_for(uuid, text, xid8) from public, anon;
 grant execute on function private.team_for(uuid, text, xid8) to authenticated;
