@@ -1773,7 +1773,8 @@ export default function App() {
   useEffect(() => {
     if (demo || !supabase || !session || !shop || !scope || !settingsKnownEarly) return;
     if (!lockChoices.rememberPeople) {
-      void forgetEveryone(shop.id);
+      // Only the business's own settings (not defaults read offline) turn remembering off.
+      if (branding.version > 0 || (branding.ready && online)) void forgetEveryone(shop.id);
       return;
     }
     const password = freshPassword.current;
