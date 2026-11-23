@@ -434,7 +434,7 @@ export function PinLockScreen({
   onUnlock,
   onSwitchUser,
   onSignOutBusiness,
-  people = [],
+  loadPeople,
   onSwitchTo,
   biometric,
 }: {
@@ -448,7 +448,7 @@ export function PinLockScreen({
   /** Managers and above only. */
   onSignOutBusiness?: () => void;
   /** Others this device remembers (Remember people on this device): they switch in with their PIN. */
-  people?: { userId: string; name: string; username: string }[];
+  loadPeople?: () => Promise<{ userId: string; name: string; username: string }[]>;
   /** '' when switching (the app reopens as them), else the message to show. */
   onSwitchTo?: (userId: string, pin: string) => Promise<string>;
   /** This device's face/fingerprint unlock: who it signs in as. */
@@ -459,6 +459,7 @@ export function PinLockScreen({
   const [error, setError] = useState('');
   // Switch user: choosing who (people listed), then that person's PIN.
   const [choosing, setChoosing] = useState(false);
+  const [people, setPeople] = useState<{ userId: string; name: string; username: string }[]>([]);
   const [other, setOther] = useState<{ userId: string; name: string; username: string } | null>(null);
   const showing = other ?? { name, username };
   const first = (full: string) => full.split(/\s+/)[0];
@@ -577,7 +578,15 @@ export function PinLockScreen({
         <button
           type="button"
           className="secondary auth-demo"
-          onClick={() => (people.length && onSwitchTo ? setChoosing(true) : onSwitchUser())}
+          disabled={busy}
+          onClick={async () => {
+            // Read who this device remembers now (not when the screen locked), so a quick tap
+            // still finds them.
+            const list = loadPeople && onSwitchTo ? await loadPeople() : [];
+            if (!list.length) return onSwitchUser();
+            setPeople(list);
+            setChoosing(true);
+          }}
         >
           <Icon name="switchUser" /> Switch user
         </button>

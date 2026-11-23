@@ -1953,6 +1953,13 @@ export default function App() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remembering, online, shop?.id, session?.user.id, lockChoices.rememberDays, lockChoices.rememberMax]);
+  /** The others this device remembers, read now. */
+  const loadOthers = async () =>
+    shop && session
+      ? (await listPeople(shop.id, lockChoices.rememberDays, lockChoices.rememberMax)).filter(
+          (p) => p.userId !== session.user.id,
+        )
+      : [];
   /** Whether this device remembers the person signed in now (so stepping away keeps them). */
   const isRemembered = async () =>
     !!shop &&
@@ -2150,7 +2157,7 @@ export default function App() {
                   if (!(await verifyBiometric(biometric)))
                     return 'Face/fingerprint not recognised. Use the PIN.';
                   if (biometric.userId === session.user.id) return pinLock.unlockTrusted();
-                  const person = others.find((p) => p.userId === biometric.userId);
+                  const person = (await loadOthers()).find((p) => p.userId === biometric.userId);
                   return person ? enterAs(person) : 'Use the PIN.';
                 },
               }
@@ -2163,9 +2170,9 @@ export default function App() {
           await pinLock.clear();
           signOutStaff('Signed out. The next person can sign in.');
         }}
-        people={remembering ? others : []}
+        loadPeople={remembering ? loadOthers : undefined}
         onSwitchTo={async (userId, pin) => {
-          const person = others.find((p) => p.userId === userId);
+          const person = (await loadOthers()).find((p) => p.userId === userId);
           return person ? switchTo(person, pin) : 'Choose who you are again.';
         }}
         onSignOutBusiness={
