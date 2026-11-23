@@ -143,7 +143,7 @@ try {
     await fits(page, 'Done by');
     await page.screenshot({ path: `/tmp/team-done-by-${mobile ? 'mobile' : 'desktop'}.png` });
     await d.getByRole('button', { name: 'Mark as Complete', exact: true }).click();
-    await d.getByText('The shares must add up to 100%.').waitFor();
+    await d.getByText('The shares must add up to 100%.', { exact: true }).waitFor();
     await d.getByLabel('Share for Local trial user').fill('30');
     await d.getByRole('button', { name: 'Mark as Complete', exact: true }).click();
     await d.waitFor({ state: 'detached' });
