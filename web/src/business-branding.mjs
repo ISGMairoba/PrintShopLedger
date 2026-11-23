@@ -44,15 +44,17 @@ const HISTORY_KEEP = ['all', '7d', '14d', '30d', '3m', '6m', '12m'];
  *   rememberDays: number, rememberMax: number, allowBiometric: boolean }} LockChoices
  */
 /** Lock screen choices and their defaults (plans/lock-screen.md). */
-export const LOCK_DEFAULTS = /** @type {Readonly<LockChoices>} */ (Object.freeze({
-  minPinLength: 4,
-  pinTries: 5,
-  requirePin: true,
-  rememberPeople: false,
-  rememberDays: 30,
-  rememberMax: 10,
-  allowBiometric: true,
-}));
+export const LOCK_DEFAULTS = /** @type {Readonly<LockChoices>} */ (
+  Object.freeze({
+    minPinLength: 4,
+    pinTries: 5,
+    requirePin: true,
+    rememberPeople: false,
+    rememberDays: 30,
+    rememberMax: 10,
+    allowBiometric: true,
+  })
+);
 const whole = (low, high) => (v) => Number.isInteger(v) && v >= low && v <= high;
 const yesNo = (v) => typeof v === 'boolean';
 /** @type {[keyof typeof LOCK_DEFAULTS, (v: unknown) => boolean, string][]} */
