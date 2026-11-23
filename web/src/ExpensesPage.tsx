@@ -74,7 +74,7 @@ export default function ExpensesPage({
     const since = Date.now() - 120 * 86400000;
     const linked = new Set((ledger.expenses ?? []).flatMap((e) => e.restockIds ?? []));
     // Restocks with a supplier price, and splits (their cutting or transport costs go to the pieces).
-    const qty = (h: { afterAvailable?: number; beforeAvailable?: number }) =>
+    const qty = (h: { afterAvailable?: number | null; beforeAvailable?: number | null }) =>
       Math.round(Math.abs((h.afterAvailable ?? 0) - (h.beforeAvailable ?? 0)) * 1000) / 1000;
     return (ledger.materialHistory ?? [])
       .filter(
