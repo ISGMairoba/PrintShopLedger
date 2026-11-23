@@ -51,7 +51,9 @@ export function JobWorkRecords({ job }: { job: { id: string } }) {
           <br />
           <small className="muted">
             Done {when(r.doneAt)} · recorded {when(r.recordedAt)} by {r.recordedByLabel ?? '—'} ·{' '}
-            {r.status === 'confirmed' ? `confirmed by ${r.confirmedByLabel ?? '—'}` : 'waiting to be confirmed'}
+            {r.status === 'confirmed'
+              ? `confirmed by ${r.confirmedByLabel ?? '—'}`
+              : 'waiting to be confirmed'}
           </small>
         </p>
       ))}
@@ -147,7 +149,9 @@ export default function TeamPage({
                 disabled={busy || !mine.length}
                 onClick={() => setPicked(picked.length === mine.length ? [] : mine.map((r) => r.id))}
               >
-                {picked.length === mine.length ? 'Clear selection' : `Select all you can confirm (${mine.length})`}
+                {picked.length === mine.length
+                  ? 'Clear selection'
+                  : `Select all you can confirm (${mine.length})`}
               </button>
               <button
                 type="button"
@@ -188,7 +192,9 @@ export default function TeamPage({
                               disabled={!allowed}
                               checked={picked.includes(r.id)}
                               onChange={(e) =>
-                                setPicked(e.target.checked ? [...picked, r.id] : picked.filter((id) => id !== r.id))
+                                setPicked(
+                                  e.target.checked ? [...picked, r.id] : picked.filter((id) => id !== r.id),
+                                )
                               }
                             />
                           </td>
@@ -311,7 +317,8 @@ export default function TeamPage({
                                 : setRemoving(p)
                             }
                           >
-                            <Icon name={p.archived ? 'restore' : 'archive'} /> {p.archived ? 'Restore' : 'Remove'}
+                            <Icon name={p.archived ? 'restore' : 'archive'} />{' '}
+                            {p.archived ? 'Restore' : 'Remove'}
                           </button>
                         </div>
                       )
@@ -359,7 +366,10 @@ export default function TeamPage({
             </div>
           }
         >
-          <p>Their work records stay. They can no longer be assigned or credited, and you can restore them later.</p>
+          <p>
+            Their work records stay. They can no longer be assigned or credited, and you can restore them
+            later.
+          </p>
         </Modal>
       )}
     </section>
@@ -426,7 +436,12 @@ function PersonDialog({
             </label>
             <label>
               Role (optional)
-              <input name="role" maxLength={60} placeholder="e.g. Finisher" defaultValue={person?.role ?? ''} />
+              <input
+                name="role"
+                maxLength={60}
+                placeholder="e.g. Finisher"
+                defaultValue={person?.role ?? ''}
+              />
             </label>
             <label>
               Phone (optional)

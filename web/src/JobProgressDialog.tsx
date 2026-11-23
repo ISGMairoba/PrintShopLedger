@@ -49,7 +49,13 @@ export default function JobProgressDialog({
   const finishing = stagesFinished(job, target).filter((s: string) => s !== 'Added');
   const askDoneBy = !!team && team.settings.askDoneBy && finishing.length > 0;
   const [done, setDone] = useState<WorkDraft>(() =>
-    workDraft(team ? assignedTo(team.ledger, job).filter((id: string) => team.settings.othersRank <= team.actor.level || id === team.actor.id) : []),
+    workDraft(
+      team
+        ? assignedTo(team.ledger, job).filter(
+            (id: string) => team.settings.othersRank <= team.actor.level || id === team.actor.id,
+          )
+        : [],
+    ),
   );
   return (
     <Modal

@@ -3378,22 +3378,22 @@ export default function App() {
                             </>
                           ) : page === 'Users' ? (
                             <>
-                            {teamWork.on && <UsersTabs value={usersTab} onChange={setUsersTab} />}
-                            <UsersPage
-                              key={scope}
-                              shopId={shop?.id ?? ''}
-                              actorId={session?.user.id ?? ''}
-                              businessUserId={businessSession?.user.id ?? ''}
-                              role={shop?.role ?? ''}
-                              online={online}
-                              demo={demo}
-                              onChanged={() => setStaffEpoch((value) => value + 1)}
-                              branchNames={multiBranch ? branchNames : undefined}
-                              branchName={multiBranch ? activeBranch?.name : undefined}
-                              pageAccess={branding.settings.pageAccess}
-                              branches={multiBranch ? openBranches : undefined}
-                              onPagesChanged={pageLimit.reload}
-                            />
+                              {teamWork.on && <UsersTabs value={usersTab} onChange={setUsersTab} />}
+                              <UsersPage
+                                key={scope}
+                                shopId={shop?.id ?? ''}
+                                actorId={session?.user.id ?? ''}
+                                businessUserId={businessSession?.user.id ?? ''}
+                                role={shop?.role ?? ''}
+                                online={online}
+                                demo={demo}
+                                onChanged={() => setStaffEpoch((value) => value + 1)}
+                                branchNames={multiBranch ? branchNames : undefined}
+                                branchName={multiBranch ? activeBranch?.name : undefined}
+                                pageAccess={branding.settings.pageAccess}
+                                branches={multiBranch ? openBranches : undefined}
+                                onPagesChanged={pageLimit.reload}
+                              />
                             </>
                           ) : page === 'Print Settings' ? (
                             <PrintSettingsPage
@@ -4007,7 +4007,9 @@ export default function App() {
                               ? []
                               : batchProgressPlan(batchToAdvance.jobs, batchToAdvance.mode, targetStage)
                                   .filter((row) => !row.reason)
-                                  .flatMap((row) => autoWorkEvents(state.ledger, row.job, row.target, teamWork.actor));
+                                  .flatMap((row) =>
+                                    autoWorkEvents(state.ledger, row.job, row.target, teamWork.actor),
+                                  );
                             setBusy(true);
                             try {
                               const next = await saveEvents(targetScope, [...events, ...teamEvents], !demo);
@@ -4092,9 +4094,7 @@ export default function App() {
       <div className="app-layer" hidden={!!lockScreen} inert={!!lockScreen}>
         <AppLayer.Provider value>
           <CostMethodContext.Provider value={costMethodOf(branding.settings)}>
-            <TeamContext.Provider value={teamWork}>
-              {app}
-            </TeamContext.Provider>
+            <TeamContext.Provider value={teamWork}>{app}</TeamContext.Provider>
           </CostMethodContext.Provider>
         </AppLayer.Provider>
       </div>

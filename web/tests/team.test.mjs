@@ -35,7 +35,13 @@ const job = {
   quantity: 1000,
   version: 3,
 };
-const ledger = () => ({ ...emptyLedger(), jobs: [job], teamPeople: people, jobAssignments: [], workRecords: [] });
+const ledger = () => ({
+  ...emptyLedger(),
+  jobs: [job],
+  teamPeople: people,
+  jobAssignments: [],
+  workRecords: [],
+});
 
 test('Team work is on only when the server keeps it and the business switched it on', () => {
   assert.equal(teamOn({ teamPeople: [] }, { teamWork: { enabled: true } }), false);
@@ -104,7 +110,12 @@ test('A stage move records the stages it finishes; confirming another’s work',
   const own = { ...record, shares: [{ personId: 'u-admin', share: 100 }] };
   assert.equal(canConfirm(l, own, { ...admin }, {}), true, 'no one else can confirm: the Admin may');
   assert.equal(
-    canConfirm({ ...l, teamPeople: [...people, { id: 'u-man', name: 'Manager', member: true, rank: 3 }] }, own, admin, {}),
+    canConfirm(
+      { ...l, teamPeople: [...people, { id: 'u-man', name: 'Manager', member: true, rank: 3 }] },
+      own,
+      admin,
+      {},
+    ),
     false,
   );
   assert.equal(canConfirm(l, record, { id: 'u-cash', label: 'Cashier', level: 1 }, {}), false);

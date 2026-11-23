@@ -64,7 +64,8 @@ export function draftWork(
     const at = new Date(draft.doneAt);
     if (Number.isNaN(at.getTime())) return { problem: 'Enter when the work was done.' };
     if (at.getTime() > Date.now() + 5 * 60000) return { problem: 'Done at cannot be in the future.' };
-    if (at.getTime() < Date.now() - days * 86400000) return { problem: `Done at can be at most ${days} days back.` };
+    if (at.getTime() < Date.now() - days * 86400000)
+      return { problem: `Done at can be at most ${days} days back.` };
     if (stageStart && at.getTime() < Date.parse(stageStart) - 60000)
       return { problem: 'Done at cannot be before the stage started.' };
     doneAt = at.toISOString();
@@ -171,14 +172,19 @@ export default function DoneByFields({
               </label>
               {value.personIds.map((id) => (
                 <label key={id}>
-                  {people.find((p) => p.id === id)?.name ?? 'Someone'} ({value.unit === 'percent' ? '%' : 'qty'})
+                  {people.find((p) => p.id === id)?.name ?? 'Someone'} (
+                  {value.unit === 'percent' ? '%' : 'qty'})
                   <input
                     aria-label={`Share for ${people.find((p) => p.id === id)?.name ?? 'someone'}`}
                     type="number"
                     inputMode="decimal"
                     min="0"
                     step="any"
-                    placeholder={value.unit === 'percent' ? String(shown.find((s) => s.personId === id)?.share ?? '') : ''}
+                    placeholder={
+                      value.unit === 'percent'
+                        ? String(shown.find((s) => s.personId === id)?.share ?? '')
+                        : ''
+                    }
                     value={value.shares[id] ?? ''}
                     onChange={(e) => set({ shares: { ...value.shares, [id]: e.target.value } })}
                   />
@@ -200,8 +206,8 @@ export default function DoneByFields({
           onChange={(e) => set({ doneAt: e.target.value })}
         />
         <small className="muted">
-          {earlierAllowed ? 'Leave empty for now. ' : 'Now. '}It is recorded at the time you save, whatever you
-          enter here.
+          {earlierAllowed ? 'Leave empty for now. ' : 'Now. '}It is recorded at the time you save, whatever
+          you enter here.
         </small>
       </label>
       <label className="check-label">
@@ -212,7 +218,11 @@ export default function DoneByFields({
         <>
           <label>
             Who was responsible
-            <select aria-label="Who was responsible" value={value.redoBy} onChange={(e) => set({ redoBy: e.target.value })}>
+            <select
+              aria-label="Who was responsible"
+              value={value.redoBy}
+              onChange={(e) => set({ redoBy: e.target.value })}
+            >
               <option value="">Not known</option>
               {people.map((p) => (
                 <option key={p.id} value={p.id}>

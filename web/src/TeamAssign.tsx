@@ -7,7 +7,8 @@ import { assignEvent, assignmentOf, jobAssignees, personName, teamPeople } from 
 import type { Job, TeamEvent, TeamPerson } from './types';
 import { useWords } from './Words';
 
-const finished = (job: Job) => ['Completed', 'Collected', 'Cancelled'].includes(job.productionStatus ?? 'Added');
+const finished = (job: Job) =>
+  ['Completed', 'Collected', 'Cancelled'].includes(job.productionStatus ?? 'Added');
 /** The stages work can be assigned to (not Added, Completed, Collected or Cancelled). */
 const workStages = (job: Job) =>
   jobWorkflow(job).filter((s: string) => !['Added', 'Completed', 'Collected', 'Cancelled'].includes(s));
@@ -25,13 +26,23 @@ export function TeamChips({ job }: { job: Job }) {
   return (
     <span className="team-chips">
       {rows.map((a) => (
-        <span key={a.id} className="badge" title={a.stage ? `Assigned for ${stage(a.stage)}` : 'Assigned to the job'}>
+        <span
+          key={a.id}
+          className="badge"
+          title={a.stage ? `Assigned for ${stage(a.stage)}` : 'Assigned to the job'}
+        >
           {a.stage ? `${stage(a.stage)}: ` : ''}
           {a.personIds.map((id) => personName(team.ledger, id)).join(', ')}
         </span>
       ))}
       {canAssign && (
-        <button type="button" className="text-button" disabled={team.busy} data-opens-dialog onClick={() => setOpen(true)}>
+        <button
+          type="button"
+          className="text-button"
+          disabled={team.busy}
+          data-opens-dialog
+          onClick={() => setOpen(true)}
+        >
           <Icon name="users" /> {ids.length ? 'Change' : 'Assign'}
         </button>
       )}
@@ -48,7 +59,12 @@ export function AssignButton({ jobs }: { jobs: Job[] }) {
   const open_ = jobs.filter((j) => !finished(j));
   return (
     <>
-      <button className="secondary" disabled={team.busy || !open_.length} data-opens-dialog onClick={() => setOpen(true)}>
+      <button
+        className="secondary"
+        disabled={team.busy || !open_.length}
+        data-opens-dialog
+        onClick={() => setOpen(true)}
+      >
         <Icon name="users" /> Assign
       </button>
       {open && <AssignDialog jobs={open_} onClose={() => setOpen(false)} />}
@@ -102,7 +118,9 @@ export function AssignDialog({ jobs, onClose }: { jobs: Job[]; onClose: () => vo
         </p>
       )}
       {jobs.length > 1 && (
-        <p className="muted">The same people are assigned to each of the {jobs.length} jobs, replacing who was assigned.</p>
+        <p className="muted">
+          The same people are assigned to each of the {jobs.length} jobs, replacing who was assigned.
+        </p>
       )}
       <label>
         Assign

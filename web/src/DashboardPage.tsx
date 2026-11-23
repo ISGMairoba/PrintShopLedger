@@ -299,7 +299,9 @@ export default function DashboardPage({
                 <strong>{myWork(team.ledger, team.actor.id).length}</strong>
                 <small>{w('Jobs assigned to you now (Jobs → Filter → Assigned to me)')}</small>
                 {toConfirm(team.ledger).length > 0 && team.actor.level >= team.settings.confirmRank && (
-                  <small>{toConfirm(team.ledger).length} work records to confirm (Users → Work to confirm)</small>
+                  <small>
+                    {toConfirm(team.ledger).length} work records to confirm (Users → Work to confirm)
+                  </small>
                 )}
               </article>
             )}

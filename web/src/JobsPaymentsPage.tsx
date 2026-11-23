@@ -106,7 +106,8 @@ export default function JobsPaymentsPage({
   // Team work: only the jobs assigned to me now (their current stage, or the whole job).
   const team = useTeam();
   const [mine, setMine] = useState(false);
-  const myJobs = team && mine ? new Set(myWork(team.ledger, team.actor.id).map((j: { id: string }) => j.id)) : null;
+  const myJobs =
+    team && mine ? new Set(myWork(team.ledger, team.actor.id).map((j: { id: string }) => j.id)) : null;
   // The Filter button opens a second row with the stage, payment and sort boxes.
   const [filtersOpen, setFiltersOpen] = useState(() => !!stageFilter);
   const activeFilters = (stageFilter ? 1 : 0) + (payFilter ? 1 : 0) + (myJobs ? 1 : 0);
