@@ -631,6 +631,8 @@ export interface CheckoutJob extends Job {
   serviceVersion: number;
 }
 export interface CheckoutRecord {
+  /** Split payment: each method's part (2–6), adding up to the money received. */
+  splits?: { id?: string; method: string; methodLabel?: string; accountId?: string; amount: number }[];
   /** A refund slip shown like a receipt (receipts.mjs refundSlipRecord); left out on sales. */
   kind?: 'refund';
   refundAmount?: number;

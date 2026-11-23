@@ -457,3 +457,48 @@ export function applyWaste(input, event) {
     ],
   };
 }
+
+/**
+ * The methods a job was paid by (its payments' allocations to it), with what each paid, for a refund
+ * split between them. Methods switched off since stay listed.
+ * @param {{ payments: { method: string, methodLabel?: string, allocations?: { jobId: string, amount: number }[] }[] }} ledger
+ * @param {string} jobId
+ * @param {{ label: string, kind: string }[]} methods
+ * @returns {{ label: string, kind: string, paid: number }[]}
+ */
+export function refundMethods(ledger, jobId, methods) {
+  /** @type {Map<string, { label: string, kind: string, paid: number }>} */
+  const byLabel = new Map();
+  for (const p of ledger.payments) {
+    const share = (p.allocations ?? []).filter((a) => a.jobId === jobId).reduce((n, a) => n + a.amount, 0);
+    if (!(share > 0)) continue;
+    const label = p.methodLabel ?? p.method;
+    const kind = methods.find((m) => m.label === label)?.kind ?? p.method;
+    const row = byLabel.get(label) ?? { label, kind, paid: 0 };
+    row.paid += share;
+    byLabel.set(label, row);
+  }
+  return [...byLabel.values()];
+}
+/**
+ * A refund amount spread over the methods, cash first, each up to what it paid.
+ * @param {{ label: string, kind: string, paid: number }[]} paidBy
+ * @param {number} total
+ * @returns {{ label: string, kind: string, paid: number, amount: number }[]}
+ */
+export function cashFirst(paidBy, total) {
+  const order = [...paidBy].sort((a, b) => (a.kind === 'Cash' ? 0 : 1) - (b.kind === 'Cash' ? 0 : 1));
+  let left = total;
+  const out = order.map((m) => {
+    const amount = Math.min(m.paid, left);
+    left -= amount;
+    return { ...m, amount };
+  });
+  if (left > 0 && out.length) out[out.length - 1].amount += left;
+  return paidBy.map(
+    (m) =>
+      /** @type {{ label: string, kind: string, paid: number, amount: number }} */ (
+        out.find((o) => o.label === m.label)
+      ),
+  );
+}

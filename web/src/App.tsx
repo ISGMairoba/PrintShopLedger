@@ -3897,7 +3897,7 @@ export default function App() {
                           busy={busy}
                           actor={salesActor}
                           onClose={() => setRequestingJob(null)}
-                          onSave={sendCorrectionRequest}
+                          onSave={(event) => sendCorrectionRequest(Array.isArray(event) ? event[0] : event)}
                         />
                       )}
                       {requestingPayment && (

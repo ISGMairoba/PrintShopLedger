@@ -235,3 +235,30 @@ test('A split sale is corrected as one: only the parts that change, one after an
     /Nothing changed/,
   );
 });
+
+test('A split sale is refunded by its methods, cash first, each up to what it paid', async () => {
+  const { refundMethods, cashFirst } = await import('../src/sale-adjustments.mjs');
+  const ledger = {
+    payments: [
+      { method: 'Cash', methodLabel: 'Cash', allocations: [{ jobId: 'j1', amount: 500000 }] },
+      { method: 'Transfer', methodLabel: 'OPay', allocations: [{ jobId: 'j1', amount: 2000000 }] },
+      { method: 'Cash', methodLabel: 'Cash', allocations: [{ jobId: 'j2', amount: 100000 }] },
+    ],
+  };
+  const paid = refundMethods(ledger, 'j1', [{ label: 'OPay', kind: 'Transfer' }]);
+  assert.deepEqual(
+    paid.map((m) => [m.label, m.paid]),
+    [
+      ['Cash', 500000],
+      ['OPay', 2000000],
+    ],
+  );
+  assert.deepEqual(
+    cashFirst(paid, 700000).map((m) => m.amount),
+    [500000, 200000],
+  );
+  assert.deepEqual(
+    cashFirst(paid, 300000).map((m) => m.amount),
+    [300000, 0],
+  );
+});

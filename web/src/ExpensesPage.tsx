@@ -73,17 +73,23 @@ export default function ExpensesPage({
   const restocks = useMemo(() => {
     const since = Date.now() - 120 * 86400000;
     const linked = new Set((ledger.expenses ?? []).flatMap((e) => e.restockIds ?? []));
+    // Restocks with a supplier price, and splits (their cutting or transport costs go to the pieces).
+    const qty = (h: { afterAvailable?: number | null; beforeAvailable?: number | null }) =>
+      Math.round(Math.abs((h.afterAvailable ?? 0) - (h.beforeAvailable ?? 0)) * 1000) / 1000;
     return (ledger.materialHistory ?? [])
       .filter(
         (h) =>
-          h.action === 'material.stock_added' &&
-          h.after?.cost &&
+          ((h.action === 'material.stock_added' && h.after?.cost) ||
+            (h.action === 'material.split' && (h.afterAvailable ?? 0) < (h.beforeAvailable ?? 0))) &&
           (Date.parse(h.changedAt) >= since || linked.has(h.id)),
       )
       .sort((a, b) => Date.parse(b.changedAt) - Date.parse(a.changedAt))
       .map((h) => ({
         id: h.id,
-        label: `${h.materialName} · ${Math.round(((h.afterAvailable ?? 0) - (h.beforeAvailable ?? 0)) * 1000) / 1000} ${h.measurementUnit} · ${currency(h.after!.cost!.supplierPrice)} · ${h.changedAt.slice(0, 10)}${h.after!.cost!.supplier ? ` · ${h.after!.cost!.supplier}` : ''}`,
+        label:
+          h.action === 'material.split'
+            ? `Split of ${h.materialName} · ${qty(h)} ${h.measurementUnit} · ${h.changedAt.slice(0, 10)}`
+            : `${h.materialName} · ${qty(h)} ${h.measurementUnit} · ${currency(h.after!.cost!.supplierPrice)} · ${h.changedAt.slice(0, 10)}${h.after!.cost!.supplier ? ` · ${h.after!.cost!.supplier}` : ''}`,
       }));
   }, [ledger.materialHistory, ledger.expenses]);
   const orders = useMemo(() => {

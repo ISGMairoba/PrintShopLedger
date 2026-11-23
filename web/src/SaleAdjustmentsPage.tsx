@@ -8,7 +8,13 @@ import CurrencyInput from './CurrencyInput';
 import { useFeedbackMessage } from './Feedback';
 import { useBusinessOptions } from './BusinessOptionsContext';
 import { accountToken, walletBalance } from './checkout.mjs';
-import { applySaleAdjustment, adjustmentLabels, returnableStock } from './sale-adjustments.mjs';
+import {
+  applySaleAdjustment,
+  adjustmentLabels,
+  cashFirst,
+  refundMethods,
+  returnableStock,
+} from './sale-adjustments.mjs';
 import { paymentCorrectionToken, quoteCorrectedJob } from './full-corrections.mjs';
 import { choiceUsed, hasMaterialChoice, serviceMaterial } from './material-choice.mjs';
 import { money, customerBalance } from './domain.mjs';
@@ -248,7 +254,8 @@ export function SaleAdjustmentEditor({
   busy: boolean;
   actor: { id: string; label: string };
   onClose: () => void;
-  onSave: (event: SupervisedEvent) => Promise<void>;
+  /** Saves one change, or several together (a refund split between methods), all or none. */
+  onSave: (event: SupervisedEvent | SupervisedEvent[]) => Promise<void>;
   /** A cashier asking for this correction: it is sent for approval, not applied. */
   request?: boolean;
 }) {
@@ -318,6 +325,56 @@ export function SaleAdjustmentEditor({
   );
   const [detailsId] = useState(() => crypto.randomUUID());
   const [expectedAccount] = useState(() => accountToken(ledger, job.customerId));
+  // A sale paid by several methods (a split payment) is refunded by them too, cash first by default
+  // (owner, 23 Nov); staff can change each method's amount. Saved together, all or none.
+  const paidBy = refundMethods(ledger, job.id, methods);
+  const splitRefund = !request && paidBy.length > 1;
+  const [refundParts, setRefundParts] = useState<Record<string, string> | null>(null);
+  const parts =
+    refundParts ??
+    Object.fromEntries(
+      cashFirst(
+        paidBy,
+        (() => {
+          try {
+            return money(refund || '0');
+          } catch {
+            return 0;
+          }
+        })(),
+      ).map((p) => [p.label, p.amount ? (p.amount / 100).toFixed(2) : '']),
+    );
+  /** The refund as one change per method, each built on the records the one before leaves. */
+  function refundEvents(): SupervisedEvent[] {
+    const total = money(refund || '0');
+    const rows = paidBy.map((m) => ({ ...m, part: money(parts[m.label] || '0') })).filter((m) => m.part > 0);
+    if (rows.reduce((n, m) => n + m.part, 0) !== total)
+      throw Error(`The methods' amounts must add up to the money returned (${currency(total)}).`);
+    let current = ledger;
+    const now = new Date().toISOString();
+    return rows.map((m, i) => {
+      const jobNow = current.jobs.find((j) => j.id === job.id)!;
+      const each = {
+        id: i === 0 ? id : crypto.randomUUID(),
+        kind: 'sale.refunded',
+        data: {
+          jobId: job.id,
+          baseVersion: jobNow.version ?? 1,
+          expectedAccount: accountToken(current, job.customerId),
+          reason,
+          modifiedBy: actor.id,
+          modifiedByLabel: actor.label,
+          modifiedAt: now,
+          refundAmount: m.part,
+          method: m.kind,
+          methodLabel: m.label,
+          paidOn: saleDay(now),
+        },
+      } as SupervisedEvent;
+      current = applySaleAdjustment(current, each) as Ledger;
+      return each;
+    });
+  }
   const [materialVersions] = useState(() =>
     Object.fromEntries(ledger.materials.map((m) => [m.id, m.version])),
   );
@@ -698,6 +755,13 @@ export function SaleAdjustmentEditor({
           if (busy) return;
           setError('');
           try {
+            if (effective === 'sale.refunded' && splitRefund) {
+              const all = refundEvents();
+              setSubmitted(all[0]);
+              await onSave(all.length === 1 ? all[0] : all);
+              onClose();
+              return;
+            }
             const command = submitted ?? event();
             applySaleAdjustment(ledger, command);
             // Return and refund: check both before saving either.
@@ -1149,18 +1213,40 @@ export function SaleAdjustmentEditor({
                   Money returned (₦)
                   <CurrencyInput value={refund} onValueChange={setRefund} max={credit / 100} required />
                 </label>
-                <label>
-                  Refund method
-                  <SearchSelect
-                    label="Refund method"
-                    value={method}
-                    onChange={setMethod}
-                    required
-                    options={methods.map((m) => ({ value: m.label, label: m.displayLabel || m.label }))}
-                  />
-                </label>
+                {!splitRefund && (
+                  <label>
+                    Refund method
+                    <SearchSelect
+                      label="Refund method"
+                      value={method}
+                      onChange={setMethod}
+                      required
+                      options={methods.map((m) => ({ value: m.label, label: m.displayLabel || m.label }))}
+                    />
+                  </label>
+                )}
               </div>
-              {methods.find((m) => m.label === method)?.kind === 'Cash' && (
+              {splitRefund && (
+                <fieldset>
+                  <legend>Refund by (paid by these methods; cash first)</legend>
+                  <div className="form-grid">
+                    {paidBy.map((m) => (
+                      <label key={m.label}>
+                        {m.label} (paid {currency(m.paid)})
+                        <CurrencyInput
+                          aria-label={`Refund by ${m.label}`}
+                          value={parts[m.label] ?? ''}
+                          max={m.paid / 100}
+                          onValueChange={(v) => setRefundParts({ ...parts, [m.label]: v })}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              )}
+              {(splitRefund
+                ? paidBy.some((m) => m.kind === 'Cash')
+                : methods.find((m) => m.label === method)?.kind === 'Cash') && (
                 <p className="muted">
                   Cash refunds are deducted from your drawer, the approving user’s drawer.
                 </p>

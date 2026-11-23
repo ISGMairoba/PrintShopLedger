@@ -136,6 +136,16 @@ begin
   if round(v.value) <> 600000 or (select round(sum(amount)) from private.late_costs where expense_id = bill) <> 0 then
     raise exception 'Voided bill not taken back: % held, % late', v.value, (select sum(amount) from private.late_costs where expense_id = bill);
   end if;
+  -- An extra cost of the split (cutting, ₦300): it goes to the A5 pieces, all still in stock.
+  set local role authenticated;
+  perform public.apply_expense_event(shop, jsonb_build_object('id', gen_random_uuid(), 'kind', 'expense.created', 'data',
+    jsonb_build_object('id', gen_random_uuid(), 'description', 'Cutting', 'category', 'Delivery', 'incurredOn', '2026-11-21', 'amount', 30000,
+      'payee', '', 'note', '', 'receiptReference', '', 'materials', '[]'::jsonb, 'stockIds', '{}'::jsonb,
+      'restockIds', jsonb_build_array(split_event), 'modifiedBy', owner, 'modifiedByLabel', 'Owner', 'modifiedAt', now())));
+  reset role;
+  if (select round(value) from private.stock_values where shop_id = shop and location = 'main' and material_id = a5) <> 180000 + 30000 then
+    raise exception 'Split extra cost not on the pieces: %', (select value from private.stock_values where shop_id = shop and location = 'main' and material_id = a5);
+  end if;
   raise notice 'Actual cost rules passed';
 end $test$;
 rollback;
