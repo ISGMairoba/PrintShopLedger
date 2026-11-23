@@ -495,5 +495,10 @@ export function cashFirst(paidBy, total) {
     return { ...m, amount };
   });
   if (left > 0 && out.length) out[out.length - 1].amount += left;
-  return paidBy.map((m) => /** @type {{ label: string, kind: string, paid: number, amount: number }} */ (out.find((o) => o.label === m.label)));
+  return paidBy.map(
+    (m) =>
+      /** @type {{ label: string, kind: string, paid: number, amount: number }} */ (
+        out.find((o) => o.label === m.label)
+      ),
+  );
 }

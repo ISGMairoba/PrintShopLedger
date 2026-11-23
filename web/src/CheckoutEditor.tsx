@@ -607,8 +607,7 @@ export default function CheckoutEditor({
       }))
     : null;
   const [splitRows, setSplitRows] = useState<SplitRow[] | null>(originalSplit);
-  const splitChanged =
-    !!originalSplit && JSON.stringify(splitRows) !== JSON.stringify(originalSplit);
+  const splitChanged = !!originalSplit && JSON.stringify(splitRows) !== JSON.stringify(originalSplit);
   const cash = splitRows
     ? (splitTotal(splitRows) / 100).toFixed(2)
     : (cashOverride ?? (prefill / 100).toFixed(2));
@@ -1498,7 +1497,9 @@ export default function CheckoutEditor({
               <p className={splitChanged ? 'notice' : 'muted'} role={splitChanged ? 'status' : undefined}>
                 Sold as a split:{' '}
                 {originalSplit.map((r) => `${r.methodLabel} ${currency(money(r.amount))}`).join(' · ')}.
-                {splitChanged ? ' You are changing how it was paid: check with the cashier before saving.' : ''}
+                {splitChanged
+                  ? ' You are changing how it was paid: check with the cashier before saving.'
+                  : ''}
               </p>
             )}
             {splitRows && (

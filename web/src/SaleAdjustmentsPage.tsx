@@ -333,20 +333,21 @@ export function SaleAdjustmentEditor({
   const parts =
     refundParts ??
     Object.fromEntries(
-      cashFirst(paidBy, (() => {
-        try {
-          return money(refund || '0');
-        } catch {
-          return 0;
-        }
-      })()).map((p) => [p.label, p.amount ? (p.amount / 100).toFixed(2) : '']),
+      cashFirst(
+        paidBy,
+        (() => {
+          try {
+            return money(refund || '0');
+          } catch {
+            return 0;
+          }
+        })(),
+      ).map((p) => [p.label, p.amount ? (p.amount / 100).toFixed(2) : '']),
     );
   /** The refund as one change per method, each built on the records the one before leaves. */
   function refundEvents(): SupervisedEvent[] {
     const total = money(refund || '0');
-    const rows = paidBy
-      .map((m) => ({ ...m, part: money(parts[m.label] || '0') }))
-      .filter((m) => m.part > 0);
+    const rows = paidBy.map((m) => ({ ...m, part: money(parts[m.label] || '0') })).filter((m) => m.part > 0);
     if (rows.reduce((n, m) => n + m.part, 0) !== total)
       throw Error(`The methods' amounts must add up to the money returned (${currency(total)}).`);
     let current = ledger;
@@ -1243,7 +1244,9 @@ export function SaleAdjustmentEditor({
                   </div>
                 </fieldset>
               )}
-              {(splitRefund ? paidBy.some((m) => m.kind === 'Cash') : methods.find((m) => m.label === method)?.kind === 'Cash') && (
+              {(splitRefund
+                ? paidBy.some((m) => m.kind === 'Cash')
+                : methods.find((m) => m.label === method)?.kind === 'Cash') && (
                 <p className="muted">
                   Cash refunds are deducted from your drawer, the approving user’s drawer.
                 </p>
