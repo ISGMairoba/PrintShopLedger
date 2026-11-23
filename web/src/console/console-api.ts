@@ -248,7 +248,10 @@ export const recordPayment = (
     intentId?: string;
   },
 ) =>
-  call<{ id: string; receiptNo: number; repeated?: boolean }>('console_record_payment', { p_shop: shopId, p_payment: payment });
+  call<{ id: string; receiptNo: number; repeated?: boolean }>('console_record_payment', {
+    p_shop: shopId,
+    p_payment: payment,
+  });
 
 export type TrialSettings = {
   enabled: boolean;
