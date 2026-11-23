@@ -97,10 +97,11 @@ try {
     const line = d.locator('.cart-line').first();
     await pick(line, 'Service', { text: 'Flyer printing' });
     await line.getByLabel('Quantity', { exact: true }).fill('10');
+    await line.getByLabel('Job description').fill('Ten flyers');
     await d.getByLabel('Money received (₦)').fill('0');
     await d.getByRole('button', { name: 'Complete checkout', exact: true }).click();
     await d.waitFor({ state: 'detached', timeout: 8000 }).catch(async () => {
-      throw Error(`Checkout did not finish: ${(await d.innerText()).slice(0, 600)}`);
+      throw Error(`Checkout did not finish: ${await d.locator('[role=alert], .notice').allInnerTexts()}`);
     });
     await closeDialogs();
 
