@@ -55,13 +55,22 @@ try {
     };
     const closeDialogs = async () => {
       while (await page.getByRole('dialog').count())
-        await page.getByRole('dialog').last().getByRole('button', { name: 'Close', exact: true }).first().click();
+        await page
+          .getByRole('dialog')
+          .last()
+          .getByRole('button', { name: 'Close', exact: true })
+          .first()
+          .click();
     };
     await useUsualSteps(page, nav);
 
     // Off by default: no Team tab. The General Manager switches it on.
     await nav('Users');
-    assert.equal(await page.getByRole('tab', { name: 'Team', exact: true }).count(), 0, 'No Team tab while off');
+    assert.equal(
+      await page.getByRole('tab', { name: 'Team', exact: true }).count(),
+      0,
+      'No Team tab while off',
+    );
     await nav('Business Settings');
     await settingsSection(page, 'Jobs & payments');
     const track = page.getByLabel('Track team work', { exact: true });
