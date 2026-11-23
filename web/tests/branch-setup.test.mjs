@@ -292,3 +292,39 @@ test('Viewing another branch counts that branch’s wallet, not the device’s',
   assert.equal(walletBalance(branchLedger(ledger, 'main'), 'c'), 700);
   assert.equal(walletBalance(ledger, 'c'), 700);
 });
+
+test('AUD-30: another location’s view counts that location’s stock; this device keeps its own', async () => {
+  const { branchLedger, setLocalBranch } = await import('../src/branches.mjs');
+  setLocalBranch('main');
+  const ledger = {
+    materials: [
+      { id: 'paper', name: 'Paper', available: 40 },
+      { id: 'ink', name: 'Ink', available: 3 },
+    ],
+    locationStock: [
+      { id: 'paper:main', materialId: 'paper', location: 'main', available: 40 },
+      { id: 'paper:b-zoo0000001', materialId: 'paper', location: 'b-zoo0000001', available: 12 },
+    ],
+  };
+  const zoo = branchLedger(ledger, 'b-zoo0000001');
+  assert.deepEqual(
+    zoo.materials.map((m) => m.available),
+    [12, 0],
+  );
+  // The device's own location: its stock as it stands, unsent work included.
+  assert.deepEqual(
+    branchLedger({ ...ledger, materials: [{ ...ledger.materials[0], available: 38 }] }, 'main').materials.map(
+      (m) => m.available,
+    ),
+    [38],
+  );
+  // At a branch, viewing main counts main's stock from the server.
+  setLocalBranch('b-zoo0000001');
+  assert.deepEqual(
+    branchLedger({ ...ledger, materials: [{ ...ledger.materials[0], available: 12 }] }, 'main').materials.map(
+      (m) => m.available,
+    ),
+    [40],
+  );
+  setLocalBranch('main');
+});
