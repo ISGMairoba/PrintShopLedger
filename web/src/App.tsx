@@ -228,6 +228,7 @@ import { featureOn } from './business-type.mjs';
 import RemindersPage from './RemindersPage';
 import { useMobileLayout } from './ResponsiveTable';
 import { PendingChecksBanner } from './MaterialCheckSection';
+import { materialCorrectionAlerts } from './material-corrections.mjs';
 import { setMessageSender } from './messages.mjs';
 import { setCustomerLink } from './customer-link';
 import { TeamContext, type TeamWork } from './TeamContext';
@@ -1392,8 +1393,26 @@ export default function App() {
     setPage(target);
   };
   // Team work: a Manager corrected one of my entries (owner's rule): I am told, until I dismiss it.
-  const teamAlerts =
-    session && teamOn(ledger, branding.settings) ? correctionAlerts(ledger, session.user.id, teamSeen) : [];
+  const teamAlerts = [
+    ...(session && teamOn(ledger, branding.settings)
+      ? correctionAlerts(ledger, session.user.id, teamSeen).map(({ record, c }) => ({
+          jobId: record.jobId,
+          at: c.at ?? '',
+          byLabel: c.byLabel,
+          reason: c.reason,
+          what: 'entry',
+        }))
+      : []),
+    ...(session
+      ? materialCorrectionAlerts(ledger, session.user.id, teamSeen).map(({ job, c }) => ({
+          jobId: job.id,
+          at: c.at,
+          byLabel: c.byLabel,
+          reason: c.reason,
+          what: 'materials entry',
+        }))
+      : []),
+  ].sort((a, b) => b.at.localeCompare(a.at));
   const alerts: NoticeAlert[] = [
     ...(teamAlerts.length
       ? [
@@ -1402,20 +1421,20 @@ export default function App() {
             text: teamAlerts
               .slice(0, 3)
               .map(
-                ({ record, c }) =>
-                  `Your entry on job #${record.jobId.slice(0, 8).toUpperCase()} was corrected by ${c.byLabel ?? 'a Manager'} (Manager): ${c.reason}`,
+                (a) =>
+                  `Your ${a.what} on job #${a.jobId.slice(0, 8).toUpperCase()} was corrected by ${a.byLabel ?? 'a Manager'} (Manager): ${a.reason}`,
               )
               .join(' · '),
             action: {
               label: 'Open the job',
               icon: 'jobs' as const,
               run: () => {
-                setSelectedJob(teamAlerts[0].record.jobId);
+                setSelectedJob(teamAlerts[0].jobId);
                 goTo('Jobs');
               },
             },
             dismiss: () => {
-              const at = teamAlerts[0].c.at;
+              const at = teamAlerts[0].at;
               setTeamSeen(at);
               try {
                 localStorage.setItem(`psl-team-seen:${scope}`, at);
@@ -1806,6 +1825,9 @@ export default function App() {
     actor: { id: checkActor.id, label: checkActor.label, level: checkActor.level },
     busy,
     save: saveTeam,
+    saveJob: async (event) => {
+      await save(event);
+    },
   };
   const currentJob = ledger.jobs.find((job) => job.id === selectedJob);
   // Auto-lock (Business Settings → Security): sign the user out after the idle time. The business

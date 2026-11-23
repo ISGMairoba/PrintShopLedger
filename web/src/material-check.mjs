@@ -207,6 +207,8 @@ export function applyMaterialsCheck(ledger, event) {
   if (!['confirm', 'request'].includes(d.mode)) throw Error('Invalid materials check.');
   if (d.mode === 'request' && job.materialCheck?.status === 'confirmed')
     throw Error('The materials for this job are already confirmed. Ask an Admin to change them.');
+  if (d.mode === 'confirm' && job.materialCheck?.status === 'confirmed')
+    throw Error('These materials are confirmed. Correct them with a reason (Job details → Materials used).');
   validUsages(ledger, job, d.usages);
   const audit = { by: d.modifiedBy, byLabel: d.modifiedByLabel, at: d.modifiedAt };
   if (d.mode === 'request') {

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { emptyLedger, applyEvent } from '../src/domain.mjs';
 import { applyMaterialEvent } from '../src/materials.mjs';
 import { checkDraft, checkLines, materialsCheckEvent, pendingChecks } from '../src/material-check.mjs';
+import { materialCorrectionEvent } from '../src/material-corrections.mjs';
 import { materialConfirmDue, materialPending, stageMoveEvents } from '../src/material-choice.mjs';
 
 const at = '2026-11-14T10:00:00Z';
@@ -100,10 +101,14 @@ test('a cashier sends it for approval: nothing moves, the job can move on; the G
   assert.deepEqual([stock(l, 'a'), stock(l, 'b')], [96, 47]);
   assert.equal(pendingChecks(l).length, 0);
   assert.throws(() => materialsCheckEvent(l, l.jobs[0], usages, cashier), /already confirmed/);
-  // Correcting again moves only the difference: 5 Gloss, no Matte.
+  // Confirming again is refused; a correction (with a reason) moves only the difference: 5 Gloss, no Matte.
+  assert.throws(
+    () => materialsCheckEvent(l, l.jobs[0], [{ line: 'm:a', materialId: 'a', quantity: 5 }], admin),
+    /Correct them with a reason/,
+  );
   l = applyEvent(
     l,
-    materialsCheckEvent(l, l.jobs[0], [{ line: 'm:a', materialId: 'a', quantity: 5 }], admin),
+    materialCorrectionEvent(l, l.jobs[0], [{ line: 'm:a', materialId: 'a', quantity: 5 }], 'Recounted', admin, {}),
   );
   assert.deepEqual([stock(l, 'a'), stock(l, 'b')], [95, 50]);
 });

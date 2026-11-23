@@ -118,6 +118,8 @@ function rpcFor(kind: string) {
     'job.material_used': 'apply_job_material_event',
     'job.extra_materials_set': 'apply_job_extra_materials_event',
     'job.materials_checked': 'apply_job_check_event',
+    'job.materials_corrected': 'apply_job_material_correction_event',
+    'job.material_correction_decided': 'apply_job_material_correction_event',
     'job.held': 'apply_job_hold_event',
     'job.resumed': 'apply_job_hold_event',
     'job.done_recorded': 'apply_job_handover_event',
