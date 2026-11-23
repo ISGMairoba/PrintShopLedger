@@ -134,7 +134,7 @@ try {
 
     // Marking it complete asks who did the work, pre-filled with Ada.
     await details.getByRole('button', { name: 'Mark as Complete', exact: true }).click();
-    d = page.getByRole('dialog').last();
+    d = page.getByRole('dialog', { name: /^Move job to/ });
     assert.equal(await d.getByLabel('Done by Ada Finisher').isChecked(), true, 'Assignee pre-filled');
     await d.getByLabel('Done by Local trial user').check();
     await d.getByLabel('Shares').selectOption('percent');
