@@ -522,8 +522,8 @@ export default function ExpenseEditor({
                     </ul>
                   )}
                   <small className="muted">
-                    Delivery, clearance and the like: its cost joins these restocks' cost per unit (shared by
-                    their supplier price), not under expenses.
+                    Delivery, clearance, cutting and the like: its cost joins these restocks' cost per unit
+                    (shared by their supplier price), or a split's pieces, not under expenses.
                   </small>
                 </div>
               )}

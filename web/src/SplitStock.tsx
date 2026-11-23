@@ -251,7 +251,10 @@ export default function SplitStock({
                 />
                 <span>%</span>
               </span>
-              <small>The pieces share what the {material.name} cost, less this share lost as offcuts.</small>
+              <small>
+                The pieces share what the {material.name} cost, less this share lost as offcuts. Cutting or
+                transport costs: record them in Expenses and link them to this split (For restocks).
+              </small>
             </label>
           )}
           <label>
