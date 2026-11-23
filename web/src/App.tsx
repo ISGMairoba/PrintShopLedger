@@ -1772,13 +1772,23 @@ export default function App() {
   // sign-in kept up to date as Supabase renews it; nobody is kept when the business turns it off.
   const freshPassword = useRef(false);
   const remembering = !demo && !!supabase && lockChoices.rememberPeople;
+  const rememberingNow = useRef(remembering);
+  rememberingNow.current = remembering;
   useEffect(() => {
     if (demo || !supabase || !session || !shop || !scope || !settingsKnownEarly) return;
     if (!lockChoices.rememberPeople) {
       // Only the business's own saved settings turn remembering off: for a moment after opening,
       // the settings can be the defaults (off), and that must not forget anyone. (Remembering is
       // only ever turned on by saving the settings, so a business with none has nobody to forget.)
-      if (branding.version > 0) void forgetEveryone(shop.id);
+      // Even saved settings can read as the defaults for a moment when someone else signs in (their
+      // copy loads), so it must still be off a few seconds later.
+      if (branding.version > 0) {
+        const shopId = shop.id;
+        const timer = setTimeout(() => {
+          if (!rememberingNow.current) void forgetEveryone(shopId);
+        }, 5000);
+        return () => clearTimeout(timer);
+      }
       return;
     }
     const password = freshPassword.current;
