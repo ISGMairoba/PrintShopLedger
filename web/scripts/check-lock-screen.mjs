@@ -148,6 +148,22 @@ try {
     page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name, exact: true }).click();
   await lockButton.waitFor();
   await page.clock.runFor(1500); // the PIN hash from the server is now kept on the device
+  // What the device keeps (names only: the contents are encrypted).
+  const kept = () =>
+    page.evaluate(
+      () =>
+        new Promise((resolve) => {
+          const open = indexedDB.open('printshopledger-pin', 1);
+          open.onsuccess = () => {
+            const all = open.result.transaction('pins').objectStore('pins').getAllKeys();
+            all.onsuccess = () => resolve(all.result.map(String).filter((k) => k !== '__key__'));
+          };
+          open.onerror = () => resolve([]);
+        }),
+    );
+  await page.clock.runFor(1500);
+  console.log('Kept after signing in:', await kept());
+  assert.ok((await kept()).includes(`people:${shop}`), 'Ada was not remembered');
 
   // The Security choices.
   await nav('Business Settings');
@@ -186,6 +202,7 @@ try {
   await page.getByRole('button', { name: 'Sign in user', exact: true }).click();
   await lockButton.waitFor();
   await page.clock.runFor(1500);
+  console.log('Kept after Tunde signed in:', await kept());
 
   // Tunde locks; Ada switches back with her PIN, and the app opens as her.
   await lockButton.click();
