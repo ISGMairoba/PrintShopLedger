@@ -160,9 +160,7 @@ export function profitLossSections(r, { money, unit = ' (NGN)' }) {
         ],
         ['Waste and damage (not on a job)', money(-r.waste), money(-p.waste)],
         ['Cancelled order losses', money(-r.cancelledLoss), money(-p.cancelledLoss)],
-        ...(r.method === 'actual'
-          ? [['Late cost adjustments', money(-r.lateCost), money(-p.lateCost)]]
-          : []),
+        ...(r.method === 'actual' ? [['Late cost adjustments', money(-r.lateCost), money(-p.lateCost)]] : []),
         ['Gross profit', money(r.grossProfit), prevOf('grossProfit')],
         ...categories.map((c) => [
           `Expenses: ${c}`,
