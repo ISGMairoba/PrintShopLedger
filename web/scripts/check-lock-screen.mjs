@@ -168,7 +168,12 @@ try {
   await page.locator('input[type="password"]').fill('2580');
   await page.getByRole('button', { name: /Unlock/ }).click();
   await sale.waitFor();
-  assert.equal(await sale.getByLabel('Money received (₦)').inputValue(), '777', 'the open sale was lost');
+  // (The amount is tidied to 777.00 when the field loses focus.)
+  assert.match(
+    await sale.getByLabel('Money received (₦)').inputValue(),
+    /^777(\.00)?$/,
+    'the open sale was lost',
+  );
   await sale.getByRole('button', { name: 'Close', exact: true }).first().click();
 
   // Ada steps away (still remembered); Tunde signs in with his password.
