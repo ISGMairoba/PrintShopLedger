@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import Icon from '../Icon';
 import ResponsiveTable from '../ResponsiveTable';
 import { money } from '../domain.mjs';
@@ -120,6 +120,9 @@ export function ConsoleSubscription({
     [problem, setProblem] = useState(''),
     [tick, setTick] = useState(0),
     [lastReceipt, setLastReceipt] = useState('');
+  // AUD-26: one id per payment being recorded, kept across retries, so a retry after a lost reply
+  // returns the payment already recorded instead of recording it twice. A new one after each success.
+  const intent = useRef(crypto.randomUUID());
   useEffect(() => {
     let live = true;
     Promise.all([loadSubscription(shopId), loadPlans()])
@@ -406,7 +409,9 @@ export function ConsoleSubscription({
                   reference: String(f.get('reference') ?? '').trim(),
                   extendedTo: extendTo ? endOf(extendTo) : null,
                   note: String(f.get('note') ?? '').trim(),
+                  intentId: intent.current,
                 }).then((saved) => {
+                  intent.current = crypto.randomUUID();
                   form.reset();
                   setLastReceipt(saved?.receiptNo ? receiptRef(saved.receiptNo) : '');
                 }),

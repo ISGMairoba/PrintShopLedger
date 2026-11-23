@@ -244,9 +244,11 @@ export const recordPayment = (
     reference: string;
     extendedTo: string | null;
     note: string;
+    /** The same for every try of one payment (AUD-26): a retry returns the payment already recorded. */
+    intentId?: string;
   },
 ) =>
-  call<{ id: string; receiptNo: number }>('console_record_payment', { p_shop: shopId, p_payment: payment });
+  call<{ id: string; receiptNo: number; repeated?: boolean }>('console_record_payment', { p_shop: shopId, p_payment: payment });
 
 export type TrialSettings = {
   enabled: boolean;
