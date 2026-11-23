@@ -479,16 +479,25 @@ export default function CheckoutEditor({
       '',
   );
   const originalMethodLabel = initialCheckout?.methodLabel ?? initialCheckout?.method;
-  const paymentMethods =
-    initialCheckout &&
-    !availableMethods.some(
-      (item) => item.label === originalMethodLabel && item.kind === initialCheckout.method,
-    )
-      ? [
-          { label: originalMethodLabel!, kind: initialCheckout.method, enabled: true },
-          ...availableMethods.filter((item) => item.label !== originalMethodLabel),
-        ]
-      : availableMethods;
+  // Reviewing a pending sale: the methods it was paid by stay choosable, even if switched off since
+  // (AUD-37: each part of a split too).
+  const originalMethods = initialCheckout
+    ? [
+        { label: originalMethodLabel!, kind: initialCheckout.method },
+        ...(initialCheckout.splits ?? []).map((p) => ({ label: p.methodLabel ?? p.method, kind: p.method })),
+      ]
+    : [];
+  const missing = originalMethods.filter(
+    (m, i) =>
+      originalMethods.findIndex((x) => x.label === m.label) === i &&
+      !availableMethods.some((item) => item.label === m.label && item.kind === m.kind),
+  );
+  const paymentMethods = missing.length
+    ? [
+        ...missing.map((m) => ({ ...m, enabled: true })),
+        ...availableMethods.filter((item) => !missing.some((m) => m.label === item.label)),
+      ]
+    : availableMethods;
   const method = paymentMethods.find((item) => item.label === methodLabel)?.kind ?? '';
   const [accountChoice, setAccountChoice] = useState<string | null>(
     initialCheckout ? (initialCheckout.accountId ?? '') : null,
@@ -590,7 +599,16 @@ export default function CheckoutEditor({
   // The business chooses whether the amount starts at the recommended payment or at zero.
   const prefill = jobSettings.paymentPrefill === 'zero' ? 0 : (recommended ?? 0);
   // Split payment: the money received is the total of the parts.
-  const [splitRows, setSplitRows] = useState<SplitRow[] | null>(null);
+  // AUD-37: a pending split sale under review opens with its parts, as they were sold.
+  const originalSplit: SplitRow[] | null = initialCheckout?.splits?.length
+    ? initialCheckout.splits.map((p) => ({
+        methodLabel: p.methodLabel ?? p.method,
+        amount: (p.amount / 100).toFixed(2),
+      }))
+    : null;
+  const [splitRows, setSplitRows] = useState<SplitRow[] | null>(originalSplit);
+  const splitChanged =
+    !!originalSplit && JSON.stringify(splitRows) !== JSON.stringify(originalSplit);
   const cash = splitRows
     ? (splitTotal(splitRows) / 100).toFixed(2)
     : (cashOverride ?? (prefill / 100).toFixed(2));
@@ -1476,6 +1494,13 @@ export default function CheckoutEditor({
                 <input maxLength={200} value={reference} onChange={(e) => setReference(e.target.value)} />
               </label>
             </div>
+            {originalSplit && (
+              <p className={splitChanged ? 'notice' : 'muted'} role={splitChanged ? 'status' : undefined}>
+                Sold as a split:{' '}
+                {originalSplit.map((r) => `${r.methodLabel} ${currency(money(r.amount))}`).join(' · ')}.
+                {splitChanged ? ' You are changing how it was paid: check with the cashier before saving.' : ''}
+              </p>
+            )}
             {splitRows && (
               <SplitPayment
                 rows={splitRows}
