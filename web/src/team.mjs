@@ -52,7 +52,10 @@ export const teamReady = (ledger) => (ledger?.teamPeople?.length ?? 0) > 0;
 /** Team work is on and the server keeps it. */
 export const teamOn = (ledger, settings) => teamReady(ledger) && teamSettings(settings).enabled;
 
-/** Everyone on the Team (app users and people added by name); active only unless asked. */
+/**
+ * Everyone on the Team (app users and people added by name); active only unless asked.
+ * @returns {import('./types').TeamPerson[]}
+ */
 export function teamPeople(ledger, { all = false } = {}) {
   return (ledger?.teamPeople ?? []).filter((p) => all || !p.archived);
 }
@@ -86,7 +89,10 @@ export function jobAssignees(ledger, jobId) {
   ];
 }
 const finished = (job) => ['Completed', 'Collected', 'Cancelled'].includes(job.productionStatus ?? 'Added');
-/** Jobs with work for this person now: assigned to the current stage (or the whole job), not finished. */
+/**
+ * Jobs with work for this person now: assigned to the current stage (or the whole job), not finished.
+ * @returns {import('./types').Job[]}
+ */
 export function myWork(ledger, personId) {
   return (ledger?.jobs ?? []).filter((job) => !finished(job) && assignedTo(ledger, job).includes(personId));
 }
@@ -142,7 +148,8 @@ export function stagesFinished(job, target) {
 }
 /**
  * Work records for a stage move. work: { shares, unit, doneAt, redo?, vendor?, note?, auto? }. One
- * record per stage the move finishes, unless only the last is asked for (`lastOnly`).
+ * record per stage the move finishes.
+ * @returns {import('./types').TeamEvent[]}
  */
 export function workEvents(job, target, work, actor, now = new Date().toISOString()) {
   const stages = stagesFinished(job, target);
@@ -172,6 +179,7 @@ export function workEvents(job, target, work, actor, now = new Date().toISOStrin
 /**
  * Work records crediting the people assigned to each stage a move finishes (equal shares), for
  * moves that ask no "Done by" (that choice off, or several jobs moved at once).
+ * @returns {import('./types').TeamEvent[]}
  */
 export function autoWorkEvents(ledger, job, target, actor, now = new Date().toISOString()) {
   return stagesFinished(job, target)
@@ -189,7 +197,10 @@ export function autoWorkEvents(ledger, job, target, actor, now = new Date().toIS
       return event ? [event] : [];
     });
 }
-/** Work records waiting to be confirmed (newest first). */
+/**
+ * Work records waiting to be confirmed (newest first).
+ * @returns {import('./types').WorkRecord[]}
+ */
 export const toConfirm = (ledger) =>
   (ledger?.workRecords ?? [])
     .filter((r) => r.status !== 'confirmed')
