@@ -72,7 +72,13 @@ try {
     await d.getByLabel('Measurement unit', { exact: true }).fill('sheet');
     await d.getByRole('button', { name: 'Save material', exact: true }).click();
     await d.waitFor({ state: 'detached' });
-    await page.getByRole('button', { name: 'Add to stock', exact: true }).click();
+    if (mobile) {
+      await page.getByRole('button', { name: 'More', exact: true }).first().click();
+      await page
+        .getByRole('dialog', { name: 'More actions' })
+        .getByRole('button', { name: 'Add to stock', exact: true })
+        .click();
+    } else await page.getByRole('button', { name: 'Add to stock', exact: true }).click();
     d = page.getByRole('dialog');
     await d.getByLabel('Quantity to add').fill('50');
     await d.getByRole('button', { name: 'Add to stock', exact: true }).click();
