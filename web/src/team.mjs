@@ -18,11 +18,13 @@ export const TEAM_DEFAULTS = Object.freeze({
   needsConfirming: true,
   confirmRank: 2,
   assignRank: 2,
+  /** Lowest rank that corrects work records directly (below: a request for approval). */
+  correctRank: 2,
   /** How long after collection a work record can be corrected (days). */
   correctionDays: 7,
   commission: false,
 });
-const RANKED = ['othersRank', 'earlierRank', 'confirmRank', 'assignRank'];
+const RANKED = ['othersRank', 'earlierRank', 'confirmRank', 'assignRank', 'correctRank'];
 const DAYS = ['doneAtDays', 'correctionDays'];
 const SWITCHES = ['enabled', 'askDoneBy', 'needsConfirming', 'commission'];
 
@@ -249,6 +251,62 @@ export const personEvent = (person, fields, actor, now = new Date().toISOString(
     modifiedAt: now,
   },
 });
+/**
+ * How a correction goes (owner's rule, 23 Nov): 'direct' (saved at once), 'request' (for approval)
+ * or 'alert' (a Manager correcting a higher rank's entry: saved, and whoever recorded it is told).
+ */
+export function correctionRoute(record, actor, settings) {
+  const tw = teamSettings(settings);
+  const level = actor.level ?? 0;
+  const higher = (record.recordedByRank ?? 0) > level;
+  if (higher && level === 3 && level >= tw.correctRank) return 'alert';
+  if (higher) return 'request';
+  return level >= tw.correctRank ? 'direct' : 'request';
+}
+/** The rank that approves a correction request for this record. */
+export const approverRank = (record, settings) =>
+  Math.max(teamSettings(settings).correctRank, record.recordedByRank ?? 0);
+/** A correction of a work record: the whole new Done by (unit, shares, doneAt, redo, vendor). */
+export function correctEvent(record, changes, reason, actor, now = new Date().toISOString()) {
+  return {
+    id: crypto.randomUUID(),
+    kind: 'team.work_corrected',
+    data: {
+      id: crypto.randomUUID(),
+      recordId: record.id,
+      baseVersion: record.version ?? 1,
+      reason: reason.trim(),
+      changes,
+      modifiedBy: actor.id,
+      modifiedByLabel: actor.label,
+      modifiedByRank: actor.level,
+      modifiedAt: now,
+    },
+  };
+}
+export const decideEvent = (request, approve, note, actor, now = new Date().toISOString()) => ({
+  id: crypto.randomUUID(),
+  kind: 'team.correction_decided',
+  data: {
+    id: crypto.randomUUID(),
+    requestId: request.id,
+    approve,
+    note: note ?? '',
+    modifiedBy: actor.id,
+    modifiedByLabel: actor.label,
+    modifiedAt: now,
+  },
+});
+/** Correction requests waiting for a decision (oldest first). */
+export const pendingCorrections = (ledger) =>
+  (ledger?.workCorrections ?? []).filter((c) => c.status === 'pending');
+/** Corrections of this person's entries by a Manager (they are told), newest first. */
+export function correctionAlerts(ledger, userId, since = '') {
+  return (ledger?.workRecords ?? [])
+    .flatMap((r) => (r.corrections ?? []).filter((c) => c.alert && c.alertFor === userId).map((c) => ({ record: r, c })))
+    .filter((x) => (x.c.at ?? '') > since)
+    .sort((a, b) => (b.c.at ?? '').localeCompare(a.c.at ?? ''));
+}
 /** Recorded noticeably after it was done (the report flags late recording). */
 export const recordedLate = (record, hours = 24) =>
   Date.parse(record.recordedAt) - Date.parse(record.doneAt) > hours * 3600000;
@@ -318,6 +376,103 @@ export function applyTeamEvent(ledger, event) {
               version: (r.version ?? 1) + 1,
             }
           : r,
+      ),
+    };
+  }
+  if (event.kind === 'team.work_corrected') {
+    const records = ledger.workRecords ?? [];
+    const record = records.find((r) => r.id === d.recordId);
+    if (!record) throw Error('Work record not found.');
+    if ((record.version ?? 1) !== d.baseVersion) throw Error('This work record was changed elsewhere.');
+    if (!d.reason || d.reason.length < 3) throw Error('Give a reason for the correction.');
+    const actor = { id: d.modifiedBy, label: d.modifiedByLabel, level: d.modifiedByRank };
+    const route = correctionRoute(record, actor, {});
+    if (route === 'request')
+      return {
+        ...ledger,
+        workCorrections: [
+          ...(ledger.workCorrections ?? []),
+          {
+            id: d.id,
+            recordId: record.id,
+            jobId: record.jobId,
+            baseVersion: record.version ?? 1,
+            changes: d.changes,
+            reason: d.reason,
+            requestedBy: d.modifiedBy,
+            requestedByLabel: d.modifiedByLabel,
+            requestedByRank: d.modifiedByRank,
+            approverRank: approverRank(record, {}),
+            status: 'pending',
+            requestedAt: now,
+            version: 1,
+          },
+        ],
+      };
+    const { corrections = [], redo: _redo, vendor: _vendor, ...rest } = record;
+    const next = {
+      ...rest,
+      ...d.changes,
+      version: (record.version ?? 1) + 1,
+      corrections: [
+        ...corrections,
+        {
+          at: now,
+          by: d.modifiedBy,
+          byLabel: d.modifiedByLabel,
+          byRank: d.modifiedByRank,
+          reason: d.reason,
+          alert: route === 'alert',
+          ...(route === 'alert' ? { alertFor: record.recordedBy } : {}),
+        },
+      ],
+    };
+    return { ...ledger, workRecords: records.map((r) => (r.id === record.id ? next : r)) };
+  }
+  if (event.kind === 'team.correction_decided') {
+    const list = ledger.workCorrections ?? [];
+    const request = list.find((c) => c.id === d.requestId);
+    if (!request || request.status !== 'pending') throw Error('This request is not waiting for a decision.');
+    let records = ledger.workRecords ?? [];
+    if (d.approve)
+      records = records.map((r) => {
+        if (r.id !== request.recordId) return r;
+        const { redo: _redo, vendor: _vendor, ...rest } = r;
+        return {
+          ...rest,
+          ...request.changes,
+          status: 'confirmed',
+          confirmedBy: d.modifiedBy,
+          confirmedByLabel: d.modifiedByLabel,
+          confirmedAt: now,
+          version: (r.version ?? 1) + 1,
+          corrections: [
+            ...(r.corrections ?? []),
+            {
+              at: now,
+              by: request.requestedBy,
+              byLabel: request.requestedByLabel,
+              reason: request.reason,
+              approvedBy: d.modifiedBy,
+              approvedByLabel: d.modifiedByLabel,
+            },
+          ],
+        };
+      });
+    return {
+      ...ledger,
+      workRecords: records,
+      workCorrections: list.map((c) =>
+        c.id === request.id
+          ? {
+              ...c,
+              status: d.approve ? 'approved' : 'declined',
+              decidedBy: d.modifiedBy,
+              decidedByLabel: d.modifiedByLabel,
+              decidedAt: now,
+              note: d.note ?? '',
+            }
+          : c,
       ),
     };
   }

@@ -1,6 +1,6 @@
 import { useTeam } from './TeamContext';
 import { equalShares, sharesProblem, teamPeople } from './team.mjs';
-import type { Job, WorkShare } from './types';
+import type { Job, WorkRecord, WorkShare } from './types';
 
 /** What the "Done by" step records for a stage move (team.mjs workEvents). */
 export interface WorkDraft {
@@ -29,6 +29,21 @@ export const workDraft = (personIds: string[]): WorkDraft => ({
   vendorName: '',
   vendorCost: '',
 });
+/** A draft holding a work record's Done by, to correct it. */
+export function draftFrom(record: WorkRecord): WorkDraft {
+  return {
+    personIds: record.shares.map((s) => s.personId),
+    unit: record.unit,
+    shares: Object.fromEntries(record.shares.map((s) => [s.personId, String(s.share)])),
+    doneAt: localInput(new Date(record.doneAt)),
+    redo: !!record.redo,
+    redoBy: record.redo?.responsibleId ?? '',
+    redoNote: record.redo?.note ?? '',
+    vendor: !!record.vendor,
+    vendorName: record.vendor?.name ?? '',
+    vendorCost: record.vendor ? String(record.vendor.cost / 100) : '',
+  };
+}
 const localInput = (at: Date) => {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}T${pad(at.getHours())}:${pad(at.getMinutes())}`;
@@ -89,7 +104,10 @@ export default function DoneByFields({
   stage,
   value,
   onChange,
+  correcting = false,
 }: {
+  /** Correcting a record: anyone on the Team can be chosen and any Done at entered (the server decides). */
+  correcting?: boolean;
   job: Job;
   /** The stage being finished. */
   stage: string;
@@ -100,8 +118,8 @@ export default function DoneByFields({
   if (!team) return null;
   const people = teamPeople(team.ledger);
   const level = team.actor.level;
-  const othersAllowed = level >= team.settings.othersRank;
-  const earlierAllowed = level >= team.settings.earlierRank;
+  const othersAllowed = correcting || level >= team.settings.othersRank;
+  const earlierAllowed = correcting || level >= team.settings.earlierRank;
   const set = (patch: Partial<WorkDraft>) => onChange({ ...value, ...patch });
   const choosable = othersAllowed ? people : people.filter((p) => p.id === team.actor.id);
   const toggle = (id: string, on: boolean) =>

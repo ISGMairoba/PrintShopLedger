@@ -75,6 +75,7 @@ try {
     await settingsSection(page, 'Jobs & payments');
     const track = page.getByLabel('Track team work', { exact: true });
     assert.equal(await track.isChecked(), false, 'Team work is off by default');
+    await page.getByLabel('Job description entry').selectOption('optional');
     await track.check();
     assert.equal(await page.getByLabel('Ask "Done by" on every stage move').isChecked(), true);
     assert.equal(await page.getByLabel('Who confirms work').inputValue(), '2');
@@ -114,7 +115,9 @@ try {
     await pick(d.locator('.cart-line').first(), 'Service', { label: 'Laminating — ₦1,000.00' });
     await d.getByLabel('Money received (₦)').fill('0');
     await d.getByRole('button', { name: 'Complete checkout', exact: true }).click();
-    await d.waitFor({ state: 'detached', timeout: 8000 });
+    await d.waitFor({ state: 'detached', timeout: 8000 }).catch(async () => {
+      throw Error(`Checkout did not finish: ${(await d.innerText()).slice(0, 600)}`);
+    });
     await closeDialogs();
 
     // Assign the whole job to Ada (from the job's details).
@@ -154,6 +157,23 @@ try {
     await page.getByRole('button', { name: /^Confirm selected/ }).click();
     await page.getByText('No work is waiting to be confirmed.', { exact: true }).waitFor();
     await fits(page, 'Work to confirm');
+
+    // A correction (the trial user is cleared: saved at once, with the reason).
+    await nav('Jobs');
+    await page.getByRole('button', { name: 'Laminating', exact: true }).first().click();
+    const job = page.getByRole('dialog').last();
+    await job.getByText(/^Work records/).click();
+    await job.getByRole('button', { name: 'Correct', exact: true }).first().click();
+    d = page.getByRole('dialog', { name: /^Correct work/ });
+    await d.getByLabel('Share for Ada Finisher').fill('80');
+    await d.getByLabel('Share for Local trial user').fill('20');
+    await d.getByLabel('Reason for the correction').fill('Ada did most of it');
+    await fits(page, 'Correct work');
+    await d.getByRole('button', { name: 'Save correction', exact: true }).click();
+    await d.waitFor({ state: 'detached' });
+    await job.getByText('Ada Finisher 80%, Local trial user 20%').first().waitFor();
+    await job.getByText(/Corrected 1×/).first().waitFor();
+    await closeDialogs();
     assert.deepEqual(errors, []);
     await browser.close();
     browser = undefined;

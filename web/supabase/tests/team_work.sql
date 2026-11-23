@@ -6,6 +6,7 @@ declare
   owner uuid := gen_random_uuid(); cashier uuid := gen_random_uuid(); admin uuid := gen_random_uuid();
   shop uuid; cust uuid := gen_random_uuid(); j uuid := gen_random_uuid(); ada uuid := gen_random_uuid();
   asg uuid := gen_random_uuid(); w1 uuid := gen_random_uuid(); w2 uuid := gen_random_uuid(); led jsonb; refused text; r jsonb;
+  manager uuid := gen_random_uuid(); w3 uuid := gen_random_uuid(); q1 uuid := gen_random_uuid(); q2 uuid := gen_random_uuid();
   cfg jsonb;
 begin
   insert into auth.users(id, email, email_confirmed_at, raw_user_meta_data, created_at)
@@ -14,12 +15,13 @@ begin
   shop := test.new_shop('Team work');
   perform test.add_member(shop, cashier, 'cashier');
   perform test.add_member(shop, admin, 'admin');
+  perform test.add_member(shop, manager, 'manager');
   cfg := $cfg${"businessName": "Team work", "address": "", "phones": "", "email": "", "website": "", "socials": "", "logo": "", "primary": "#124b40", "accent": "#d9a126", "theme": "system", "options": {"paymentMethods": [{"label": "Cash", "kind": "Cash", "enabled": true}], "expenseCategories": ["Materials", "Other"], "jobSources": ["In shop / USB", "Other"], "stockReasons": ["Restocking", "Stock Count Correction", "Returned Stock", "Damaged Stock"], "materialUnits": ["sheet"], "jobStages": ["Added", "In Queue", "Printing", "Completed", "Collected"]}, "corrections": {"recentDays": 14}, "pageAccess": {"1": ["Point of Service", "My Sales", "Jobs", "Print Settings", "My Account"], "2": ["Dashboard", "Point of Service", "My Sales", "Jobs", "Customers", "Payments", "Users", "My Account"]}, "receipt": {"showLogo": true, "showAddress": true, "showContacts": true, "footer": "Thanks"}}$cfg$::jsonb;
   insert into public.business_settings(shop_id, modified_by, settings) values (shop, owner, cfg)
     on conflict (shop_id) do update set settings = excluded.settings;
   insert into public.customers(shop_id, id, name, created_at) values (shop, cust, 'Bola', now());
   insert into public.jobs(shop_id, id, customer_id, service, description, amount, created_at, production_status, metadata)
-  values (shop, j, cust, 'Flyers', '1,000 flyers', 500000, now(), 'Printing', '{"quantity": 1000}');
+  values (shop, j, cust, 'Flyers', '1,000 flyers', 500000, now() - interval '3 days', 'Printing', '{"quantity": 1000}');
 
   -- Switched off: team changes are refused.
   refused := '';
@@ -150,7 +152,69 @@ begin
   end if;
   led := public.get_ledger_changes(shop, (pg_current_xact_id()::text::bigint - 1)::text);
   if jsonb_array_length(led->'ledger'->'workRecords') <> 2 then raise exception 'Sync work records: %', led->'ledger'->'workRecords'; end if;
+
+  -- Corrections. The cashier (not cleared) asks to correct their own record: a request an Admin approves.
+  perform set_config('request.jwt.claim.sub', cashier::text, true);
+  perform public.apply_team_event(shop, jsonb_build_object('id', gen_random_uuid(), 'kind', 'team.work_corrected', 'data',
+    jsonb_build_object('id', q1, 'recordId', w1, 'baseVersion', 2, 'reason', 'Counted wrong',
+      'changes', jsonb_build_object('unit', 'quantity', 'doneAt', now(), 'shares', jsonb_build_array(jsonb_build_object('personId', cashier, 'share', 350))))));
+  refused := '';
+  begin
+    perform public.apply_team_event(shop, jsonb_build_object('id', gen_random_uuid(), 'kind', 'team.correction_decided', 'data',
+      jsonb_build_object('id', gen_random_uuid(), 'requestId', q1, 'approve', true)));
+  exception when others then refused := sqlerrm;
+  end;
+  if refused not like 'This correction needs someone of a higher rank%' then raise exception 'Cashier approved: %', refused; end if;
+  perform set_config('request.jwt.claim.sub', admin::text, true);
+  perform public.apply_team_event(shop, jsonb_build_object('id', gen_random_uuid(), 'kind', 'team.correction_decided', 'data',
+    jsonb_build_object('id', gen_random_uuid(), 'requestId', q1, 'approve', true)));
+  -- An Admin corrects their own entry at once, with the audit kept.
+  perform public.apply_team_event(shop, jsonb_build_object('id', gen_random_uuid(), 'kind', 'team.work_corrected', 'data',
+    jsonb_build_object('id', gen_random_uuid(), 'recordId', w2, 'baseVersion', 1, 'reason', 'It was 650',
+      'changes', jsonb_build_object('unit', 'quantity', 'doneAt', now() - interval '1 day', 'shares', jsonb_build_array(jsonb_build_object('personId', ada, 'share', 650))))));
+  -- The General Manager's entry: an Admin's correction waits for a General Manager; a Manager's goes through with an alert.
+  perform set_config('request.jwt.claim.sub', owner::text, true);
+  perform public.apply_team_event(shop, jsonb_build_object('id', gen_random_uuid(), 'kind', 'team.work_recorded', 'data',
+    jsonb_build_object('id', w3, 'jobId', j, 'stage', 'In Queue', 'doneAt', now(), 'unit', 'percent',
+      'shares', jsonb_build_array(jsonb_build_object('personId', ada, 'share', 100)))));
+  perform set_config('request.jwt.claim.sub', admin::text, true);
+  perform public.apply_team_event(shop, jsonb_build_object('id', gen_random_uuid(), 'kind', 'team.work_corrected', 'data',
+    jsonb_build_object('id', q2, 'recordId', w3, 'baseVersion', 1, 'reason', 'Tunde helped',
+      'changes', jsonb_build_object('unit', 'percent', 'doneAt', now(), 'shares', jsonb_build_array(jsonb_build_object('personId', admin, 'share', 100))))));
+  perform set_config('request.jwt.claim.sub', manager::text, true);
+  refused := '';
+  begin
+    perform public.apply_team_event(shop, jsonb_build_object('id', gen_random_uuid(), 'kind', 'team.correction_decided', 'data',
+      jsonb_build_object('id', gen_random_uuid(), 'requestId', q2, 'approve', true)));
+  exception when others then refused := sqlerrm;
+  end;
+  if refused not like 'This correction needs someone of a higher rank%' then raise exception 'Manager approved a GM-level request: %', refused; end if;
+  perform public.apply_team_event(shop, jsonb_build_object('id', gen_random_uuid(), 'kind', 'team.work_corrected', 'data',
+    jsonb_build_object('id', gen_random_uuid(), 'recordId', w3, 'baseVersion', 1, 'reason', 'It was the queue clerk',
+      'changes', jsonb_build_object('unit', 'percent', 'doneAt', now(), 'shares', jsonb_build_array(jsonb_build_object('personId', cashier, 'share', 100))))));
+  -- No reason: refused.
+  refused := '';
+  begin
+    perform public.apply_team_event(shop, jsonb_build_object('id', gen_random_uuid(), 'kind', 'team.work_corrected', 'data',
+      jsonb_build_object('id', gen_random_uuid(), 'recordId', w3, 'baseVersion', 2, 'reason', '',
+        'changes', jsonb_build_object('unit', 'percent', 'doneAt', now(), 'shares', jsonb_build_array(jsonb_build_object('personId', cashier, 'share', 100))))));
+  exception when others then refused := sqlerrm;
+  end;
+  if refused not like 'Give a reason%' then raise exception 'No reason: %', refused; end if;
   reset role;
+  select data into r from public.team_records where shop_id = shop and id = w1;
+  if r->'shares'->0->>'share' <> '350' or r->>'status' <> 'confirmed' or r->'corrections'->0->>'approvedBy' <> admin::text then
+    raise exception 'Approved request not applied: %', r;
+  end if;
+  select data into r from public.team_records where shop_id = shop and id = w2;
+  if r->'shares'->0->>'share' <> '650' or jsonb_array_length(r->'corrections') <> 1 or r->'corrections'->0->'before'->'shares'->0->>'share' <> '600' then
+    raise exception 'Direct correction or its audit: %', r;
+  end if;
+  select data into r from public.team_records where shop_id = shop and id = w3;
+  if r->'shares'->0->>'personId' <> cashier::text or not (r->'corrections'->0->>'alert')::boolean or r->'corrections'->0->>'alertFor' <> owner::text then
+    raise exception 'Manager correction alert: %', r;
+  end if;
+  if (select data->>'approverRank' from public.team_records where id = q2) <> '4' then raise exception 'Approver rank for a GM entry'; end if;
   raise notice 'Team work passed';
 end $test$;
 rollback;

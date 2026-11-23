@@ -10,7 +10,7 @@
 
 create table if not exists public.team_records (
   shop_id uuid not null references public.shops(id) on delete cascade,
-  collection text not null check (collection in ('teamPeople', 'jobAssignments', 'workRecords')),
+  collection text not null check (collection in ('teamPeople', 'jobAssignments', 'workRecords', 'workCorrections')),
   id uuid not null,
   data jsonb not null check (jsonb_typeof(data) = 'object'),
   branch_id text,
@@ -32,7 +32,7 @@ create trigger touch_sync_xid before insert or update on public.team_records
 create or replace function private.team_settings(p_shop uuid) returns jsonb
 language sql stable security definer set search_path to '' as $f$
   select jsonb_build_object('enabled', false, 'askDoneBy', true, 'othersRank', 2, 'earlierRank', 2, 'doneAtDays', 7,
-    'needsConfirming', true, 'confirmRank', 2, 'assignRank', 2, 'correctionDays', 7)
+    'needsConfirming', true, 'confirmRank', 2, 'assignRank', 2, 'correctRank', 2, 'correctionDays', 7)
     || coalesce((select settings->'teamWork' from public.business_settings where shop_id = p_shop), '{}'::jsonb)
 $f$;
 revoke all on function private.team_settings(uuid) from public, anon, authenticated;
@@ -52,7 +52,7 @@ begin
   for k in select jsonb_object_keys(t) loop
     if k in ('enabled', 'askDoneBy', 'needsConfirming', 'commission') then
       if jsonb_typeof(t->k) is distinct from 'boolean' then raise exception 'Invalid Team work setting %', k; end if;
-    elsif k in ('othersRank', 'earlierRank', 'confirmRank', 'assignRank') then
+    elsif k in ('othersRank', 'earlierRank', 'confirmRank', 'assignRank', 'correctRank') then
       if coalesce(t->>k, '') not in ('1', '2', '3', '4') then raise exception 'Choose a rank for %', k; end if;
     elsif k in ('doneAtDays', 'correctionDays') then
       if jsonb_typeof(t->k) is distinct from 'number' or (t->>k) !~ '^[0-9]+$' or (t->>k)::int not between 0 and 90 then
@@ -76,6 +76,43 @@ language sql stable security definer set search_path to '' as $f$
                    and (not p_active or not coalesce((r.data->>'archived')::boolean, false)))
 $f$;
 revoke all on function private.team_person(uuid, uuid, boolean) from public, anon, authenticated;
+
+-- Checks a work record's Done by: shares (percent adding up to 100, or quantities up to the job's),
+-- an outside vendor, a redo. Returns how many people credited are not the person saving it.
+create or replace function private.team_check_work(p_shop uuid, p_job uuid, d jsonb) returns int
+language plpgsql stable security definer set search_path to '' as $f$
+declare j record; s jsonb; total numeric := 0; others int := 0; unit text := coalesce(d->>'unit', 'percent'); me uuid := auth.uid();
+begin
+  select * into j from public.jobs where shop_id = p_shop and id = p_job;
+    if unit not in ('percent', 'quantity') or jsonb_typeof(d->'shares') is distinct from 'array' or jsonb_array_length(d->'shares') > 20 then
+      raise exception 'Invalid shares';
+    end if;
+    if jsonb_array_length(d->'shares') = 0 and jsonb_typeof(d->'vendor') is distinct from 'object' then
+      raise exception 'Choose who did the work, or an outside vendor';
+    end if;
+    for s in select value from jsonb_array_elements(d->'shares') loop
+      if not private.team_person(p_shop, (s->>'personId')::uuid) then raise exception 'Choose people on the Team'; end if;
+      if jsonb_typeof(s->'share') is distinct from 'number' or (s->>'share')::numeric <= 0 then raise exception 'Each share must be more than 0'; end if;
+      total := total + (s->>'share')::numeric;
+      if (s->>'personId')::uuid is distinct from me then others := others + 1; end if;
+    end loop;
+    if jsonb_array_length(d->'shares') > 0 then
+      if unit = 'percent' and abs(total - 100) > 0.01 then raise exception 'The shares must add up to 100%%'; end if;
+      if unit = 'quantity' and coalesce((j.metadata->>'quantity')::numeric, 0) > 0 and total > (j.metadata->>'quantity')::numeric then
+        raise exception 'The quantities add up to more than the job''s %', j.metadata->>'quantity';
+      end if;
+    end if;
+    if d ? 'redo' and (jsonb_typeof(d->'redo') <> 'object' or (nullif(d->'redo'->>'responsibleId', '') is not null
+        and not private.team_person(p_shop, (d->'redo'->>'responsibleId')::uuid, false)) or length(coalesce(d->'redo'->>'note', '')) > 300) then
+      raise exception 'Invalid redo';
+    end if;
+    if d ? 'vendor' and (jsonb_typeof(d->'vendor') <> 'object' or length(btrim(coalesce(d->'vendor'->>'name', ''))) not between 1 and 120
+        or jsonb_typeof(d->'vendor'->'cost') <> 'number' or (d->'vendor'->>'cost')::numeric < 0 or (d->'vendor'->>'cost')::numeric > 100000000000) then
+      raise exception 'Enter the vendor''s name and cost';
+    end if;
+  return others;
+end $f$;
+revoke all on function private.team_check_work(uuid, uuid, jsonb) from public, anon, authenticated;
 
 create or replace function public.apply_team_event(p_shop uuid, p_event jsonb) returns void
 language plpgsql security definer set search_path to '' as $f$
@@ -161,25 +198,7 @@ begin
       raise exception 'You cannot record an earlier Done at';
     end if;
     unit := coalesce(d->>'unit', 'percent');
-    if unit not in ('percent', 'quantity') or jsonb_typeof(d->'shares') is distinct from 'array' or jsonb_array_length(d->'shares') > 20 then
-      raise exception 'Invalid shares';
-    end if;
-    if jsonb_array_length(d->'shares') = 0 and jsonb_typeof(d->'vendor') is distinct from 'object' then
-      raise exception 'Choose who did the work, or an outside vendor';
-    end if;
-    others := 0;
-    for s in select value from jsonb_array_elements(d->'shares') loop
-      if not private.team_person(p_shop, (s->>'personId')::uuid) then raise exception 'Choose people on the Team'; end if;
-      if jsonb_typeof(s->'share') is distinct from 'number' or (s->>'share')::numeric <= 0 then raise exception 'Each share must be more than 0'; end if;
-      total := total + (s->>'share')::numeric;
-      if (s->>'personId')::uuid is distinct from me then others := others + 1; end if;
-    end loop;
-    if jsonb_array_length(d->'shares') > 0 then
-      if unit = 'percent' and abs(total - 100) > 0.01 then raise exception 'The shares must add up to 100%%'; end if;
-      if unit = 'quantity' and coalesce((j.metadata->>'quantity')::numeric, 0) > 0 and total > (j.metadata->>'quantity')::numeric then
-        raise exception 'The quantities add up to more than the job''s %', j.metadata->>'quantity';
-      end if;
-    end if;
+    others := private.team_check_work(p_shop, j.id, d);
     -- Recording work for someone else: those allowed, or the people assigned when "Done by" is not asked.
     if others > 0 and lvl < (tw->>'othersRank')::int then
       if coalesce((d->>'auto')::boolean, false) and not coalesce((tw->>'askDoneBy')::boolean, true) then
@@ -190,14 +209,6 @@ begin
         end if;
       else raise exception 'You can record only your own work';
       end if;
-    end if;
-    if d ? 'redo' and (jsonb_typeof(d->'redo') <> 'object' or (nullif(d->'redo'->>'responsibleId', '') is not null
-        and not private.team_person(p_shop, (d->'redo'->>'responsibleId')::uuid, false)) or length(coalesce(d->'redo'->>'note', '')) > 300) then
-      raise exception 'Invalid redo';
-    end if;
-    if d ? 'vendor' and (jsonb_typeof(d->'vendor') <> 'object' or length(btrim(coalesce(d->'vendor'->>'name', ''))) not between 1 and 120
-        or jsonb_typeof(d->'vendor'->'cost') <> 'number' or (d->'vendor'->>'cost')::numeric < 0 or (d->'vendor'->>'cost')::numeric > 100000000000) then
-      raise exception 'Enter the vendor''s name and cost';
     end if;
     -- Confirmed at once when no confirming is needed, or when someone who confirms records another's work.
     credited := exists (select 1 from jsonb_array_elements(d->'shares') s3 where (s3.value->>'personId')::uuid = me);
@@ -229,6 +240,71 @@ begin
           'confirmedAt', now(), 'version', (data->>'version')::int + 1)
         where shop_id = p_shop and collection = 'workRecords' and id = existing.id;
     end loop;
+  elsif k = 'team.work_corrected' then
+    -- A correction (plans/job-assignment.md, owner's rule of 23 Nov): saved at once by someone cleared
+    -- (correctRank), or sent for approval. An entry recorded by a higher rank needs that rank or above
+    -- to approve, except a Manager's correction, which goes through and alerts whoever recorded it.
+    select * into existing from public.team_records where shop_id = p_shop and collection = 'workRecords' and id = (d->>'recordId')::uuid for update;
+    if not found then raise exception 'Work record not found'; end if;
+    if coalesce((existing.data->>'version')::int, 1) <> coalesce((d->>'baseVersion')::int, -1) then
+      raise exception 'This work record was changed elsewhere. Close and try again.' using errcode = 'PT409';
+    end if;
+    if length(btrim(coalesce(d->>'reason', ''))) not between 3 and 300 then raise exception 'Give a reason for the correction'; end if;
+    select * into j from public.jobs where shop_id = p_shop and id = (existing.data->>'jobId')::uuid;
+    if j.production_status = 'Collected' and coalesce((j.metadata->>'stageAt')::timestamptz, j.modified_at, now())
+        < now() - make_interval(days => (tw->>'correctionDays')::int) then
+      raise exception 'Work records can be corrected up to % days after the job is collected', tw->>'correctionDays';
+    end if;
+    if jsonb_typeof(d->'changes') is distinct from 'object' then raise exception 'Invalid correction'; end if;
+    perform private.team_check_work(p_shop, j.id, d->'changes');
+    begin done := (d->'changes'->>'doneAt')::timestamptz; exception when others then raise exception 'Enter when the work was done'; end;
+    if done is null or done > now() + interval '5 minutes' or done < j.created_at - interval '1 minute' then
+      raise exception 'Done at must be after the job was added and not in the future';
+    end if;
+    status := case
+      when coalesce((existing.data->>'recordedByRank')::int, 0) > lvl and lvl = 3 and lvl >= (tw->>'correctRank')::int then 'alert'
+      when coalesce((existing.data->>'recordedByRank')::int, 0) > lvl then 'request'
+      when lvl >= (tw->>'correctRank')::int then 'direct'
+      else 'request' end;
+    nxt := jsonb_build_object('unit', coalesce(d->'changes'->>'unit', 'percent'), 'shares', d->'changes'->'shares', 'doneAt', done)
+      || case when d->'changes' ? 'redo' then jsonb_build_object('redo', d->'changes'->'redo') else '{}' end
+      || case when d->'changes' ? 'vendor' then jsonb_build_object('vendor', jsonb_build_object('name', btrim(d->'changes'->'vendor'->>'name'),
+           'cost', round((d->'changes'->'vendor'->>'cost')::numeric))) else '{}' end;
+    if status = 'request' then
+      insert into public.team_records(shop_id, collection, id, data, branch_id) values (p_shop, 'workCorrections', rid,
+        jsonb_build_object('id', rid, 'recordId', existing.id, 'jobId', j.id, 'baseVersion', (existing.data->>'version')::int,
+          'changes', nxt, 'reason', btrim(d->>'reason'), 'requestedBy', me, 'requestedByLabel', label, 'requestedByRank', lvl,
+          'approverRank', greatest((tw->>'correctRank')::int, coalesce((existing.data->>'recordedByRank')::int, 0)),
+          'status', 'pending', 'requestedAt', now(), 'version', 1),
+        existing.branch_id);
+    else
+      update public.team_records set data = (data - 'redo' - 'vendor') || nxt || jsonb_build_object('version', (data->>'version')::int + 1,
+          'corrections', coalesce(data->'corrections', '[]') || jsonb_build_array(jsonb_build_object('at', now(), 'by', me, 'byLabel', label,
+            'byRank', lvl, 'reason', btrim(d->>'reason'), 'before', data - 'corrections' - 'id' - 'jobId' - 'stage' - 'version',
+            'alert', status = 'alert', 'alertFor', case when status = 'alert' then data->>'recordedBy' end)))
+        where shop_id = p_shop and collection = 'workRecords' and id = existing.id;
+    end if;
+
+  elsif k = 'team.correction_decided' then
+    select * into existing from public.team_records where shop_id = p_shop and collection = 'workCorrections' and id = (d->>'requestId')::uuid for update;
+    if not found or existing.data->>'status' <> 'pending' then raise exception 'This request is not waiting for a decision'; end if;
+    if lvl < (existing.data->>'approverRank')::int then raise exception 'This correction needs someone of a higher rank'; end if;
+    if (existing.data->>'requestedBy')::uuid = me then raise exception 'Someone else decides your own correction'; end if;
+    if jsonb_typeof(d->'approve') is distinct from 'boolean' then raise exception 'Approve or decline the correction'; end if;
+    if (d->>'approve')::boolean then
+      update public.team_records r set data = (r.data - 'redo' - 'vendor') || (existing.data->'changes') || jsonb_build_object(
+          'version', (r.data->>'version')::int + 1, 'status', 'confirmed', 'confirmedBy', me, 'confirmedByLabel', label, 'confirmedAt', now(),
+          'corrections', coalesce(r.data->'corrections', '[]') || jsonb_build_array(jsonb_build_object('at', now(), 'by', existing.data->'requestedBy',
+            'byLabel', existing.data->>'requestedByLabel', 'byRank', existing.data->'requestedByRank', 'reason', existing.data->>'reason',
+            'approvedBy', me, 'approvedByLabel', label, 'before', r.data - 'corrections' - 'id' - 'jobId' - 'stage' - 'version')))
+        where r.shop_id = p_shop and r.collection = 'workRecords' and r.id = (existing.data->>'recordId')::uuid
+          and (r.data->>'version')::int = (existing.data->>'baseVersion')::int;
+      if not found then raise exception 'The work record changed after this request. Decline it and ask again.' using errcode = 'PT409'; end if;
+    end if;
+    update public.team_records set data = data || jsonb_build_object('status', case when (d->>'approve')::boolean then 'approved' else 'declined' end,
+        'decidedBy', me, 'decidedByLabel', label, 'decidedAt', now(), 'note', left(btrim(coalesce(d->>'note', '')), 300),
+        'version', (data->>'version')::int + 1)
+      where shop_id = p_shop and collection = 'workCorrections' and id = existing.id;
   else
     raise exception 'Unknown team change';
   end if;
@@ -257,6 +333,9 @@ begin
           and (p_keep is null or coalesce(r.branch_id, 'main') = p_keep)),
     'workRecords', (select coalesce(jsonb_agg(r.data order by r.data->>'recordedAt', r.id), '[]'::jsonb) from public.team_records r
         where r.shop_id = p_shop and r.collection = 'workRecords' and (p_since is null or r.sync_xid >= p_since)
+          and (p_keep is null or coalesce(r.branch_id, 'main') = p_keep)),
+    'workCorrections', (select coalesce(jsonb_agg(r.data order by r.data->>'requestedAt', r.id), '[]'::jsonb) from public.team_records r
+        where r.shop_id = p_shop and r.collection = 'workCorrections' and (p_since is null or r.sync_xid >= p_since)
           and (p_keep is null or coalesce(r.branch_id, 'main') = p_keep)));
 end $f$;
 revoke all on function private.team_for(uuid, text, xid8) from public, anon;

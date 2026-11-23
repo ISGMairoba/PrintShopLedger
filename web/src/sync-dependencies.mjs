@@ -55,6 +55,8 @@ export function eventResources(event, ledger) {
     add('team', d.id);
     add('job', d.jobId);
     for (const id of d.recordIds ?? []) add('team', id);
+    add('team', d.recordId);
+    add('team', d.requestId);
   } else if (family === 'expense') {
     add('expense', d.id);
     add('payee', d.payeeId);

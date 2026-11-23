@@ -855,6 +855,7 @@ export interface Ledger {
   teamPeople?: TeamPerson[];
   jobAssignments?: JobAssignment[];
   workRecords?: WorkRecord[];
+  workCorrections?: WorkCorrection[];
   payees?: Payee[];
   moneyAccounts?: MoneyAccount[];
   accountEntries?: Record<string, any>[];
@@ -952,13 +953,47 @@ export interface WorkRecord {
   vendor?: { name: string; cost: number };
   note?: string;
   auto?: boolean;
+  /** Corrections, oldest first: who, when, why, and what it was before. */
+  corrections?: {
+    at: string;
+    by?: string;
+    byLabel?: string;
+    byRank?: number;
+    reason: string;
+    approvedBy?: string;
+    approvedByLabel?: string;
+    alert?: boolean;
+    alertFor?: string;
+    before?: Record<string, any>;
+  }[];
+  version: number;
+}
+/** A request to correct a work record, for approval. */
+export interface WorkCorrection {
+  id: string;
+  recordId: string;
+  jobId: string;
+  baseVersion: number;
+  changes: Record<string, any>;
+  reason: string;
+  requestedBy: string;
+  requestedByLabel: string;
+  requestedByRank: number;
+  approverRank: number;
+  status: 'pending' | 'approved' | 'declined';
+  requestedAt: string;
+  decidedByLabel?: string;
+  decidedAt?: string;
+  note?: string;
   version: number;
 }
 export type TeamEvent =
   | { id: string; kind: 'team.person_saved'; data: Record<string, any> & { id: string } }
   | { id: string; kind: 'team.assigned'; data: Record<string, any> & { id: string } }
   | { id: string; kind: 'team.work_recorded'; data: Record<string, any> & { id: string } }
-  | { id: string; kind: 'team.work_confirmed'; data: Record<string, any> & { id: string } };
+  | { id: string; kind: 'team.work_confirmed'; data: Record<string, any> & { id: string } }
+  | { id: string; kind: 'team.work_corrected'; data: Record<string, any> & { id: string } }
+  | { id: string; kind: 'team.correction_decided'; data: Record<string, any> & { id: string } };
 export interface LocalState {
   syncConflicts?: Record<string, string>;
   ledger: Ledger;

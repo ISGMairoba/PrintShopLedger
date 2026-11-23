@@ -4,9 +4,15 @@ import Icon from './Icon';
 import Modal from './Modal';
 import ResponsiveTable from './ResponsiveTable';
 import { useTeam } from './TeamContext';
+import DoneByFields, { draftFrom, draftWork } from './DoneByFields';
 import {
+  approverRank,
   canConfirm,
   confirmEvent,
+  correctEvent,
+  correctionRoute,
+  decideEvent,
+  pendingCorrections,
   myWork,
   personEvent,
   personName,
@@ -14,7 +20,8 @@ import {
   teamPeople,
   toConfirm,
 } from './team.mjs';
-import type { LocalState, TeamEvent, TeamPerson, WorkRecord } from './types';
+import type { Job, LocalState, TeamEvent, TeamPerson, WorkCorrection, WorkRecord } from './types';
+import { roleNames } from './page-access.mjs';
 import { useWords } from './Words';
 
 const when = (at?: string) =>
@@ -38,18 +45,33 @@ export function creditText(ledger: Parameters<typeof personName>[0], record: Wor
 export function JobWorkRecords({ job }: { job: { id: string } }) {
   const team = useTeam();
   const { stage } = useWords();
+  const [correcting, setCorrecting] = useState<WorkRecord | null>(null);
   if (!team) return null;
   const records = (team.ledger.workRecords ?? []).filter((r) => r.jobId === job.id);
   if (!records.length) return null;
+  const full = team.ledger.jobs.find((j) => j.id === job.id);
   return (
     <details>
       <summary>Work records ({records.length})</summary>
+      {correcting && full && (
+        <CorrectWorkDialog record={correcting} job={full} onClose={() => setCorrecting(null)} />
+      )}
       {records.map((r) => (
         <p key={r.id}>
           <strong>{stage(r.stage)}</strong>: {creditText(team.ledger, r)}
-          {r.redo ? ' · redo' : ''}
+          {r.redo ? ' · redo' : ''}{' '}
+          <button
+            type="button"
+            className="text-button"
+            disabled={team.busy}
+            data-opens-dialog
+            onClick={() => setCorrecting(r)}
+          >
+            <Icon name="edit" /> Correct
+          </button>
           <br />
           <small className="muted">
+            {r.corrections?.length ? `Corrected ${r.corrections.length}× · ` : ''}
             Done {when(r.doneAt)} · recorded {when(r.recordedAt)} by {r.recordedByLabel ?? '—'} ·{' '}
             {r.status === 'confirmed'
               ? `confirmed by ${r.confirmedByLabel ?? '—'}`
@@ -124,10 +146,60 @@ export default function TeamPage({
   };
   const jobOf = (id: string) => ledger.jobs.find((j) => j.id === id);
   if (section === 'confirm') {
+    const requests = pendingCorrections(ledger) as WorkCorrection[];
     const waiting = toConfirm(ledger) as WorkRecord[];
     const mine = waiting.filter((r) => canConfirm(ledger, r, actor, { teamWork: team.settings }));
     return (
       <section className="panel">
+        {!!requests.length && (
+          <>
+            <h2>Correction requests</h2>
+            <ul className="request-list">
+              {requests.map((c) => {
+                const record = (ledger.workRecords ?? []).find((r) => r.id === c.recordId);
+                const job = jobOf(c.jobId);
+                const may = actor.level >= c.approverRank && c.requestedBy !== actor.id;
+                return (
+                  <li key={c.id} className="request-item pending">
+                    <div>
+                      <strong>{job?.service ?? 'Job'}</strong> · {record ? stage(record.stage) : ''} · asked by{' '}
+                      {c.requestedByLabel} on {when(c.requestedAt)}
+                      <br />
+                      <small>
+                        {record ? creditText(ledger, record) : '—'} →{' '}
+                        {creditText(ledger, { ...(record as WorkRecord), ...c.changes } as WorkRecord)}
+                      </small>
+                      <br />
+                      <small className="muted">
+                        Why: {c.reason}
+                        {may ? '' : ` · needs a ${roleNames[c.approverRank as 1] ?? 'higher rank'} or above`}
+                      </small>
+                    </div>
+                    {may && (
+                      <div className="material-actions">
+                        <button
+                          type="button"
+                          className="secondary"
+                          disabled={busy}
+                          onClick={() => void run([decideEvent(c, false, '', actor) as TeamEvent])}
+                        >
+                          <Icon name="close" /> Decline
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void run([decideEvent(c, true, '', actor) as TeamEvent])}
+                        >
+                          <Icon name="complete" /> Approve
+                        </button>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
         <h2>Work to confirm</h2>
         <p className="muted">
           Recorded work counts in reports once it is confirmed. You confirm others&apos; work; your own is
@@ -463,6 +535,71 @@ function PersonDialog({
           </div>
         </fieldset>
       </form>
+    </Modal>
+  );
+}
+
+/** Correct a work record: saved at once, sent for approval, or saved with whoever recorded it told. */
+export function CorrectWorkDialog({ record, job, onClose }: { record: WorkRecord; job: Job; onClose: () => void }) {
+  const team = useTeam();
+  const { stage } = useWords();
+  const [draft, setDraft] = useState(() => draftFrom(record));
+  const [reason, setReason] = useState('');
+  const [error, setError] = useState('');
+  if (!team) return null;
+  const route = correctionRoute(record, team.actor, { teamWork: team.settings });
+  const outcome =
+    route === 'direct'
+      ? 'Your correction is saved at once, with the reason and what it was before.'
+      : route === 'alert'
+        ? `Your correction is saved at once, and ${record.recordedByLabel ?? 'whoever recorded it'} is told.`
+        : `Your correction goes for approval by a ${roleNames[approverRank(record, { teamWork: team.settings }) as 1] ?? 'higher rank'} or above.`;
+  const save = async () => {
+    setError('');
+    try {
+      if (reason.trim().length < 3) throw Error('Give a reason for the correction.');
+      const checked = draftWork(draft, job, undefined, 3650);
+      if (checked.problem) throw Error(checked.problem);
+      await team.save([correctEvent(record, checked.work, reason, team.actor) as TeamEvent]);
+      onClose();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    }
+  };
+  return (
+    <Modal
+      title={`Correct work: ${stage(record.stage)}`}
+      busy={team.busy}
+      onClose={onClose}
+      footer={
+        <div className="dialog-action-buttons">
+          <button type="button" className="secondary" disabled={team.busy} onClick={onClose}>
+            <Icon name="close" /> Cancel
+          </button>
+          <button type="button" disabled={team.busy} onClick={() => void save()}>
+            <Icon name="save" /> {route === 'request' ? 'Ask for the correction' : 'Save correction'}
+          </button>
+        </div>
+      }
+    >
+      {error && (
+        <p className="notice" role="alert">
+          {error}
+        </p>
+      )}
+      <p className="muted">
+        {job.service} · now: {creditText(team.ledger, record)}. {outcome}
+      </p>
+      <DoneByFields job={job} stage={stage(record.stage)} value={draft} onChange={setDraft} correcting />
+      <label>
+        Reason
+        <input
+          aria-label="Reason for the correction"
+          maxLength={300}
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+        />
+      </label>
     </Modal>
   );
 }

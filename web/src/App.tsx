@@ -232,7 +232,15 @@ import { setMessageSender } from './messages.mjs';
 import { setCustomerLink } from './customer-link';
 import { TeamContext, type TeamWork } from './TeamContext';
 import TeamPage, { UsersTabs } from './TeamPage';
-import { autoWorkEvents, teamOn, teamReady, teamSettings, withTrialMember, workEvents } from './team.mjs';
+import {
+  autoWorkEvents,
+  correctionAlerts,
+  teamOn,
+  teamReady,
+  teamSettings,
+  withTrialMember,
+  workEvents,
+} from './team.mjs';
 
 const DashboardPage = lazy(() => import('./DashboardPage'));
 const ReportsPage = lazy(() => import('./ReportsPage'));
@@ -330,6 +338,19 @@ export default function App() {
     : businessSession && session && shop && shop.userId === session.user.id && shop.accessLevel > 0
       ? `${session.user.id}:${shop.id}`
       : '';
+  // Team work: the latest correction alert dismissed on this device (scope changes reload it).
+  const [teamSeenFor, setTeamSeenFor] = useState({ scope: '', at: '' });
+  const teamSeen =
+    teamSeenFor.scope === scope
+      ? teamSeenFor.at
+      : (() => {
+          try {
+            return localStorage.getItem(`psl-team-seen:${scope}`) ?? '';
+          } catch {
+            return '';
+          }
+        })();
+  const setTeamSeen = (at: string) => setTeamSeenFor({ scope, at });
   // Trusted printing signs QZ Tray requests with this business's key (staff sign-in required).
   const signingShop = !demo && scope && supabase ? (shop?.id ?? '') : '';
   useEffect(() => {
@@ -1358,7 +1379,38 @@ export default function App() {
     setNoticesOpen(false);
     setPage(target);
   };
+  // Team work: a Manager corrected one of my entries (owner's rule): I am told, until I dismiss it.
+  const teamAlerts = teamWork.on && session ? correctionAlerts(teamWork.ledger, session.user.id, teamSeen) : [];
   const alerts: NoticeAlert[] = [
+    ...(teamAlerts.length
+      ? [
+          {
+            key: 'team-corrections',
+            text: teamAlerts
+              .slice(0, 3)
+              .map(
+                ({ record, c }) =>
+                  `Your entry on job #${record.jobId.slice(0, 8).toUpperCase()} was corrected by ${c.byLabel ?? 'a Manager'} (Manager): ${c.reason}`,
+              )
+              .join(' · '),
+            action: {
+              label: 'Open the job',
+              icon: 'jobs' as const,
+              run: () => {
+                setSelectedJob(teamAlerts[0].record.jobId);
+                goTo('Jobs');
+              },
+            },
+            dismiss: () => {
+              const at = teamAlerts[0].c.at;
+              setTeamSeen(at);
+              try {
+                localStorage.setItem(`psl-team-seen:${scope}`, at);
+              } catch {}
+            },
+          },
+        ]
+      : []),
     ...(loansDue.length
       ? [
           {
