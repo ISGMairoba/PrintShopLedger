@@ -851,6 +851,10 @@ export interface Ledger {
     amount: number;
     at: string;
   }[];
+  /** Team work (team.mjs): the Team, assignments and work records. */
+  teamPeople?: TeamPerson[];
+  jobAssignments?: JobAssignment[];
+  workRecords?: WorkRecord[];
   payees?: Payee[];
   moneyAccounts?: MoneyAccount[];
   accountEntries?: Record<string, any>[];
@@ -898,7 +902,63 @@ export type LedgerEvent =
   | MaterialEvent
   | ServiceEvent
   | QuotationEvent
-  | ReminderEvent;
+  | ReminderEvent
+  | TeamEvent;
+/** Team work (plans/job-assignment.md). An app user's id is their user id. */
+export interface TeamPerson {
+  id: string;
+  name: string;
+  role?: string;
+  phone?: string;
+  branchId?: string | null;
+  /** An app user (on the Team automatically), with their rank. */
+  member?: boolean;
+  userId?: string;
+  rank?: number;
+  archived?: boolean;
+  version?: number;
+}
+export interface JobAssignment {
+  id: string;
+  jobId: string;
+  /** '' for the whole job. */
+  stage: string;
+  personIds: string[];
+  version: number;
+  modifiedBy?: string;
+  modifiedByLabel?: string;
+  modifiedAt?: string;
+}
+export interface WorkShare {
+  personId: string;
+  share: number;
+}
+export interface WorkRecord {
+  id: string;
+  jobId: string;
+  stage: string;
+  unit: 'percent' | 'quantity';
+  shares: WorkShare[];
+  doneAt: string;
+  recordedAt: string;
+  recordedBy?: string;
+  recordedByLabel?: string;
+  recordedByRank?: number;
+  status: 'recorded' | 'confirmed';
+  confirmedBy?: string;
+  confirmedByLabel?: string;
+  confirmedAt?: string;
+  redo?: { responsibleId?: string | null; note?: string };
+  vendor?: { name: string; cost: number };
+  note?: string;
+  auto?: boolean;
+  version: number;
+}
+export type TeamEvent =
+  | { id: string; kind: 'team.person_saved'; data: Record<string, any> & { id: string } }
+  | { id: string; kind: 'team.assigned'; data: Record<string, any> & { id: string } }
+  | { id: string; kind: 'team.work_recorded'; data: Record<string, any> & { id: string } }
+  | { id: string; kind: 'team.work_confirmed'; data: Record<string, any> & { id: string } };
 export interface LocalState {
   syncConflicts?: Record<string, string>;
   ledger: Ledger;
@@ -909,6 +969,8 @@ export interface LocalState {
   fullSyncAt?: string;
   /** Set when this device's damaged offline copy was replaced; cleared after the next download. */
   storageRecovered?: string;
+  /** Team work changes the server refused (dropped so the rest syncs), with its reason. */
+  teamRefused?: { kind: string; jobId?: string; message: string; at: string }[];
 }
 
 export interface ExpenseMaterial {

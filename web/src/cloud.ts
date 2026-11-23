@@ -99,6 +99,39 @@ export const businessAuth =
 export const consoleAuth =
   url && key ? createClient(url, key, { auth: { storageKey: 'printshopledger-console-auth' } }) : null;
 
+/** The server function that applies a kind of change. */
+function rpcFor(kind: string) {
+  if (
+    kind === 'job.due_changed' ||
+    kind.startsWith('payee.') ||
+    kind.startsWith('account.') ||
+    kind.startsWith('repeat.')
+  )
+    return 'apply_operations_event';
+  if (kind.startsWith('team.')) return 'apply_team_event';
+  if (kind.startsWith('expense.')) return 'apply_expense_event';
+  if (kind.startsWith('quotation.')) return 'apply_quotation_event';
+  const exact: Record<string, string> = {
+    'customer.reminded': 'apply_reminder_event',
+    'checkout.completed': 'apply_checkout_event',
+    'job.status_changed': 'apply_job_status_event',
+    'job.material_used': 'apply_job_material_event',
+    'job.extra_materials_set': 'apply_job_extra_materials_event',
+    'job.materials_checked': 'apply_job_check_event',
+    'job.held': 'apply_job_hold_event',
+    'job.resumed': 'apply_job_hold_event',
+    'job.done_recorded': 'apply_job_handover_event',
+    'job.handed_over': 'apply_job_handover_event',
+    'job.handover_removed': 'apply_job_handover_event',
+    'service.display_set': 'apply_service_display_event',
+    'customer.called_as_set': 'apply_customer_called_as_event',
+  };
+  if (exact[kind]) return exact[kind];
+  if (kind.startsWith('customer.')) return 'apply_customer_event';
+  if (kind.startsWith('material.')) return 'apply_material_event';
+  if (kind.startsWith('service.')) return 'apply_service_event';
+  return 'apply_ledger_event';
+}
 async function synchronize(scope: string, shopId: string, db: SupabaseClient = supabase!) {
   if (!db || !navigator.onLine) throw Error('Connect to the internet to sync.');
   const check = async () => {
@@ -153,48 +186,27 @@ async function synchronize(scope: string, shopId: string, db: SupabaseClient = s
     if (!current.pending.some((item) => item.id === event.id) || blockedWork(current).eventIds.has(event.id))
       continue;
     const { error } = await db
-      .rpc(
-        event.kind === 'job.due_changed' ||
-          event.kind.startsWith('payee.') ||
-          event.kind.startsWith('account.') ||
-          event.kind.startsWith('repeat.')
-          ? 'apply_operations_event'
-          : event.kind.startsWith('expense.')
-            ? 'apply_expense_event'
-            : event.kind.startsWith('quotation.')
-              ? 'apply_quotation_event'
-              : event.kind === 'customer.reminded'
-                ? 'apply_reminder_event'
-                : event.kind === 'checkout.completed'
-                  ? 'apply_checkout_event'
-                  : event.kind === 'job.status_changed'
-                    ? 'apply_job_status_event'
-                    : event.kind === 'job.material_used'
-                      ? 'apply_job_material_event'
-                      : event.kind === 'job.extra_materials_set'
-                        ? 'apply_job_extra_materials_event'
-                        : event.kind === 'job.materials_checked'
-                          ? 'apply_job_check_event'
-                          : event.kind === 'job.held' || event.kind === 'job.resumed'
-                            ? 'apply_job_hold_event'
-                            : event.kind === 'job.done_recorded' ||
-                                event.kind === 'job.handed_over' ||
-                                event.kind === 'job.handover_removed'
-                              ? 'apply_job_handover_event'
-                              : event.kind === 'service.display_set'
-                                ? 'apply_service_display_event'
-                                : event.kind === 'customer.called_as_set'
-                                  ? 'apply_customer_called_as_event'
-                                  : event.kind.startsWith('customer.')
-                                    ? 'apply_customer_event'
-                                    : event.kind.startsWith('material.')
-                                      ? 'apply_material_event'
-                                      : event.kind.startsWith('service.')
-                                        ? 'apply_service_event'
-                                        : 'apply_ledger_event',
-        { p_shop: shopId, p_event: event },
-      )
+      .rpc(rpcFor(event.kind), { p_shop: shopId, p_event: event })
       .abortSignal(AbortSignal.timeout(30000));
+    // A team work record the server refuses (Team work switched off meanwhile, a rule it breaks) is
+    // set aside with its reason so the rest still syncs: it records who did work, not money or stock.
+    if (error && event.kind.startsWith('team.') && /^(P0001|PT409|42501)$/.test(error.code ?? '')) {
+      await check();
+      await mutateState(scope, (current) => ({
+        ...current,
+        pending: current.pending.filter((item) => item.id !== event.id),
+        teamRefused: [
+          ...(current.teamRefused ?? []).slice(-49),
+          {
+            kind: event.kind,
+            jobId: (event.data as { jobId?: string }).jobId,
+            message: error.message,
+            at: new Date().toISOString(),
+          },
+        ],
+      }));
+      continue;
+    }
     if (error && ['PT409', '40001', 'P0002'].includes(error.code)) {
       // Upload only after the server rejects an operation, and persist the hold before proceeding.
       await check();

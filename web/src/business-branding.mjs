@@ -1,3 +1,4 @@
+import { validateTeamSettings } from './team.mjs';
 import { tileDefaults, validateTiles } from './item-tiles.mjs';
 import { appIconDefaults, validateAppIcon } from './app-icon.mjs';
 import { messagesDefaults, validateMessages } from './messages.mjs';
@@ -183,6 +184,8 @@ export const defaultBranding = () => ({
    * @type {'estimated' | 'actual'}
    */
   costMethod: /** @type {'estimated' | 'actual'} */ ('estimated'),
+  /** Team work choices changed from their defaults (team.mjs TEAM_DEFAULTS); left out when none. */
+  teamWork: /** @type {Partial<typeof import('./team.mjs').TEAM_DEFAULTS> | undefined} */ (undefined),
   businessName: '',
   address: '',
   phones: '',
@@ -293,6 +296,12 @@ export function validateBranding(input) {
     value.costMethod ??= 'estimated';
     if (!['estimated', 'actual'].includes(value.costMethod))
       throw Error('Choose the cost method: Estimated or Actual.');
+  }
+  // Team work (team.mjs): kept only when a choice differs from its default.
+  if (value && typeof value === 'object' && 'teamWork' in value) {
+    const team = validateTeamSettings(value.teamWork);
+    if (team) value.teamWork = team;
+    else delete value.teamWork;
   }
   for (const [key, max] of Object.entries({
     businessName: 160,

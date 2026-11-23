@@ -1,3 +1,5 @@
+import { TeamChips } from './TeamAssign';
+import { JobWorkRecords } from './TeamPage';
 import { jobBalanceFast } from './balances.mjs';
 import ExtraMaterials from './ExtraMaterials';
 import MaterialCheckSection from './MaterialCheckSection';
@@ -130,6 +132,8 @@ export default function JobDetails({
         </p>
       )}
       <DeadlineProgress job={job} />
+      <TeamChips job={job} />
+      <JobWorkRecords job={job} />
       {onDue && !['Completed', 'Collected', 'Cancelled'].includes(job.productionStatus ?? '') && (
         <button className="secondary spaced-action" disabled={busy} onClick={() => onDue([job])}>
           Change due date

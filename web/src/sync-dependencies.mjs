@@ -50,6 +50,12 @@ export function eventResources(event, ledger) {
   } else if (event.kind === 'customer.reminded') add('reminder', d.id);
   else if (family === 'customer') add('customer', d.id);
   else if (family === 'quotation') add('quotation', d.id);
+  else if (family === 'team') {
+    // A work record follows the job's stage move; an assignment, its job.
+    add('team', d.id);
+    add('job', d.jobId);
+    for (const id of d.recordIds ?? []) add('team', id);
+  }
   else if (family === 'expense') {
     add('expense', d.id);
     add('payee', d.payeeId);

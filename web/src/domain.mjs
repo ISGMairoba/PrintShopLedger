@@ -14,6 +14,7 @@ import { applyServiceEvent } from './services.mjs';
 import { applyMaterialEvent, normalizeLedger } from './materials.mjs';
 import { applyQuotationEvent } from './quotations.mjs';
 import { applyReminderEvent } from './reminders.mjs';
+import { applyTeamEvent } from './team.mjs';
 import { tagNewRecords } from './branches.mjs';
 
 // Money is stored as integer kobo. Customer balances are derived from jobs.
@@ -100,6 +101,7 @@ function applyEventCore(ledger, event) {
   if (event.kind === 'material.wasted') return applyWaste(ledger, event);
   if (event.kind.startsWith('expense.')) return applyExpenseEvent(ledger, event);
   if (event.kind.startsWith('quotation.')) return applyQuotationEvent(ledger, event);
+  if (event.kind.startsWith('team.')) return applyTeamEvent(ledger, event);
   if (event.kind === 'customer.reminded') return applyReminderEvent(ledger, event);
   if (event.kind === 'service.display_set' || event.kind === 'customer.called_as_set')
     return applyFieldEvent(ledger, event);
