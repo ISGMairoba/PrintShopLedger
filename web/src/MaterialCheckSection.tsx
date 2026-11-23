@@ -156,7 +156,12 @@ export default function MaterialCheckSection({
       )}
       <MaterialCorrectionRequest ledger={ledger} job={job} busy={busy} actor={actor} onSave={onSave} />
       {canCorrect && (
-        <button type="button" className="secondary self-start" disabled={busy} onClick={() => setCorrecting(true)}>
+        <button
+          type="button"
+          className="secondary self-start"
+          disabled={busy}
+          onClick={() => setCorrecting(true)}
+        >
           <Icon name="edit" /> {w('Correct materials used')}
         </button>
       )}
@@ -214,8 +219,7 @@ export function PendingChecksBanner({
     <>
       <div className="notice notice-warning pending-checks" role="status">
         <span>
-          <strong>{count}</strong>{' '}
-          {w(count === 1 ? 'job has materials' : 'jobs have materials')}{' '}
+          <strong>{count}</strong> {w(count === 1 ? 'job has materials' : 'jobs have materials')}{' '}
           {w('waiting for your approval')}.
         </span>
         <button type="button" className="secondary" onClick={() => setList(true)}>

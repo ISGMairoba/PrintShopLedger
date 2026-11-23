@@ -108,7 +108,14 @@ test('a cashier sends it for approval: nothing moves, the job can move on; the G
   );
   l = applyEvent(
     l,
-    materialCorrectionEvent(l, l.jobs[0], [{ line: 'm:a', materialId: 'a', quantity: 5 }], 'Recounted', admin, {}),
+    materialCorrectionEvent(
+      l,
+      l.jobs[0],
+      [{ line: 'm:a', materialId: 'a', quantity: 5 }],
+      'Recounted',
+      admin,
+      {},
+    ),
   );
   assert.deepEqual([stock(l, 'a'), stock(l, 'b')], [95, 50]);
 });

@@ -39,7 +39,12 @@ function setup() {
   });
   l = {
     ...l,
-    teamPeople: [cashier, admin, manager, owner].map((p) => ({ id: p.id, name: p.label, member: true, rank: p.level })),
+    teamPeople: [cashier, admin, manager, owner].map((p) => ({
+      id: p.id,
+      name: p.label,
+      member: true,
+      rank: p.level,
+    })),
     jobs: [
       {
         id: 'abcdef12-0000-4000-8000-000000000001',

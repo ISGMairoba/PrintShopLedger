@@ -18,7 +18,13 @@ import type { Job, JobMaterialCorrectionEvent, Ledger } from './types';
 import { useWords } from './Words';
 
 type Actor = { id: string; label: string; level: number };
-const RANKS: Record<number, string> = { 1: 'Cashier', 2: 'Admin', 3: 'Manager', 4: 'General Manager', 5: 'Developer' };
+const RANKS: Record<number, string> = {
+  1: 'Cashier',
+  2: 'Admin',
+  3: 'Manager',
+  4: 'General Manager',
+  5: 'Developer',
+};
 const when = (iso?: string) =>
   iso ? new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '';
 

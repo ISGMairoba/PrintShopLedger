@@ -76,7 +76,15 @@ const stockIdsFor = (ledger, job, usages) =>
 const sameUsages = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
 /** The correction of a job's confirmed materials. usages: [{ line, materialId, quantity }]. */
-export function materialCorrectionEvent(ledger, job, usages, reason, actor, settings, now = new Date().toISOString()) {
+export function materialCorrectionEvent(
+  ledger,
+  job,
+  usages,
+  reason,
+  actor,
+  settings,
+  now = new Date().toISOString(),
+) {
   const clean = usages.map((u) => ({
     id: crypto.randomUUID(),
     line: u.line,
@@ -207,7 +215,8 @@ export function applyMaterialCorrection(ledger, event, settings) {
     if (!d.reason || d.reason.trim().length < 3 || d.reason.length > 300)
       throw Error('Give a reason for the correction.');
     validate(ledger, job, d.usages);
-    if (sameUsages(d.usages.map(strip), mc.usages.map(strip))) throw Error('Change at least one amount or material.');
+    if (sameUsages(d.usages.map(strip), mc.usages.map(strip)))
+      throw Error('Change at least one amount or material.');
     if (d.route === 'request') {
       const owner = entryOwner(ledger, job);
       return put(
@@ -328,13 +337,15 @@ const strip = (u) => ({ line: u.line, materialId: u.materialId, quantity: u.quan
 /** The corrected usages must cover the job's lines with active materials of the right unit. */
 function validate(ledger, job, usages) {
   const lines = checkLines(ledger, job);
-  if (!Array.isArray(usages) || !usages.length || usages.length > 60) throw Error('Enter the materials used.');
+  if (!Array.isArray(usages) || !usages.length || usages.length > 60)
+    throw Error('Enter the materials used.');
   const seen = new Set();
   for (const u of usages) {
     const line = lines.find((l) => l.key === u.line);
     if (!line) throw Error('Enter the materials used for this job.');
     const key = `${u.line}|${u.materialId}`;
-    if (seen.has(key)) throw Error('Choose each material once per line. To use more of one, raise its amount.');
+    if (seen.has(key))
+      throw Error('Choose each material once per line. To use more of one, raise its amount.');
     seen.add(key);
     if (!(u.quantity >= 0) || u.quantity > 1000000000000 || round3(u.quantity) !== u.quantity)
       throw Error('Enter how much of each material was used (up to three decimal places).');
@@ -351,7 +362,9 @@ function validate(ledger, job, usages) {
 export const pendingMaterialCorrections = (ledger) =>
   ledger.jobs
     .filter((j) => j.materialCorrection && j.productionStatus !== 'Cancelled')
-    .sort((a, b) => (a.materialCorrection.requestedAt ?? '').localeCompare(b.materialCorrection.requestedAt ?? ''));
+    .sort((a, b) =>
+      (a.materialCorrection.requestedAt ?? '').localeCompare(b.materialCorrection.requestedAt ?? ''),
+    );
 
 /** Manager corrections of this person's materials entries (they are told), newest first. */
 export function materialCorrectionAlerts(ledger, userId, since = '') {
@@ -366,11 +379,13 @@ export function materialCorrectionAlerts(ledger, userId, since = '') {
 
 /** "Paper 12 sheet, Card 2 sheet": usages in words. */
 export function usagesText(ledger, usages) {
-  return (usages ?? [])
-    .filter((u) => u.quantity > 0)
-    .map((u) => {
-      const m = ledger.materials.find((x) => x.id === u.materialId);
-      return `${m?.name ?? 'Material'} ${u.quantity.toLocaleString(undefined, { maximumFractionDigits: 3 })} ${m?.measurementUnit ?? ''}`.trim();
-    })
-    .join(', ') || 'nothing';
+  return (
+    (usages ?? [])
+      .filter((u) => u.quantity > 0)
+      .map((u) => {
+        const m = ledger.materials.find((x) => x.id === u.materialId);
+        return `${m?.name ?? 'Material'} ${u.quantity.toLocaleString(undefined, { maximumFractionDigits: 3 })} ${m?.measurementUnit ?? ''}`.trim();
+      })
+      .join(', ') || 'nothing'
+  );
 }

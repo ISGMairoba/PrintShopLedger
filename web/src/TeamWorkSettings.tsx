@@ -135,7 +135,10 @@ export default function TeamWorkSettings({
           {rank('correctRank', 'Who can correct work records and confirmed materials without approval')}
           {t.commission && rank('termsRank', 'Who can set commission terms')}
           {days('doneAtDays', '"Done at" can be up to (days back)')}
-          {days('correctionDays', 'Work records and materials can be corrected up to (days after collection)')}
+          {days(
+            'correctionDays',
+            'Work records and materials can be corrected up to (days after collection)',
+          )}
           {!!people.length && !!stages.length && (
             <details>
               <summary>Usual people per stage (assigned to new jobs at checkout)</summary>

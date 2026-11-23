@@ -104,9 +104,7 @@ export function UsersTabs({
   onChange: (next: 'users' | 'team' | 'confirm') => void;
 }) {
   const team = useTeam();
-  const waiting = team
-    ? toConfirm(team.ledger).length + pendingMaterialCorrections(team.ledger).length
-    : 0;
+  const waiting = team ? toConfirm(team.ledger).length + pendingMaterialCorrections(team.ledger).length : 0;
   const tabs: ['users' | 'team' | 'confirm', string][] = [
     ['users', 'Users'],
     ['team', 'Team'],

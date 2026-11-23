@@ -88,7 +88,10 @@ try {
     d = page.getByRole('dialog', { name: /^Move job to/ });
     await d.getByRole('button', { name: 'Mark as Complete', exact: true }).click();
     await d.waitFor({ state: 'detached' });
-    await job.getByText(/^Confirmed by/).first().waitFor();
+    await job
+      .getByText(/^Confirmed by/)
+      .first()
+      .waitFor();
 
     // A correction needs a reason; it is saved at once for the demo's owner, and kept.
     await job.getByRole('button', { name: 'Correct materials used', exact: true }).click();
@@ -104,7 +107,10 @@ try {
     await d.getByRole('button', { name: 'Save correction', exact: true }).click();
     await d.waitFor({ state: 'detached' });
     await job.getByText('Corrections (1)').click();
-    await job.getByText(/Two sheets spoiled and reprinted/).first().waitFor();
+    await job
+      .getByText(/Two sheets spoiled and reprinted/)
+      .first()
+      .waitFor();
     await closeDialogs();
     assert.deepEqual(errors, []);
     await browser.close();
