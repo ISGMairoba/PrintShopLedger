@@ -25,6 +25,7 @@ import type {
 import { useWords } from './Words';
 import { renameActive as wt } from './Words';
 import SearchSelect from './SearchSelect';
+import { useCostMethod } from './CostMethodContext';
 const currency = (value: number) =>
   new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(value / 100);
 type Props = {
@@ -88,6 +89,7 @@ export default function ExpenseEditor({
   // The orders this expense was for (its cost counts in their profit).
   const [jobIds, setJobIds] = useState<string[]>(expense?.jobIds ?? []);
   const [restockIds, setRestockIds] = useState<string[]>(expense?.restockIds ?? []);
+  const costMethod = useCostMethod();
   const [newPayee, setNewPayee] = useState<{ name: string; phone: string } | null>(null);
   const { w } = useWords();
   const options = useBusinessOptions(),
@@ -297,6 +299,9 @@ export default function ExpenseEditor({
       setError(cause instanceof Error ? cause.message : 'Could not save expense.');
     }
   }
+  // Linking bills to restocks is part of the Actual cost method (kept when already linked).
+  const showRestocks =
+    !stock && !jobIds.length && restocks.length > 0 && (costMethod === 'actual' || restockIds.length > 0);
   return (
     <Modal
       title={
@@ -470,7 +475,8 @@ export default function ExpenseEditor({
                   />
                 </label>
               </div>
-              {!stock && !jobIds.length && restocks.length > 0 && (
+              {/* Linking bills to restocks is part of the Actual cost method (kept when already linked). */}
+              {showRestocks && (
                 <div className="expense-orders">
                   <SearchSelect
                     label="For restocks (optional)"

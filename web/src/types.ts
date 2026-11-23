@@ -341,6 +341,8 @@ export interface Material {
   /** The minimum set at this device's branch or store (branches.mjs withLocationMinimums). */
   minimumHere?: number;
   minimumStock?: number;
+  /** Cost price per unit in kobo (Estimated cost method; plans/actual-cost-v2.md). */
+  costPrice?: number;
   id: string;
   name: string;
   available: number;
@@ -360,6 +362,7 @@ export interface Material {
 }
 export interface MaterialCommand {
   minimumStock?: number;
+  costPrice?: number | null;
   id: string;
   name?: string;
   available?: number;

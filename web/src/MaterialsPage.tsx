@@ -5,6 +5,7 @@ import { useBusinessOptions } from './BusinessOptionsContext';
 import ResponsiveTable from './ResponsiveTable';
 import { auditCells, auditHeaders } from './AuditColumns';
 import Icon from './Icon';
+import { useCostMethod } from './CostMethodContext';
 import ToolbarActions, { MenuToggle } from './ToolbarActions';
 import { useId, useState, type FormEvent } from 'react';
 import Modal from './Modal';
@@ -25,6 +26,8 @@ type Props = {
   history: MaterialHistoryEntry[];
   /** Stock at actual cost (actual-cost.mjs), when known. */
   valuation?: ReturnType<typeof stockValuation>;
+  /** A material's cost price per unit in kobo (its own, else a linked cost): Estimated cost method. */
+  unitCost?: (materialId: string) => number | null;
   materials: Material[];
   ready: boolean;
   busy: boolean;
@@ -71,6 +74,7 @@ export default function MaterialsPage({
   materials,
   history,
   valuation,
+  unitCost,
   ready,
   busy,
   actor,
@@ -83,6 +87,7 @@ export default function MaterialsPage({
   onSaveExpense,
   locations,
 }: Props) {
+  const costMethod = useCostMethod();
   const [moving, setMoving] = useState<Material | null>(null);
   const [asking, setAsking] = useState<Material | null>(null);
   const [moveFrom, setMoveFrom] = useState('');
@@ -169,6 +174,11 @@ export default function MaterialsPage({
       id: editing?.id ?? crypto.randomUUID(),
       baseVersion: editing?.version,
       minimumStock: Number(data.get('minimumStock')),
+      // Cost price per unit (₦ → kobo); empty clears it.
+      costPrice:
+        String(data.get('costPrice') ?? '').trim() === ''
+          ? null
+          : Math.round(Number(data.get('costPrice')) * 100),
       name: String(data.get('name')).trim(),
       available: editing?.available ?? 0,
       measurementUnit: String(data.get('measurementUnit')).trim(),
@@ -388,8 +398,18 @@ export default function MaterialsPage({
                               .join(' · ')}
                           </small>
                         )}
+                        {costMethod === 'estimated' &&
+                          (() => {
+                            const unit = unitCost?.(material.id) ?? null;
+                            if (unit === null) return null;
+                            return (
+                              <small className="actual-cost">
+                                {`Cost price ${currency(Math.round(unit))} per ${material.measurementUnit} · value ${currency(Math.round(Math.max(0, material.available) * unit))}`}
+                              </small>
+                            );
+                          })()}
                         {(() => {
-                          const v = valuation?.get(material.id);
+                          const v = costMethod === 'actual' ? valuation?.get(material.id) : undefined;
                           if (!v || v.average === null) return null;
                           return (
                             <small className="actual-cost">
@@ -778,6 +798,23 @@ export default function MaterialsPage({
                     {wt(
                       'In this material’s measurement unit. Stock up to 20% above this level is near minimum.',
                     )}
+                  </small>
+                </label>
+                <label>
+                  Cost price per unit (₦)
+                  <input
+                    name="costPrice"
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    max="1000000000"
+                    step="0.01"
+                    defaultValue={typeof editing?.costPrice === 'number' ? editing.costPrice / 100 : ''}
+                  />
+                  <small>
+                    {costMethod === 'estimated'
+                      ? 'What one unit costs the business. Job costs and profit are estimated from it.'
+                      : 'Used for jobs until stock with a supplier price is added.'}
                   </small>
                 </label>
                 <label className="material-checkbox">

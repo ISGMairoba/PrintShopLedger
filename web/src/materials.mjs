@@ -45,6 +45,18 @@ export function normalizeLedger(ledger) {
   };
 }
 export function validateMaterial(data) {
+  // Cost price per unit (kobo; Estimated cost method), optional.
+  const price = data.costPrice;
+  if (
+    price !== undefined &&
+    price !== null &&
+    (typeof price !== 'number' ||
+      !Number.isFinite(price) ||
+      price < 0 ||
+      price > 100000000000 ||
+      Math.abs(price * 100 - Math.round(price * 100)) > 0.001)
+  )
+    throw new Error('Cost price must be zero or more, to the kobo.');
   const minimum = data.minimumStock ?? 0;
   if (
     typeof minimum !== 'number' ||
@@ -215,6 +227,7 @@ export function applyMaterialEvent(input, event) {
       requireSize: data.requireSize,
       minimumStock: data.minimumStock ?? 0,
       canSplit: data.canSplit ?? false,
+      ...(typeof data.costPrice === 'number' ? { costPrice: data.costPrice } : {}),
       archived: false,
       version: 1,
       createdBy: data.modifiedBy,
@@ -246,6 +259,11 @@ export function applyMaterialEvent(input, event) {
       ...audit,
       version: existing.version + 1,
     };
+    // Cost price: changed when sent (null clears it), kept otherwise.
+    if ('costPrice' in data) {
+      if (typeof data.costPrice === 'number') next.costPrice = data.costPrice;
+      else delete next.costPrice;
+    }
   } else if (event.kind === 'material.stock_added' || event.kind === 'material.stock_set') {
     if (existing.archived) throw new Error('Restore this material before changing stock.');
     validateMaterial({ ...existing, available: data.quantity });

@@ -3,6 +3,7 @@ import Icon from './Icon';
 import Modal from './Modal';
 import { useBusinessOptions } from './BusinessOptionsContext';
 import CurrencyInput from './CurrencyInput';
+import { useCostMethod } from './CostMethodContext';
 import { money } from './domain.mjs';
 import { currency } from './receipts.mjs';
 import type { Material, MaterialEvent, MaterialHistoryEntry } from './types';
@@ -34,6 +35,7 @@ export default function StockAdjustDialog({
   onSave: (event: MaterialEvent) => Promise<void>;
   onClose: () => void;
 }) {
+  const costMethod = useCostMethod();
   const { stockReasons } = useBusinessOptions();
   const [reason, setReason] = useState(() => defaultStockReason(mode, stockReasons));
   const [error, setError] = useState('');
@@ -88,7 +90,7 @@ export default function StockAdjustDialog({
                 baseVersion: material.version,
                 quantity: Number(data.get('quantity')),
                 reason: String(data.get('reason') ?? '').trim(),
-                ...(mode === 'add' && price.trim()
+                ...(mode === 'add' && costMethod === 'actual' && price.trim()
                   ? {
                       cost: {
                         supplierPrice: money(price),
@@ -148,7 +150,8 @@ export default function StockAdjustDialog({
               </button>
             ))}
           </div>
-          {mode === 'add' && (
+          {/* Supplier prices only matter on the Actual cost method (plans/actual-cost-v2.md). */}
+          {mode === 'add' && costMethod === 'actual' && (
             <div className="form-grid restock-cost">
               <label>
                 Supplier price for this quantity (₦)

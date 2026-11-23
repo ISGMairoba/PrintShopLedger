@@ -169,7 +169,7 @@ test('Actual job cost, waste, expenses for restocks (on time and late) and profi
   assert.equal(materialValuation(l, 'paper').value, 16 * 22500 + 80000);
   assert.equal(lateCostsIn(l, '2026-11-16', '2026-11-16').length, 0);
   // Profit & loss: sales ₦1,000 − goods used ₦300; the deliveries are in the stock, not expenses.
-  const pl = profitLoss(l, '2026-11-16', '2026-11-16');
+  const pl = profitLoss(l, '2026-11-16', '2026-11-16', 'actual');
   assert.deepEqual(
     [pl.sales, pl.jobCost, pl.operating, pl.linkedToRestocks, pl.net],
     [100000, 30000, 0, 130000, 70000],
