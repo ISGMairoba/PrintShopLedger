@@ -328,7 +328,10 @@ export const decideEvent = (request, approve, note, actor, now = new Date().toIS
 /** Correction requests waiting for a decision (oldest first). */
 export const pendingCorrections = (ledger) =>
   (ledger?.workCorrections ?? []).filter((c) => c.status === 'pending');
-/** Corrections of this person's entries by a Manager (they are told), newest first. */
+/**
+ * Corrections of this person's entries by a Manager (they are told), newest first.
+ * @returns {{ record: import('./types').WorkRecord, c: NonNullable<import('./types').WorkRecord['corrections']>[number] }[]}
+ */
 export function correctionAlerts(ledger, userId, since = '') {
   return (ledger?.workRecords ?? [])
     .flatMap((r) =>

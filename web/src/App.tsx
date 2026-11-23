@@ -1393,7 +1393,7 @@ export default function App() {
   };
   // Team work: a Manager corrected one of my entries (owner's rule): I am told, until I dismiss it.
   const teamAlerts =
-    teamWork.on && session ? correctionAlerts(teamWork.ledger, session.user.id, teamSeen) : [];
+    session && teamOn(ledger, branding.settings) ? correctionAlerts(ledger, session.user.id, teamSeen) : [];
   const alerts: NoticeAlert[] = [
     ...(teamAlerts.length
       ? [
