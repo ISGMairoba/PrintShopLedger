@@ -52,7 +52,7 @@ export function deviceName() {
 /** Send the noted lockouts for this business (when online). Kept for next time if it fails. */
 export async function sendLockouts(
   shopId: string,
-  send: (userId: string, device: string) => Promise<{ error: { message: string } | null }>,
+  send: (userId: string, device: string) => PromiseLike<{ error: { message: string } | null }>,
 ) {
   const all = read();
   const mine = all.filter((item) => item.shopId === shopId);

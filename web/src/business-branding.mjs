@@ -39,8 +39,12 @@ const HISTORY_KEEP = ['all', '7d', '14d', '30d', '3m', '6m', '12m'];
 // What each business shows on its receipts. headline: the bold line for each job ('description' or 'service');
 // showSubline: print the other one beneath it. Older saved settings fill in these defaults.
 
+/**
+ * @typedef {{ minPinLength: number, pinTries: number, requirePin: boolean, rememberPeople: boolean,
+ *   rememberDays: number, rememberMax: number, allowBiometric: boolean }} LockChoices
+ */
 /** Lock screen choices and their defaults (plans/lock-screen.md). */
-export const LOCK_DEFAULTS = Object.freeze({
+export const LOCK_DEFAULTS = /** @type {Readonly<LockChoices>} */ (Object.freeze({
   minPinLength: 4,
   pinTries: 5,
   requirePin: true,
@@ -48,7 +52,7 @@ export const LOCK_DEFAULTS = Object.freeze({
   rememberDays: 30,
   rememberMax: 10,
   allowBiometric: true,
-});
+}));
 const whole = (low, high) => (v) => Number.isInteger(v) && v >= low && v <= high;
 const yesNo = (v) => typeof v === 'boolean';
 /** @type {[keyof typeof LOCK_DEFAULTS, (v: unknown) => boolean, string][]} */
@@ -63,10 +67,11 @@ const LOCK_CHECKS = [
 ];
 /**
  * The business's lock screen choices, with the defaults filled in.
- * @param {{ security?: Partial<typeof LOCK_DEFAULTS> }} settings
+ * @param {{ security?: object }} settings
+ * @returns {LockChoices}
  */
 export const lockSettings = (settings) =>
-  /** @type {typeof LOCK_DEFAULTS} */ (
+  /** @type {LockChoices} */ (
     Object.fromEntries(
       Object.entries(LOCK_DEFAULTS).map(([key, fallback]) => [
         key,

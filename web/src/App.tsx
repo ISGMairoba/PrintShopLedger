@@ -1683,9 +1683,9 @@ export default function App() {
       });
       if (failure) throw failure;
       // After a password sign-in, the next face/fingerprint unlock asks for the PIN once.
-      void biometricOwner(shop.id).then(
-        (owner) => owner?.userId === started.session?.user.id && setNeedsPin(shop.id, true),
-      );
+      void biometricOwner(shop.id).then((owner) => {
+        if (owner?.userId === started.session?.user.id) void setNeedsPin(shop.id, true);
+      });
       setSwitchUser(false);
       setStaffEpoch((value) => value + 1);
       setPage('Point of Service');
