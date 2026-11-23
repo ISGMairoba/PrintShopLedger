@@ -492,7 +492,8 @@ export default function CheckoutEditor({
       originalMethods.findIndex((x) => x.label === m.label) === i &&
       !availableMethods.some((item) => item.label === m.label && item.kind === m.kind),
   );
-  const paymentMethods = missing.length
+  const paymentMethods: { label: string; kind: string; enabled: boolean; displayLabel?: string }[] =
+    missing.length
     ? [
         ...missing.map((m) => ({ ...m, enabled: true })),
         ...availableMethods.filter((item) => !missing.some((m) => m.label === item.label)),
