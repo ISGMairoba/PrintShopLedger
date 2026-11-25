@@ -4,12 +4,18 @@ import { quoteLine, accountToken, walletBalance } from './checkout.mjs';
 import { jobBalance } from './domain.mjs';
 import { sameEvent } from './sale-adjustments.mjs';
 import { choiceUsagePlan, currentChoiceUsages, hasMaterialChoice } from './material-choice.mjs';
+import { quoteServiceChange, serviceChangePlan } from './service-change.mjs';
 const validDate = (value) =>
   typeof value === 'string' &&
   /^\d{4}-\d{2}-\d{2}$/.test(value) &&
   !Number.isNaN(Date.parse(value)) &&
   new Date(value).toISOString().slice(0, 10) === value;
-export const correctionKinds = ['sale.combined_corrected', 'sale.details_corrected', 'payment.corrected'];
+export const correctionKinds = [
+  'sale.combined_corrected',
+  'sale.details_corrected',
+  'sale.service_changed',
+  'payment.corrected',
+];
 export const paymentCorrectionToken = (p) => ({
   amount: p.amount,
   method: p.method,
@@ -290,24 +296,29 @@ export function applyFullCorrection(input, event) {
     drawerActor = null,
     historicalClosingId = null,
     paymentId = null;
-  if (event.kind === 'sale.details_corrected') {
-    if (job.templateSnapshot)
-      throw Error(
-        'Template components cannot be changed after checkout. Cancel and create a replacement job; adjust returned materials separately.',
-      );
-    if (job.productionStatus === 'Cancelled') throw Error('This sale is already cancelled.');
-    after = keepChoice(job, quoteCorrectedJob(ledger, job, d));
-    stockChanges = stockCorrectionPlan(ledger, job, after, d.stockMode);
-    // Confirmed choice of materials: the new amount of each material really used.
-    if (job.materialUsed && d.stockMode === 'reconcile') {
-      if (!Array.isArray(d.choiceUsages)) throw Error('Enter how much of each material was really used.');
-      stockChanges = choiceUsagePlan(ledger, job, d.choiceUsages);
+  if (event.kind === 'sale.details_corrected' || event.kind === 'sale.service_changed') {
+    if (event.kind === 'sale.service_changed') {
+      // A pricing template on either side (service-change.mjs).
+      after = quoteServiceChange(ledger, job, d);
+      stockChanges = serviceChangePlan(ledger, job, after, d.stockMode);
+    } else {
+      if (job.templateSnapshot)
+        throw Error('A template job’s service is changed with a service change. Reopen the correction.');
+      if (job.productionStatus === 'Cancelled') throw Error('This sale is already cancelled.');
+      after = keepChoice(job, quoteCorrectedJob(ledger, job, d));
+      stockChanges = stockCorrectionPlan(ledger, job, after, d.stockMode);
+      // Confirmed choice of materials: the new amount of each material really used.
+      if (job.materialUsed && d.stockMode === 'reconcile') {
+        if (!Array.isArray(d.choiceUsages)) throw Error('Enter how much of each material was really used.');
+        stockChanges = choiceUsagePlan(ledger, job, d.choiceUsages);
+      }
     }
     if (
       ['description', 'quantity', 'width', 'height', 'serviceId', 'materialId', 'unitPrice', 'amount'].every(
         (k) => (after[k] ?? null) === (job[k] ?? null),
       ) &&
       JSON.stringify(after.materialChoice ?? null) === JSON.stringify(job.materialChoice ?? null) &&
+      JSON.stringify(after.templateInputs ?? null) === JSON.stringify(job.templateInputs ?? null) &&
       !stockChanges.length
     )
       throw Error('Nothing changed.');

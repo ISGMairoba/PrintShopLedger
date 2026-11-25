@@ -1227,6 +1227,11 @@ export interface SupervisedCommand {
   stockMode?: string;
   stockIds?: Record<string, string>;
   materialVersions?: Record<string, number>;
+  /** sale.service_changed: a normal service or a pricing template (service-change.mjs). */
+  target?: 'service' | 'template';
+  templateInputs?: Record<string, number | string>;
+  templateSnapshot?: unknown;
+  materialChoice?: unknown;
   paymentId?: string;
   expectedPayment?: unknown;
   paymentAmount?: number;
@@ -1263,6 +1268,7 @@ export type SupervisedEvent = {
   kind:
     | 'sale.combined_corrected'
     | 'sale.details_corrected'
+    | 'sale.service_changed'
     | 'payment.corrected'
     | 'sale.corrected'
     | 'sale.cancelled'
