@@ -20,6 +20,7 @@ import {
   pages,
   roleNames,
   settingsTabKeys,
+  settingsTabShown,
   settingsTabs,
 } from './page-access.mjs';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -124,7 +125,10 @@ export default function BusinessSettingsPage({
     [busy, setBusy] = useState(false),
     [message, setMessage, messageTone] = useFeedbackMessage('success'),
     [palette, setPalette] = useState<string[]>([]);
-  const allTabs: string[] = allowedSettingsTabs(accessLevel, settings);
+  // A feature's own tab shows only while the feature is on (Features tab).
+  const allTabs: string[] = allowedSettingsTabs(accessLevel, settings).filter((t: string) =>
+    settingsTabShown(t, settings),
+  );
   const tabs: string[] = scope ? allTabs.filter((t) => t in BRANCH_TABS) : allTabs;
   const tabKeys = (name: string) =>
     (developerSettingsTabs[name as keyof typeof developerSettingsTabs] ??
@@ -1179,18 +1183,53 @@ export default function BusinessSettingsPage({
                     </p>
                   </>
                 )}
-                {!scope && teamReady && (
-                  <TeamWorkSettings
-                    value={draft.teamWork}
-                    canSwitch={accessLevel >= 4}
-                    onChange={(next) => field('teamWork', next)}
-                  />
-                )}
-                {sectionSave(
-                  'Job and payment settings',
-                  scope ? ['jobs'] : ['jobs', 'costMethod', ...(teamReady ? (['teamWork'] as const) : [])],
-                )}
+                {sectionSave('Job and payment settings', scope ? ['jobs'] : ['jobs', 'costMethod'])}
               </fieldset>
+              <fieldset hidden={tab !== 'Team work'} disabled={busy || !ready}>
+                <legend>Team work</legend>
+                <TeamWorkSettings
+                  value={draft.teamWork}
+                  canSwitch={accessLevel >= 4}
+                  showSwitch={false}
+                  onChange={(next) => field('teamWork', next)}
+                />
+                {sectionSave('Team work settings', ['teamWork'])}
+              </fieldset>
+              <fieldset hidden={tab !== 'Features'} disabled={busy || !ready}>
+                <legend>Features</legend>
+                <p>
+                  Turn parts of the app on or off. A part that is off is hidden from everyone, and so is its own
+                  settings tab. Nothing recorded is deleted; turning it back on shows it again.
+                </p>
+                <div className="business-type-features" role="group" aria-label="Parts of the app">
+                  {optionalFeatures.map(([page, label]) => (
+                    <label key={page} className="check-label">
+                      <input
+                        type="checkbox"
+                        checked={featureOn(draft, page)}
+                        onChange={(e) => {
+                          const features = { ...(draft.features ?? {}), [page]: e.target.checked };
+                          // Keep only the parts that differ from the business type.
+                          if (typeFeatures(draft.businessType)[page] === e.target.checked)
+                            delete features[page];
+                          field('features', features);
+                        }}
+                      />
+                      {label}
+                    </label>
+                  ))}
+                  {teamReady && (
+                    <TeamWorkSettings
+                      value={draft.teamWork}
+                      canSwitch={accessLevel >= 4}
+                      switchOnly
+                      onChange={(next) => field('teamWork', next)}
+                    />
+                  )}
+                </div>
+                {sectionSave('Features', ['features', 'teamWork'])}
+              </fieldset>
+
               <fieldset hidden={tab !== 'Messages'} disabled={busy || !ready}>
                 <legend>Messages</legend>
                 <MessagesSettings
@@ -1730,27 +1769,9 @@ export default function BusinessSettingsPage({
                     ))}
                   </select>
                 </label>
-                <div className="business-type-features" role="group" aria-label="Parts of the app">
-                  {optionalFeatures.map(([page, label]) => (
-                    <label key={page} className="check-label">
-                      <input
-                        type="checkbox"
-                        checked={featureOn(draft, page)}
-                        onChange={(e) => {
-                          const features = { ...(draft.features ?? {}), [page]: e.target.checked };
-                          // Keep only the parts that differ from the business type.
-                          if (typeFeatures(draft.businessType)[page] === e.target.checked)
-                            delete features[page];
-                          field('features', features);
-                        }}
-                      />
-                      {label}
-                    </label>
-                  ))}
-                </div>
                 <small>
-                  Turned-off parts are hidden from everyone, including you; nothing recorded is deleted, and
-                  turning a part back on shows it again.
+                  Turn each part on or off in the Features tab. Changing the business type starts again from
+                  that type's parts.
                 </small>
                 {sectionSave('Business type', ['businessType', 'features'])}
               </fieldset>

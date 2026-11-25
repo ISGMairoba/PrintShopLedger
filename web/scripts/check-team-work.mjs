@@ -73,14 +73,19 @@ try {
     );
     await nav('Business Settings');
     await settingsSection(page, 'Jobs & payments');
-    const track = page.getByLabel('Track team work', { exact: true });
-    assert.equal(await track.isChecked(), false, 'Team work is off by default');
     await page.getByLabel('Job description entry').selectOption('optional');
-    await track.check();
-    assert.equal(await page.getByLabel('Ask "Done by" on every stage move').isChecked(), true);
-    assert.equal(await page.getByLabel('Who confirms work').inputValue(), '2');
     await page.getByRole('button', { name: 'Save job and payment settings', exact: true }).click();
     await page.getByText('Job and payment settings saved.', { exact: true }).waitFor();
+    // Switched on in Features; its own Team work tab appears once saved.
+    await settingsSection(page, 'Features');
+    const track = page.getByLabel('Track team work', { exact: true });
+    assert.equal(await track.isChecked(), false, 'Team work is off by default');
+    await track.check();
+    await page.getByRole('button', { name: 'Save features', exact: true }).click();
+    await page.getByText('Features saved.', { exact: true }).waitFor();
+    await settingsSection(page, 'Team work');
+    assert.equal(await page.getByLabel('Ask "Done by" on every stage move').isChecked(), true);
+    assert.equal(await page.getByLabel('Who confirms work').inputValue(), '2');
 
     // A Team person added by name.
     await nav('Users');

@@ -17,11 +17,17 @@ const RANKS: [number, string][] = [
 export default function TeamWorkSettings({
   value,
   canSwitch,
+  showSwitch = true,
+  switchOnly = false,
   onChange,
 }: {
   value: Partial<TeamChoices> | undefined;
   /** General Manager or higher: only they switch Team work on or off. */
   canSwitch: boolean;
+  /** The on/off switch (in Features); the Team work tab shows only the choices. */
+  showSwitch?: boolean;
+  /** Only the switch (the Features tab). */
+  switchOnly?: boolean;
   onChange: (next: Partial<TeamChoices> | undefined) => void;
 }) {
   const t = teamSettings({ teamWork: value }) as TeamChoices;
@@ -93,7 +99,8 @@ export default function TeamWorkSettings({
   );
   return (
     <>
-      <h3>Team work</h3>
+      {!switchOnly && <h3>Team work</h3>}
+      {showSwitch && (
       <label className="check-label">
         <input
           type="checkbox"
@@ -111,7 +118,8 @@ export default function TeamWorkSettings({
           </small>
         </span>
       </label>
-      {t.enabled && (
+      )}
+      {t.enabled && !switchOnly && (
         <>
           {check(
             'askDoneBy',
