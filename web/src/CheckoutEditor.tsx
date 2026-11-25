@@ -1,3 +1,5 @@
+import { useTeam } from './TeamContext';
+import { teamPeople } from './team.mjs';
 import { belowMinimum, minOrderRule } from './min-order.mjs';
 import DefaultTermsButton from './DefaultTermsButton';
 import TemplateDiscountWarning from './TemplateDiscountWarning';
@@ -244,6 +246,8 @@ type CartLine = {
   stageHours?: Record<string, number>;
   /** Timed by ratio: each stage's share (%) of the job's time. */
   stageShares?: Record<string, number>;
+  /** Team work: who does this job, assigned after the sale (App completeCheckout). */
+  assignTo?: string[];
   /** Steps an Admin is changing for this job (sent as workflow and stageHours). */
   steps?: Step[];
   /** This job's own discount, as typed. */
@@ -365,6 +369,7 @@ export default function CheckoutEditor({
   const options = useBusinessOptions(),
     jobSources = options.jobSources;
   const { w, stage } = useWords();
+  const team = useTeam();
   // A job's stages and hours: its item's own steps, else the business's usual ones.
   const workflowLine = (id: string): Partial<CartLine> => {
     const production =
@@ -1148,6 +1153,35 @@ export default function CheckoutEditor({
                               stageHours={options.stageHours}
                             />
                           </label>
+                        )}
+                        {!service?.shelfItem && team?.on && team.actor.level >= team.settings.assignRank && (
+                          <fieldset className="assign-to">
+                            <legend>Assign to</legend>
+                            {(teamPeople(team.ledger) as { id: string; name: string }[]).map((p) => (
+                              <label key={p.id} className="check-label">
+                                <input
+                                  type="checkbox"
+                                  checked={(item.assignTo ?? []).includes(p.id)}
+                                  onChange={(e) =>
+                                    setLines((items) =>
+                                      items.map((l) =>
+                                        l.id === item.id
+                                          ? {
+                                              ...l,
+                                              assignTo: e.target.checked
+                                                ? [...(l.assignTo ?? []), p.id]
+                                                : (l.assignTo ?? []).filter((x) => x !== p.id),
+                                            }
+                                          : l,
+                                      ),
+                                    )
+                                  }
+                                />
+                                {p.name}
+                              </label>
+                            ))}
+                            <small>Optional: who does this job (assigned when the sale is saved).</small>
+                          </fieldset>
                         )}
                       </div>
                       {!service?.shelfItem && (

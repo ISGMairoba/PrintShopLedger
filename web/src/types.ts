@@ -939,6 +939,19 @@ export interface Ledger {
   workCorrections?: WorkCorrection[];
   /** Commission terms (pay): only those who set them, and each person their own. */
   teamTerms?: { id: string; commission: CommissionTerms | null; version: number; modifiedAt?: string }[];
+  /** Commission paid out or deducted (team-payouts.mjs): pay, so only those who set terms see others'. */
+  teamPayouts?: {
+    id: string;
+    personId: string;
+    kind: 'payout' | 'deduction';
+    amount: number;
+    paidOn: string;
+    note: string;
+    expenseId?: string;
+    balanceBefore?: number;
+    recordedByLabel?: string;
+    recordedAt?: string;
+  }[];
   payees?: Payee[];
   moneyAccounts?: MoneyAccount[];
   accountEntries?: Record<string, any>[];
