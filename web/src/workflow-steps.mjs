@@ -54,7 +54,8 @@ export function validSteps(steps, label = 'Workflow') {
   if (shared.length) {
     if (shared.length !== out.length) throw Error(`${label}: give every step a share, or none.`);
     const total = shared.reduce((sum, s) => sum + s.share, 0);
-    if (Math.abs(total - 100) > 0.05) throw Error(`${label}: the shares add up to ${round2(total)}%, not 100%.`);
+    if (Math.abs(total - 100) > 0.05)
+      throw Error(`${label}: the shares add up to ${round2(total)}%, not 100%.`);
     const timed = out.filter((s) => s.minutes).length;
     if (timed && timed !== out.length) throw Error(`${label}: enter the usual turnaround again.`);
   }

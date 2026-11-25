@@ -46,7 +46,8 @@ export function validStageShares(value, stages) {
   for (const [stage, share] of Object.entries(value)) {
     if (!stages.includes(stage) || finished.includes(stage)) continue;
     const n = Number(share);
-    if (!(n > 0) || n > 100 || Math.round(n * 100) / 100 !== n) throw Error(`${stage}: enter a share up to 100%.`);
+    if (!(n > 0) || n > 100 || Math.round(n * 100) / 100 !== n)
+      throw Error(`${stage}: enter a share up to 100%.`);
     out[stage] = n;
   }
   return out;

@@ -103,7 +103,14 @@ test('Steps timed by ratio: shares add up to 100, spread over a turnaround', asy
   assert.deepEqual(m.stepsWorkflow(m.shareSteps(steps, 0)).hours, {});
   assert.deepEqual(m.sharesFromWeights([1, 2, 1]), [25, 50, 25]);
   assert.deepEqual(m.sharesFromWeights([1, 1, 1]), [33.33, 33.33, 33.34]);
-  assert.throws(() => m.validSteps([{ name: 'A', share: 60 }, { name: 'B', share: 30 }]), /add up to 90%/);
+  assert.throws(
+    () =>
+      m.validSteps([
+        { name: 'A', share: 60 },
+        { name: 'B', share: 30 },
+      ]),
+    /add up to 90%/,
+  );
   assert.throws(() => m.validSteps([{ name: 'A', share: 60 }, { name: 'B' }]), /every step a share/);
   // Fixed times are as before.
   assert.equal(m.stepsWorkflow([{ name: 'A', minutes: 60 }]).shares, undefined);
