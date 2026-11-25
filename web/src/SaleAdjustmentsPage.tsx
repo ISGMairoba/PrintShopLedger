@@ -1,3 +1,6 @@
+import { quoteServiceChange, serviceChangeEvent, isTemplate } from './service-change.mjs';
+import { editableInputs } from './pricing-templates.mjs';
+import { TemplateInputs } from './TemplateFields';
 import Icon from './Icon';
 import { useId, useState } from 'react';
 import DialogActions from './DialogActions';
@@ -284,11 +287,6 @@ export function SaleAdjustmentEditor({
   const soldCount = Number(job.quantity ?? 1),
     backCount = Math.min(soldCount, Math.max(0, Math.floor(Number(returnCount)) || 0)),
     isReturn = action === 'items.returned';
-  const effective: SupervisedEvent['kind'] = isReturn
-    ? backCount >= soldCount
-      ? 'sale.cancelled'
-      : 'sale.details_corrected'
-    : action;
   const [amount, setAmount] = useState(String(job.amount / 100)),
     [description, setDescription] = useState(job.description),
     [reason, setReason] = useState(''),
@@ -308,7 +306,21 @@ export function SaleAdjustmentEditor({
           100,
       ),
     ),
-    [stockMode, setStockMode] = useState('');
+    [stockMode, setStockMode] = useState(''),
+    // A pricing template on either side: its inputs (service-change.mjs).
+    [templateInputs, setTemplateInputs] = useState<Record<string, number | string>>(() =>
+      job.templateSnapshot ? editableInputs(job.templateSnapshot) : {},
+    );
+  const toTemplate = isTemplate(ledger, serviceId),
+    templateChange = !!job.templateSnapshot || toTemplate,
+    chosenTemplate = toTemplate ? ledger.pricing?.templates.find((t) => t.id === serviceId) : undefined;
+  const effective: SupervisedEvent['kind'] = isReturn
+    ? backCount >= soldCount
+      ? 'sale.cancelled'
+      : 'sale.details_corrected'
+    : action === 'sale.details_corrected' && templateChange
+      ? 'sale.service_changed'
+      : action;
   const [customerPayments] = useState(() =>
     structuredClone(ledger.payments.filter((p) => p.customerId === job.customerId && !p.refundId)),
   );
@@ -471,6 +483,30 @@ export function SaleAdjustmentEditor({
   function event(): SupervisedEvent {
     const chosen = methods.find((m) => m.label === (action === 'payment.corrected' ? paymentMethod : method)),
       now = new Date().toISOString();
+    if (effective === 'sale.service_changed') {
+      if (request) throw Error('Ask an Admin to change the service of a job with a pricing template.');
+      const change = serviceChangeEvent(
+        ledger,
+        job,
+        {
+          target: toTemplate ? 'template' : 'service',
+          serviceId,
+          quantity: Number(quantity),
+          description,
+          reason,
+          stockMode,
+          unitPrice: money(unitPrice || '0'),
+          width: Number(width),
+          height: Number(height),
+          materialId,
+          templateInputs,
+        },
+        actor,
+        expectedAccount,
+        now,
+      );
+      return { ...change, id } as SupervisedEvent;
+    }
     if (isReturn && !(backCount > 0)) throw Error('Enter how many items came back.');
     return {
       id,
@@ -566,7 +602,8 @@ export function SaleAdjustmentEditor({
     previewNotice = '';
   try {
     const command = event();
-    if (['sale.details_corrected', 'sale.combined_corrected'].includes(effective))
+    if (effective === 'sale.service_changed') proposed = quoteServiceChange(ledger, job, command.data);
+    else if (['sale.details_corrected', 'sale.combined_corrected'].includes(effective))
       proposed = quoteCorrectedJob(ledger, job, command.data);
     else if (effective === 'sale.corrected') proposed = { ...job, description, amount: money(amount) };
     else if (effective === 'sale.cancelled') proposed = { ...job, amount: 0, productionStatus: 'Cancelled' };
@@ -797,11 +834,9 @@ export function SaleAdjustmentEditor({
                     <option value="sale.combined_corrected">{w('Correct job and payments together')}</option>
                   )}
                   <option value="sale.corrected">Correct charge / description</option>
-                  {!job.templateSnapshot && (
-                    <option value="sale.details_corrected">
-                      {w('Correct quantity / size / service / material')}
-                    </option>
-                  )}
+                  <option value="sale.details_corrected">
+                    {w('Correct quantity / size / service / material')}
+                  </option>
                   <option value="sale.cancelled">Cancel sale</option>
                 </>
               )}
@@ -916,10 +951,26 @@ export function SaleAdjustmentEditor({
                     value={serviceId}
                     required
                     placeholder={w('Choose a service')}
-                    options={ledger.services
-                      .filter((s) => !s.archived && !s.private)
-                      .map((s) => ({ value: s.id, label: s.description }))}
+                    options={[
+                      ...ledger.services
+                        .filter((s) => !s.archived && !s.private)
+                        .map((s) => ({ value: s.id, label: s.description })),
+                      // A pricing template, for a job corrected on its own (not with payments).
+                      ...(action === 'sale.details_corrected' && ledger.pricing?.enabled
+                        ? ledger.pricing.templates
+                            .filter((t) => !t.archived)
+                            .map((t) => ({ value: t.id, label: `${w('Template')}: ${t.name}` }))
+                        : []),
+                    ]}
                     onChange={(next) => {
+                      if (isTemplate(ledger, next)) {
+                        setServiceId(next);
+                        setMaterialId('');
+                        setTemplateInputs(
+                          next === job.serviceId && job.templateSnapshot ? editableInputs(job.templateSnapshot) : {},
+                        );
+                        return;
+                      }
                       const service = ledger.services.find((s) => s.id === next)!;
                       setServiceId(service.id);
                       setMaterialId(service.materialId ?? '');
@@ -927,7 +978,16 @@ export function SaleAdjustmentEditor({
                     }}
                   />
                 </label>
-                {hasMaterialChoice(chosenService) ? (
+                {chosenTemplate ? (
+                  <div className="full-width">
+                    <TemplateInputs
+                      template={chosenTemplate}
+                      ledger={ledger}
+                      value={templateInputs}
+                      onChange={setTemplateInputs}
+                    />
+                  </div>
+                ) : hasMaterialChoice(chosenService) ? (
                   <p className="muted">
                     {w('Material')}: {w('chosen in production from')}{' '}
                     {choiceOptions.map((m) => m!.name).join(', ')}
@@ -958,7 +1018,7 @@ export function SaleAdjustmentEditor({
                     required
                   />
                 </label>
-                {sizeMaterial?.requireSize && (
+                {!chosenTemplate && sizeMaterial?.requireSize && (
                   <>
                     <label>
                       Corrected width
@@ -986,6 +1046,9 @@ export function SaleAdjustmentEditor({
                     </label>
                   </>
                 )}
+                {chosenTemplate ? (
+                  <p className="muted">{w('The price is worked out by the template from these inputs.')}</p>
+                ) : (
                 <label>
                   Corrected unit price (₦)
                   <CurrencyInput value={unitPrice} onValueChange={setUnitPrice} required />
@@ -996,6 +1059,7 @@ export function SaleAdjustmentEditor({
                     {w('This changes this job only.')}
                   </small>
                 </label>
+                )}
                 <label>
                   Corrected description
                   <input

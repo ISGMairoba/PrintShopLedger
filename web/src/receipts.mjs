@@ -42,6 +42,7 @@ const lagos = (value) =>
 const adjustmentNames = {
   'sale.combined_corrected': 'Job and payments corrected',
   'sale.details_corrected': 'Job details corrected',
+  'sale.service_changed': 'Service changed',
   'payment.corrected': 'Payment corrected',
   'sale.corrected': 'Sale corrected',
   'sale.cancelled': 'Sale cancelled',
