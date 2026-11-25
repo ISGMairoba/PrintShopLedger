@@ -11,6 +11,10 @@
 //     average timed stage), and the plan is marked tight so the screen can warn.
 //   - No stage has a time: an even share.
 //   Added counts only when it has a time (or none has); otherwise its time runs into the next stage.
+// Timed by ratio (the job carries stageShares, owner 26 Nov): the time to the due date is split by
+// the shares of the stages still to do. A stage is tight when it gets less than half of what it
+// should: its share of the usual turnaround (stageHours), else its share of the time from sale to
+// due date. Without a due date a stage may take its share of the turnaround, else it is untimed.
 // Worked out when needed, never stored, so nothing goes stale. When a job entered its stage:
 // stageAt (recorded when it moves), else its last change, else when it was added.
 import { jobWorkflow } from './business-options.mjs';
@@ -32,6 +36,39 @@ export function validStageHours(value, stages) {
     out[stage] = n;
   }
   return out;
+}
+
+/** Shares per stage (%), for a job timed by ratio: { stage: share }, unknown stages dropped. */
+export function validStageShares(value, stages) {
+  if (value === undefined || value === null) return {};
+  if (typeof value !== 'object' || Array.isArray(value)) throw Error('Invalid share per stage.');
+  const out = {};
+  for (const [stage, share] of Object.entries(value)) {
+    if (!stages.includes(stage) || finished.includes(stage)) continue;
+    const n = Number(share);
+    if (!(n > 0) || n > 100 || Math.round(n * 100) / 100 !== n) throw Error(`${stage}: enter a share up to 100%.`);
+    out[stage] = n;
+  }
+  return out;
+}
+
+/** The ratio plan: the time left split by the shares of the stages ahead. */
+function ratioPlan(job, shares, stages, start, dueAt) {
+  const available = Math.max(0, Date.parse(dueAt) - start);
+  const total = Math.max(0, Date.parse(dueAt) - Date.parse(job.createdAt));
+  const ahead = stages.filter((s) => shares[s] > 0);
+  if (!ahead.length) return null;
+  const weight = ahead.reduce((sum, s) => sum + shares[s], 0);
+  const allowances = {};
+  let needed = 0;
+  let tight = false;
+  for (const s of ahead) {
+    allowances[s] = (available * shares[s]) / weight;
+    const should = job.stageHours?.[s] > 0 ? job.stageHours[s] * HOUR : (total * shares[s]) / 100;
+    needed += should;
+    if (allowances[s] < should / 2) tight = true;
+  }
+  return { allowances, needed, available, tight };
 }
 
 export const stageStartedAt = (job) => job.stageAt ?? job.modifiedAt ?? job.createdAt;
@@ -56,6 +93,13 @@ export function stagePlan(job, stageHours = {}, options = {}) {
   // Added (the order taken) only counts as a stage when it has a time of its own, or when no stage
   // has one (then every stage shares evenly, as before). Otherwise its time runs into the next stage.
   const ahead = working.slice(from);
+  if (job.stageShares) {
+    const start = Date.parse(options.fromSale ? job.createdAt : stageStartedAt(job));
+    const plan = ratioPlan(job, job.stageShares, ahead, start, dueAt);
+    if (plan && !(stage in plan.allowances) && ahead.includes(stage))
+      plan.allowances[stage] = plan.allowances[Object.keys(plan.allowances)[0]];
+    return plan;
+  }
   const anyTimed = ahead.some((s) => hours[s] > 0);
   const stages = anyTimed ? ahead.filter((s) => s !== 'Added' || hours.Added > 0) : ahead;
   if (!stages.length) return null;
@@ -90,6 +134,19 @@ export function stageAllowance(job, stageHours = {}) {
   if (plan) return plan.allowances[stage] ?? null;
   const hours = job.stageHours ?? stageHours;
   return hours[stage] ? hours[stage] * HOUR : null;
+}
+
+/**
+ * The time (hours) a stage of a job should take, for on-time rates: its own time, or for a job
+ * timed by ratio its share of the turnaround, else of the time from sale to due date. null: untimed.
+ */
+export function stageTarget(job, stage) {
+  if (!job) return null;
+  if (job.stageHours?.[stage] > 0) return job.stageHours[stage];
+  const share = job.stageShares?.[stage];
+  if (!(share > 0) || !job.dueAt) return null;
+  const total = Date.parse(job.dueAt) - Date.parse(job.createdAt);
+  return total > 0 ? (total * share) / 100 / HOUR : null;
 }
 
 /** Whether a job has been at its stage longer than allowed, and by how much (ms). */

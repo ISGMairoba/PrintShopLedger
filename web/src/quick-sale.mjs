@@ -144,6 +144,7 @@ export function laterWorkflow(ledger, options, serviceId, chosenId = '') {
     workflow: flow.stages,
     ...(chosen ? { workflowName: chosen.name, workflowId: chosen.id } : {}),
     ...(Object.keys(flow.hours).length ? { stageHours: flow.hours } : {}),
+    ...(flow.shares ? { stageShares: flow.shares } : {}),
   };
 }
 

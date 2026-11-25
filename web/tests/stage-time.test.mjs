@@ -103,3 +103,43 @@ test('time per stage is saved with the business options; unknown stages are drop
     { Printing: 4 },
   );
 });
+
+test('Timed by ratio: shares of the time to the due date, tight under half, turnaround without one', async () => {
+  const { stageTarget, validStageShares } = await import('../src/stage-time.mjs');
+  const H = 3600000;
+  const flow = ['Added', 'Design', 'Printing', 'Finishing', 'Completed', 'Collected'];
+  const shares = { Design: 20, Printing: 50, Finishing: 30 };
+  const sold = '2026-11-26T08:00:00Z';
+  const job = { createdAt: sold, workflow: flow, productionStatus: 'Added', stageShares: shares };
+  // 100 hours to the due date: 20, 50, 30.
+  const due = new Date(Date.parse(sold) + 100 * H).toISOString();
+  const plan = stagePlan({ ...job, dueAt: due }, {}, { fromSale: true });
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(plan.allowances).map(([s, ms]) => [s, ms / H])),
+    // Added has no share: its time runs into Design.
+    { Added: 20, Design: 20, Printing: 50, Finishing: 30 },
+  );
+  assert.equal(plan.tight, false);
+  // Design ran long: 70 hours left for Printing and Finishing share 50 : 30.
+  const at = (hours) => new Date(Date.parse(sold) + hours * H).toISOString();
+  const late = { ...job, dueAt: due, productionStatus: 'Printing', stageAt: at(30) };
+  const next = stagePlan(late, {});
+  assert.equal(Math.round(next.allowances.Printing / H), 44);
+  assert.equal(next.tight, false);
+  // With 20 hours left, Printing gets 12.5 of its 50: tight.
+  const later = { ...late, stageAt: at(80) };
+  assert.equal(stagePlan(later, {}).tight, true);
+  // A usual turnaround of 10 hours (stageHours) with a 4-hour deadline: tight from the sale.
+  const quick = { ...job, stageHours: { Design: 2, Printing: 5, Finishing: 3 } };
+  const four = new Date(Date.parse(sold) + 4 * H).toISOString();
+  assert.equal(stagePlan({ ...quick, dueAt: four }, {}, { fromSale: true }).tight, true);
+  // Without a due date: the share of the turnaround, else untimed.
+  assert.equal(stageAllowance({ ...quick, productionStatus: 'Printing' }), 5 * H);
+  assert.equal(stageAllowance({ ...job, productionStatus: 'Printing' }), null);
+  // On-time targets.
+  assert.equal(stageTarget({ ...job, dueAt: due }, 'Printing'), 50);
+  assert.equal(stageTarget(quick, 'Design'), 2);
+  assert.equal(stageTarget(job, 'Design'), null);
+  assert.deepEqual(validStageShares({ Design: 20, Nope: 5 }, flow), { Design: 20 });
+  assert.throws(() => validStageShares({ Design: 120 }, flow), /share up to 100/);
+});

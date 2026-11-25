@@ -1,7 +1,7 @@
 import { minOrderRule } from './min-order.mjs';
 import { counts } from './branches.mjs';
 import { perItem } from './production-materials.mjs';
-import { validStageHours } from './stage-time.mjs';
+import { validStageHours, validStageShares } from './stage-time.mjs';
 import { validDocumentTerms } from './document-terms.mjs';
 import { tierLabel, tierPrice, usesTiers } from './price-tiers.mjs';
 import { validDueAt } from './job-deadlines.mjs';
@@ -25,11 +25,14 @@ function workflowFields(line) {
   const workflow = validateWorkflow(line.workflow);
   const name = typeof line.workflowName === 'string' ? line.workflowName.trim().slice(0, 60) : '';
   const hours = validStageHours(line.stageHours, workflow);
+  const shares = validStageShares(line.stageShares, workflow);
   return {
     workflow,
     ...(name ? { workflowName: name } : {}),
     ...(line.workflowId && name ? { workflowId: String(line.workflowId).slice(0, 40) } : {}),
     ...(Object.keys(hours).length ? { stageHours: hours } : {}),
+    // Timed by ratio: the shares of the job's time (stage-time.mjs).
+    ...(Object.keys(shares).length ? { stageShares: shares } : {}),
   };
 }
 export const jobStatuses = ['Added', 'In Queue', 'Printing', 'Completed', 'Collected'];

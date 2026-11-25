@@ -5013,3 +5013,15 @@ label .customer-elsewhere > small {
     animation: none;
   }
 }
+
+/* How a workflow's steps are timed: own times, or a share of the job's time. */
+.step-timing {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.step-timing .step-time {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
