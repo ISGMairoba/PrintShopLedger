@@ -4161,7 +4161,9 @@ export default function App() {
                               const job = jobToAdvance.job;
                               // An outside vendor's cost: an expense for this job, with the vendor
                               // added to Payees when new (saved before the work that names them).
-                              const vendorEvents = work ? vendorExpenseEvents(state.ledger, job, targetStage, work, teamWork.actor) : null;
+                              const vendorEvents = work
+                                ? vendorExpenseEvents(state.ledger, job, targetStage, work, teamWork.actor)
+                                : null;
                               const teamEvents: TeamEvent[] = !teamWork.on
                                 ? []
                                 : work

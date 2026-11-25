@@ -6,7 +6,6 @@ import { operationEvent } from './operations.mjs';
 import { stagesFinished } from './team.mjs';
 import { saleDay } from './my-sales.mjs';
 
-
 /**
  * The events for a stage move's vendor, and the work with the vendor's payee and expense ids, or
  * null when there is no vendor cost to record (work.vendorExpense is set by the move dialog only for
@@ -36,7 +35,11 @@ export function vendorExpenseEvents(ledger, job, target, work, actor, now = new 
       'expense.created',
       {
         id: expenseId,
-        description: `${stages.join(', ')} for ${job.service} · order #${job.id.slice(0, 8).toUpperCase()}`.slice(0, 200),
+        description:
+          `${stages.join(', ')} for ${job.service} · order #${job.id.slice(0, 8).toUpperCase()}`.slice(
+            0,
+            200,
+          ),
         category: 'Outsourced work',
         incurredOn: saleDay(now),
         incurredAt: now,

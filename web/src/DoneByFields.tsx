@@ -68,11 +68,13 @@ const VENDOR = '__vendor';
 /** The shares a draft gives (equal percents when none are typed; a vendor next to the Team counts too). */
 export function draftShares(draft: WorkDraft): WorkShare[] {
   const typed =
-    draft.personIds.some((id) => (draft.shares[id] ?? '').trim()) || (draft.vendor && draft.vendorShare.trim());
+    draft.personIds.some((id) => (draft.shares[id] ?? '').trim()) ||
+    (draft.vendor && draft.vendorShare.trim());
   if (draft.unit === 'percent' && !typed)
-    return equalShares([...draft.personIds, ...(draft.vendor && draft.personIds.length ? [VENDOR] : [])]).filter(
-      (s: WorkShare) => s.personId !== VENDOR,
-    );
+    return equalShares([
+      ...draft.personIds,
+      ...(draft.vendor && draft.personIds.length ? [VENDOR] : []),
+    ]).filter((s: WorkShare) => s.personId !== VENDOR);
   return draft.personIds.map((personId) => ({ personId, share: Number(draft.shares[personId] || 0) }));
 }
 /** The vendor's share when it works next to the Team (undefined: it did the whole stage). */

@@ -58,7 +58,12 @@ test('team vendor: a move over several stages records the cost once', () => {
   const events = workEvents(
     job,
     'Completed',
-    { unit: 'percent', shares: [], doneAt: '2026-11-25T10:00:00Z', vendor: { name: 'Kano Prints', cost: 9000 } },
+    {
+      unit: 'percent',
+      shares: [],
+      doneAt: '2026-11-25T10:00:00Z',
+      vendor: { name: 'Kano Prints', cost: 9000 },
+    },
     actor,
   );
   assert.deepEqual(
