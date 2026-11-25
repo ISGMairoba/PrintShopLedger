@@ -9,6 +9,7 @@ import {
   quotationModel,
   quotationRef,
   quotationState,
+  quotationText,
 } from '../src/quotations.mjs';
 import { eventResources } from '../src/sync-dependencies.mjs';
 import { canAccessPage, navigationPages } from '../src/page-access.mjs';
@@ -198,6 +199,16 @@ test('The quotation document reads clearly and prints on receipt printers', () =
   assert.match(m.footer, /valid until 27 Oct 2026/);
   const expired = quotationModel(ledger.quotations[0], 'Shop', 'roll', '2026-11-01T10:00:00Z');
   assert.match(expired.notices[0], /expired/);
+  // As chat text, for clients who will not open a file: the same lines and totals.
+  const text = quotationText(
+    { ...ledger.quotations[0], customerName: 'Ada *VIP*' },
+    { ...defaultBranding(), businessName: 'Shop' },
+    '2026-10-13T10:00:00Z',
+  );
+  assert.match(text, /^\*Shop\*\n\*Quotation Q-[0-9A-F]{8}\*\n.*Valid until 27 Oct 2026\nFor: Ada VIP/);
+  for (const t of m.totals) assert.ok(text.includes(`${t.label}: ${t.value}`), t.label);
+  assert.ok(text.includes('Discount 10% -₦1,000.00'));
+  assert.match(text, /Note: Thanks/);
 });
 
 test('Quotations sync on their own and follow Point of Service access', () => {

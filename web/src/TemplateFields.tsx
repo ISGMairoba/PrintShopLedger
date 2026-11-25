@@ -1,8 +1,8 @@
 import { useMessages } from './MessagesContext';
 import SearchSelect from './SearchSelect';
-import { Fragment, createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { Fragment, createContext, useContext, useState, type ReactNode } from 'react';
 import { comparisonText } from './comparison-doc.mjs';
-import { copyText, shareText } from './share-text';
+import DocumentActions from './DocumentActions';
 import type { Branding } from './useBusinessBranding';
 import {
   FieldError,
@@ -30,9 +30,15 @@ import { alphabetical } from './alphabetical.mjs';
 /** Whether this person may see costs and the internal job & audit view. */
 export const TemplateAuditContext = createContext(false);
 /** The business look and the person's name, for client documents made from templates. */
-export const TemplateDocumentContext = createContext<{ business: string | Branding; preparedBy: string }>({
+export const TemplateDocumentContext = createContext<{
+  business: string | Branding;
+  preparedBy: string;
+  /** Print Settings' scope, for printing price options. */
+  scope: string;
+}>({
   business: '',
   preparedBy: '',
+  scope: '',
 });
 export const useTemplateAudit = () => useContext(TemplateAuditContext);
 
@@ -821,89 +827,22 @@ export function CompareOptions({
   const messages = useMessages();
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
-  const [working, setWorking] = useState(false);
   const [notice, setNotice] = useState('');
-  // Load the PDF code now: phones only open the share sheet straight after the tap.
-  useEffect(() => {
-    if (rows.length) {
-      void import('./receipt-pdf');
-      void import('./share-pdf');
-    }
-  }, [rows.length]);
   /** The options in the order shown on screen (grouped when grouping is on). */
   const ordered = () =>
     groups.flatMap((g) => g.rows) as { inputs: Record<string, number>; amount: number; unit: number }[];
-  async function comparisonPdf(action: 'share' | 'a4' | 'a5' | 'open') {
-    setWorking(true);
-    setNotice('');
-    try {
-      const { createComparisonPdf } = await import('./receipt-pdf');
-      const details = {
-        customerName: customerName.trim(),
-        customerPhone: customerPhone.trim(),
-        preparedBy: doc.preparedBy,
-        // Groups as on screen, when the grouping detail is one the client may see.
-        ...(headings && grouping && grouping.clientVisible !== false ? { groupBy: grouping.key } : {}),
-      };
-      const pdf = createComparisonPdf(
-        template,
-        ordered(),
-        doc.business,
-        details,
-        action === 'a5' ? 'a5' : 'a4',
-      );
-      const fileName = `${template.name.replace(/[^\w-]+/g, '-')}-options${action === 'a5' ? '-A5' : ''}.pdf`;
-      if (action === 'share') {
-        const { sharePdf, shareResult } = await import('./share-pdf');
-        const business = typeof doc.business === 'string' ? doc.business : doc.business.businessName;
-        const result = await sharePdf(pdf, fileName, {
-          title: `${template.name} options`,
-          text: messages.text('options', { template: template.name, count: ordered().length, business }),
-          phone: customerPhone.trim() || undefined,
-          mode: messages.mode('options'),
-        });
-        setNotice(shareResult(result));
-      } else if (action === 'open') {
-        // A new tab with the PDF: print it from there. Nothing is printed from this page.
-        window.open(String(pdf.output('bloburl')), '_blank', 'noopener');
-      } else {
-        pdf.save(fileName);
-        setNotice('PDF downloaded.');
-      }
-    } catch (cause) {
-      setNotice(cause instanceof Error ? cause.message : String(cause));
-    } finally {
-      setWorking(false);
-    }
-  }
+  // Groups as on screen, when the grouping detail is one the client may see.
+  const docGroup = headings && grouping && grouping.clientVisible !== false ? { groupBy: grouping.key } : {};
+  const details = () => ({
+    customerName: customerName.trim(),
+    customerPhone: customerPhone.trim(),
+    preparedBy: doc.preparedBy,
+    ...docGroup,
+  });
   /** The options as chat text, matching the PDF (same order, groups and client details). */
   const chatText = () =>
-    comparisonText(template, ordered(), doc.business, {
-      customerName: customerName.trim(),
-      ...(headings && grouping && grouping.clientVisible !== false ? { groupBy: grouping.key } : {}),
-    });
-  async function sendText(action: 'copy' | 'share') {
-    setNotice('');
-    try {
-      const text = chatText();
-      if (action === 'copy') {
-        setNotice(
-          (await copyText(text))
-            ? 'Text copied. Paste it into the chat.'
-            : 'This browser would not copy. Open “See the text” below and copy it by hand.',
-        );
-      } else {
-        const result = await shareText(text, {
-          title: `${template.name} options`,
-          phone: customerPhone.trim() || undefined,
-          mode: messages.mode('options'),
-        });
-        setNotice(result === 'whatsapp' ? 'WhatsApp is open with the text ready to send.' : '');
-      }
-    } catch (cause) {
-      setNotice(cause instanceof Error ? cause.message : String(cause));
-    }
-  }
+    comparisonText(template, ordered(), doc.business, { customerName: customerName.trim(), ...docGroup });
+  const businessName = typeof doc.business === 'string' ? doc.business : doc.business.businessName;
   return (
     <div className="template-compare">
       <p className="muted">
@@ -1027,7 +966,7 @@ export function CompareOptions({
               </select>
             </label>
           </div>
-          <fieldset className="template-option-set" disabled={working}>
+          <fieldset className="template-option-set">
             <legend>Send to the client</legend>
             <div className="form-grid">
               <label>
@@ -1053,26 +992,29 @@ export function CompareOptions({
             {rows.some((r) => r.error) ? (
               <p className="danger-text">Fix the options that cannot be priced before sending.</p>
             ) : (
-              <div className="material-actions">
-                <button type="button" onClick={() => void sendText('copy')}>
-                  <Icon name="copy" /> Copy text
-                </button>
-                <button type="button" className="secondary" onClick={() => void sendText('share')}>
-                  <Icon name="share" /> Share text
-                </button>
-                <button type="button" className="secondary" onClick={() => void comparisonPdf('share')}>
-                  <Icon name="share" /> Share PDF
-                </button>
-                <button type="button" className="secondary" onClick={() => void comparisonPdf('a4')}>
-                  <Icon name="export" /> A4 PDF
-                </button>
-                <button type="button" className="secondary" onClick={() => void comparisonPdf('a5')}>
-                  <Icon name="export" /> A5 PDF
-                </button>
-                <button type="button" className="secondary" onClick={() => void comparisonPdf('open')}>
-                  <Icon name="details" /> Open to print
-                </button>
-              </div>
+              <DocumentActions
+                scope={doc.scope}
+                business={doc.business}
+                title={`${template.name} options`}
+                fileName={`${template.name.replace(/[^\w-]+/g, '-')}-options`}
+                pdf={(pdfs, size, business) =>
+                  pdfs.createComparisonPdf(template, ordered(), business, details(), size)
+                }
+                picture={(pdfs, size) =>
+                  pdfs.createComparisonImage(template, ordered(), doc.business, details(), size)
+                }
+                message={{
+                  text: messages.text('options', {
+                    template: template.name,
+                    count: ordered().length,
+                    business: businessName,
+                  }),
+                  phone: customerPhone.trim() || undefined,
+                  mode: messages.mode('options'),
+                }}
+                text={chatText}
+                onNotice={(note) => setNotice(note)}
+              />
             )}
             {notice && (
               <p className="muted" role="status">

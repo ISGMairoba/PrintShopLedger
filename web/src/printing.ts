@@ -185,16 +185,30 @@ export async function printReceipt(
   pending = false,
   adjustments: SaleAdjustment[] = [],
 ) {
-  const s = validatePrintSettings(settings);
-  const qz = await readyPrinter(s);
   const { createReceiptPdf } = await import('./receipt-pdf');
   const title = `Receipt ${record.id.slice(0, 8).toUpperCase()}`;
+  await printDocumentPdf(settings, title, business, (media, brand) =>
+    createReceiptPdf(record, brand, pending, adjustments, media),
+  );
+}
+/**
+ * Print any receipt-shaped document (receipt, quotation, price options) drawn by draw for the paper
+ * in Print Settings, as printReceipt does.
+ */
+export async function printDocumentPdf(
+  settings: PrintSettings,
+  title: string,
+  business: string | Branding,
+  draw: (media: import('./receipt-pdf').ReceiptMedia, business: string | Branding) => import('jspdf').jsPDF,
+) {
+  const s = validatePrintSettings(settings);
+  const qz = await readyPrinter(s);
   const ink = (await import('./logo-ink')).withInkLogo;
   if (directPrintLayout(s).media.layout === 'roll' && s.rollMethod !== 'driver') {
-    // Thermal receipt printers: QZ Tray turns the receipt into ESC/POS raster commands exactly
+    // Thermal receipt printers: QZ Tray turns the document into ESC/POS raster commands exactly
     // as wide as the print head, so no driver can shift, scale or clip it.
     const { dots, media } = escposLayout(s) as { dots: number; media: import('./receipt-pdf').ReceiptMedia };
-    const doc = createReceiptPdf(record, await ink(business), pending, adjustments, media);
+    const doc = draw(media, await ink(business));
     const base64 = (doc.output('datauristring') as string).split(',')[1];
     await qz.print(qz.configs.create(s.printer, { copies: s.copies, jobName: title }), [
       escposStart,
@@ -213,7 +227,7 @@ export async function printReceipt(
   const media = (directPrintLayout(s) as { media: import('./receipt-pdf').ReceiptMedia }).media;
   // Thermal rolls and monochrome printers need a solid black logo to print it at all.
   const brand = media.layout === 'roll' || !media.color ? await ink(business, media.layout) : business;
-  const doc = createReceiptPdf(record, brand, pending, adjustments, media);
+  const doc = draw(media, brand);
   const base64 = (doc.output('datauristring') as string).split(',')[1];
   const pageHeight = media.layout === 'roll' ? doc.internal.pageSize.getHeight() : null;
   await printPdf(s, title, base64, pageHeight);

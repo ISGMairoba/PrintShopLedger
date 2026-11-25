@@ -1660,6 +1660,19 @@ export default function CheckoutEditor({
       </Modal>
       {addingCustomer && (
         <CustomerEditor
+          // From a quotation for someone not saved yet: their name and phone are filled in (the name
+          // as typed in the customer box, when it was changed).
+          prefill={
+            customerId
+              ? undefined
+              : {
+                  name: query.trim() || fromQuotation?.customerName,
+                  phone:
+                    fromQuotation && (!query.trim() || query.trim() === fromQuotation.customerName.trim())
+                      ? fromQuotation.customerPhone
+                      : undefined,
+                }
+          }
           customers={working.customers}
           actor={actor}
           busy={busy}

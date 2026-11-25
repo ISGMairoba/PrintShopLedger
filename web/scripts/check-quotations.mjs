@@ -83,17 +83,32 @@ try {
   await d.waitFor({ state: 'detached' });
   assert.match(await page.locator('table').innerText(), /₦30,000\.00/);
 
-  // View, then download it.
+  // View, then download it, as receipts do: Download → a PDF or a picture in each size.
   await page.getByRole('button', { name: 'View', exact: true }).click();
   d = page.getByRole('dialog', { name: /Quotation Q-/ });
-  const waiting = page.waitForEvent('download');
-  await d.getByRole('button', { name: 'Download PDF (A4)', exact: true }).click();
-  assert.match((await waiting).suggestedFilename(), /^Quotation-Q-[0-9A-F]{8}\.pdf$/);
+  for (const [button, name] of [
+    ['PDF (A4)', /^Quotation-Q-[0-9A-F]{8}\.pdf$/],
+    ['PDF (80mm)', /^Quotation-Q-[0-9A-F]{8}-80mm\.pdf$/],
+    ['Picture (A5)', /^Quotation-Q-[0-9A-F]{8}-A5\.png$/],
+  ]) {
+    await d.getByRole('button', { name: 'Download', exact: true }).click();
+    const waiting = page.waitForEvent('download');
+    await d
+      .getByRole('group', { name: 'Download' })
+      .getByRole('button', { name: button, exact: true })
+      .click();
+    assert.match((await waiting).suggestedFilename(), name);
+  }
+  // Print offers the printer in Print Settings and the print page.
+  await d.getByRole('button', { name: 'Print', exact: true }).click();
+  await d.getByRole('group', { name: 'Print' }).getByRole('button', { name: 'Open print page' }).waitFor();
+  await d.getByRole('button', { name: 'Print', exact: true }).click();
 
   // Share: without a phone share sheet, the PDF downloads and WhatsApp opens with the message.
   // A desktop browser has no share sheet; record the WhatsApp link instead of opening a window.
   const shared = page.waitForEvent('download');
   await d.getByRole('button', { name: 'Share', exact: true }).click();
+  await d.getByRole('group', { name: 'Share' }).getByRole('button', { name: 'PDF', exact: true }).click();
   // Share asks where to: WhatsApp (the only choice on a desktop without a share sheet).
   await page
     .getByRole('dialog', { name: 'Share' })
@@ -107,6 +122,18 @@ try {
   assert.match(sharedFile.suggestedFilename(), /^Quotation-Q-[0-9A-F]{8}\.pdf$/);
   await page.waitForFunction(() => window.__opened.length > 0);
   assert.match(await page.evaluate(() => window.__opened[0]), /^https:\/\/wa\.me\/\?text=Hello%20Bello/);
+  // Or as text, for clients who will not open a file.
+  await d.getByRole('button', { name: 'Share', exact: true }).click();
+  await d.getByRole('group', { name: 'Share' }).getByRole('button', { name: 'Text', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Share' })
+    .getByRole('button', { name: /^WhatsApp/ })
+    .click();
+  await page.waitForFunction(() => window.__opened.length > 1);
+  assert.match(
+    decodeURIComponent(await page.evaluate(() => window.__opened[1])),
+    /\*Quotation Q-[0-9A-F]{8}\*[\s\S]*\*Design: ₦30,000\.00\*[\s\S]*\*Total: ₦30,000\.00\*/,
+  );
 
   // Create the order: checkout opens filled from the quote.
   await d.getByRole('button', { name: 'Create job', exact: true }).click();
@@ -116,8 +143,9 @@ try {
   assert.equal(await d.getByLabel('Quantity', { exact: true }).inputValue(), '3');
   await d.getByRole('button', { name: 'Add new customer', exact: true }).click();
   const cd = page.getByRole('dialog', { name: 'Add customer' });
-  await cd.getByLabel('Full name').fill('Bello Stores');
-  await cd.getByLabel('Phone number').fill('080333');
+  // The quotation's name and phone are filled in.
+  assert.equal(await cd.getByLabel('Full name').inputValue(), 'Bello Stores');
+  assert.equal(await cd.getByLabel('Phone number').inputValue(), '080333');
   await cd.getByRole('button', { name: 'Save customer', exact: true }).click();
   await cd.waitFor({ state: 'detached' });
   await d.getByRole('button', { name: 'Complete checkout', exact: true }).click();

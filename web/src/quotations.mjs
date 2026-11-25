@@ -8,7 +8,7 @@ import { tierPrice } from './price-tiers.mjs';
 import { quoteLine } from './checkout.mjs';
 import { applyOrderDiscount } from './discounts.mjs';
 import { normalizeLedger } from './materials.mjs';
-import { receiptBusiness, validLogo } from './business-branding.mjs';
+import { poweredByLine, receiptBusiness, validLogo } from './business-branding.mjs';
 import { currency, discountLines } from './receipts.mjs';
 import { renameTerms } from './terms.mjs';
 import { checkTemplateDiscount, templateSpecLines } from './pricing-templates.mjs';
@@ -343,4 +343,36 @@ export function quotationModel(quote, business, layout = 'page', now = new Date(
     adjustments: [],
     footer: `Prices are valid until ${longDate(quote.validUntil)}.${o.footer ? ' ' + o.footer : ''}`,
   };
+}
+
+/** WhatsApp styling: *bold*. Stray markers in names would bold or strike the wrong words, so drop them. */
+const plain = (value) => String(value ?? '').replace(/[*_~`]/g, '');
+
+/**
+ * The quotation as plain text to paste into a chat, for clients who will not open a file: the same
+ * lines, totals and validity as the PDF. WhatsApp shows *text* in bold; other apps show the stars.
+ */
+export function quotationText(quote, business, now = new Date().toISOString()) {
+  const m = quotationModel(quote, business, 'page', now);
+  const b = receiptBusiness(business);
+  const lines = [];
+  if (b.businessName) lines.push(`*${plain(b.businessName)}*`);
+  lines.push(`*Quotation ${m.number}*`);
+  lines.push(`${m.date} · Valid until ${longDate(quote.validUntil)}`);
+  if (quote.customerName) lines.push(`For: ${plain(quote.customerName)}`);
+  for (const n of m.notices) lines.push('', `_${plain(n)}_`);
+  for (const item of m.items) {
+    lines.push('', `*${plain(item.title)}: ${item.amount}*`);
+    const specs = [item.subtitle, ...item.meta].filter(Boolean).map(plain);
+    if (specs.length) lines.push(specs.join(' · '));
+  }
+  lines.push('');
+  for (const t of m.totals) lines.push(t.strong ? `*${t.label}: ${t.value}*` : `${t.label}: ${t.value}`);
+  if (m.note) lines.push('', `Note: ${plain(m.note)}`);
+  lines.push('', 'Reply to go ahead. Prices may change after the date above.');
+  const contact = [b.phones, b.email].filter(Boolean).map(plain).join(' · ');
+  if (contact && b.receiptPage.showContacts) lines.push(contact);
+  const credit = poweredByLine(business, 'shares');
+  if (credit) lines.push('', `_${plain(credit)}_`);
+  return lines.join('\n');
 }
