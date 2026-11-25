@@ -1,6 +1,7 @@
 // Reports → Team (plans/job-assignment.md): each person's work over a period — stages done, time per
 // stage against its target, on time, rework, late recording and the value credited to them.
 import { businessDay } from './dashboard.mjs';
+import { stageTarget } from './stage-time.mjs';
 import { personName, recordedLate, teamPeople, myWork, termsOf } from './team.mjs';
 
 /** A person's part of one work record, 0 to 1 (percent of 100, or quantity of the job's). */
@@ -76,7 +77,7 @@ export function teamReport(ledger, from, to, { includeRecorded = false } = {}) {
       p.jobs.add(r.jobId);
       if (recordedLate(r)) p.late += 1;
       const hours = hoursFor.get(r.id);
-      const target = job?.stageHours?.[r.stage];
+      const target = stageTarget(job, r.stage);
       if (hours !== undefined && target > 0) {
         p.timed += 1;
         p.hours += hours;
