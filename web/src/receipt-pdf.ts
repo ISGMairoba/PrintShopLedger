@@ -421,6 +421,9 @@ function drawRoll(doc: jsPDF, m: Model, media: ReceiptMedia, credit: string) {
   y += 0.5 * k;
   rule();
   for (const i of m.items) {
+    // A group title (comparisons grouped by a detail).
+    const heading = (i as { heading?: string }).heading;
+    if (heading) y += text(heading.toUpperCase(), L, 7.8, 'bold') + 1 * k;
     y += text(i.title, L, 8.6, 'bold') + 0.3 * k;
     const subline = [i.subtitle, ...i.meta].filter(Boolean).join(' · ');
     if (subline) y += text(subline, L, 6.8) + 0.6 * k;
@@ -474,8 +477,29 @@ function drawRoll(doc: jsPDF, m: Model, media: ReceiptMedia, credit: string) {
   return y + media.margins.bottom;
 }
 
-const mediaFor = (size: ReceiptPdfSize): ReceiptMedia =>
-  size === 'a4' ? A4_RECEIPT : size === 'roll' ? ROLL_80_RECEIPT : size;
+const mediaFor = (size: ReceiptPdfSize | DocSize): ReceiptMedia =>
+  size === 'a4' ? A4_RECEIPT : size === 'a5' ? A5_DOCUMENT : size === 'roll' ? ROLL_80_RECEIPT : size;
+/** The paper of a shared or downloaded document: an 80 mm till roll, A5 or A4. */
+export type DocSize = 'roll' | 'a5' | 'a4';
+/** The paper of a picture: the roll gets a little more room so the picture is not cramped. */
+const pictureMedia = (size: DocSize): ReceiptMedia =>
+  size === 'roll'
+    ? { ...ROLL_80_RECEIPT, width: 90, margins: { top: 6, right: 6, bottom: 6, left: 6 } }
+    : mediaFor(size);
+/** A receipt-shaped model as a PNG, drawn like its PDF, at 10 pixels per millimetre. */
+async function modelImage(m: Model, media: ReceiptMedia, business: string | Branding, name: string) {
+  const { CanvasDoc, canvasPng, loadCanvasFonts, loadImages } = await import('./canvas-doc');
+  await loadCanvasFonts();
+  const images = await loadImages([m.business.logo ?? '', resolveWatermark(receiptBusiness(business)) ?? '']);
+  let last: InstanceType<typeof CanvasDoc> | null = null;
+  modelPdf(m, media, business, (format) => {
+    last = new CanvasDoc(format, images);
+    return last as unknown as jsPDF;
+  });
+  // About 2,100 pixels across for A4, 1,480 for A5 and 900 for the roll.
+  return canvasPng((last as unknown as InstanceType<typeof CanvasDoc>).render(10), name);
+}
+const sizeSuffix = (size: DocSize) => (size === 'roll' ? '-80mm' : size === 'a5' ? '-A5' : '');
 
 /** Build the receipt for a paper size. Roll pages are cut to the content's length. */
 export function createReceiptPdf(
@@ -535,34 +559,30 @@ export async function createReceiptImage(
 ) {
   const warning = receiptIntegrityError(record);
   if (warning) throw Error(warning);
-  const { CanvasDoc, canvasPng, loadCanvasFonts, loadImages } = await import('./canvas-doc');
-  const media =
-    size === 'a4'
-      ? A4_RECEIPT
-      : size === 'a5'
-        ? A5_DOCUMENT
-        : { ...ROLL_80_RECEIPT, width: 90, margins: { top: 6, right: 6, bottom: 6, left: 6 } };
+  const media = pictureMedia(size);
   const m = receiptModel(record, business, pending, adjustments, media.layout);
-  await loadCanvasFonts();
-  const images = await loadImages([m.business.logo ?? '', resolveWatermark(receiptBusiness(business)) ?? '']);
-  let last: InstanceType<typeof CanvasDoc> | null = null;
-  modelPdf(m, media, business, (format) => {
-    last = new CanvasDoc(format, images);
-    return last as unknown as jsPDF;
-  });
   const suffix = size === 'roll' ? '' : `-${size.toUpperCase()}`;
   const name = `Receipt-${record.id.slice(0, 8).toUpperCase()}${record.corrected ? '-corrected' : ''}${suffix}.png`;
-  // 10 pixels per mm: about 2,100 pixels across for A4, 1,480 for A5 and 900 for the roll.
-  return canvasPng((last as unknown as InstanceType<typeof CanvasDoc>).render(10), name);
+  return modelImage(m, media, business, name);
 }
-/** A quotation as a PDF, on A4 or an 80 mm roll, with the business's receipt look. */
+/** A quotation as a PDF, on A4, A5 or an 80 mm roll, with the business's receipt look. */
 export function createQuotationPdf(
   quote: Quotation,
   business: string | Branding,
-  size: ReceiptPdfSize = 'a4',
+  size: ReceiptPdfSize | DocSize = 'a4',
 ) {
   const media = mediaFor(size);
   return modelPdf(quotationModel(quote, business, media.layout) as unknown as Model, media, business);
+}
+/** A quotation as a picture (PNG) on an 80 mm roll, A5 or A4. */
+export function createQuotationImage(quote: Quotation, business: string | Branding, size: DocSize = 'roll') {
+  const media = pictureMedia(size);
+  return modelImage(
+    quotationModel(quote, business, media.layout) as unknown as Model,
+    media,
+    business,
+    `Quotation-${quotationRef(quote.id)}${sizeSuffix(size)}.png`,
+  );
 }
 export function downloadQuotationPdf(
   quote: Quotation,
@@ -590,18 +610,34 @@ export function downloadReceiptPdf(
   );
 }
 
-/** A client comparison of template options as a PDF on A4 or A5, with the business's look. */
+/** A client comparison of template options as a PDF on A4, A5 or an 80 mm roll, with the business's look. */
 export function createComparisonPdf(
   template: Parameters<typeof comparisonModel>[0],
   rows: Parameters<typeof comparisonModel>[1],
   business: string | Branding,
   details: Parameters<typeof comparisonModel>[3],
-  size: 'a4' | 'a5' = 'a4',
+  size: ReceiptPdfSize | DocSize = 'a4',
 ) {
   return modelPdf(
     comparisonModel(template, rows, business, details) as unknown as Model,
-    size === 'a5' ? A5_DOCUMENT : A4_RECEIPT,
+    mediaFor(size),
     business,
+  );
+}
+/** The comparison as a picture (PNG) on an 80 mm roll, A5 or A4. */
+export function createComparisonImage(
+  template: Parameters<typeof comparisonModel>[0],
+  rows: Parameters<typeof comparisonModel>[1],
+  business: string | Branding,
+  details: Parameters<typeof comparisonModel>[3],
+  size: DocSize = 'roll',
+) {
+  const name = `${String(template.name).replace(/[^\w-]+/g, '-')}-options${sizeSuffix(size)}.png`;
+  return modelImage(
+    comparisonModel(template, rows, business, details) as unknown as Model,
+    pictureMedia(size),
+    business,
+    name,
   );
 }
 

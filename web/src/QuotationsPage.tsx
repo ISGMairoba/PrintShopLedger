@@ -16,7 +16,7 @@ import { serviceMaterial } from './material-choice.mjs';
 import { editableInputs, templateDefaults } from './pricing-templates.mjs';
 import type { TemplateSnapshot } from './types';
 import { lineWithDescription, nextDescription } from './job-batches.mjs';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import Icon from './Icon';
 import ToolbarActions from './ToolbarActions';
@@ -34,8 +34,10 @@ import {
   priceQuotation,
   quotationRef,
   quotationState,
+  quotationText,
   stateLabels,
 } from './quotations.mjs';
+import DocumentActions from './DocumentActions';
 import {
   DiscountFields,
   discountDraft,
@@ -48,6 +50,8 @@ import type { Ledger, Quotation, QuotationEvent } from './types';
 
 type Props = {
   ledger: Ledger;
+  /** Print Settings' scope, for printing a quotation. */
+  scope: string;
   ready: boolean;
   busy: boolean;
   actor: { id: string; label: string };
@@ -101,6 +105,7 @@ const customerLabel = (c: { name: string; phone: string }) => (c.phone ? `${c.na
 
 export default function QuotationsPage({
   ledger,
+  scope,
   ready,
   busy,
   actor,
@@ -112,11 +117,6 @@ export default function QuotationsPage({
   start = null,
 }: Props) {
   const messages = useMessages();
-  // Load the PDF and share code now: phones only open the share sheet straight after the tap.
-  useEffect(() => {
-    void import('./receipt-pdf');
-    void import('./share-pdf');
-  }, []);
   const { w } = useWords();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('current');
@@ -149,39 +149,6 @@ export default function QuotationsPage({
     },
   );
   const open = quotes.filter((q) => quotationState(q) === 'open');
-  async function pdf(quote: Quotation, size: 'a4' | 'roll', action: 'download' | 'open') {
-    setError('');
-    try {
-      const { downloadQuotationPdf, openQuotationPdf } = await import('./receipt-pdf');
-      (action === 'open' ? openQuotationPdf : downloadQuotationPdf)(quote, branding, size);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not create the PDF.');
-    }
-  }
-  async function share(quote: Quotation) {
-    setError('');
-    try {
-      const [{ createQuotationPdf }, { sharePdf, shareResult }] = await Promise.all([
-        import('./receipt-pdf'),
-        import('./share-pdf'),
-      ]);
-      const ref = quotationRef(quote.id);
-      const result = await sharePdf(createQuotationPdf(quote, branding, 'a4'), `Quotation-${ref}`, {
-        title: `Quotation ${ref}`,
-        text: messages.text(
-          'quotation',
-          { quotation: ref, total: currency(quote.total), valid_until: date(quote.validUntil) },
-          { id: quote.customerId, name: quote.customerName },
-        ),
-        phone: quote.customerPhone,
-        mode: messages.mode('quotation'),
-      });
-      const note = shareResult(result);
-      if (note) notify(note, 'success');
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not share the quotation.');
-    }
-  }
   async function setStatus(
     quote: Quotation,
     kind: 'quotation.archived' | 'quotation.restored' | 'quotation.deleted',
@@ -345,6 +312,25 @@ export default function QuotationsPage({
             </div>
           )}
           <QuotationSummary quote={current} />
+          <DocumentActions
+            scope={scope}
+            business={branding}
+            title={`Quotation ${quotationRef(current.id)}`}
+            fileName={`Quotation-${quotationRef(current.id)}`}
+            pdf={(pdfs, size, business) => pdfs.createQuotationPdf(current, business, size)}
+            picture={(pdfs, size) => pdfs.createQuotationImage(current, branding, size)}
+            message={{
+              text: messages.text(
+                'quotation',
+                { quotation: quotationRef(current.id), total: currency(current.total), valid_until: date(current.validUntil) },
+                { id: current.customerId, name: current.customerName },
+              ),
+              phone: current.customerPhone,
+              mode: messages.mode('quotation'),
+            }}
+            text={() => quotationText(current, branding)}
+            onNotice={(note, tone) => (tone === 'error' ? setError(note) : notify(note, 'success'))}
+          />
           <div className="material-actions">
             {['open', 'expired'].includes(quotationState(current)) && (
               <>
@@ -369,15 +355,6 @@ export default function QuotationsPage({
                 </button>
               </>
             )}
-            <button className="secondary" onClick={() => void share(current)}>
-              <Icon name="share" /> Share
-            </button>
-            <button className="secondary" onClick={() => void pdf(current, 'a4', 'download')}>
-              <Icon name="export" /> Download PDF (A4)
-            </button>
-            <button className="secondary" onClick={() => void pdf(current, 'roll', 'download')}>
-              <Icon name="export" /> Download PDF (80 mm)
-            </button>
             {current.status === 'open' && (
               <button
                 className="text-button danger-text"

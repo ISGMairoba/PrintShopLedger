@@ -200,14 +200,17 @@ try {
       await c.getByRole('table', { name: 'Compared options' }).innerText(),
       /50[\s\S]*₦17,500\.00[\s\S]*100[\s\S]*₦35,000\.00/,
     );
-    // The comparison downloads as an A4 or A5 PDF; nothing is printed from the page.
+    // The comparison downloads as a PDF or a picture (A4, A5 or 80 mm), as receipts do.
     await c.getByLabel('Customer name for the comparison', { exact: true }).fill('Book customer');
     for (const [button, name] of [
-      ['A4 PDF', 'Books-options.pdf'],
-      ['A5 PDF', 'Books-options-A5.pdf'],
+      ['PDF (A4)', 'Books-options.pdf'],
+      ['PDF (A5)', 'Books-options-A5.pdf'],
+      ['PDF (80mm)', 'Books-options-80mm.pdf'],
+      ['Picture (80mm)', 'Books-options-80mm.png'],
     ]) {
+      await c.getByRole('button', { name: 'Download', exact: true }).click();
       const download = page.waitForEvent('download');
-      await c.getByRole('button', { name: button, exact: true }).click();
+      await c.getByRole('group', { name: 'Download' }).getByRole('button', { name: button, exact: true }).click();
       const file = await download;
       assert.equal(file.suggestedFilename(), name);
       assert.ok((await file.path()) && (await import('node:fs')).statSync(await file.path()).size > 2000);

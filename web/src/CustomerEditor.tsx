@@ -12,6 +12,8 @@ import type { Customer, CustomerEvent, FieldEvent } from './types';
 import { calledAsEvent } from './item-fields.mjs';
 type Props = {
   customer?: Customer;
+  /** A new customer's details known already (e.g. from a quotation), to start the form with. */
+  prefill?: { name?: string; phone?: string };
   customers?: Customer[];
   actor: { id: string; label: string };
   busy: boolean;
@@ -23,6 +25,7 @@ type Props = {
 };
 export default function CustomerEditor({
   customer,
+  prefill,
   customers = [],
   actor,
   busy,
@@ -33,7 +36,7 @@ export default function CustomerEditor({
 }: Props) {
   const formId = useId();
   const [error, setError] = useFeedbackMessage('error');
-  const [phone, setPhone] = useState(customer?.phone ?? '');
+  const [phone, setPhone] = useState(customer?.phone ?? prefill?.phone ?? '');
   // Each number belongs to one customer; an older shared number may be kept unchanged.
   const phoneTakenBy =
     customer && phoneKey(phone) === phoneKey(customer.phone)
@@ -160,7 +163,7 @@ export default function CustomerEditor({
               <input
                 name="name"
                 maxLength={160}
-                defaultValue={customer?.name ?? ''}
+                defaultValue={customer?.name ?? prefill?.name ?? ''}
                 autoComplete="name"
                 required
               />

@@ -2409,6 +2409,7 @@ export default function App() {
               <TemplateDocumentContext.Provider
                 value={{
                   business: docBusiness,
+                  scope,
                   preparedBy: demo ? 'Local trial user' : shop?.staffName || session?.user.email || '',
                 }}
               >
@@ -3380,6 +3381,7 @@ export default function App() {
                             <QuotationsPage
                               key={scope}
                               ledger={ledger}
+                              scope={scope}
                               ready={ready}
                               busy={busy || legacyConflict}
                               branding={docBusiness}
