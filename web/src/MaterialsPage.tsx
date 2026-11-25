@@ -33,6 +33,11 @@ type Props = {
   busy: boolean;
   actor: { id: string; label: string };
   onSave: (event: MaterialEvent) => Promise<void>;
+  /** Reserved by jobs that take their materials in production (stock-count.mjs reservedStock). */
+  reserved?: Record<string, number>;
+  /** Where each material is kept, and setting it (Admin and higher). */
+  shelves?: Record<string, string>;
+  onSetShelf?: (materialId: string, shelf: string) => Promise<void>;
   /** For the reorder list: recording a purchase saves an expense that adds stock. */
   expenses?: Expense[];
   payees?: import('./types').Payee[];
@@ -71,6 +76,9 @@ type Props = {
 };
 const timestamp = (value: string) => new Date(value).toLocaleString();
 export default function MaterialsPage({
+  reserved = {},
+  shelves = {},
+  onSetShelf,
   materials,
   history,
   valuation,
@@ -162,16 +170,20 @@ export default function MaterialsPage({
       setEditor(null);
       setConfirmation(null);
       setStock(null);
+      return true;
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not save material.');
+      return false;
     }
   }
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (busy) return;
     const data = new FormData(e.currentTarget);
-    await commit(editing ? 'material.updated' : 'material.created', {
-      id: editing?.id ?? crypto.randomUUID(),
+    const id = editing?.id ?? crypto.randomUUID();
+    const shelf = String(data.get('shelf') ?? '').trim();
+    const saved = await commit(editing ? 'material.updated' : 'material.created', {
+      id,
       baseVersion: editing?.version,
       minimumStock: Number(data.get('minimumStock')),
       // Cost price per unit (₦ → kobo); empty clears it.
@@ -188,6 +200,11 @@ export default function MaterialsPage({
       modifiedByLabel: actor.label,
       modifiedAt: '',
     });
+    // Where it is kept: saved after the material, which must exist first.
+    if (saved && onSetShelf && shelf !== (shelves[id] ?? ''))
+      await onSetShelf(id, shelf).catch((cause) =>
+        setError(cause instanceof Error ? cause.message : 'Could not save the shelf.'),
+      );
   }
   return (
     <>
@@ -374,6 +391,16 @@ export default function MaterialsPage({
                       </td>
                       <td className="cell-fit">
                         {material.available.toLocaleString(undefined, { maximumFractionDigits: 3 })}
+                        {(reserved[material.id] ?? 0) > 0 && (
+                          <small>
+                            Reserved {reserved[material.id].toLocaleString(undefined, { maximumFractionDigits: 3 })}{' '}
+                            · free{' '}
+                            {(material.available - reserved[material.id]).toLocaleString(undefined, {
+                              maximumFractionDigits: 3,
+                            })}
+                          </small>
+                        )}
+                        {shelves[material.id] && <small>Shelf: {shelves[material.id]}</small>}
                         <small>
                           Minimum: {material.minimumHere ?? material.minimumStock ?? 0}{' '}
                           {material.measurementUnit}
@@ -782,6 +809,24 @@ export default function MaterialsPage({
                     required
                   />
                 </label>
+                {onSetShelf && (
+                  <label>
+                    Shelf or area
+                    <input
+                      name="shelf"
+                      maxLength={80}
+                      list="material-shelves"
+                      placeholder="e.g. Rack A"
+                      defaultValue={editing ? (shelves[editing.id] ?? '') : ''}
+                    />
+                    <datalist id="material-shelves">
+                      {[...new Set(Object.values(shelves))].sort().map((shelf) => (
+                        <option key={shelf} value={shelf} />
+                      ))}
+                    </datalist>
+                    <small>Where it is kept, to count shelf by shelf (Stock → Count).</small>
+                  </label>
+                )}
                 <label>
                   Minimum stock level
                   <input

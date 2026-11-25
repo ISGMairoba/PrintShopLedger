@@ -222,6 +222,8 @@ export interface Job {
   /** The workflow it was sold with: its name and hours per stage. */
   workflowName?: string;
   stageHours?: Record<string, number>;
+  /** 'production': the sale took nothing; its materials check takes them (stock-count.mjs reservedStock). */
+  materialsAt?: 'production';
   /** On hold: what it waits for, who held it and at which stage. */
   hold?: {
     reason: string;
@@ -530,6 +532,8 @@ export type ServiceProduction = {
   workflowId?: string;
   /** Its own steps between Added and Completed (none: the business's usual steps). */
   steps?: Step[];
+  /** When its materials leave stock (none: the business's choice). */
+  materialsAt?: 'checkout' | 'production';
 };
 /** A production step between Added and Completed, with an optional time (minutes, typed in unit). */
 export type Step = { name: string; minutes?: number; unit?: 'm' | 'h' | 'd' };
@@ -937,6 +941,9 @@ export interface Ledger {
   workCorrections?: WorkCorrection[];
   /** Commission terms (pay): only those who set them, and each person their own. */
   teamTerms?: { id: string; commission: CommissionTerms | null; version: number; modifiedAt?: string }[];
+  /** Stock counts (stock-count.mjs) and where each material is kept. */
+  stockCounts?: StockCount[];
+  materialShelves?: { id: string; shelf: string; modifiedBy?: string; modifiedAt?: string }[];
   payees?: Payee[];
   moneyAccounts?: MoneyAccount[];
   accountEntries?: Record<string, any>[];
@@ -1442,3 +1449,39 @@ export interface RepeatingExpense {
   modifiedByLabel: string;
   modifiedAt: string;
 }
+
+/** A count line: what was counted and when; after finishing, what it found (stock-count.mjs). */
+export type StockCountLine = {
+  materialId: string;
+  counted: number | null;
+  countedAt?: string;
+  countedBy?: string;
+  countedByLabel?: string;
+  note?: string;
+  expected?: number;
+  difference?: number;
+  setTo?: number;
+  value?: number;
+  unitCost?: number;
+  stockEventId?: string;
+};
+export type StockCount = {
+  id: string;
+  name: string;
+  scope: { kind: 'all' | 'shelf' | 'picked'; shelves?: string[]; materialIds?: string[] };
+  lines: StockCountLine[];
+  status: 'open' | 'finished' | 'cancelled';
+  version: number;
+  flagged?: boolean;
+  createdBy: string;
+  createdByLabel: string;
+  createdAt: string;
+  modifiedBy?: string;
+  modifiedByLabel?: string;
+  modifiedAt?: string;
+  finishedBy?: string;
+  finishedByLabel?: string;
+  finishedAt?: string;
+  cancelledByLabel?: string;
+  cancelledAt?: string;
+};
