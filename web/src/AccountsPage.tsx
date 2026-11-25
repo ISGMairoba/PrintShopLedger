@@ -774,10 +774,10 @@ export default function AccountsPage({
                         {(Object.keys(MONEY_TYPES) as (keyof typeof MONEY_TYPES)[])
                           .filter((k) => !('payee' in MONEY_TYPES[k]))
                           .map((k) => (
-                          <option key={k} value={k}>
-                            {MONEY_TYPES[k].label} ({MONEY_TYPES[k].direction > 0 ? 'in' : 'out'})
-                          </option>
-                        ))}
+                            <option key={k} value={k}>
+                              {MONEY_TYPES[k].label} ({MONEY_TYPES[k].direction > 0 ? 'in' : 'out'})
+                            </option>
+                          ))}
                       </select>
                       <small>
                         {moneyType === 'loan_in'

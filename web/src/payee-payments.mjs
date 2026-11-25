@@ -79,8 +79,7 @@ export function payeePaymentEvents(ledger, pay, actor, now = new Date().toISOStr
   const rest = pay.amount - used;
   let advanceEvent = null;
   if (rest > 0) {
-    if (!pay.keepRest)
-      throw Error('Pay only what is owed, or keep the rest as an advance with this payee.');
+    if (!pay.keepRest) throw Error('Pay only what is owed, or keep the rest as an advance with this payee.');
     if (!pay.accountId) throw Error('Choose the account the advance is paid from.');
     advanceEvent = operationEvent(
       'account.money_moved',

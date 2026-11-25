@@ -4,7 +4,14 @@ import { useBusinessOptions } from './BusinessOptionsContext';
 import { ADVANCE_SOURCE } from './money-moves.mjs';
 import type { MoneyAccount } from './types';
 
-export type PaidFrom = { key: string; text: string; label: string; kind: string; accountId: string; source: string };
+export type PaidFrom = {
+  key: string;
+  text: string;
+  label: string;
+  kind: string;
+  accountId: string;
+  source: string;
+};
 
 /**
  * One "Paid from" list for paying out: each account and its methods (or the business's methods before

@@ -56,9 +56,7 @@ export function PayPayeeDialog({
   const respread = (value: string) => {
     setAmount(value);
     const { shares } = spreadPayment(ledger, payee.id, money(value || '0'));
-    setShares(
-      Object.fromEntries(Object.entries(shares).map(([k, v]) => [k, String((v as number) / 100)])),
-    );
+    setShares(Object.fromEntries(Object.entries(shares).map(([k, v]) => [k, String((v as number) / 100)])));
   };
   return (
     <Modal
@@ -141,8 +139,8 @@ export function PayPayeeDialog({
             <legend>Paid towards (oldest first)</legend>
             {owing.map(({ expense, owed }) => (
               <label key={expense.id}>
-                {expenseCode(expense.id, ledger.expenses)} · {expense.description} · {expense.incurredOn} · owes{' '}
-                {currency(owed)}
+                {expenseCode(expense.id, ledger.expenses)} · {expense.description} · {expense.incurredOn} ·
+                owes {currency(owed)}
                 <CurrencyInput
                   value={shares[expense.id] ?? ''}
                   onValueChange={(v) => setShares({ ...shares, [expense.id]: v })}
@@ -231,7 +229,9 @@ export function PayeeAdvanceDialog({
                   paidOn: on,
                   reason:
                     note.trim() ||
-                    (type === 'payee_advance' ? `Advance to ${payee.name}` : `Advance returned by ${payee.name}`),
+                    (type === 'payee_advance'
+                      ? `Advance to ${payee.name}`
+                      : `Advance returned by ${payee.name}`),
                   moneyType: type,
                   amount: money(amount || '0'),
                   payeeId: payee.id,

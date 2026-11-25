@@ -334,17 +334,19 @@ export function moneyTransactions(ledger) {
     }));
   // Paid from a payee's advance: no account moves (the advance was paid out when it was given).
   const expense = ledger.expenses.flatMap((e) =>
-    e.payments.filter((p) => p.source !== ADVANCE_SOURCE).map((p) => ({
-      id: 'expense:' + p.id,
-      personal: p.source === 'Personal funds' && !p.accountId,
-      paidOn: businessDay(p.paidOn),
-      amount: p.amount,
-      direction: -1,
-      label: e.description + (e.voided ? ' · Voided expense payment retained' : ''),
-      method: p.methodLabel || p.method,
-      accountId: p.accountId || assignments.get('expense:' + p.id) || '',
-      source: p,
-    })),
+    e.payments
+      .filter((p) => p.source !== ADVANCE_SOURCE)
+      .map((p) => ({
+        id: 'expense:' + p.id,
+        personal: p.source === 'Personal funds' && !p.accountId,
+        paidOn: businessDay(p.paidOn),
+        amount: p.amount,
+        direction: -1,
+        label: e.description + (e.voided ? ' · Voided expense payment retained' : ''),
+        method: p.methodLabel || p.method,
+        accountId: p.accountId || assignments.get('expense:' + p.id) || '',
+        source: p,
+      })),
   );
   const refunds = ledger.saleAdjustments
     .filter((a) => a.action === 'sale.refunded' && a.refundAmount > 0)
@@ -455,9 +457,14 @@ export function correctEntry(ledger, d, audit) {
     }
   }
   if (old.action === 'money' && old.payeeId) {
-    const held = payeeAdvances({ ...ledger, accountEntries: entries.map((e) => (e.id === old.id ? next : e)) });
+    const held = payeeAdvances({
+      ...ledger,
+      accountEntries: entries.map((e) => (e.id === old.id ? next : e)),
+    });
     if ((held[old.payeeId] ?? 0) < 0)
-      throw Error('The advance already used would be more than the advance paid. Correct the expense payments first.');
+      throw Error(
+        'The advance already used would be more than the advance paid. Correct the expense payments first.',
+      );
   }
   const pick = ({ amount, paidOn, reason, accountId, toAccountId, lenderId, actualBalance }) =>
     Object.fromEntries(
