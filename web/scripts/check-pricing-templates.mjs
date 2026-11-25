@@ -210,7 +210,10 @@ try {
     ]) {
       await c.getByRole('button', { name: 'Download', exact: true }).click();
       const download = page.waitForEvent('download');
-      await c.getByRole('group', { name: 'Download' }).getByRole('button', { name: button, exact: true }).click();
+      await c
+        .getByRole('group', { name: 'Download' })
+        .getByRole('button', { name: button, exact: true })
+        .click();
       const file = await download;
       assert.equal(file.suggestedFilename(), name);
       assert.ok((await file.path()) && (await import('node:fs')).statSync(await file.path()).size > 2000);

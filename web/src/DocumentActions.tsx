@@ -134,8 +134,7 @@ export default function DocumentActions({
   const copy = () =>
     run(async () => {
       const { copyText } = await import('./share-text');
-      if (!(await copyText(text!())))
-        throw Error('This browser would not copy. Use Share → Text instead.');
+      if (!(await copyText(text!()))) throw Error('This browser would not copy. Use Share → Text instead.');
       return 'Text copied. Paste it into the chat.';
     });
   const off = busy || disabled;

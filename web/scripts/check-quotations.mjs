@@ -93,7 +93,10 @@ try {
   ]) {
     await d.getByRole('button', { name: 'Download', exact: true }).click();
     const waiting = page.waitForEvent('download');
-    await d.getByRole('group', { name: 'Download' }).getByRole('button', { name: button, exact: true }).click();
+    await d
+      .getByRole('group', { name: 'Download' })
+      .getByRole('button', { name: button, exact: true })
+      .click();
     assert.match((await waiting).suggestedFilename(), name);
   }
   // Print offers the printer in Print Settings and the print page.
@@ -122,7 +125,10 @@ try {
   // Or as text, for clients who will not open a file.
   await d.getByRole('button', { name: 'Share', exact: true }).click();
   await d.getByRole('group', { name: 'Share' }).getByRole('button', { name: 'Text', exact: true }).click();
-  await page.getByRole('dialog', { name: 'Share' }).getByRole('button', { name: /^WhatsApp/ }).click();
+  await page
+    .getByRole('dialog', { name: 'Share' })
+    .getByRole('button', { name: /^WhatsApp/ })
+    .click();
   await page.waitForFunction(() => window.__opened.length > 1);
   assert.match(
     decodeURIComponent(await page.evaluate(() => window.__opened[1])),

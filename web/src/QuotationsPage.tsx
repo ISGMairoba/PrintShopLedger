@@ -322,7 +322,11 @@ export default function QuotationsPage({
             message={{
               text: messages.text(
                 'quotation',
-                { quotation: quotationRef(current.id), total: currency(current.total), valid_until: date(current.validUntil) },
+                {
+                  quotation: quotationRef(current.id),
+                  total: currency(current.total),
+                  valid_until: date(current.validUntil),
+                },
                 { id: current.customerId, name: current.customerName },
               ),
               phone: current.customerPhone,
