@@ -1198,8 +1198,8 @@ export default function BusinessSettingsPage({
               <fieldset hidden={tab !== 'Features'} disabled={busy || !ready}>
                 <legend>Features</legend>
                 <p>
-                  Turn parts of the app on or off. A part that is off is hidden from everyone, and so is its own
-                  settings tab. Nothing recorded is deleted; turning it back on shows it again.
+                  Turn parts of the app on or off. A part that is off is hidden from everyone, and so is its
+                  own settings tab. Nothing recorded is deleted; turning it back on shows it again.
                 </p>
                 <div className="business-type-features" role="group" aria-label="Parts of the app">
                   {optionalFeatures.map(([page, label]) => (

@@ -101,23 +101,23 @@ export default function TeamWorkSettings({
     <>
       {!switchOnly && <h3>Team work</h3>}
       {showSwitch && (
-      <label className="check-label">
-        <input
-          type="checkbox"
-          aria-label="Track team work"
-          checked={t.enabled}
-          disabled={!canSwitch}
-          onChange={(e) => set('enabled', e.target.checked)}
-        />
-        <span>
-          Track team work
-          <small className="muted">
-            {' '}
-            Assign jobs and stages to your team, record who did each stage and when, and confirm the work.
-            {canSwitch ? '' : ' Only a General Manager or higher can switch this on or off.'}
-          </small>
-        </span>
-      </label>
+        <label className="check-label">
+          <input
+            type="checkbox"
+            aria-label="Track team work"
+            checked={t.enabled}
+            disabled={!canSwitch}
+            onChange={(e) => set('enabled', e.target.checked)}
+          />
+          <span>
+            Track team work
+            <small className="muted">
+              {' '}
+              Assign jobs and stages to your team, record who did each stage and when, and confirm the work.
+              {canSwitch ? '' : ' Only a General Manager or higher can switch this on or off.'}
+            </small>
+          </span>
+        </label>
       )}
       {t.enabled && !switchOnly && (
         <>

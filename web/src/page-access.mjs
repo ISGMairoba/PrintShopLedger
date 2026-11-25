@@ -256,7 +256,8 @@ export function upgradeSettingsTabs(input, version = 0) {
     // Messages came from Jobs & payments (its "order ready" wording).
     if (version < 4 && tabs.includes('Jobs & payments') && !tabs.includes('Messages')) tabs.push('Messages');
     // Team work settings came from Jobs & payments; Features is new (General Manager).
-    if (version < 5 && tabs.includes('Jobs & payments') && !tabs.includes('Team work')) tabs.push('Team work');
+    if (version < 5 && tabs.includes('Jobs & payments') && !tabs.includes('Team work'))
+      tabs.push('Team work');
     if (version < 5 && rank === '4' && !tabs.includes('Features')) tabs.push('Features');
   }
   for (const rank of ['2', '3', '4'])
