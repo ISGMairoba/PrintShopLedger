@@ -832,16 +832,16 @@ export function CompareOptions({
   const ordered = () =>
     groups.flatMap((g) => g.rows) as { inputs: Record<string, number>; amount: number; unit: number }[];
   // Groups as on screen, when the grouping detail is one the client may see.
-  const groupBy = headings && grouping && grouping.clientVisible !== false ? { groupBy: grouping.key } : {};
+  const docGroup = headings && grouping && grouping.clientVisible !== false ? { groupBy: grouping.key } : {};
   const details = () => ({
     customerName: customerName.trim(),
     customerPhone: customerPhone.trim(),
     preparedBy: doc.preparedBy,
-    ...groupBy,
+    ...docGroup,
   });
   /** The options as chat text, matching the PDF (same order, groups and client details). */
   const chatText = () =>
-    comparisonText(template, ordered(), doc.business, { customerName: customerName.trim(), ...groupBy });
+    comparisonText(template, ordered(), doc.business, { customerName: customerName.trim(), ...docGroup });
   const businessName = typeof doc.business === 'string' ? doc.business : doc.business.businessName;
   return (
     <div className="template-compare">

@@ -88,9 +88,9 @@ export default function DocumentActions({
     `${fileName}${size === 'roll' ? '-80mm' : size === 'a5' ? '-A5' : ''}.pdf`;
   const print = () =>
     run(async () => {
-      const { printDocument } = await import('./printing');
+      const { printDocumentPdf } = await import('./printing');
       const pdfs = await import('./receipt-pdf');
-      await printDocument(settings, title, business, (media, brand) => pdf(pdfs, media, brand));
+      await printDocumentPdf(settings, title, business, (media, brand) => pdf(pdfs, media, brand));
       return `${title} submitted to the printer.`;
     });
   const openPrintPage = () =>

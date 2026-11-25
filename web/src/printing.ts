@@ -186,7 +186,8 @@ export async function printReceipt(
   adjustments: SaleAdjustment[] = [],
 ) {
   const { createReceiptPdf } = await import('./receipt-pdf');
-  await printDocument(settings, `Receipt ${record.id.slice(0, 8).toUpperCase()}`, business, (media, brand) =>
+  const title = `Receipt ${record.id.slice(0, 8).toUpperCase()}`;
+  await printDocumentPdf(settings, title, business, (media, brand) =>
     createReceiptPdf(record, brand, pending, adjustments, media),
   );
 }
@@ -194,7 +195,7 @@ export async function printReceipt(
  * Print any receipt-shaped document (receipt, quotation, price options) drawn by draw for the paper
  * in Print Settings, as printReceipt does.
  */
-export async function printDocument(
+export async function printDocumentPdf(
   settings: PrintSettings,
   title: string,
   business: string | Branding,
