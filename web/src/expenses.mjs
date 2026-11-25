@@ -1,4 +1,5 @@
 import { validCovers } from './expense-periods.mjs';
+import { ADVANCE_SOURCE, payeeAdvances } from './money-moves.mjs';
 import { normalizeLedger, validateMaterial } from './materials.mjs';
 import { materialCode, materialSnapshot } from './material-display.mjs';
 export const expenseCategories = [
@@ -63,12 +64,23 @@ function amount(value) {
   if (!Number.isSafeInteger(value) || value <= 0 || value > 100000000000)
     throw Error('Enter an amount greater than zero, with at most two decimal places.');
 }
-function payment(data, audit) {
+/** advance: for a new payment, { ledger, payeeId } so it may be taken from the payee's advance. */
+function payment(data, audit, advance = null) {
   if (!data?.id) throw Error('Payment identifier is required.');
   amount(data.amount);
   date(data.paidOn);
-  if (!['Cash', 'POS', 'Transfer', 'Other'].includes(data.method) || !expenseSources.includes(data.source))
+  const fromAdvance = !!advance && data.source === ADVANCE_SOURCE;
+  if (
+    !['Cash', 'POS', 'Transfer', 'Other'].includes(data.method) ||
+    !(expenseSources.includes(data.source) || fromAdvance)
+  )
     throw Error('Choose a payment method and source.');
+  if (fromAdvance) {
+    if (!advance.payeeId) throw Error('Choose the payee to pay from their advance.');
+    if (data.accountId) throw Error('A payment from an advance does not come from an account.');
+    if (data.amount > (payeeAdvances(advance.ledger)[advance.payeeId] ?? 0))
+      throw Error('That is more than the advance held with this payee.');
+  }
   return {
     id: data.id,
     amount: data.amount,
@@ -246,7 +258,9 @@ export function applyExpenseEvent(input, event) {
       if (priced.reduce((n, line) => n + line.amount, 0) !== data.amount)
         throw Error('The materials’ amounts must add up to the expense amount.');
     }
-    const payments = existing?.payments ?? (data.payment ? [payment(data.payment, audit)] : []);
+    const payments =
+      existing?.payments ??
+      (data.payment ? [payment(data.payment, audit, { ledger, payeeId: data.payeeId || '' })] : []);
     next = {
       ...existing,
       id: data.id,
@@ -287,7 +301,7 @@ export function applyExpenseEvent(input, event) {
       throw Error('Expense amount cannot be less than its recorded payments.');
     if (existing && data.payment) throw Error('Record additional payments using Record payment.');
   } else if (event.kind === 'expense.payment_recorded') {
-    const p = payment(data.payment, audit);
+    const p = payment(data.payment, audit, { ledger, payeeId: existing.payeeId || '' });
     if (existing.payments.some((item) => item.id === p.id)) throw Error('Payment ID already used.');
     next = { ...existing, payments: [...existing.payments, p], version: existing.version + 1, ...audit };
     if (expensePaid(next) > next.amount) throw Error('Payment exceeds the outstanding expense amount.');

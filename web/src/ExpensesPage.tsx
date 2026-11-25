@@ -4,6 +4,7 @@ import { paymentName } from './business-options.mjs';
 import { useBusinessOptions } from './BusinessOptionsContext';
 import { useMemo, useState } from 'react';
 import ExpenseEditor from './ExpenseEditor';
+import { payeeAdvances } from './money-moves.mjs';
 import Modal from './Modal';
 import Icon from './Icon';
 import ToolbarActions, { MenuToggle } from './ToolbarActions';
@@ -68,6 +69,8 @@ export default function ExpensesPage({
   pending: LedgerEvent[];
   onSave: (event: ExpenseEvent | OperationsEvent) => Promise<void>;
 }) {
+  // What each payee holds as an advance (paid from under Paid from).
+  const advances = useMemo(() => payeeAdvances(ledger), [ledger]);
   // Orders an expense can be linked to: the last 120 days, plus any already linked.
   // Restocks with a supplier price (last 120 days, and any already linked), newest first.
   const restocks = useMemo(() => {
@@ -483,6 +486,7 @@ export default function ExpensesPage({
           expenses={ledger.expenses}
           payees={ledger.payees}
           accounts={ledger.moneyAccounts}
+          advances={advances}
           materials={ledger.materials}
           actor={actor}
           busy={busy}
@@ -503,6 +507,7 @@ export default function ExpensesPage({
           expenses={ledger.expenses}
           payees={ledger.payees}
           accounts={ledger.moneyAccounts}
+          advances={advances}
           materials={ledger.materials}
           actor={actor}
           busy={busy}
@@ -520,6 +525,7 @@ export default function ExpensesPage({
           expenses={ledger.expenses}
           payees={ledger.payees}
           accounts={ledger.moneyAccounts}
+          advances={advances}
           materials={ledger.materials}
           actor={actor}
           busy={busy}
@@ -535,6 +541,7 @@ export default function ExpensesPage({
           expenses={ledger.expenses}
           payees={ledger.payees}
           accounts={ledger.moneyAccounts}
+          advances={advances}
           materials={ledger.materials}
           actor={actor}
           busy={busy}

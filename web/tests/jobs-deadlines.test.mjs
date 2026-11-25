@@ -43,6 +43,8 @@ test('job settings default for older saved settings and are validated', () => {
     stockBelowZero: 'allow',
     minOrder: 'block',
     readyMessage: '',
+    payeeExtra: 'advance',
+    useAdvance: 'ask',
   });
   assert.equal(loaded.receipt.showBusinessName, true);
   assert.throws(() => validateJobSettings({ stockBelowZero: 'sometimes' }), /below zero/);
