@@ -1,3 +1,4 @@
+import { featureOn } from './business-type.mjs';
 // Every page, in menu order. Each one is set separately in Business Settings → Page access.
 export const pages = [
   'Dashboard',
@@ -63,7 +64,16 @@ export const settingsTabs = [
   'Corrections',
   'Security',
   'Branches',
+  'Team work',
+  'Features',
 ];
+/** Settings tabs that belong to a feature: hidden while the feature is off (Features tab). */
+export const featureTabs = {
+  'Pricing templates': (settings) => featureOn(settings, 'Pricing Templates'),
+  'Team work': (settings) => settings?.teamWork?.enabled === true,
+};
+/** Whether a settings tab shows: its feature (if it has one) is on. */
+export const settingsTabShown = (tab, settings) => !featureTabs[tab] || featureTabs[tab](settings);
 /** The saved settings each tab changes (the server uses the same list). */
 export const settingsTabKeys = {
   'Profile & logo': [
@@ -82,7 +92,7 @@ export const settingsTabKeys = {
   Receipts: ['receipt', 'receiptPage', 'documents'],
   'Payment methods': ['options'],
   'Dropdowns & workflow': ['options'],
-  'Jobs & payments': ['jobs', 'discounts'],
+  'Jobs & payments': ['jobs', 'discounts', 'costMethod'],
   'Default time frames': ['periods'],
   Words: ['terms'],
   Messages: ['messages'],
@@ -90,10 +100,14 @@ export const settingsTabKeys = {
   Corrections: ['corrections'],
   Security: ['security'],
   Branches: ['branches', 'branchAccess', 'branchPricing'],
+  'Team work': ['teamWork'],
+  // Parts of the app, and the switches of features with their own tab (Team work).
+  Features: ['features', 'teamWork'],
 };
+// Features: turning parts of the app on or off is the General Manager's by default.
 export const defaultSettingsTabs = () => ({
-  2: [...settingsTabs],
-  3: [...settingsTabs],
+  2: settingsTabs.filter((t) => t !== 'Features'),
+  3: settingsTabs.filter((t) => t !== 'Features'),
   4: [...settingsTabs],
 });
 export function validateSettingsTabs(input) {
@@ -228,7 +242,7 @@ export function canAccessPage(page, access, configured) {
   return (own ?? defaultPageAccess()[String(access)]).includes(page) ?? false;
 }
 
-export const SETTINGS_TABS_VERSION = 4;
+export const SETTINGS_TABS_VERSION = 5;
 export function upgradeSettingsTabs(input, version = 0) {
   if (version >= SETTINGS_TABS_VERSION || !input) return input;
   const next = structuredClone(input);
@@ -241,6 +255,10 @@ export function upgradeSettingsTabs(input, version = 0) {
       for (const tab of ['Default time frames', 'Words']) if (!tabs.includes(tab)) tabs.push(tab);
     // Messages came from Jobs & payments (its "order ready" wording).
     if (version < 4 && tabs.includes('Jobs & payments') && !tabs.includes('Messages')) tabs.push('Messages');
+    // Team work settings came from Jobs & payments; Features is new (General Manager).
+    if (version < 5 && tabs.includes('Jobs & payments') && !tabs.includes('Team work'))
+      tabs.push('Team work');
+    if (version < 5 && rank === '4' && !tabs.includes('Features')) tabs.push('Features');
   }
   for (const rank of ['2', '3', '4'])
     if (Array.isArray(next[rank])) next[rank] = next[rank].filter((t) => t !== 'Payment methods');

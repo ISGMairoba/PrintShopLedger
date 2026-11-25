@@ -19,7 +19,7 @@ test('Words and time frames are independent settings sections with inherited acc
   );
   assert.deepEqual(settingsTabKeys.Words, ['terms']);
   assert.deepEqual(settingsTabKeys['Default time frames'], ['periods']);
-  assert.deepEqual(settingsTabKeys['Jobs & payments'], ['jobs', 'discounts']);
+  assert.deepEqual(settingsTabKeys['Jobs & payments'], ['jobs', 'discounts', 'costMethod']);
   up.settingsTabs['2'] = ['Jobs & payments'];
   assert.ok(!allowedSettingsTabs(2, validateBranding(up)).includes('Words'));
 });

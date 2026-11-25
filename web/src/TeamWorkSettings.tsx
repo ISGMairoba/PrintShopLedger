@@ -17,11 +17,17 @@ const RANKS: [number, string][] = [
 export default function TeamWorkSettings({
   value,
   canSwitch,
+  showSwitch = true,
+  switchOnly = false,
   onChange,
 }: {
   value: Partial<TeamChoices> | undefined;
   /** General Manager or higher: only they switch Team work on or off. */
   canSwitch: boolean;
+  /** The on/off switch (in Features); the Team work tab shows only the choices. */
+  showSwitch?: boolean;
+  /** Only the switch (the Features tab). */
+  switchOnly?: boolean;
   onChange: (next: Partial<TeamChoices> | undefined) => void;
 }) {
   const t = teamSettings({ teamWork: value }) as TeamChoices;
@@ -93,25 +99,27 @@ export default function TeamWorkSettings({
   );
   return (
     <>
-      <h3>Team work</h3>
-      <label className="check-label">
-        <input
-          type="checkbox"
-          aria-label="Track team work"
-          checked={t.enabled}
-          disabled={!canSwitch}
-          onChange={(e) => set('enabled', e.target.checked)}
-        />
-        <span>
-          Track team work
-          <small className="muted">
-            {' '}
-            Assign jobs and stages to your team, record who did each stage and when, and confirm the work.
-            {canSwitch ? '' : ' Only a General Manager or higher can switch this on or off.'}
-          </small>
-        </span>
-      </label>
-      {t.enabled && (
+      {!switchOnly && <h3>Team work</h3>}
+      {showSwitch && (
+        <label className="check-label">
+          <input
+            type="checkbox"
+            aria-label="Track team work"
+            checked={t.enabled}
+            disabled={!canSwitch}
+            onChange={(e) => set('enabled', e.target.checked)}
+          />
+          <span>
+            Track team work
+            <small className="muted">
+              {' '}
+              Assign jobs and stages to your team, record who did each stage and when, and confirm the work.
+              {canSwitch ? '' : ' Only a General Manager or higher can switch this on or off.'}
+            </small>
+          </span>
+        </label>
+      )}
+      {t.enabled && !switchOnly && (
         <>
           {check(
             'askDoneBy',
