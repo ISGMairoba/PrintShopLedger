@@ -178,7 +178,7 @@ export function workEvents(job, target, work, actor, now = new Date().toISOStrin
   // "Added" is not work.
   return stages
     .filter((stage) => stage !== 'Added')
-    .map((stage) => ({
+    .map((stage, i) => ({
       id: crypto.randomUUID(),
       kind: 'team.work_recorded',
       data: {
@@ -189,7 +189,8 @@ export function workEvents(job, target, work, actor, now = new Date().toISOStrin
         shares: work.shares.map((s) => ({ personId: s.personId, share: Number(s.share) })),
         doneAt: work.doneAt ?? now,
         ...(work.redo ? { redo: work.redo } : {}),
-        ...(work.vendor ? { vendor: work.vendor } : {}),
+        // A move over several stages records the vendor on each; its cost once (on the first).
+        ...(work.vendor ? { vendor: i === 0 ? work.vendor : { ...work.vendor, cost: 0 } } : {}),
         ...(work.note?.trim() ? { note: work.note.trim() } : {}),
         ...(work.auto ? { auto: true } : {}),
         recordedBy: actor.id,

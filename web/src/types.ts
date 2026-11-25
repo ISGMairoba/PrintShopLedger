@@ -1032,7 +1032,7 @@ export interface WorkRecord {
   confirmedByLabel?: string;
   confirmedAt?: string;
   redo?: { responsibleId?: string | null; note?: string };
-  vendor?: { name: string; cost: number };
+  vendor?: { name: string; cost: number; payeeId?: string; expenseId?: string; share?: number };
   note?: string;
   auto?: boolean;
   /** Corrections, oldest first: who, when, why, and what it was before. */

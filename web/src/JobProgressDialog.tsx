@@ -10,7 +10,8 @@ import type { ProgressMode } from './JobActions';
 import { useWords } from './Words';
 import { useTeam } from './TeamContext';
 import { assignedTo, stagesFinished } from './team.mjs';
-import DoneByFields, { draftWork, workDraft, type WorkDraft } from './DoneByFields';
+import DoneByFields, { draftWork, vendorPayee, workDraft, type WorkDraft } from './DoneByFields';
+import { usePaidFromOptions } from './paid-from';
 export default function JobProgressDialog({
   ledger,
   job,
@@ -48,6 +49,7 @@ export default function JobProgressDialog({
   const team = useTeam();
   const finishing = stagesFinished(job, target).filter((s: string) => s !== 'Added');
   const askDoneBy = !!team && team.settings.askDoneBy && finishing.length > 0;
+  const paidFrom = usePaidFromOptions(team?.ledger.moneyAccounts ?? []);
   const [done, setDone] = useState<WorkDraft>(() =>
     workDraft(
       team
@@ -79,9 +81,18 @@ export default function JobProgressDialog({
           try {
             let work: Record<string, any> | null = null;
             if (askDoneBy && team) {
-              const checked = draftWork(done, job, job.stageAt, team.settings.doneAtDays);
+              const checked = draftWork(done, job, job.createdAt, team.settings.doneAtDays);
               if (checked.problem) throw Error(checked.problem);
               work = checked.work ?? null;
+              // An outside vendor's cost: an expense for this job (paid now, or owed to the vendor).
+              if (work?.vendor && work.vendor.cost > 0 && team.canExpense)
+                work = {
+                  ...work,
+                  vendorExpense: {
+                    payeeId: vendorPayee(team.ledger, work.vendor.name)?.id ?? null,
+                    paidFrom: paidFrom.find((o) => o.key === done.vendorPaidFrom) ?? null,
+                  },
+                };
             }
             await onSave(target, confirming ? checkUsagesFrom(draft) : null, work);
           } catch (cause) {
@@ -111,7 +122,13 @@ export default function JobProgressDialog({
           />
         )}
         {askDoneBy && (
-          <DoneByFields job={job} stage={finishing.map(stage).join(', ')} value={done} onChange={setDone} />
+          <DoneByFields
+            job={job}
+            stage={finishing.map(stage).join(', ')}
+            value={done}
+            onChange={setDone}
+            expense={!!team?.canExpense}
+          />
         )}
         <p>Proceed in order: {path.map(stage).join(' → ')}</p>
         <p className="muted">
