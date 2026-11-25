@@ -48,9 +48,24 @@ export function quoteCorrectedJob(ledger, job, d) {
   return {
     ...job,
     ...quoteLine(
-      { ...ledger, services: [{ ...service, materialId: material?.id ?? null, price: d.unitPrice }] },
+      // The corrected unit price is the price: not the service's own, its ranges or packs, and a
+      // custom-price service (priced at the sale) takes it as its entered price.
+      {
+        ...ledger,
+        services: [
+          {
+            ...service,
+            materialId: material?.id ?? null,
+            price: d.unitPrice,
+            customPrice: true,
+            priceTiers: [],
+            packPrices: [],
+          },
+        ],
+      },
       {
         serviceId: service.id,
+        unitPrice: d.unitPrice,
         description: d.description,
         quantity: d.quantity,
         width: d.width,

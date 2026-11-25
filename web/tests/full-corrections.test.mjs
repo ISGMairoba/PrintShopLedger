@@ -402,3 +402,49 @@ test('returnable jobs: shelf items in the correction window only', async () => {
   assert.equal(returnableJobs(ledger, 'bayo', 7, now).length, 1);
   assert.equal(returnableJobs(ledger, 'nobody', 7, now).length, 0);
 });
+
+test('details correction: a custom-price service takes the corrected unit price', async () => {
+  const { quoteCorrectedJob } = await import('../src/full-corrections.mjs');
+  const ledger = {
+    services: [
+      {
+        id: 's1',
+        description: 'Cricut cutting',
+        price: 500000,
+        materialId: null,
+        version: 1,
+        archived: false,
+      },
+      {
+        id: 's2',
+        description: 'Print Service',
+        price: 0,
+        customPrice: true,
+        materialId: null,
+        version: 1,
+        archived: false,
+      },
+    ],
+    materials: [],
+    materialHistory: [],
+  };
+  const job = {
+    id: 'j',
+    serviceId: 's1',
+    service: 'Cricut cutting',
+    quantity: 1,
+    amount: 750000,
+    description: 'Images',
+  };
+  const after = quoteCorrectedJob(ledger, job, {
+    serviceId: 's2',
+    serviceVersion: 1,
+    unitPrice: 750000,
+    description: 'Images',
+    quantity: 1,
+    width: 1,
+    height: 1,
+  });
+  assert.equal(after.service, 'Print Service');
+  assert.equal(after.amount, 750000);
+});
