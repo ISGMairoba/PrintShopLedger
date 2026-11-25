@@ -187,7 +187,9 @@ export function quoteLine(ledger, line, notCollected = false) {
     stockCountEventId: material && !choice ? stockCountEvent(ledger, material.id) : null,
     ...workflowFields(line),
     // In production (a setting): the sale takes nothing, the job reserves its materials.
-    ...(materialsAt(service, { materialsAt: materialsAtSale() }) === 'production' ? { materialsAt: 'production' } : {}),
+    ...(materialsAt(service, { materialsAt: materialsAtSale() }) === 'production'
+      ? { materialsAt: 'production' }
+      : {}),
     ...(shelfItem ? { shelfItem: true } : {}),
     description: line.description.trim(),
     quantity,
@@ -657,7 +659,8 @@ export function applyCheckout(ledger, event) {
         if (!usage.materialId || !usage.materialNeeded || !stockBelowZeroBlocked()) continue;
         const material = materials.find((m) => m.id === usage.materialId);
         const free = material.available - reservedStock(next, usage.materialId);
-        if (free - usage.materialNeeded < 0) throw Error(notEnoughStock(material, free, usage.materialNeeded));
+        if (free - usage.materialNeeded < 0)
+          throw Error(notEnoughStock(material, free, usage.materialNeeded));
       }
       continue;
     }

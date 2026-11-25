@@ -37,7 +37,9 @@ export default function StockCountPage({
 }) {
   const { w } = useWords();
   const s = { ...defaultStockCount(), ...settings };
-  const counts = [...(ledger.stockCounts ?? [])].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+  const counts = [...(ledger.stockCounts ?? [])].sort(
+    (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
+  );
   const [openId, setOpenId] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState('');
@@ -106,8 +108,8 @@ export default function StockCountPage({
           {!canSave && <p className="muted">Counts are saved online: connect to start or finish one.</p>}
           {counts.length === 0 ? (
             <p className="muted">
-              No counts yet. A count goes through all {w('materials')}, chosen shelves or picked ones; staff type
-              what they see, and an Admin reviews the differences and finishes it.
+              No counts yet. A count goes through all {w('materials')}, chosen shelves or picked ones; staff
+              type what they see, and an Admin reviews the differences and finishes it.
             </p>
           ) : (
             <div className="table-wrap">
@@ -137,7 +139,11 @@ export default function StockCountPage({
                           )}
                         </td>
                         <td>
-                          {c.status === 'open' ? 'In progress' : c.status === 'finished' ? 'Finished' : 'Cancelled'}
+                          {c.status === 'open'
+                            ? 'In progress'
+                            : c.status === 'finished'
+                              ? 'Finished'
+                              : 'Cancelled'}
                           {c.finishedByLabel && <small>by {c.finishedByLabel}</small>}
                         </td>
                         <td>
@@ -184,7 +190,11 @@ function NewCount({
   const [chosenShelves, setChosenShelves] = useState<string[]>([]);
   const [picked, setPicked] = useState<string[]>([]);
   const scope: StockCount['scope'] =
-    kind === 'shelf' ? { kind, shelves: chosenShelves } : kind === 'picked' ? { kind, materialIds: picked } : { kind };
+    kind === 'shelf'
+      ? { kind, shelves: chosenShelves }
+      : kind === 'picked'
+        ? { kind, materialIds: picked }
+        : { kind };
   const materials = countMaterials(ledger, scope);
   const toggle = (list: string[], value: string) =>
     list.includes(value) ? list.filter((x) => x !== value) : [...list, value];
@@ -207,7 +217,11 @@ function NewCount({
       </label>
       <label>
         What to count
-        <select aria-label="What to count" value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>
+        <select
+          aria-label="What to count"
+          value={kind}
+          onChange={(e) => setKind(e.target.value as typeof kind)}
+        >
           <option value="all">All {w('materials')}</option>
           <option value="shelf">Chosen shelves or areas</option>
           <option value="picked">Picked {w('materials')}</option>
@@ -218,7 +232,9 @@ function NewCount({
           <legend>Shelves</legend>
           {known.length === 0 && !hasUnshelved && <p className="muted">No shelves set yet.</p>}
           {known.length === 0 && (
-            <p className="muted">Set where each {w('material')} is kept on Materials → Edit (Shelf or area).</p>
+            <p className="muted">
+              Set where each {w('material')} is kept on Materials → Edit (Shelf or area).
+            </p>
           )}
           {[...known, ...(hasUnshelved ? [NO_SHELF] : [])].map((shelf) => (
             <label key={shelf || 'none'} className="check-label">
@@ -399,7 +415,11 @@ function CountSheet({
           String(f?.expected ?? l.expected ?? ''),
           l.counted === null ? '' : String(l.counted),
           String(f?.difference ?? l.difference ?? ''),
-          f?.value !== undefined ? String(f.value / 100) : l.value !== null && l.value !== undefined ? String(l.value / 100) : '',
+          f?.value !== undefined
+            ? String(f.value / 100)
+            : l.value !== null && l.value !== undefined
+              ? String(l.value / 100)
+              : '',
           l.note ?? '',
         ];
       }),
@@ -529,7 +549,12 @@ function CountSheet({
           )}
           <div className="material-actions">
             {(level >= 2 || count.createdBy === actor.id) && (
-              <button type="button" className="secondary danger-text" disabled={busy} onClick={() => void cancel()}>
+              <button
+                type="button"
+                className="secondary danger-text"
+                disabled={busy}
+                onClick={() => void cancel()}
+              >
                 Cancel count
               </button>
             )}

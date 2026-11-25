@@ -19,12 +19,31 @@ const at = (h) => new Date(Date.parse('2026-11-26T08:00:00Z') + h * 3600000).toI
 const who = { modifiedBy: 'u1', modifiedByLabel: 'Ada' };
 const base = () => ({
   materials: [
-    { id: 'm1', name: 'A4 paper', measurementUnit: 'sheet', available: 100, version: 1, costPrice: 5000, createdAt: at(-100) },
+    {
+      id: 'm1',
+      name: 'A4 paper',
+      measurementUnit: 'sheet',
+      available: 100,
+      version: 1,
+      costPrice: 5000,
+      createdAt: at(-100),
+    },
     { id: 'm2', name: 'Card', measurementUnit: 'sheet', available: 20, version: 1, createdAt: at(-100) },
-    { id: 'm3', name: 'Old ink', measurementUnit: 'bottle', available: 3, version: 1, archived: true, createdAt: at(-100) },
+    {
+      id: 'm3',
+      name: 'Old ink',
+      measurementUnit: 'bottle',
+      available: 3,
+      version: 1,
+      archived: true,
+      createdAt: at(-100),
+    },
   ],
   materialHistory: [],
-  materialShelves: [{ id: 'm2', shelf: 'Rack B' }, { id: 'm1', shelf: 'Rack A' }],
+  materialShelves: [
+    { id: 'm2', shelf: 'Rack B' },
+    { id: 'm1', shelf: 'Rack A' },
+  ],
   jobs: [],
   stockCounts: [],
 });
@@ -42,7 +61,18 @@ test('A count: lines by shelf, saved as typed, finished with what moved since ea
   l = applyStockCountEvent(l, {
     id: 'e1',
     kind: 'count.saved',
-    data: { id: 'c1', baseVersion: 0, name: 'Month-end', scope: { kind: 'all' }, lines: [{ materialId: 'm1', counted: null }, { materialId: 'm2', counted: null }], ...who, modifiedAt: at(0) },
+    data: {
+      id: 'c1',
+      baseVersion: 0,
+      name: 'Month-end',
+      scope: { kind: 'all' },
+      lines: [
+        { materialId: 'm1', counted: null },
+        { materialId: 'm2', counted: null },
+      ],
+      ...who,
+      modifiedAt: at(0),
+    },
   });
   l = applyStockCountEvent(l, {
     id: 'e2',
@@ -64,7 +94,9 @@ test('A count: lines by shelf, saved as typed, finished with what moved since ea
   l = {
     ...l,
     materials: l.materials.map((m) => (m.id === 'm1' ? { ...m, available: 90 } : m)),
-    materialHistory: [{ id: 'h1', materialId: 'm1', beforeAvailable: 100, afterAvailable: 90, changedAt: at(2) }],
+    materialHistory: [
+      { id: 'h1', materialId: 'm1', beforeAvailable: 100, afterAvailable: 90, changedAt: at(2) },
+    ],
   };
   assert.equal(stockAsOf(l, 'm1', at(1)), 100);
   const review = countReview(l, l.stockCounts[0]);
@@ -87,7 +119,11 @@ test('A count: lines by shelf, saved as typed, finished with what moved since ea
   assert.equal(l.stockCounts[0].status, 'finished');
   assert.throws(
     () =>
-      applyStockCountEvent(l, { id: 'e4', kind: 'count.cancelled', data: { id: 'c1', baseVersion: 3, ...who, modifiedAt: at(4) } }),
+      applyStockCountEvent(l, {
+        id: 'e4',
+        kind: 'count.cancelled',
+        data: { id: 'c1', baseVersion: 3, ...who, modifiedAt: at(4) },
+      }),
     /already finished/,
   );
   // A stale save is refused.
@@ -96,7 +132,14 @@ test('A count: lines by shelf, saved as typed, finished with what moved since ea
       applyStockCountEvent(l, {
         id: 'e5',
         kind: 'count.saved',
-        data: { id: 'c1', baseVersion: 1, name: 'x', lines: [{ materialId: 'm1' }], ...who, modifiedAt: at(4) },
+        data: {
+          id: 'c1',
+          baseVersion: 1,
+          name: 'x',
+          lines: [{ materialId: 'm1' }],
+          ...who,
+          modifiedAt: at(4),
+        },
       }),
     /changed on another device/,
   );
@@ -106,11 +149,33 @@ test('Reserved by jobs that take materials in production, until their check is c
   const l = {
     ...base(),
     jobs: [
-      { id: 'j1', materialsAt: 'production', materialId: 'm1', materialNeeded: 30, productionStatus: 'Printing' },
-      { id: 'j2', materialsAt: 'production', materialId: 'm1', materialNeeded: 5, productionStatus: 'Cancelled' },
-      { id: 'j3', materialsAt: 'production', materialId: 'm1', materialNeeded: 7, materialCheck: { status: 'confirmed' } },
+      {
+        id: 'j1',
+        materialsAt: 'production',
+        materialId: 'm1',
+        materialNeeded: 30,
+        productionStatus: 'Printing',
+      },
+      {
+        id: 'j2',
+        materialsAt: 'production',
+        materialId: 'm1',
+        materialNeeded: 5,
+        productionStatus: 'Cancelled',
+      },
+      {
+        id: 'j3',
+        materialsAt: 'production',
+        materialId: 'm1',
+        materialNeeded: 7,
+        materialCheck: { status: 'confirmed' },
+      },
       { id: 'j4', materialId: 'm1', materialNeeded: 9 },
-      { id: 'j5', materialsAt: 'production', templateSnapshot: { stock: [{ materialId: 'm2', quantity: 4 }] } },
+      {
+        id: 'j5',
+        materialsAt: 'production',
+        templateSnapshot: { stock: [{ materialId: 'm2', quantity: 4 }] },
+      },
     ],
   };
   assert.equal(reservedStock(l, 'm1'), 30);
@@ -121,9 +186,15 @@ test('Reserved by jobs that take materials in production, until their check is c
 test('When materials leave stock: the business, a service of its own, shelf items at the sale', () => {
   assert.equal(materialsAt({}, {}), 'checkout');
   assert.equal(materialsAt({}, { materialsAt: 'production' }), 'production');
-  assert.equal(materialsAt({ production: { materialsAt: 'checkout' } }, { materialsAt: 'production' }), 'checkout');
-  assert.equal(materialsAt({ shelfItem: true, production: { materialsAt: 'production' } }, {}), 'checkout');
-  const s = validProductionSettings({ extraMaterialsRank: 1, materialsAt: 'production', stockCount: { reminder: 'weekly' } });
+  const own = { production: { materialsAt: 'checkout' } };
+  assert.equal(materialsAt(own, { materialsAt: 'production' }), 'checkout');
+  const shelf = { shelfItem: true, production: { materialsAt: 'production' } };
+  assert.equal(materialsAt(shelf, {}), 'checkout');
+  const s = validProductionSettings({
+    extraMaterialsRank: 1,
+    materialsAt: 'production',
+    stockCount: { reminder: 'weekly' },
+  });
   assert.equal(s.materialsAt, 'production');
   assert.equal(s.stockCount.reminder, 'weekly');
   assert.equal(s.stockCount.blind, true);
@@ -140,7 +211,8 @@ test('A sale in production takes nothing; with stock below zero blocked, what is
       l.materials.map((m) => [m.id, m.available]),
       before,
     );
-    assert.ok(l.jobs.filter((j) => j.checkoutId === event.data.id).every((j) => j.materialsAt === 'production'));
+    const sold = l.jobs.filter((j) => j.checkoutId === event.data.id);
+    assert.ok(sold.every((j) => j.materialsAt === 'production'));
     setMaterialsAtSale('checkout');
     const taken = applyCheckout(ledger, event);
     assert.notDeepEqual(
@@ -160,10 +232,11 @@ test('A sale in production takes nothing; with stock below zero blocked, what is
 
 test('The count reminder: off by default, weekly, every N days, month-end', () => {
   const l = { ...base(), stockCounts: [{ status: 'finished', finishedAt: '2026-11-01T10:00:00Z' }] };
-  assert.equal(countReminderDue(l, undefined, new Date('2026-11-26T10:00:00Z')), false);
-  assert.equal(countReminderDue(l, { reminder: 'weekly' }, new Date('2026-11-06T10:00:00Z')), false);
-  assert.equal(countReminderDue(l, { reminder: 'weekly' }, new Date('2026-11-09T10:00:00Z')), true);
-  assert.equal(countReminderDue(l, { reminder: 'days', reminderDays: 30 }, new Date('2026-11-26T10:00:00Z')), false);
-  assert.equal(countReminderDue(l, { reminder: 'monthEnd' }, new Date(2026, 10, 30, 12)), true);
-  assert.equal(countReminderDue(l, { reminder: 'monthEnd' }, new Date(2026, 10, 15, 12)), false);
+  const due = (settings, now) => countReminderDue(l, settings, now);
+  assert.equal(due(undefined, new Date('2026-11-26T10:00:00Z')), false);
+  assert.equal(due({ reminder: 'weekly' }, new Date('2026-11-06T10:00:00Z')), false);
+  assert.equal(due({ reminder: 'weekly' }, new Date('2026-11-09T10:00:00Z')), true);
+  assert.equal(due({ reminder: 'days', reminderDays: 30 }, new Date('2026-11-26T10:00:00Z')), false);
+  assert.equal(due({ reminder: 'monthEnd' }, new Date(2026, 10, 30, 12)), true);
+  assert.equal(due({ reminder: 'monthEnd' }, new Date(2026, 10, 15, 12)), false);
 });

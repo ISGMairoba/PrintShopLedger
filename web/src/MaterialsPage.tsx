@@ -393,8 +393,9 @@ export default function MaterialsPage({
                         {material.available.toLocaleString(undefined, { maximumFractionDigits: 3 })}
                         {(reserved[material.id] ?? 0) > 0 && (
                           <small>
-                            Reserved {reserved[material.id].toLocaleString(undefined, { maximumFractionDigits: 3 })}{' '}
-                            · free{' '}
+                            Reserved{' '}
+                            {reserved[material.id].toLocaleString(undefined, { maximumFractionDigits: 3 })} ·
+                            free{' '}
                             {(material.available - reserved[material.id]).toLocaleString(undefined, {
                               maximumFractionDigits: 3,
                             })}

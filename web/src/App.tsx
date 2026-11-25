@@ -2539,7 +2539,10 @@ export default function App() {
                             (item) =>
                               // Material Waste lives inside Materials; it has its own menu entry only for
                               // someone who can record waste but not open Materials.
-                              !((item === 'Material Waste' || item === 'Stock Count') && allowed('Materials')) &&
+                              !(
+                                (item === 'Material Waste' || item === 'Stock Count') &&
+                                allowed('Materials')
+                              ) &&
                               (allowed(item) || (item === 'Conflict Inbox' && !!supervisor)),
                           )
                           .map((item, index, shown) => (
@@ -2552,7 +2555,8 @@ export default function App() {
                               <button
                                 className={
                                   page === item ||
-                                  (item === 'Materials' && (page === 'Material Waste' || page === 'Stock Count'))
+                                  (item === 'Materials' &&
+                                    (page === 'Material Waste' || page === 'Stock Count'))
                                     ? 'active'
                                     : ''
                                 }
@@ -3587,8 +3591,12 @@ export default function App() {
                                 actor={catalogueActor}
                                 onSave={saveCatalogue}
                                 reserved={reservedMap(ledger)}
-                                shelves={Object.fromEntries((ledger.materialShelves ?? []).map((x) => [x.id, x.shelf]))}
-                                onSetShelf={demo || (shop?.accessLevel ?? 0) >= 2 ? setMaterialShelf : undefined}
+                                shelves={Object.fromEntries(
+                                  (ledger.materialShelves ?? []).map((x) => [x.id, x.shelf]),
+                                )}
+                                onSetShelf={
+                                  demo || (shop?.accessLevel ?? 0) >= 2 ? setMaterialShelf : undefined
+                                }
                                 expenses={ledger.expenses}
                                 payees={ledger.payees}
                                 accounts={ledger.moneyAccounts}

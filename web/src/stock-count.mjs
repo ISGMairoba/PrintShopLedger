@@ -67,7 +67,15 @@ export function countReview(ledger, count, settings = defaultStockCount()) {
       (expected === 0 ||
         Math.abs(difference) * 100 > Math.abs(expected) * settings.flagPercent ||
         (value !== null && Math.abs(value) > settings.flagValue));
-    return { ...line, material, expected, difference, value, setTo: r3(line.counted + (now - expected)), big };
+    return {
+      ...line,
+      material,
+      expected,
+      difference,
+      value,
+      setTo: r3(line.counted + (now - expected)),
+      big,
+    };
   });
   const counted = lines.filter((l) => !l.uncounted);
   return {
@@ -106,7 +114,12 @@ export function validCountLines(ledger, lines) {
     seen.add(l.materialId);
     const out = { materialId: l.materialId, counted: l.counted ?? null };
     if (out.counted !== null) {
-      if (typeof out.counted !== 'number' || !(out.counted >= 0) || out.counted > 1e12 || r3(out.counted) !== out.counted)
+      if (
+        typeof out.counted !== 'number' ||
+        !(out.counted >= 0) ||
+        out.counted > 1e12 ||
+        r3(out.counted) !== out.counted
+      )
         throw Error('Enter each count from 0, with up to three decimal places.');
       if (!l.countedAt || Number.isNaN(Date.parse(l.countedAt))) throw Error('Invalid count time.');
       out.countedAt = l.countedAt;
@@ -125,7 +138,8 @@ export function applyStockCountEvent(ledger, event) {
   const counts = ledger.stockCounts ?? [];
   if (event.kind === 'count.shelf_set') {
     const shelf = String(d.shelf ?? '').trim();
-    if (shelf.length > 80 || /[\x00-\x1f\x7f]/.test(shelf)) throw Error('Enter the shelf or area in up to 80 characters.');
+    if (shelf.length > 80 || /[\x00-\x1f\x7f]/.test(shelf))
+      throw Error('Enter the shelf or area in up to 80 characters.');
     const list = (ledger.materialShelves ?? []).filter((s) => s.id !== d.id);
     return {
       ...ledger,
@@ -136,7 +150,11 @@ export function applyStockCountEvent(ledger, event) {
   if (existing && (d.baseVersion ?? -1) !== existing.version)
     throw Error('This count changed on another device. Reopen it to see the latest.');
   if (existing && existing.status !== 'open') throw Error(`This count is already ${existing.status}.`);
-  const who = { modifiedBy: d.modifiedBy, modifiedByLabel: d.modifiedByLabel ?? '', modifiedAt: d.modifiedAt };
+  const who = {
+    modifiedBy: d.modifiedBy,
+    modifiedByLabel: d.modifiedByLabel ?? '',
+    modifiedAt: d.modifiedAt,
+  };
   const put = (next) => ({
     ...ledger,
     stockCounts: existing ? counts.map((c) => (c.id === next.id ? next : c)) : [...counts, next],
@@ -233,7 +251,8 @@ export function applyStockCountEvent(ledger, event) {
 export function reservedStock(ledger, materialId, exceptJobId = null) {
   let total = 0;
   for (const job of ledger.jobs ?? []) {
-    if (job.materialsAt !== 'production' || job.productionStatus === 'Cancelled' || job.id === exceptJobId) continue;
+    if (job.materialsAt !== 'production' || job.productionStatus === 'Cancelled' || job.id === exceptJobId)
+      continue;
     if (job.materialCheck?.status === 'confirmed') continue;
     if (job.materialId === materialId) total += job.materialNeeded ?? 0;
     for (const s of job.templateSnapshot?.stock ?? []) if (s.materialId === materialId) total += s.quantity;
@@ -248,8 +267,10 @@ export function reservedMap(ledger) {
   for (const job of ledger.jobs ?? []) {
     if (job.materialsAt !== 'production' || job.productionStatus === 'Cancelled') continue;
     if (job.materialCheck?.status === 'confirmed') continue;
-    if (job.materialId && job.materialNeeded) out[job.materialId] = r3((out[job.materialId] ?? 0) + job.materialNeeded);
-    for (const s of job.templateSnapshot?.stock ?? []) out[s.materialId] = r3((out[s.materialId] ?? 0) + s.quantity);
+    if (job.materialId && job.materialNeeded)
+      out[job.materialId] = r3((out[job.materialId] ?? 0) + job.materialNeeded);
+    for (const s of job.templateSnapshot?.stock ?? [])
+      out[s.materialId] = r3((out[s.materialId] ?? 0) + s.quantity);
   }
   return out;
 }
@@ -275,7 +296,8 @@ export function countReminderDue(ledger, settings, now = new Date()) {
     return !last || last < monthEnd.getTime();
   }
   const days = s.reminder === 'weekly' ? 7 : s.reminderDays;
-  const since = last ?? Math.min(...(ledger.materials ?? []).map((m) => Date.parse(m.createdAt)).filter(Number.isFinite));
+  const since =
+    last ?? Math.min(...(ledger.materials ?? []).map((m) => Date.parse(m.createdAt)).filter(Number.isFinite));
   if (!Number.isFinite(since)) return false;
   return now.getTime() - since >= days * 86400000;
 }
