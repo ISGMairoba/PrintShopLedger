@@ -41,10 +41,23 @@ test('service change: template to template, to a normal service and back, with s
     ...l,
     services: [
       ...l.services,
-      { ...l.services[2], id: id(50), description: 'Art card print', shelfItem: false, price: 30000, costing: undefined },
+      {
+        ...l.services[2],
+        id: id(50),
+        description: 'Art card print',
+        shelfItem: false,
+        price: 30000,
+        costing: undefined,
+      },
     ],
   };
-  l = change(l, job, { target: 'service', serviceId: id(50), quantity: 5, unitPrice: 30000, materialId: id(10) });
+  l = change(l, job, {
+    target: 'service',
+    serviceId: id(50),
+    quantity: 5,
+    unitPrice: 30000,
+    materialId: id(10),
+  });
   job = l.jobs[0];
   assert.equal(job.templateSnapshot, undefined);
   assert.equal(job.amount, 150000);

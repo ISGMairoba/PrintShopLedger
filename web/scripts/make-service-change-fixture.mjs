@@ -21,24 +21,52 @@ const { ledger, event: e, settings } = fixture();
 let l = applyCheckout(ledger, e);
 const events = [];
 const step = (job, c) => {
-  const ev = serviceChangeEvent(l, job, { reason: 'Wrong item picked', stockMode: 'reconcile', description: job.description, ...c }, actor,
-    accountToken(l, job.customerId), '2026-10-14T08:00:00Z');
+  const ev = serviceChangeEvent(
+    l,
+    job,
+    { reason: 'Wrong item picked', stockMode: 'reconcile', description: job.description, ...c },
+    actor,
+    accountToken(l, job.customerId),
+    '2026-10-14T08:00:00Z',
+  );
   l = applySaleAdjustment(l, ev);
   events.push(ev);
   return l.jobs.find((j) => j.id === job.id);
 };
 let job = l.jobs[0];
-job = step(job, { target: 'template', serviceId: id(9), quantity: 50, templateInputs: { sheets_per_book: 25, inner_paper: 2, cover_card: 1 } });
+job = step(job, {
+  target: 'template',
+  serviceId: id(9),
+  quantity: 50,
+  templateInputs: { sheets_per_book: 25, inner_paper: 2, cover_card: 1 },
+});
 const s1 = l.materials.map((m) => [m.id, m.available]);
 job = step(job, { target: 'service', serviceId: id(7), quantity: 5, unitPrice: 20000, materialId: id(10) });
 const s2 = l.materials.map((m) => [m.id, m.available]);
-job = step(job, { target: 'template', serviceId: id(9), quantity: 40, templateInputs: { sheets_per_book: 25, inner_paper: 1, cover_card: 1 } });
+job = step(job, {
+  target: 'template',
+  serviceId: id(9),
+  quantity: 40,
+  templateInputs: { sheets_per_book: 25, inner_paper: 1, cover_card: 1 },
+});
 const s3 = l.materials.map((m) => [m.id, m.available]);
 const q = (o) => `$json$${JSON.stringify(o)}$json$::jsonb`;
-const checks = (s, what) => s.map(([m, n]) => `if (select available from public.materials where shop_id=shop and id='${m}')<>${n} then raise exception '${what}: stock of % is %','${m}',(select available from public.materials where shop_id=shop and id='${m}');end if;`).join('\n');
+const checks = (s, what) =>
+  s
+    .map(
+      ([m, n]) =>
+        `if (select available from public.materials where shop_id=shop and id='${m}')<>${n} then raise exception '${what}: stock of % is %','${m}',(select available from public.materials where shop_id=shop and id='${m}');end if;`,
+    )
+    .join('\n');
 const head = src.slice(0, 13).join('\n'); // functions and "do $test$"
-const declare = src[13].replace(/^declare shop uuid; changed jsonb;/, 'declare shop uuid; changed jsonb; refused text;');
-const setup = src.slice(14, 40).filter((x) => !/^-- Decimal|^for p in|^ if private\.tpl_text|^end loop;/.test(x)).join('\n');
+const declare = src[13].replace(
+  /^declare shop uuid; changed jsonb;/,
+  'declare shop uuid; changed jsonb; refused text;',
+);
+const setup = src
+  .slice(14, 40)
+  .filter((x) => !/^-- Decimal|^for p in|^ if private\.tpl_text|^end loop;/.test(x))
+  .join('\n');
 const out = `-- Rollback-only fixture. Changing a sold job's service when a pricing template is involved
 -- (sale.service_changed): template to template, template to a normal service and back, with the
 -- stock put right each time; refused once materials are confirmed. Generated with the app's own code

@@ -62,7 +62,9 @@ export function quoteServiceChange(ledger, job, d) {
   }
   const service = ledger.services.find((s) => s.id === d.serviceId);
   if (service && (service.materialOptions?.length ?? 0) > 0)
-    throw Error('A service with a choice of materials can’t be switched to. Cancel the job and add it again.');
+    throw Error(
+      'A service with a choice of materials can’t be switched to. Cancel the job and add it again.',
+    );
   const after = quoteCorrectedJob(ledger, { ...base, serviceId: d.serviceId }, d);
   return {
     ...after,
@@ -96,7 +98,10 @@ export function serviceChangePlan(ledger, job, after, mode) {
   );
   const took = new Map();
   for (const h of mine)
-    took.set(h.materialId, (took.get(h.materialId) ?? 0) + (h.beforeAvailable ?? h.afterAvailable) - h.afterAvailable);
+    took.set(
+      h.materialId,
+      (took.get(h.materialId) ?? 0) + (h.beforeAvailable ?? h.afterAvailable) - h.afterAvailable,
+    );
   const want = needs(after);
   const ids = [...new Set([...took.keys(), ...want.keys()])].sort();
   return ids
@@ -116,7 +121,9 @@ export function serviceChangePlan(ledger, job, after, mode) {
               Date.parse(h.changedAt) >= Math.min(...first),
           )
         )
-          throw Error('A later stock count already reconciled this usage. Keep actual usage and current stock.');
+          throw Error(
+            'A later stock count already reconciled this usage. Keep actual usage and current stock.',
+          );
       }
       return { materialId: id, delta };
     })
@@ -127,7 +134,14 @@ export function serviceChangePlan(ledger, job, after, mode) {
  * The sale.service_changed event. change: { target, serviceId, quantity, description, unitPrice,
  * width, height, materialId, templateInputs, stockMode, reason }.
  */
-export function serviceChangeEvent(ledger, job, change, actor, expectedAccount, now = new Date().toISOString()) {
+export function serviceChangeEvent(
+  ledger,
+  job,
+  change,
+  actor,
+  expectedAccount,
+  now = new Date().toISOString(),
+) {
   const ids = new Set([
     ...ledger.materialHistory.filter((h) => h.jobId === job.id).map((h) => h.materialId),
     ...(change.target === 'template'
@@ -162,7 +176,10 @@ export function serviceChangeEvent(ledger, job, change, actor, expectedAccount, 
   };
   const after = quoteServiceChange(ledger, job, { ...data, stockIds });
   const plan = serviceChangePlan(ledger, job, after, data.stockMode);
-  const used = new Set([...plan.map((p) => p.materialId), ...(after.templateSnapshot?.stock ?? []).map((s) => s.materialId)]);
+  const used = new Set([
+    ...plan.map((p) => p.materialId),
+    ...(after.templateSnapshot?.stock ?? []).map((s) => s.materialId),
+  ]);
   const keep = Object.fromEntries(Object.entries(stockIds).filter(([m]) => used.has(m)));
   return {
     id: crypto.randomUUID(),

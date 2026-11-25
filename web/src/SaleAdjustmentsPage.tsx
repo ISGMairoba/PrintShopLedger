@@ -967,7 +967,9 @@ export function SaleAdjustmentEditor({
                         setServiceId(next);
                         setMaterialId('');
                         setTemplateInputs(
-                          next === job.serviceId && job.templateSnapshot ? editableInputs(job.templateSnapshot) : {},
+                          next === job.serviceId && job.templateSnapshot
+                            ? editableInputs(job.templateSnapshot)
+                            : {},
                         );
                         return;
                       }
@@ -1049,16 +1051,16 @@ export function SaleAdjustmentEditor({
                 {chosenTemplate ? (
                   <p className="muted">{w('The price is worked out by the template from these inputs.')}</p>
                 ) : (
-                <label>
-                  Corrected unit price (₦)
-                  <CurrencyInput value={unitPrice} onValueChange={setUnitPrice} required />
-                  <small className="muted">
-                    {sizeMaterial?.requireSize
-                      ? 'Rate per size unit: quantity × width × height × unit price.'
-                      : 'Rate per item: quantity × unit price.'}{' '}
-                    {w('This changes this job only.')}
-                  </small>
-                </label>
+                  <label>
+                    Corrected unit price (₦)
+                    <CurrencyInput value={unitPrice} onValueChange={setUnitPrice} required />
+                    <small className="muted">
+                      {sizeMaterial?.requireSize
+                        ? 'Rate per size unit: quantity × width × height × unit price.'
+                        : 'Rate per item: quantity × unit price.'}{' '}
+                      {w('This changes this job only.')}
+                    </small>
+                  </label>
                 )}
                 <label>
                   Corrected description
