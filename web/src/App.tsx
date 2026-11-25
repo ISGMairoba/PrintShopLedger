@@ -230,6 +230,7 @@ import { useMobileLayout } from './ResponsiveTable';
 import { PendingChecksBanner } from './MaterialCheckSection';
 import { materialCorrectionAlerts } from './material-corrections.mjs';
 import { PayeeRulesContext } from './PayeeRulesContext';
+import { vendorExpenseEvents } from './team-vendor.mjs';
 import { setMessageSender } from './messages.mjs';
 import { setCustomerLink } from './customer-link';
 import { TeamContext, type TeamWork } from './TeamContext';
@@ -1829,6 +1830,7 @@ export default function App() {
     saveJob: async (event) => {
       await save(event);
     },
+    canExpense: allowed('Expenses'),
   };
   const currentJob = ledger.jobs.find((job) => job.id === selectedJob);
   // Auto-lock (Business Settings → Security): sign the user out after the idle time. The business
@@ -4157,12 +4159,19 @@ export default function App() {
                               );
                               // Team work: the "Done by" step's records, or the people assigned.
                               const job = jobToAdvance.job;
+                              // An outside vendor's cost: an expense for this job, with the vendor
+                              // added to Payees when new (saved before the work that names them).
+                              const vendorEvents = work ? vendorExpenseEvents(state.ledger, job, targetStage, work, teamWork.actor) : null;
                               const teamEvents: TeamEvent[] = !teamWork.on
                                 ? []
                                 : work
-                                  ? workEvents(job, targetStage, work, teamWork.actor)
+                                  ? workEvents(job, targetStage, vendorEvents?.work ?? work, teamWork.actor)
                                   : autoWorkEvents(state.ledger, job, targetStage, teamWork.actor);
-                              const next = await saveEvents(targetScope, [...events, ...teamEvents], !demo);
+                              const next = await saveEvents(
+                                targetScope,
+                                [...events, ...(vendorEvents?.events ?? []), ...teamEvents],
+                                !demo,
+                              );
                               if (activeScope.current === targetScope) {
                                 setState(next);
                                 channel.current?.postMessage('changed');

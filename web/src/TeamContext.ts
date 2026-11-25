@@ -14,6 +14,8 @@ export interface TeamWork {
   save: (events: TeamEvent[]) => Promise<void>;
   /** Decides a correction of confirmed materials (it lives on the job). */
   saveJob?: (event: JobMaterialCorrectionEvent) => Promise<void>;
+  /** This person can record expenses (an outside vendor's cost becomes one, linked to the job). */
+  canExpense?: boolean;
 }
 export const TeamContext = createContext<TeamWork | null>(null);
 /** Team work when it is on; null otherwise (nothing about it is shown). */
