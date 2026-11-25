@@ -2,7 +2,7 @@ import { prepareAccountMethods, routingLabels } from './account-methods.mjs';
 import { validDueAt } from './job-deadlines.mjs';
 import { businessDay } from './dashboard.mjs';
 import { localBranchId } from './branches.mjs';
-import { MONEY_TYPES, lenderBalances } from './money-moves.mjs';
+import { ADVANCE_SOURCE, MONEY_TYPES, lenderBalances, payeeAdvances } from './money-moves.mjs';
 import { applyRepeat } from './repeating-expenses.mjs';
 
 // Money accounts belong to a branch ('main' when not set) or are shared by all branches ('*').
@@ -279,6 +279,13 @@ export function applyOperation(ledger, event) {
           throw Error(`That is more than is still owed to ${lender.name}.`);
         entry.lenderId = lender.id;
       }
+      if (type.payee) {
+        const payee = (ledger.payees ?? []).find((p) => p.id === d.payeeId);
+        if (!payee || (d.moneyType === 'payee_advance' && payee.archived)) throw Error('Choose the payee.');
+        if (d.moneyType === 'advance_returned' && d.amount > (payeeAdvances(ledger)[payee.id] ?? 0))
+          throw Error(`That is more than the advance held with ${payee.name}.`);
+        entry.payeeId = payee.id;
+      }
     } else if (kind === 'account.assigned') {
       const transaction = moneyTransactions(ledger).find((t) => t.id === d.transactionId);
       if (!transaction || transaction.accountId || transaction.paidOn < account.openingDate)
@@ -325,18 +332,21 @@ export function moneyTransactions(ledger) {
         '',
       source: p,
     }));
+  // Paid from a payee's advance: no account moves (the advance was paid out when it was given).
   const expense = ledger.expenses.flatMap((e) =>
-    e.payments.map((p) => ({
-      id: 'expense:' + p.id,
-      personal: p.source === 'Personal funds' && !p.accountId,
-      paidOn: businessDay(p.paidOn),
-      amount: p.amount,
-      direction: -1,
-      label: e.description + (e.voided ? ' · Voided expense payment retained' : ''),
-      method: p.methodLabel || p.method,
-      accountId: p.accountId || assignments.get('expense:' + p.id) || '',
-      source: p,
-    })),
+    e.payments
+      .filter((p) => p.source !== ADVANCE_SOURCE)
+      .map((p) => ({
+        id: 'expense:' + p.id,
+        personal: p.source === 'Personal funds' && !p.accountId,
+        paidOn: businessDay(p.paidOn),
+        amount: p.amount,
+        direction: -1,
+        label: e.description + (e.voided ? ' · Voided expense payment retained' : ''),
+        method: p.methodLabel || p.method,
+        accountId: p.accountId || assignments.get('expense:' + p.id) || '',
+        source: p,
+      })),
   );
   const refunds = ledger.saleAdjustments
     .filter((a) => a.action === 'sale.refunded' && a.refundAmount > 0)
@@ -445,6 +455,16 @@ export function correctEntry(ledger, d, audit) {
             `${(ledger.payees ?? []).find((p) => p.id === id)?.name ?? 'The lender'} would be repaid more than was lent.`,
           );
     }
+  }
+  if (old.action === 'money' && old.payeeId) {
+    const held = payeeAdvances({
+      ...ledger,
+      accountEntries: entries.map((e) => (e.id === old.id ? next : e)),
+    });
+    if ((held[old.payeeId] ?? 0) < 0)
+      throw Error(
+        'The advance already used would be more than the advance paid. Correct the expense payments first.',
+      );
   }
   const pick = ({ amount, paidOn, reason, accountId, toAccountId, lenderId, actualBalance }) =>
     Object.fromEntries(

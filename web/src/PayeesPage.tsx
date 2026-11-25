@@ -7,7 +7,9 @@ import { payeeListSections } from './reports.mjs';
 import { downloadCsv } from './export-csv';
 import { currency } from './receipts.mjs';
 import { lenderIds, lenderSummary } from './lenders.mjs';
-import type { Ledger, Payee, OperationsEvent } from './types';
+import type { ExpenseEvent, Ledger, Payee, OperationsEvent } from './types';
+import { PayPayeeDialog, PayeeAdvanceDialog } from './PayPayeeDialog';
+import { payeeAdvances } from './money-moves.mjs';
 import { SortHeader, useTableSort } from './TableSort';
 export default function PayeesPage({
   ledger,
@@ -26,16 +28,19 @@ export default function PayeesPage({
   ledger: Ledger;
   busy: boolean;
   actor: { id: string; label: string };
-  onSave: (event: OperationsEvent) => Promise<void>;
+  onSave: (event: OperationsEvent | ExpenseEvent) => Promise<void>;
 }) {
   const [query, setQuery] = useState(''),
     [archived, setArchived] = useState(false),
     [kind, setKind] = useState<'all' | 'suppliers' | 'lenders'>('all'),
     [editing, setEditing] = useState<Payee | 'new' | null>(null),
     [view, setView] = useState<Payee | null>(null),
+    [paying, setPaying] = useState<Payee | null>(null),
+    [advancing, setAdvancing] = useState<Payee | null>(null),
     [error, setError] = useState('');
   const sorting = useTableSort<Payee>('name');
   const lenders = lenderIds(ledger);
+  const advances = payeeAdvances(ledger);
   const expenses = (id: string) => ledger.expenses.filter((e) => e.payeeId === id);
   const totals = (id: string) => {
     const rows = expenses(id);
@@ -194,6 +199,11 @@ export default function PayeesPage({
                       <strong>Outstanding {currency(t.owed)}</strong>
                       <small>Incurred {currency(t.incurred)}</small>
                       <small>Paid {currency(t.paid)}</small>
+                      {(advances[p.id] ?? 0) > 0 && (
+                        <small>
+                          <strong>Advance held {currency(advances[p.id])}</strong>
+                        </small>
+                      )}
                       {lenders.has(p.id) &&
                         (() => {
                           const loan = lenderSummary(ledger, p.id);
@@ -224,6 +234,16 @@ export default function PayeesPage({
                     </td>
                     <td>
                       <div className="material-actions">
+                        {!p.archived && (
+                          <button className="text-button" disabled={busy} onClick={() => setPaying(p)}>
+                            Pay
+                          </button>
+                        )}
+                        {(!p.archived || (advances[p.id] ?? 0) > 0) && (
+                          <button className="text-button" disabled={busy} onClick={() => setAdvancing(p)}>
+                            Advance
+                          </button>
+                        )}
                         <button className="text-button" disabled={busy} onClick={() => setView(p)}>
                           Transactions
                         </button>
@@ -331,6 +351,26 @@ export default function PayeesPage({
               </fieldset>
             </form>
           </Modal>
+        )}
+        {paying && (
+          <PayPayeeDialog
+            ledger={ledger}
+            payee={paying}
+            actor={actor}
+            busy={busy}
+            onSave={onSave}
+            onClose={() => setPaying(null)}
+          />
+        )}
+        {advancing && (
+          <PayeeAdvanceDialog
+            ledger={ledger}
+            payee={advancing}
+            actor={actor}
+            busy={busy}
+            onSave={onSave}
+            onClose={() => setAdvancing(null)}
+          />
         )}
         {view && (
           <Modal title={`Payee transactions · ${view.name}`} wide busy={busy} onClose={() => setView(null)}>

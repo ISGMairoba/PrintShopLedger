@@ -267,6 +267,28 @@ try {
         await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
         'Mobile page stays within viewport',
       );
+    // Paying a payee once: more than is owed, so the rest is kept as an advance; then some comes back.
+    await nav('Payees');
+    const supplier = page.getByRole('row').filter({ hasText: 'Paper House' }).first();
+    await supplier.getByRole('button', { name: 'Pay', exact: true }).click();
+    let pd = page.getByRole('dialog', { name: 'Pay Paper House' });
+    await pd.getByLabel('Amount paid (₦)').fill('5000');
+    await pick(pd, 'Paid from', { text: 'Main Bank' });
+    await pd.getByText('kept as an advance with Paper House', { exact: false }).waitFor();
+    await pd.getByRole('button', { name: /^Pay / }).click();
+    await pd.waitFor({ state: 'detached' });
+    await supplier.getByText(/Advance held/).waitFor();
+    await supplier.getByRole('button', { name: 'Advance', exact: true }).click();
+    pd = page.getByRole('dialog', { name: 'Advance · Paper House' });
+    await pd.getByLabel('What happened').selectOption('advance_returned');
+    await pd.getByLabel('Amount (₦)').fill('1');
+    await pd.getByRole('button', { name: 'Save', exact: true }).click();
+    await pd.waitFor({ state: 'detached' });
+    state = await readCopy(page, 'local-trial');
+    assert.deepEqual(
+      state.ledger.accountEntries.filter((e) => e.payeeId).map((e) => e.moneyType),
+      ['payee_advance', 'advance_returned'],
+    );
     assert.deepEqual(errors, []);
     await context.close();
     console.log(`Operations finance ${mobile ? 'mobile' : 'desktop'} passed`);

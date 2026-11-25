@@ -63,6 +63,8 @@ test('money in and out: loans owed until repaid, owner money and other income mo
     owner_in: 100000,
     owner_out: 50000,
     other_income: 20000,
+    payee_advance: 0,
+    advance_returned: 0,
   });
   const s = accountSummary(l, l.moneyAccounts, '2026-11-08');
   assert.equal(s.moneyIn, 620000);

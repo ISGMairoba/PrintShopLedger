@@ -229,6 +229,7 @@ import RemindersPage from './RemindersPage';
 import { useMobileLayout } from './ResponsiveTable';
 import { PendingChecksBanner } from './MaterialCheckSection';
 import { materialCorrectionAlerts } from './material-corrections.mjs';
+import { PayeeRulesContext } from './PayeeRulesContext';
 import { setMessageSender } from './messages.mjs';
 import { setCustomerLink } from './customer-link';
 import { TeamContext, type TeamWork } from './TeamContext';
@@ -4192,7 +4193,18 @@ export default function App() {
       <div className="app-layer" hidden={!!lockScreen} inert={!!lockScreen}>
         <AppLayer.Provider value>
           <CostMethodContext.Provider value={costMethodOf(branding.settings)}>
-            <TeamContext.Provider value={teamWork}>{app}</TeamContext.Provider>
+            <TeamContext.Provider value={teamWork}>
+              <PayeeRulesContext.Provider
+                value={{
+                  payeeExtra: branding.settings.jobs.payeeExtra === 'ask' ? 'ask' : 'advance',
+                  useAdvance: (['auto', 'never'].includes(branding.settings.jobs.useAdvance)
+                    ? branding.settings.jobs.useAdvance
+                    : 'ask') as 'ask' | 'auto' | 'never',
+                }}
+              >
+                {app}
+              </PayeeRulesContext.Provider>
+            </TeamContext.Provider>
           </CostMethodContext.Provider>
         </AppLayer.Provider>
       </div>

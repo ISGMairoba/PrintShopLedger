@@ -1,6 +1,5 @@
 import { PERIOD_CHOICES, PERIOD_MONTHS, coversFor } from './expense-periods.mjs';
 import DialogActions from './DialogActions';
-import { orderMethods } from './business-options.mjs';
 import { useFeedbackMessage } from './Feedback';
 import ListedCombobox from './ListedCombobox';
 import { useBusinessOptions } from './BusinessOptionsContext';
@@ -11,7 +10,8 @@ import Icon from './Icon';
 import { amountError, normalizeAmount } from './currency-input.mjs';
 import { money } from './domain.mjs';
 import { expenseCode, expensePaid, fromLagosLocal, lagosLocal, makeExpenseEvent } from './expenses.mjs';
-import { accountPaymentOptions } from './account-methods.mjs';
+import { advanceOption, usePaidFromOptions } from './paid-from';
+import { usePayeeRules } from './PayeeRulesContext';
 import { materialCode } from './material-display.mjs';
 import type {
   Expense,
@@ -34,6 +34,8 @@ type Props = {
   expenses: Expense[];
   payees?: Payee[];
   accounts?: MoneyAccount[];
+  /** What each payee holds as an advance (money-moves.mjs payeeAdvances): kobo by payee id. */
+  advances?: Record<string, number>;
   actor: { id: string; label: string };
   busy: boolean;
   mode?: 'edit' | 'payment' | 'correct';
@@ -71,6 +73,7 @@ export default function ExpenseEditor({
   expenses,
   payees = [],
   accounts = [],
+  advances = {},
   actor,
   busy,
   mode = 'edit',
@@ -94,32 +97,11 @@ export default function ExpenseEditor({
   const { w } = useWords();
   const options = useBusinessOptions(),
     expenseCategories = options.expenseCategories;
-  // One "Paid from" list: each account and its methods (or the business's methods before accounts
-  // are set up), plus the owner's own money. The method and source follow from the choice.
-  const paidFromOptions = [
-    ...orderMethods(
-      accountPaymentOptions(
-        { moneyAccounts: accounts },
-        options.paymentMethods.filter((m) => m.enabled),
-      ) as { label: string; kind: string; accountId?: string; displayLabel?: string }[],
-      options.methodOrder,
-    ).map((o: { label: string; kind: string; accountId?: string; displayLabel?: string }) => ({
-      key: `${o.accountId ?? ''}|${o.label}`,
-      text: o.displayLabel || o.label,
-      label: o.label,
-      kind: o.kind,
-      accountId: o.accountId ?? '',
-      source: o.kind === 'Cash' ? 'Business cash' : 'Business bank account',
-    })),
-    {
-      key: 'personal',
-      text: 'Personal funds (not from the business)',
-      label: 'Personal funds',
-      kind: 'Other',
-      accountId: '',
-      source: 'Personal funds',
-    },
-  ];
+  // One "Paid from" list (paid-from.ts), plus the payee's advance when they hold one.
+  const rules = usePayeeRules();
+  const held = !correcting && rules.useAdvance !== 'never' ? (advances[payeeId] ?? 0) : 0;
+  const baseOptions = usePaidFromOptions(accounts);
+  const paidFromOptions = held > 0 ? [advanceOption(currency(held)), ...baseOptions] : baseOptions;
   const correctingKey = correcting
     ? correcting.source === 'Personal funds'
       ? 'personal'
@@ -135,6 +117,7 @@ export default function ExpenseEditor({
   const [paidFrom, setPaidFrom] = useState(
     correctingKey ||
       (prefill?.accountId ? paidFromOptions.find((o) => o.accountId === prefill.accountId)?.key : '') ||
+      (held > 0 && rules.useAdvance === 'auto' ? 'advance' : '') ||
       paidFromOptions.find((o) => o.key === options.defaultExpenseMethod)?.key ||
       paidFromOptions[0]?.key ||
       'personal',

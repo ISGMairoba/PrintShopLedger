@@ -770,11 +770,14 @@ export default function AccountsPage({
                           setLender('');
                         }}
                       >
-                        {(Object.keys(MONEY_TYPES) as (keyof typeof MONEY_TYPES)[]).map((k) => (
-                          <option key={k} value={k}>
-                            {MONEY_TYPES[k].label} ({MONEY_TYPES[k].direction > 0 ? 'in' : 'out'})
-                          </option>
-                        ))}
+                        {/* Advances to payees are recorded on the Payees page. */}
+                        {(Object.keys(MONEY_TYPES) as (keyof typeof MONEY_TYPES)[])
+                          .filter((k) => !('payee' in MONEY_TYPES[k]))
+                          .map((k) => (
+                            <option key={k} value={k}>
+                              {MONEY_TYPES[k].label} ({MONEY_TYPES[k].direction > 0 ? 'in' : 'out'})
+                            </option>
+                          ))}
                       </select>
                       <small>
                         {moneyType === 'loan_in'

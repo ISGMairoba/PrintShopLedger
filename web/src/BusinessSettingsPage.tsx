@@ -1347,6 +1347,31 @@ export default function BusinessSettingsPage({
                 {sectionSave('Discount limits', ['discounts'])}
               </fieldset>
               <fieldset hidden={tab !== 'Jobs & payments'} disabled={busy || !ready}>
+                <legend>Paying payees</legend>
+                <label>
+                  Paying a payee more than is owed
+                  <select
+                    value={draft.jobs.payeeExtra ?? 'advance'}
+                    onChange={(e) => field('jobs', { ...draft.jobs, payeeExtra: e.target.value })}
+                  >
+                    <option value="advance">Keep the rest as an advance with the payee</option>
+                    <option value="ask">Ask each time</option>
+                  </select>
+                </label>
+                <label>
+                  Paying an expense when the payee holds an advance
+                  <select
+                    value={draft.jobs.useAdvance ?? 'ask'}
+                    onChange={(e) => field('jobs', { ...draft.jobs, useAdvance: e.target.value })}
+                  >
+                    <option value="ask">Offer the advance under Paid from</option>
+                    <option value="auto">Pay from the advance first</option>
+                    <option value="never">Never pay from the advance</option>
+                  </select>
+                </label>
+                {sectionSave('Payee payment settings', ['jobs'])}
+              </fieldset>
+              <fieldset hidden={tab !== 'Jobs & payments'} disabled={busy || !ready}>
                 <legend>Cash drawers</legend>
                 <label className="check-label">
                   <input

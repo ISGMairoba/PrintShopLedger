@@ -120,6 +120,11 @@ export const jobSettingsDefaults = () => ({
   minOrder: 'block',
   /** "Ready for collection" WhatsApp wording; '' uses the app's own (ready-message.mjs). */
   readyMessage: '',
+  // Paying a payee more than is owed: 'advance' (the rest is kept as an advance with them) or 'ask'.
+  payeeExtra: 'advance',
+  // Paying an expense when its payee holds an advance: 'ask' (offered under Paid from), 'auto'
+  // (chosen first) or 'never'.
+  useAdvance: 'ask',
 });
 // The period each page opens with. 'all' is offered only where a page can list everything.
 export const defaultPeriods = () => ({
@@ -634,6 +639,10 @@ export function validateJobSettings(input) {
     /[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(value.readyMessage)
   )
     throw Error('Keep the ready message to 600 characters.');
+  if (!['advance', 'ask'].includes(value.payeeExtra))
+    throw Error('Choose what happens when a payee is paid more than is owed.');
+  if (!['ask', 'auto', 'never'].includes(value.useAdvance))
+    throw Error('Choose whether expenses are paid from a payee’s advance.');
   return {
     readyMessage: value.readyMessage.trim(),
     stockBelowZero: value.stockBelowZero,
@@ -641,6 +650,8 @@ export function validateJobSettings(input) {
     descriptionMode: value.descriptionMode,
     defaultDuration: { value: duration.value, unit: duration.unit },
     paymentPrefill: value.paymentPrefill,
+    payeeExtra: value.payeeExtra,
+    useAdvance: value.useAdvance,
   };
 }
 export function validateReceiptOptions(input) {
