@@ -132,7 +132,7 @@ try {
   await page.waitForFunction(() => window.__opened.length > 1);
   assert.match(
     decodeURIComponent(await page.evaluate(() => window.__opened[1])),
-    /\*Quotation Q-[0-9A-F]{8}\*[\s\S]*\*Design: ₦20,000\.00\*[\s\S]*\*Total: ₦20,000\.00\*/,
+    /\*Quotation Q-[0-9A-F]{8}\*[\s\S]*\*Design: ₦30,000\.00\*[\s\S]*\*Total: ₦30,000\.00\*/,
   );
 
   // Create the order: checkout opens filled from the quote.
