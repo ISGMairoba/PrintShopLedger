@@ -92,6 +92,10 @@ export default function ServicesPage({
   const [confirmation, setConfirmation] = useState<Service | null>(null);
   const [error, setError] = useFeedbackMessage('error');
   const editing = editor && editor !== 'new' ? editor : null;
+  // Duplicate: a new item filled in from another (its name, price, materials, steps and settings).
+  const [copyOf, setCopyOf] = useState<Service | null>(null);
+  /** What the form starts from: the item being edited, or the one being copied. */
+  const source = editing ?? (editor === 'new' ? copyOf : null);
   const [costed, setCosted] = useState(false);
   const [privateItem, setPrivateItem] = useState(false);
   const [costKey, setCostKey] = useState('');
@@ -158,7 +162,18 @@ export default function ServicesPage({
     setPerItemText(String(s?.production?.perItem ?? 1));
     setSteps(s?.production?.steps);
     setStockDraft(null);
+    setCopyOf(null);
     setEditor(target);
+  };
+  /** Open a new item filled in from another: change what differs and save it as a new item. */
+  const duplicate = (service: Service) => {
+    openEditor(service);
+    const name = `${baseService(service).description} (copy)`;
+    setItemName(name);
+    // A cost name is unique: the copy gets its own.
+    if (service.costing?.key) setCostKey(suggestCostKey(name, services));
+    setCopyOf(service);
+    setEditor('new');
   };
   const linkedMaterial = materials.find((m) => m.id === materialValue);
   const sharedMaterialUsers = linkedMaterial
@@ -534,6 +549,21 @@ export default function ServicesPage({
                                 <Icon name="edit" /> Edit
                               </button>
                             )}
+                            {!service.archived && (
+                              <button
+                                className="text-button"
+                                disabled={busy}
+                                data-opens-dialog
+                                title={w('A new item filled in from this one')}
+                                onClick={() => {
+                                  duplicate(service);
+                                  setConfirmation(null);
+                                  setError('');
+                                }}
+                              >
+                                <Icon name="add" /> Duplicate
+                              </button>
+                            )}
                             {!service.archived && branchPrice && !service.private && !service.customPrice && (
                               <button
                                 className="text-button"
@@ -748,7 +778,7 @@ export default function ServicesPage({
       )}
       {editor && (
         <Modal
-          title={w(editing ? 'Edit service' : 'Add service')}
+          title={w(editing ? 'Edit service' : copyOf ? 'Duplicate service' : 'Add service')}
           busy={busy}
           footer={
             <DialogActions form={formId} busy={busy} onCancel={() => setEditor(null)}>
@@ -769,7 +799,11 @@ export default function ServicesPage({
           ) : (
             <p className="muted">{w('A permanent service ID is generated when you save.')}</p>
           )}
-          <form id={formId} key={editing ? editing.id + ':' + editing.version : 'new'} onSubmit={submit}>
+          <form
+            id={formId}
+            key={editing ? editing.id + ':' + editing.version : copyOf ? `copy:${copyOf.id}` : 'new'}
+            onSubmit={submit}
+          >
             <fieldset disabled={busy}>
               <div className="form-grid">
                 <label>
@@ -811,7 +845,7 @@ export default function ServicesPage({
                         : 'Price (₦)'}
                     <CurrencyInput
                       name="price"
-                      defaultValue={editing ? (baseService(editing).price / 100).toFixed(2) : ''}
+                      defaultValue={source ? (baseService(source).price / 100).toFixed(2) : ''}
                       onValueChange={setPriceText}
                       required
                     />
@@ -1044,7 +1078,7 @@ export default function ServicesPage({
                 <ItemSteps
                   value={steps}
                   onChange={setSteps}
-                  kind={editing?.shelfItem ? 'shelf' : 'service'}
+                  kind={source?.shelfItem ? 'shelf' : 'service'}
                 />
               )}
               {!privateItem && (
@@ -1073,7 +1107,7 @@ export default function ServicesPage({
                       'In production, staff can add any material from stock with the amount used (for example board, lamination and glue for a paper bag). Stock is taken when added; the price does not change.',
                     )}
                   </small>
-                  {!editing?.shelfItem && (
+                  {!source?.shelfItem && (
                     <label>
                       {w('Materials leave stock')}
                       <select
@@ -1114,7 +1148,7 @@ export default function ServicesPage({
               )}
               {!privateItem && materialValue !== CHOICE && pricing !== 'custom' && (
                 <label className="checkbox">
-                  <input type="checkbox" name="shelfItem" defaultChecked={editing?.shelfItem ?? false} />
+                  <input type="checkbox" name="shelfItem" defaultChecked={source?.shelfItem ?? false} />
                   Sold off the shelf
                 </label>
               )}
@@ -1160,7 +1194,7 @@ export default function ServicesPage({
                     <CurrencyInput
                       name="costAmount"
                       defaultValue={
-                        hasCost(editing?.costing) ? (editing!.costing!.amount! / 100).toFixed(2) : ''
+                        hasCost(source?.costing) ? (source!.costing!.amount! / 100).toFixed(2) : ''
                       }
                       required={privateItem}
                     />
@@ -1185,7 +1219,7 @@ export default function ServicesPage({
                       type="number"
                       min="0.001"
                       step="0.001"
-                      defaultValue={editing?.costing?.per ?? 1}
+                      defaultValue={source?.costing?.per ?? 1}
                     />
                     <small>
                       Units are the {w('material')}'s unit, or items. e.g. ₦5,000 for 500 sheets: enter 500.
@@ -1196,7 +1230,7 @@ export default function ServicesPage({
                     <input
                       name="costUnit"
                       maxLength={40}
-                      defaultValue={editing?.costing?.unit ?? ''}
+                      defaultValue={source?.costing?.unit ?? ''}
                       placeholder="e.g. ream"
                     />
                   </label>
