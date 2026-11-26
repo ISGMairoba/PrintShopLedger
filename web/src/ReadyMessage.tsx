@@ -1,4 +1,4 @@
-import { canTellCustomer } from './ready-message.mjs';
+import { canTellCustomer, messageFor } from './ready-message.mjs';
 import { createContext, useContext } from 'react';
 import Icon from './Icon';
 import { shareText } from './share-text';
@@ -11,7 +11,25 @@ export const ReadyMessageContext = createContext<
   ((job: Job) => { link: string; phone: string; text: string; mode: string }) | null
 >(null);
 
-/** "Tell customer": shown once a job is Completed (Ready), or part of a part order is ready. */
+const TITLES: Record<string, { title: string; hint: string }> = {
+  held: { title: 'Order on hold', hint: 'Send the customer a message that their job is on hold' },
+  collected: { title: 'Order collected', hint: 'Send the customer a message that their job was collected' },
+  ready: { title: 'Order ready', hint: 'Send the customer a message that their job is ready' },
+  part_ready: {
+    title: 'Part of order ready',
+    hint: 'Send the customer a message that part of their job is ready',
+  },
+  resumed: {
+    title: 'Work continues',
+    hint: 'Send the customer a message that work on their job has continued',
+  },
+  update: {
+    title: 'Order update',
+    hint: 'Send the customer where their job is: its stage, progress and when it should be ready',
+  },
+};
+
+/** "Tell customer": the right message for where the job is (ready-message.mjs messageFor). */
 export function TellCustomer({ job, busy }: { job: Job; busy?: boolean }) {
   const message = useContext(ReadyMessageContext);
   const { w } = useWords();
@@ -21,21 +39,11 @@ export function TellCustomer({ job, busy }: { job: Job; busy?: boolean }) {
       type="button"
       className="text-button"
       disabled={busy}
-      title={w(
-        job.hold
-          ? 'Send the customer a message that their job is on hold'
-          : job.productionStatus === 'Collected'
-            ? 'Send the customer a message that their job was collected'
-            : 'Send the customer a message that their job is ready',
-      )}
+      title={w(TITLES[messageFor(job)].hint)}
       onClick={() => {
         const { text, phone, mode } = message(job);
         void shareText(text, {
-          title: job.hold
-            ? 'Order on hold'
-            : job.productionStatus === 'Collected'
-              ? 'Order collected'
-              : 'Order ready',
+          title: TITLES[messageFor(job)].title,
           phone,
           mode: mode as ShareMode,
         });
