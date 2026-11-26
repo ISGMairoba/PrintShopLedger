@@ -18,6 +18,7 @@ export const pageIcons: Record<Page, IconName> = {
   Expenses: 'expenses',
   Materials: 'materials',
   'Material Waste': 'waste',
+  'Stock Count': 'history',
   Services: 'services',
   'Edit Products': 'edit',
   'Stock History': 'history',
@@ -37,6 +38,7 @@ export const pageDescriptions: Record<Page, string> = {
   Reports: 'Customer statements, transaction records and summaries, with spreadsheet and PDF export.',
   'Sale Adjustments': 'Approve and review changes to sales and customer credit.',
   'Material Waste': 'Track extra material use, damage and reprints.',
+  'Stock Count': 'Count materials all at once or shelf by shelf; an Admin reviews and finishes the count.',
   'Business Settings': '',
   'Pricing Templates':
     'Price jobs from templates, compare options for clients, and manage templates and costs.',

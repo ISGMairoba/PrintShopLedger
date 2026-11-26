@@ -25,13 +25,17 @@ export const pages = [
   'Conflict Inbox',
   'Sale Adjustments',
   'Material Waste',
+  'Stock Count',
 ];
 export const navigationPages = pages;
 /** Menu sections: each page's group heading. */
 export const pageGroups = [
   ['Selling', ['Dashboard', 'Reports', 'Point of Service', 'Quotations', 'Pricing Templates', 'My Sales']],
   ['Jobs & money', ['Jobs', 'Customers', 'Payment Reminders', 'Payments', 'Expenses', 'Payees', 'Accounts']],
-  ['Stock & catalogue', ['Materials', 'Material Waste', 'Services', 'Edit Products', 'Stock History']],
+  [
+    'Stock & catalogue',
+    ['Materials', 'Material Waste', 'Stock Count', 'Services', 'Edit Products', 'Stock History'],
+  ],
   [
     'Settings & control',
     ['Print Settings', 'Users', 'My Account', 'Business Settings', 'Conflict Inbox', 'Sale Adjustments'],
@@ -49,7 +53,7 @@ export const formerParents = {
   Payees: 'Expenses',
   Accounts: 'Expenses',
 };
-export const PAGE_ACCESS_VERSION = 3;
+export const PAGE_ACCESS_VERSION = 4;
 /** The Business Settings tabs. Page access is always Developer only. */
 export const settingsTabs = [
   'Profile & logo',
@@ -180,6 +184,7 @@ export const defaultPageAccess = () =>
               'My Sales',
               'Print Settings',
               'My Account',
+              'Stock Count',
             ].includes(page),
       ),
     ]),
@@ -191,7 +196,12 @@ export function upgradePageAccess(input, fromVersion = 0) {
   for (const rank of ['1', '2', '3', '4'])
     if (Array.isArray(value[rank]))
       for (const [page, parent] of Object.entries(
-        fromVersion >= 2 ? { Payees: 'Expenses', Accounts: 'Expenses' } : formerParents,
+        // Version 4 (26 Nov): Stock Count, for everyone who opens Materials.
+        fromVersion >= 3
+          ? { 'Stock Count': 'Materials' }
+          : fromVersion >= 2
+            ? { Payees: 'Expenses', Accounts: 'Expenses', 'Stock Count': 'Materials' }
+            : { ...formerParents, 'Stock Count': 'Materials' },
       ))
         if (
           value[rank].includes(parent) &&

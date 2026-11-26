@@ -1,5 +1,6 @@
 import TeamWorkSettings from './TeamWorkSettings';
 import SearchSelect from './SearchSelect';
+import { defaultStockCount } from './production-materials.mjs';
 import ItemTilesSettings from './ItemTilesSettings';
 import { mergeOptionsSection } from './options-sections.mjs';
 import BranchesSettings, { type BranchStaff } from './BranchesSettings';
@@ -1432,7 +1433,118 @@ export default function BusinessSettingsPage({
                   When a job passes its confirmation stage, staff enter the materials really used. Below this
                   rank, the entry waits on the approval list and stock moves when it is approved.
                 </p>
+                <label>
+                  When materials leave stock
+                  <select
+                    aria-label="When materials leave stock"
+                    value={draft.production.materialsAt ?? 'checkout'}
+                    disabled={accessLevel < 4}
+                    onChange={(event) =>
+                      field('production', {
+                        ...draft.production,
+                        materialsAt: event.target.value as 'checkout' | 'production',
+                      })
+                    }
+                  >
+                    <option value="checkout">At checkout (the sale takes them)</option>
+                    <option value="production">In production (when the materials check is confirmed)</option>
+                  </select>
+                </label>
+                <p className="muted">
+                  In production, a sale only reserves its materials: Materials shows them as reserved, and
+                  stock stays what is on the shelf until the job's materials check takes what was really used.
+                  A cancelled job just releases them. Each service can follow this or choose its own; shelf
+                  items always leave at checkout. Changing this applies to new sales only.
+                  {accessLevel < 4 ? ' Only a General Manager or higher can change it.' : ''}
+                </p>
                 {sectionSave('Materials added in production', ['production'])}
+              </fieldset>
+              <fieldset hidden={tab !== 'Jobs & payments'} disabled={busy || !ready}>
+                <legend>Stock counts</legend>
+                <p>Count materials on Stock → Count, all at once, shelf by shelf, or picked ones.</p>
+                {(() => {
+                  const sc = { ...defaultStockCount(), ...draft.production.stockCount };
+                  const set = (patch: Partial<typeof sc>) =>
+                    field('production', { ...draft.production, stockCount: { ...sc, ...patch } });
+                  return (
+                    <div className="form-grid">
+                      <label className="check-row">
+                        <input
+                          type="checkbox"
+                          checked={sc.blind}
+                          onChange={(e) => set({ blind: e.target.checked })}
+                        />
+                        Cashiers count without seeing the expected quantities
+                      </label>
+                      <label>
+                        A difference is big above (% of expected)
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="any"
+                          inputMode="decimal"
+                          value={sc.flagPercent}
+                          onChange={(e) => set({ flagPercent: Number(e.target.value) })}
+                        />
+                      </label>
+                      <label>
+                        …or above this value (₦)
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          inputMode="decimal"
+                          value={sc.flagValue / 100}
+                          onChange={(e) => set({ flagValue: Math.round(Number(e.target.value) * 100) })}
+                        />
+                      </label>
+                      <label>
+                        Who may finish a count with big differences
+                        <select
+                          aria-label="Who may finish a count with big differences"
+                          value={sc.approveRank}
+                          onChange={(e) => set({ approveRank: Number(e.target.value) })}
+                        >
+                          <option value={2}>Admins and above</option>
+                          <option value={3}>Managers and above</option>
+                          <option value={4}>General Managers and above</option>
+                        </select>
+                      </label>
+                      <label>
+                        Count reminder
+                        <select
+                          aria-label="Count reminder"
+                          value={sc.reminder}
+                          onChange={(e) => set({ reminder: e.target.value as typeof sc.reminder })}
+                        >
+                          <option value="off">Off</option>
+                          <option value="weekly">Every week</option>
+                          <option value="monthEnd">At month-end</option>
+                          <option value="days">Every few days</option>
+                        </select>
+                      </label>
+                      {sc.reminder === 'days' && (
+                        <label>
+                          Every (days)
+                          <input
+                            type="number"
+                            min="1"
+                            max="365"
+                            inputMode="numeric"
+                            value={sc.reminderDays}
+                            onChange={(e) => set({ reminderDays: Math.round(Number(e.target.value)) || 1 })}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  );
+                })()}
+                <p className="muted">
+                  Cashiers count; Admins and above review and finish. The reminder shows on the Dashboard
+                  until a count is finished.
+                </p>
+                {sectionSave('Stock counts', ['production'])}
               </fieldset>
               <fieldset hidden={tab !== 'Default time frames'} disabled={busy || !ready}>
                 <legend>Default time frames</legend>

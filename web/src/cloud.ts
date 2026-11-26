@@ -109,6 +109,7 @@ function rpcFor(kind: string) {
   )
     return 'apply_operations_event';
   if (kind.startsWith('team.')) return 'apply_team_event';
+  if (kind.startsWith('count.')) return 'apply_stock_count_event';
   if (kind.startsWith('expense.')) return 'apply_expense_event';
   if (kind.startsWith('quotation.')) return 'apply_quotation_event';
   const exact: Record<string, string> = {

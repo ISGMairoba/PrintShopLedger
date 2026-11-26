@@ -15,7 +15,16 @@ import { defaultBranding, validateBranding } from '../src/business-branding.mjs'
 test('cashier sees only operational pages and own credentials', () =>
   assert.deepEqual(
     pages.filter((page) => canAccessPage(page, 1)),
-    ['Point of Service', 'Quotations', 'Pricing Templates', 'My Sales', 'Print Settings', 'My Account'],
+    [
+      'Point of Service',
+      'Quotations',
+      'Pricing Templates',
+      'My Sales',
+      'Print Settings',
+      'My Account',
+      // Cashiers count stock (26 Nov); an Admin finishes the count.
+      'Stock Count',
+    ],
   ));
 test('Pricing Templates is open to sellers by default and sits after Quotations', () => {
   assert.equal(canAccessPage('Pricing Templates', 0), false);
@@ -57,7 +66,7 @@ test('older saved settings give each new page its old page access, once', () => 
     pageAccess: old,
     pageAccessVersion: undefined,
   });
-  assert.equal(b.pageAccessVersion, 3);
+  assert.equal(b.pageAccessVersion, 4);
   assert.ok(b.pageAccess['2'].includes('Reports'));
   // Once upgraded, a page that was switched off stays off.
   const off = validateBranding({
