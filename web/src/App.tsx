@@ -2318,11 +2318,14 @@ export default function App() {
         onSwitchUser={async () => {
           // Remembering people: step away without signing out, so this person can come back with
           // their PIN. Otherwise sign out as before.
-          if (remembering && (await isRemembered())) return stepAway();
+          // (Who the device remembers decides, not the settings now: for a moment after someone
+          // else signs in, their copy of the settings can read as the defaults. Turning remembering
+          // off forgets everyone, so anyone still listed may be offered.)
+          if (!demo && supabase && (await isRemembered())) return stepAway();
           await pinLock.clear();
           signOutStaff('Signed out. The next person can sign in.');
         }}
-        loadPeople={remembering ? loadOthers : undefined}
+        loadPeople={!demo && supabase ? loadOthers : undefined}
         onSwitchTo={async (userId, pin) => {
           const person = (await loadOthers()).find((p) => p.userId === userId);
           return person ? switchTo(person, pin) : 'Choose who you are again.';
