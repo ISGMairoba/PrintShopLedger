@@ -224,6 +224,8 @@ export interface Job {
   stageHours?: Record<string, number>;
   /** 'production': the sale took nothing; its materials check takes them (stock-count.mjs reservedStock). */
   materialsAt?: 'production';
+  /** Timed by ratio: each stage's share (%) of the job's time (stage-time.mjs). */
+  stageShares?: Record<string, number>;
   /** On hold: what it waits for, who held it and at which stage. */
   hold?: {
     reason: string;
@@ -536,7 +538,7 @@ export type ServiceProduction = {
   materialsAt?: 'checkout' | 'production';
 };
 /** A production step between Added and Completed, with an optional time (minutes, typed in unit). */
-export type Step = { name: string; minutes?: number; unit?: 'm' | 'h' | 'd' };
+export type Step = { name: string; minutes?: number; unit?: 'm' | 'h' | 'd'; share?: number };
 export type JobExtraMaterialsEvent = {
   id: string;
   kind: 'job.extra_materials_set';

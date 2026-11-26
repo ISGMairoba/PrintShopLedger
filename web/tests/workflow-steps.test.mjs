@@ -77,3 +77,41 @@ test('Processing uses the business words', () => {
     'Processing',
   );
 });
+
+test('Steps timed by ratio: shares add up to 100, spread over a turnaround', async () => {
+  const m = await import('../src/workflow-steps.mjs');
+  const steps = m.shareSteps(
+    [
+      { name: 'Design', share: 25 },
+      { name: 'Printing', share: 50 },
+      { name: 'Finishing', share: 25 },
+    ],
+    4 * 1440,
+    'd',
+  );
+  assert.deepEqual(
+    steps.map((s) => s.minutes),
+    [1440, 2880, 1440],
+  );
+  assert.equal(m.turnaroundMinutes(steps), 4 * 1440);
+  assert.deepEqual(m.validSteps(steps), steps);
+  assert.ok(m.byRatio(steps));
+  const flow = m.stepsWorkflow(steps);
+  assert.deepEqual(flow.shares, { Design: 25, Printing: 50, Finishing: 25 });
+  assert.deepEqual(flow.hours, { Design: 24, Printing: 48, Finishing: 24 });
+  // No turnaround: shares only.
+  assert.deepEqual(m.stepsWorkflow(m.shareSteps(steps, 0)).hours, {});
+  assert.deepEqual(m.sharesFromWeights([1, 2, 1]), [25, 50, 25]);
+  assert.deepEqual(m.sharesFromWeights([1, 1, 1]), [33.33, 33.33, 33.34]);
+  assert.throws(
+    () =>
+      m.validSteps([
+        { name: 'A', share: 60 },
+        { name: 'B', share: 30 },
+      ]),
+    /add up to 90%/,
+  );
+  assert.throws(() => m.validSteps([{ name: 'A', share: 60 }, { name: 'B' }]), /every step a share/);
+  // Fixed times are as before.
+  assert.equal(m.stepsWorkflow([{ name: 'A', minutes: 60 }]).shares, undefined);
+});

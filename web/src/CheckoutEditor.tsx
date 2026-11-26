@@ -242,6 +242,8 @@ type CartLine = {
   workflowId?: string;
   workflowName?: string;
   stageHours?: Record<string, number>;
+  /** Timed by ratio: each stage's share (%) of the job's time. */
+  stageShares?: Record<string, number>;
   /** Steps an Admin is changing for this job (sent as workflow and stageHours). */
   steps?: Step[];
   /** This job's own discount, as typed. */
@@ -277,6 +279,7 @@ function TightDeadline({
       productionStatus: 'Added',
       workflow: line.workflow ?? jobStages,
       stageHours: line.stageHours,
+      stageShares: line.stageShares,
       dueAt: line.dueAt,
     },
     stageHours,
@@ -286,7 +289,9 @@ function TightDeadline({
   return (
     <small className="notice" role="status">
       Tight deadline: the steps take {spanLabel(plan.needed)}, but only {spanLabel(plan.available)} is left.
-      Each step's time is shrunk to fit.
+      {line.stageShares
+        ? ' Each step keeps its share of the time left.'
+        : " Each step's time is shrunk to fit."}
     </small>
   );
 }
@@ -302,7 +307,12 @@ const toLine = ({ discountDraft: draft, priceText, steps, ...line }: CartLine) =
   // check reports a step left without a name).
   const flow = steps ? stepsWorkflow(stepsOrTyped(steps)) : null;
   const item = flow
-    ? { ...line, workflow: flow.stages, stageHours: Object.keys(flow.hours).length ? flow.hours : undefined }
+    ? {
+        ...line,
+        workflow: flow.stages,
+        stageHours: Object.keys(flow.hours).length ? flow.hours : undefined,
+        stageShares: flow.shares,
+      }
     : line;
   const discount = draft ? discountSpec(draft) : null;
   const priced = priceText === undefined ? item : { ...item, unitPrice: typedPrice(priceText) };
@@ -367,6 +377,7 @@ export default function CheckoutEditor({
       workflowId: undefined,
       workflowName: undefined,
       stageHours: Object.keys(flow.hours).length ? flow.hours : undefined,
+      stageShares: flow.shares,
       steps: undefined,
     };
   };
