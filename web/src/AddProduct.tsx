@@ -204,9 +204,7 @@ export default function AddProduct({
                 name="unit"
                 defaultValue={fromMaterial?.measurementUnit ?? (units.includes('piece') ? 'piece' : units[0])}
               >
-                {[...new Set([...(fromMaterial ? [fromMaterial.measurementUnit] : []), ...units])].map((unit) => (
-                  <option key={unit}>{unit}</option>
-                ))}
+                {[...new Set([...(fromMaterial ? [fromMaterial.measurementUnit] : []), ...units])].map(
               </select>
             </label>
             <label>
