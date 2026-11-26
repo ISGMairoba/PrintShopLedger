@@ -66,6 +66,22 @@ const round2 = (n) => Math.round(n * 100) / 100;
 export const byRatio = (steps) => steps.length > 0 && steps.every((s) => s.share > 0);
 /** A ratio workflow's usual turnaround in minutes (the sum of its steps' minutes), or 0. */
 export const turnaroundMinutes = (steps) => steps.reduce((sum, s) => sum + (s.minutes ?? 0), 0);
+
+/**
+ * How long the steps take in all, in minutes: by ratio the usual turnaround, else the sum when
+ * every step has a time; 0 when the time is not known (untimed steps share the time to the due date).
+ */
+export const stepsMinutes = (steps) =>
+  steps.length && steps.every((s) => (s.minutes ?? 0) > 0) ? turnaroundMinutes(steps) : 0;
+
+/** A span in words: "45 min", "6 hours", "3 days". */
+export function minutesLabel(minutes) {
+  if (minutes < 60) return `${Math.max(1, Math.round(minutes))} min`;
+  const hours = Math.round(minutes / 6) / 10;
+  if (hours < 48) return `${hours} hour${hours === 1 ? '' : 's'}`;
+  const days = Math.round((minutes / 1440) * 10) / 10;
+  return `${days} days`;
+}
 /**
  * Steps with shares spread over a turnaround: each step's minutes are its share of it (at least a
  * minute), or none without a turnaround. unit: how the turnaround was typed, for showing it again.

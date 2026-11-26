@@ -1,6 +1,6 @@
 import { partnerItem, partnerSplit } from './partners.mjs';
 import { useTeam } from './TeamContext';
-import { teamPeople } from './team.mjs';
+import { AssignDraftButton, assignDraft, type AssignDraft } from './TeamAssign';
 import { belowMinimum, minOrderRule } from './min-order.mjs';
 import DefaultTermsButton from './DefaultTermsButton';
 import TemplateDiscountWarning from './TemplateDiscountWarning';
@@ -17,7 +17,7 @@ import { lineWithDescription, nextDescription } from './job-batches.mjs';
 import SearchSelect from './SearchSelect';
 import { useFeedbackMessage } from './Feedback';
 import { useBusinessOptions } from './BusinessOptionsContext';
-import { StepBuilder } from './StepBuilder';
+import { StepsDialog } from './StepBuilder';
 import { itemSteps, stagesToSteps, stepsWorkflow, validSteps } from './workflow-steps.mjs';
 import { spanLabel, stagePlan } from './stage-time.mjs';
 import CurrencyInput from './CurrencyInput';
@@ -247,8 +247,8 @@ type CartLine = {
   stageHours?: Record<string, number>;
   /** Timed by ratio: each stage's share (%) of the job's time. */
   stageShares?: Record<string, number>;
-  /** Team work: who does this job, assigned after the sale (App completeCheckout). */
-  assignTo?: string[];
+  /** Team work: who does this job ('' the whole job, or a stage), assigned after the sale (App completeCheckout). */
+  assignTo?: AssignDraft | string[];
   /** Steps an Admin is changing for this job (sent as workflow and stageHours). */
   steps?: Step[];
   /** This job's own discount, as typed. */
@@ -1169,33 +1169,15 @@ export default function CheckoutEditor({
                             );
                           })()}
                         {!service?.shelfItem && team?.on && team.actor.level >= team.settings.assignRank && (
-                          <fieldset className="assign-to">
-                            <legend>Assign to</legend>
-                            {(teamPeople(team.ledger) as { id: string; name: string }[]).map((p) => (
-                              <label key={p.id} className="check-label">
-                                <input
-                                  type="checkbox"
-                                  checked={(item.assignTo ?? []).includes(p.id)}
-                                  onChange={(e) =>
-                                    setLines((items) =>
-                                      items.map((l) =>
-                                        l.id === item.id
-                                          ? {
-                                              ...l,
-                                              assignTo: e.target.checked
-                                                ? [...(l.assignTo ?? []), p.id]
-                                                : (l.assignTo ?? []).filter((x) => x !== p.id),
-                                            }
-                                          : l,
-                                      ),
-                                    )
-                                  }
-                                />
-                                {p.name}
-                              </label>
-                            ))}
-                            <small>Optional: who does this job (assigned when the sale is saved).</small>
-                          </fieldset>
+                          <AssignDraftButton
+                            stages={toLine(item).workflow ?? options.jobStages}
+                            value={assignDraft(item.assignTo)}
+                            onChange={(next) =>
+                              setLines((items) =>
+                                items.map((l) => (l.id === item.id ? { ...l, assignTo: next } : l)),
+                              )
+                            }
+                          />
                         )}
                       </div>
                       {!service?.shelfItem && (
@@ -1213,69 +1195,21 @@ export default function CheckoutEditor({
                             <button
                               type="button"
                               className="text-button"
-                              aria-expanded={stepsFor === item.id}
-                              onClick={() => {
-                                setStepsFor(stepsFor === item.id ? null : item.id);
-                                if (!item.steps)
-                                  setLines((items) =>
-                                    items.map((l) =>
-                                      l.id === item.id
-                                        ? {
-                                            ...l,
-                                            steps: stagesToSteps(
-                                              l.workflow ?? options.jobStages,
-                                              l.stageHours,
-                                            ),
-                                          }
-                                        : l,
-                                    ),
-                                  );
-                              }}
+                              data-opens-dialog
+                              onClick={() => setStepsFor(item.id)}
                             >
-                              {stepsFor === item.id ? 'Done' : 'Edit steps'}
+                              <Icon name="edit" /> Edit steps
                             </button>
                           )}
-                          {canChooseWorkflow &&
-                            stepsFor === item.id &&
-                            item.steps &&
-                            (options.workflows ?? []).length > 0 && (
-                              <label className="job-steps-copy">
-                                {w('Copy a saved workflow')}
-                                <SearchSelect
-                                  label={`${w('Job')} ${index + 1}: copy a saved workflow`}
-                                  value=""
-                                  placeholder={w('Choose…')}
-                                  onChange={(id) => {
-                                    const wf = (options.workflows ?? []).find((x) => x.id === id);
-                                    if (!wf) return;
-                                    setLines((items) =>
-                                      items.map((l) =>
-                                        l.id === item.id
-                                          ? {
-                                              ...l,
-                                              steps: wf.steps.map((st) => ({ ...st })),
-                                              workflowName: wf.name,
-                                            }
-                                          : l,
-                                      ),
-                                    );
-                                  }}
-                                  options={(options.workflows ?? []).map((wf) => ({
-                                    value: wf.id,
-                                    label: wf.name,
-                                  }))}
-                                />
-                              </label>
-                            )}
-                          {canChooseWorkflow && stepsFor === item.id && item.steps && (
-                            <StepBuilder
-                              steps={item.steps}
-                              label={`${w('Job')} ${index + 1} steps`}
-                              onChange={(steps) =>
-                                setLines((items) =>
-                                  items.map((l) => (l.id === item.id ? { ...l, steps } : l)),
-                                )
+                          {canChooseWorkflow && stepsFor === item.id && (
+                            <StepsDialog
+                              title={`${w('Job')} ${index + 1} steps`}
+                              steps={item.steps ?? stagesToSteps(item.workflow ?? options.jobStages, item.stageHours)}
+                              copyFrom={options.workflows ?? []}
+                              onSave={(steps) =>
+                                setLines((items) => items.map((l) => (l.id === item.id ? { ...l, steps } : l)))
                               }
+                              onClose={() => setStepsFor(null)}
                             />
                           )}
                         </div>

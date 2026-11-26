@@ -118,11 +118,15 @@ try {
     await page.getByLabel('Material units', { exact: true }).fill('sheet\nbox');
     // A saved workflow: Design and Approval to start with, then Finishing; items follow it.
     await page.getByRole('button', { name: 'Add workflow', exact: true }).click();
-    await page.getByLabel('Workflow 1 name', { exact: true }).fill('Studio');
-    await page.getByRole('button', { name: 'Add step', exact: true }).click();
-    await page.getByLabel('Studio: step 3 name', { exact: true }).fill('Finishing');
-    await page.getByLabel('Studio: Finishing time', { exact: true }).fill('30');
-    await page.getByLabel('Studio: Finishing unit', { exact: true }).selectOption('m');
+    const flow = page.getByRole('dialog', { name: 'Add workflow' });
+    await flow.getByLabel('Workflow name', { exact: true }).fill('Studio');
+    await flow.getByRole('button', { name: 'Add step', exact: true }).click();
+    await flow.getByLabel('Studio: step 3 name', { exact: true }).fill('Finishing');
+    await flow.getByLabel('Studio: Finishing time', { exact: true }).fill('30');
+    await flow.getByLabel('Studio: Finishing unit', { exact: true }).selectOption('m');
+    await flow.getByRole('button', { name: 'Save steps', exact: true }).click();
+    await flow.waitFor({ state: 'detached' });
+    await page.locator('li.workflow-row', { hasText: 'Studio' }).waitFor();
     await choose(page, 'Usual steps', 'Studio');
     await settingsSection(page, /Profile & logo/);
     await page.getByLabel('Email', { exact: true }).fill('invalid');

@@ -8,18 +8,20 @@ export async function useUsualSteps(page, nav, steps = ['In Queue', 'Printing'],
   await nav('Business Settings');
   await settingsSection(page, /Dropdowns & workflow/);
   // The settings load just after the app opens: until then the section's fields are disabled and a
-  // click does nothing, so wait for the button to be usable, and click again if no workflow appears.
+  // click does nothing, so wait for the button to be usable, and click again if no window appears.
   const add = page.getByRole('button', { name: 'Add workflow', exact: true });
-  const first = page.getByLabel('Workflow 1 name', { exact: true });
-  for (let i = 0; i < 20 && !(await first.isVisible()); i++) {
+  const d = page.getByRole('dialog', { name: 'Add workflow' });
+  for (let i = 0; i < 20 && !(await d.isVisible()); i++) {
     if (await add.isEnabled()) await add.click();
-    await first.waitFor({ timeout: 2000 }).catch(() => {});
+    await d.waitFor({ timeout: 2000 }).catch(() => {});
   }
-  await page.getByLabel('Workflow 1 name', { exact: true }).fill(name);
+  await d.getByLabel('Workflow name', { exact: true }).fill(name);
   for (let i = 2; i < steps.length; i++)
-    await page.getByRole('button', { name: 'Add step', exact: true }).last().click();
+    await d.getByRole('button', { name: 'Add step', exact: true }).last().click();
   for (const [i, step] of steps.entries())
-    await page.getByLabel(`${name}: step ${i + 1} name`, { exact: true }).fill(step);
+    await d.getByLabel(`${name}: step ${i + 1} name`, { exact: true }).fill(step);
+  await d.getByRole('button', { name: 'Save steps', exact: true }).click();
+  await d.waitFor({ state: 'detached' });
   await choose(page, 'Usual steps', name);
   await page.getByRole('button', { name: 'Save dropdown settings', exact: true }).click();
   await page.getByText('Dropdown settings saved.', { exact: true }).waitFor();

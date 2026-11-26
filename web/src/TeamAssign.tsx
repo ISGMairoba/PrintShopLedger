@@ -72,33 +72,116 @@ export function AssignButton({ jobs }: { jobs: Job[] }) {
   );
 }
 
-/** Assign one or many jobs, or one stage of them, to Team people. */
-export function AssignDialog({ jobs, onClose }: { jobs: Job[]; onClose: () => void }) {
+/** Who is chosen in a draft (checkout): '' = the whole job, or a stage, with the people's ids. */
+export type AssignDraft = Record<string, string[]>;
+/** A draft as saved on a cart line (older carts kept a list for the whole job). */
+export const assignDraft = (value?: AssignDraft | string[]): AssignDraft =>
+  Array.isArray(value) ? { '': value } : (value ?? {});
+const cleanDraft = (draft: AssignDraft) =>
+  Object.fromEntries(Object.entries(draft).filter(([, ids]) => ids.length)) as AssignDraft;
+
+/**
+ * Assign to, before the job exists (checkout): one line saying who, and a button opening the
+ * Assign dialog. The choice is assigned when the sale is saved.
+ */
+export function AssignDraftButton({
+  stages,
+  value,
+  onChange,
+}: {
+  stages: string[];
+  value: AssignDraft;
+  onChange: (next: AssignDraft) => void;
+}) {
+  const team = useTeam();
+  const { stage: stageName } = useWords();
+  const [open, setOpen] = useState(false);
+  if (!team) return null;
+  const work = stages.filter((s) => !['Added', 'Completed', 'Collected', 'Cancelled'].includes(s));
+  const chosen = Object.entries(cleanDraft(value)).filter(([s]) => s === '' || work.includes(s));
+  const names = (ids: string[]) => ids.map((id) => personName(team.ledger, id)).join(', ');
+  return (
+    <div className="assign-draft">
+      <span>
+        <strong>Assign to:</strong>{' '}
+        {chosen.length
+          ? chosen.map(([s, ids]) => (s ? `${stageName(s)}: ${names(ids)}` : names(ids))).join(' · ')
+          : <span className="muted">no one yet (optional)</span>}
+      </span>{' '}
+      <button type="button" className="text-button" data-opens-dialog onClick={() => setOpen(true)}>
+        <Icon name="users" /> {chosen.length ? 'Change' : 'Assign to'}
+      </button>
+      {open && (
+        <AssignDialog
+          jobs={[]}
+          draft={{ stages: work, value, onApply: (next) => onChange(cleanDraft(next)) }}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Assign one or many jobs, or stages of them, to Team people. With draft (checkout), the choice is
+ * handed back instead of saved.
+ */
+export function AssignDialog({
+  jobs,
+  draft,
+  onClose,
+}: {
+  jobs: Job[];
+  draft?: { stages: string[]; value: AssignDraft; onApply: (next: AssignDraft) => void };
+  onClose: () => void;
+}) {
   const team = useTeam();
   const { stage: stageName, w } = useWords();
   // Stages every chosen job has.
-  const stages = jobs.length
-    ? workStages(jobs[0]).filter((s: string) => jobs.every((j) => workStages(j).includes(s)))
-    : [];
+  const stages = draft
+    ? draft.stages
+    : jobs.length
+      ? workStages(jobs[0]).filter((s: string) => jobs.every((j) => workStages(j).includes(s)))
+      : [];
   const [stage, setStage] = useState('');
   const current = (s: string) =>
-    jobs.length === 1 && team ? (assignmentOf(team.ledger, jobs[0].id, s)?.personIds ?? []) : [];
-  const [ids, setIds] = useState<string[]>(() => current(''));
+    draft
+      ? (draft.value[s] ?? [])
+      : jobs.length === 1 && team
+        ? (assignmentOf(team.ledger, jobs[0].id, s)?.personIds ?? [])
+        : [];
+  // Each stage changed in this dialog, with who is chosen for it.
+  const [picks, setPicks] = useState<AssignDraft>(() => ({ '': current('') }));
+  const ids = picks[stage] ?? current(stage);
+  const setIds = (next: string[]) => setPicks((p) => ({ ...p, [stage]: next }));
   const [error, setError] = useState('');
   if (!team) return null;
   const people = (teamPeople(team.ledger) as TeamPerson[]).filter((p) => !p.archived);
+  const changed = Object.entries(picks).filter(
+    ([s, list]) => list.join() !== current(s).join() || (s === stage && !draft),
+  );
   const save = async () => {
     setError('');
     try {
-      await team.save(jobs.map((job) => assignEvent(team.ledger, job, stage, ids, team.actor) as TeamEvent));
+      if (draft) {
+        draft.onApply({ ...draft.value, ...picks });
+        onClose();
+        return;
+      }
+      await team.save(
+        jobs.flatMap((job) =>
+          changed.map(([s, list]) => assignEvent(team.ledger, job, s, list, team.actor) as TeamEvent),
+        ),
+      );
       onClose();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     }
   };
+  const anyone = Object.values({ ...(draft?.value ?? {}), ...picks }).some((list) => list.length);
   return (
     <Modal
-      title={jobs.length === 1 ? w('Assign job') : w(`Assign ${jobs.length} jobs`)}
+      title={draft || jobs.length === 1 ? w('Assign job') : w(`Assign ${jobs.length} jobs`)}
       busy={team.busy}
       onClose={onClose}
       footer={
@@ -107,7 +190,7 @@ export function AssignDialog({ jobs, onClose }: { jobs: Job[]; onClose: () => vo
             <Icon name="close" /> Cancel
           </button>
           <button type="button" disabled={team.busy} onClick={() => void save()}>
-            <Icon name="save" /> {ids.length ? 'Save assignment' : 'Clear assignment'}
+            <Icon name="save" /> {draft ? 'Done' : anyone || ids.length ? 'Save assignment' : 'Clear assignment'}
           </button>
         </div>
       }
@@ -122,22 +205,20 @@ export function AssignDialog({ jobs, onClose }: { jobs: Job[]; onClose: () => vo
           The same people are assigned to each of the {jobs.length} jobs, replacing who was assigned.
         </p>
       )}
+      {draft && <p className="muted">Assigned when the sale is saved.</p>}
       <label>
         Assign
-        <select
-          aria-label="Assign"
-          value={stage}
-          onChange={(e) => {
-            setStage(e.target.value);
-            setIds(current(e.target.value));
-          }}
-        >
+        <select aria-label="Assign" value={stage} onChange={(e) => setStage(e.target.value)}>
           <option value="">{w('The whole job')}</option>
-          {stages.map((s: string) => (
-            <option key={s} value={s}>
-              Only {stageName(s)}
-            </option>
-          ))}
+          {stages.map((s: string) => {
+            const n = (picks[s] ?? current(s)).length;
+            return (
+              <option key={s} value={s}>
+                Only {stageName(s)}
+                {n ? ` (${n})` : ''}
+              </option>
+            );
+          })}
         </select>
       </label>
       <fieldset className="page-limit-list">

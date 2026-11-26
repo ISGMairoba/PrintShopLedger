@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Modal from './Modal';
 import Icon from './Icon';
 import { useWords } from './Words';
 import { useBusinessOptions } from './BusinessOptionsContext';
@@ -9,9 +10,11 @@ import {
   byRatio,
   fallbackName,
   fallbackSteps,
+  minutesLabel,
   shareSteps,
   sharesFromWeights,
   stepAmount,
+  stepsMinutes,
   turnaroundMinutes,
 } from './workflow-steps.mjs';
 import type { Step } from './types';
@@ -293,6 +296,8 @@ export function ItemSteps({
   const { w, stage } = useWords();
   const saved = options.workflows ?? [];
   const usual = { name: fallbackName(options, kind) || undefined };
+  // The steps being edited in the Steps window (Cancel keeps the item as it was).
+  const [editing, setEditing] = useState<Step[] | null>(null);
   return (
     <fieldset className="stage-hours">
       <legend>{w('Production steps')}</legend>
@@ -305,7 +310,7 @@ export function ItemSteps({
           onChange={(e) => {
             const id = e.target.value;
             if (id === 'usual') onChange(undefined);
-            else if (id === 'own') onChange(fallbackSteps(options, kind).map((s) => ({ ...s })));
+            else if (id === 'own') setEditing(fallbackSteps(options, kind).map((s) => ({ ...s })));
             else {
               const wf = saved.find((x) => x.id === id);
               if (wf) onChange(wf.steps.map((s) => ({ ...s })));
@@ -324,7 +329,18 @@ export function ItemSteps({
         </select>
       </label>
       {value ? (
-        <StepBuilder steps={value} onChange={onChange} label="Production steps" disabled={disabled} />
+        <p className="steps-line">
+          <StepsSummary steps={value} />{' '}
+          <button
+            type="button"
+            className="text-button"
+            disabled={disabled}
+            data-opens-dialog
+            onClick={() => setEditing(value)}
+          >
+            <Icon name="edit" /> Edit steps
+          </button>
+        </p>
       ) : (
         <p className="muted">
           {w('Jobs for this item follow the usual steps')}:{' '}
@@ -334,6 +350,122 @@ export function ItemSteps({
           . {w('Change them here to give this item its own.')}
         </p>
       )}
+      {editing && (
+        <StepsDialog
+          title={w('Production steps')}
+          steps={editing}
+          onSave={(steps) => onChange(steps)}
+          onClose={() => setEditing(null)}
+        />
+      )}
     </fieldset>
+  );
+}
+
+/** The steps in one line: "Design → Printing → Binding · about 3 days". */
+export function StepsSummary({ steps }: { steps: Step[] }) {
+  const { stage } = useWords();
+  const minutes = stepsMinutes(steps);
+  return (
+    <span className="steps-summary">
+      {steps.map((s) => stage(s.name)).join(' → ') || '—'}
+      {minutes ? <span className="muted"> · about {minutesLabel(minutes)}</span> : null}
+    </span>
+  );
+}
+
+/**
+ * Edit steps in a small window (owner, 26 Nov: the same look everywhere): a copy is edited and
+ * handed back with Save steps; Cancel leaves the steps as they were. With name, the workflow's
+ * name is edited too; with copyFrom, a saved workflow can be copied in.
+ */
+export function StepsDialog({
+  title,
+  steps,
+  name,
+  copyFrom,
+  onSave,
+  onClose,
+}: {
+  title: string;
+  steps: Step[];
+  name?: string;
+  copyFrom?: { id: string; name: string; steps: Step[] }[];
+  onSave: (steps: Step[], name: string) => void;
+  onClose: () => void;
+}) {
+  const { w } = useWords();
+  const [draft, setDraft] = useState<Step[]>(() => steps.map((s) => ({ ...s })));
+  const [draftName, setDraftName] = useState(name ?? '');
+  // A copied workflow gives StepBuilder fresh steps (its turnaround is read when it starts).
+  const [copies, setCopies] = useState(0);
+  const [error, setError] = useState('');
+  const save = () => {
+    if (name !== undefined && !draftName.trim()) return setError(w('Enter a workflow name.'));
+    if (!draft.length) return setError('Add at least one step.');
+    if (draft.some((s) => !s.name.trim())) return setError('Give each step a name.');
+    onSave(draft, draftName.trim());
+    onClose();
+  };
+  return (
+    <Modal
+      title={title}
+      onClose={onClose}
+      footer={
+        <div className="dialog-action-buttons">
+          <button type="button" className="secondary" onClick={onClose}>
+            <Icon name="close" /> Cancel
+          </button>
+          <button type="button" onClick={save}>
+            <Icon name="save" /> Save steps
+          </button>
+        </div>
+      }
+    >
+      {error && (
+        <p className="notice" role="alert">
+          {error}
+        </p>
+      )}
+      {name !== undefined && (
+        <label>
+          {w('Workflow name')}
+          <input
+            aria-label={w('Workflow name')}
+            maxLength={60}
+            value={draftName}
+            onChange={(e) => setDraftName(e.target.value)}
+          />
+        </label>
+      )}
+      {!!copyFrom?.length && (
+        <label>
+          {w('Copy a saved workflow')}
+          <select
+            aria-label={w('Copy a saved workflow')}
+            value=""
+            onChange={(e) => {
+              const wf = copyFrom.find((x) => x.id === e.target.value);
+              if (!wf) return;
+              setDraft(wf.steps.map((s) => ({ ...s })));
+              setCopies((n) => n + 1);
+            }}
+          >
+            <option value="">{w('Choose…')}</option>
+            {copyFrom.map((wf) => (
+              <option key={wf.id} value={wf.id}>
+                {wf.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      <StepBuilder
+        key={copies}
+        steps={draft}
+        onChange={setDraft}
+        label={name !== undefined ? draftName.trim() || title : title}
+      />
+    </Modal>
   );
 }

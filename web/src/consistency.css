@@ -2027,6 +2027,46 @@ details.workflow-row > summary {
 details.workflow-row[open] > summary {
   margin-bottom: 4px;
 }
+/* Saved workflows: one line each, edited in the Steps window. */
+.workflow-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+li.workflow-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  padding-bottom: 12px;
+}
+li.workflow-row:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+li.workflow-row .badge {
+  margin-left: 6px;
+}
+@media (max-width: 640px) {
+  li.workflow-row {
+    grid-template-columns: 1fr;
+  }
+}
+.steps-summary {
+  overflow-wrap: anywhere;
+}
+.steps-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+/* Checkout: who does the job, one line with Change (the Assign window). */
+.assign-draft {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin-top: 6px;
+}
 /* Jobs on hold (waiting for approval, a balance, materials…). */
 .job-held {
   display: inline-block;
