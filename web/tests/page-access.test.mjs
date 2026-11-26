@@ -58,7 +58,7 @@ test('older saved settings give each new page its old page access, once', () => 
   };
   const up = upgradePageAccess(old);
   assert.deepEqual(up['1'], ['Point of Service', 'My Account', 'Quotations', 'Pricing Templates']);
-  assert.deepEqual(up['2'], ['Dashboard', 'Services', 'My Account', 'Reports', 'Edit Products']);
+  assert.deepEqual(up['2'], ['Dashboard', 'Services', 'My Account', 'Reports', 'Edit Products', 'Partners']);
   assert.deepEqual(up['3'], ['My Account']);
   const b = validateBranding({
     ...defaultBranding(),
@@ -66,7 +66,7 @@ test('older saved settings give each new page its old page access, once', () => 
     pageAccess: old,
     pageAccessVersion: undefined,
   });
-  assert.equal(b.pageAccessVersion, 4);
+  assert.equal(b.pageAccessVersion, 5);
   assert.ok(b.pageAccess['2'].includes('Reports'));
   // Once upgraded, a page that was switched off stays off.
   const off = validateBranding({

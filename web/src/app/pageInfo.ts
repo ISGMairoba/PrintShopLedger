@@ -19,6 +19,7 @@ export const pageIcons: Record<Page, IconName> = {
   Materials: 'materials',
   'Material Waste': 'waste',
   'Stock Count': 'history',
+  Partners: 'customers',
   Services: 'services',
   'Edit Products': 'edit',
   'Stock History': 'history',
@@ -39,6 +40,7 @@ export const pageDescriptions: Record<Page, string> = {
   'Sale Adjustments': 'Approve and review changes to sales and customer credit.',
   'Material Waste': 'Track extra material use, damage and reprints.',
   'Stock Count': 'Count materials all at once or shelf by shelf; an Admin reviews and finishes the count.',
+  Partners: 'Stock kept for regular clients: agreements, stock on hand, preparing stock in batches.',
   'Business Settings': '',
   'Pricing Templates':
     'Price jobs from templates, compare options for clients, and manage templates and costs.',

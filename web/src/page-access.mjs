@@ -26,6 +26,7 @@ export const pages = [
   'Sale Adjustments',
   'Material Waste',
   'Stock Count',
+  'Partners',
 ];
 export const navigationPages = pages;
 /** Menu sections: each page's group heading. */
@@ -34,7 +35,7 @@ export const pageGroups = [
   ['Jobs & money', ['Jobs', 'Customers', 'Payment Reminders', 'Payments', 'Expenses', 'Payees', 'Accounts']],
   [
     'Stock & catalogue',
-    ['Materials', 'Material Waste', 'Stock Count', 'Services', 'Edit Products', 'Stock History'],
+    ['Materials', 'Material Waste', 'Stock Count', 'Partners', 'Services', 'Edit Products', 'Stock History'],
   ],
   [
     'Settings & control',
@@ -53,7 +54,7 @@ export const formerParents = {
   Payees: 'Expenses',
   Accounts: 'Expenses',
 };
-export const PAGE_ACCESS_VERSION = 4;
+export const PAGE_ACCESS_VERSION = 5;
 /** The Business Settings tabs. Page access is always Developer only. */
 export const settingsTabs = [
   'Profile & logo',
@@ -197,11 +198,14 @@ export function upgradePageAccess(input, fromVersion = 0) {
     if (Array.isArray(value[rank]))
       for (const [page, parent] of Object.entries(
         // Version 4 (26 Nov): Stock Count, for everyone who opens Materials.
-        fromVersion >= 3
-          ? { 'Stock Count': 'Materials' }
-          : fromVersion >= 2
-            ? { Payees: 'Expenses', Accounts: 'Expenses', 'Stock Count': 'Materials' }
-            : { ...formerParents, 'Stock Count': 'Materials' },
+        // Version 5 (26 Nov): Partners, for everyone who opens Services (the feature starts off).
+        fromVersion >= 4
+          ? { Partners: 'Services' }
+          : fromVersion >= 3
+            ? { 'Stock Count': 'Materials', Partners: 'Services' }
+            : fromVersion >= 2
+              ? { Payees: 'Expenses', Accounts: 'Expenses', 'Stock Count': 'Materials', Partners: 'Services' }
+              : { ...formerParents, 'Stock Count': 'Materials', Partners: 'Services' },
       ))
         if (
           value[rank].includes(parent) &&

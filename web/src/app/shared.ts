@@ -17,6 +17,7 @@ export type Page =
   | 'Sale Adjustments'
   | 'Material Waste'
   | 'Stock Count'
+  | 'Partners'
   | 'My Sales'
   | 'Point of Service'
   | 'Quotations'
