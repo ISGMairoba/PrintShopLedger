@@ -1,3 +1,4 @@
+import { partnerItem, partnerSplit } from './partners.mjs';
 import { reservedStock } from './stock-count.mjs';
 import { materialsAtSale, notEnoughStock, stockBelowZeroBlocked } from './stock-rule.mjs';
 import { minOrderRule } from './min-order.mjs';
@@ -189,6 +190,10 @@ export function quoteLine(ledger, line, notCollected = false) {
     ...(discount ? { discount } : {}),
     stockCountEventId: material && !choice ? stockCountEvent(ledger, material.id) : null,
     ...workflowFields(line),
+    // A partner item: from the partner's stock first, the rest made (in the best batch size).
+    ...(service.production?.partnerOf
+      ? { partner: partnerSplit(partnerItem(ledger, service.id), quantity) }
+      : {}),
     // In production (a setting): the sale takes nothing, the job reserves its materials.
     ...(materialsAt(service, { materialsAt: materialsAtSale() }) === 'production'
       ? { materialsAt: 'production' }
@@ -656,6 +661,11 @@ export function applyCheckout(ledger, event) {
           stockEventId: s.stockEventId,
         }))
       : [{ ...job, stockEventId: job.id }];
+    const partnerOf = ledger.services.find((s) => s.id === job.serviceId)?.production?.partnerOf;
+    if (partnerOf && partnerOf !== data.customerId) {
+      const name = next.customers.find((c) => c.id === partnerOf)?.name ?? 'a partner';
+      throw Error(`${job.service} is made for ${name}: sell it to them, or choose another item.`);
+    }
     if (job.materialsAt === 'production') {
       // Taken by its materials check; with "Stock below zero: block", what is free must cover it.
       for (const usage of usages) {

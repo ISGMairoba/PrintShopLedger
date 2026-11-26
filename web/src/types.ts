@@ -224,6 +224,11 @@ export interface Job {
   stageHours?: Record<string, number>;
   /** 'production': the sale took nothing; its materials check takes them (stock-count.mjs reservedStock). */
   materialsAt?: 'production';
+  /** A partner item's order (partners.mjs partnerSplit), and whether its stock moves were recorded. */
+  partner?: { itemId: string; fromStock: number; toMake: number; made: number; design: number };
+  partnerBuild?: { itemId: string; quantity: number; design: number };
+  partnerTaken?: boolean;
+  partnerCredited?: boolean;
   /** Timed by ratio: each stage's share (%) of the job's time (stage-time.mjs). */
   stageShares?: Record<string, number>;
   /** On hold: what it waits for, who held it and at which stage. */
@@ -536,6 +541,8 @@ export type ServiceProduction = {
   steps?: Step[];
   /** When its materials leave stock (none: the business's choice). */
   materialsAt?: 'checkout' | 'production';
+  /** Made for one partner (the customer's id; partners.mjs). */
+  partnerOf?: string;
 };
 /** A production step between Added and Completed, with an optional time (minutes, typed in unit). */
 export type Step = { name: string; minutes?: number; unit?: 'm' | 'h' | 'd'; share?: number };
@@ -959,6 +966,8 @@ export interface Ledger {
   /** Stock counts (stock-count.mjs) and where each material is kept. */
   stockCounts?: StockCount[];
   materialShelves?: { id: string; shelf: string; modifiedBy?: string; modifiedAt?: string }[];
+  /** Partner items: agreement and finished stock on hand (partners.mjs). */
+  partnerItems?: PartnerItem[];
   payees?: Payee[];
   moneyAccounts?: MoneyAccount[];
   accountEntries?: Record<string, any>[];
@@ -1499,4 +1508,37 @@ export type StockCount = {
   finishedAt?: string;
   cancelledByLabel?: string;
   cancelledAt?: string;
+};
+
+/** A partner item (partners.mjs): a service made for one partner, its agreement and stock on hand. */
+export type PartnerItem = {
+  id: string;
+  customerId: string;
+  agreedStock: number;
+  refillAt: number;
+  batchSize: number;
+  endRule: 'partnerPays' | 'writeOff' | 'sellToOthers';
+  collectRule: 'together' | 'parts';
+  refillPrompt: 'ask' | 'auto' | 'never';
+  costTiming?: 'used' | 'sold';
+  reviewOn?: string | null;
+  notes: string;
+  design: number;
+  oldDesignStock?: number;
+  onHand: number;
+  status: 'active' | 'ended';
+  version: number;
+  moves: {
+    kind: string;
+    quantity?: number;
+    planned?: number;
+    jobId?: string;
+    reason?: string;
+    onHand: number;
+    at: string;
+    byLabel?: string;
+  }[];
+  createdAt?: string;
+  modifiedByLabel?: string;
+  modifiedAt?: string;
 };

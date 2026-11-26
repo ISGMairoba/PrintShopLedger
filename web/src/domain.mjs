@@ -1,3 +1,4 @@
+import { applyPartnerEvent } from './partners.mjs';
 import { applyStockCountEvent } from './stock-count.mjs';
 import { applyFieldEvent } from './item-fields.mjs';
 import { applyMaterialsCheck } from './material-check.mjs';
@@ -105,6 +106,7 @@ function applyEventCore(ledger, event) {
   if (event.kind.startsWith('quotation.')) return applyQuotationEvent(ledger, event);
   if (event.kind.startsWith('team.')) return applyTeamEvent(ledger, event);
   if (event.kind.startsWith('count.')) return applyStockCountEvent(ledger, event);
+  if (event.kind.startsWith('partner.')) return applyPartnerEvent(ledger, event);
   if (event.kind === 'customer.reminded') return applyReminderEvent(ledger, event);
   if (event.kind === 'service.display_set' || event.kind === 'customer.called_as_set')
     return applyFieldEvent(ledger, event);

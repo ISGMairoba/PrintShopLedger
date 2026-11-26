@@ -1,3 +1,4 @@
+import { partnerItem, partnerSplit } from './partners.mjs';
 import { useTeam } from './TeamContext';
 import { teamPeople } from './team.mjs';
 import { belowMinimum, minOrderRule } from './min-order.mjs';
@@ -1154,6 +1155,19 @@ export default function CheckoutEditor({
                             />
                           </label>
                         )}
+                        {service?.production?.partnerOf &&
+                          (() => {
+                            const split = partnerSplit(partnerItem(ledger, service.id), item.quantity);
+                            return (
+                              <p className="muted" role="status">
+                                Partner item: {split.fromStock} ready in stock · {split.toMake} to make
+                                {split.made > split.toMake
+                                  ? ` (a batch of ${split.made}: ${split.made - split.toMake} go back into stock)`
+                                  : ''}
+                                .
+                              </p>
+                            );
+                          })()}
                         {!service?.shelfItem && team?.on && team.actor.level >= team.settings.assignRank && (
                           <fieldset className="assign-to">
                             <legend>Assign to</legend>

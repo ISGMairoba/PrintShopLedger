@@ -20,12 +20,18 @@ export const optionalFeatures = /** @type {const} */ ([
   ['Pricing Templates', 'Pricing Templates: prices worked out with formulas'],
   ['Quotations', 'Quotations'],
   ['Print Settings', 'Print Settings: printers and print layouts'],
+  [
+    'Partners',
+    'Partners: finished stock kept for regular clients, at a fixed price, made in batches (off unless turned on)',
+  ],
 ]);
+/** Parts that stay off until a business turns them on, whatever its type. */
+const offByDefault = ['Partners'];
 
 /** Which parts a type shows before any are changed. */
 export function typeFeatures(type) {
   const on = type !== 'retail';
-  return Object.fromEntries(optionalFeatures.map(([page]) => [page, on]));
+  return Object.fromEntries(optionalFeatures.map(([page]) => [page, on && !offByDefault.includes(page)]));
 }
 
 /** Whether a part of the app shows for this business. */

@@ -24,7 +24,7 @@ import AccountsPage from './AccountsPage';
 import { defaultMoneyAccount } from './operations.mjs';
 import { locationUnitCost, stockValuation } from './actual-cost.mjs';
 import { materialUnitCost } from './profit.mjs';
-import type { Ledger, OperationsEvent, FieldEvent, TeamEvent } from './types';
+import type { Ledger, OperationsEvent, FieldEvent, Service, TeamEvent } from './types';
 import { applySaleAdjustment } from './sale-adjustments.mjs';
 import DueDateDialog from './DueDateDialog';
 import useSubscription, { subscriptionNotice } from './useSubscription';
@@ -44,6 +44,7 @@ import { validateBusinessRegistration, validActivationToken } from './registrati
 import SaleAdjustmentsPage, { SaleAdjustmentEditor } from './SaleAdjustmentsPage';
 import MaterialWastePage from './MaterialWastePage';
 import StockCountPage from './StockCountPage';
+import PartnersPage from './PartnersPage';
 import { useFeedbackMessage, FeedbackBanner } from './Feedback';
 import ConflictInbox from './ConflictInbox';
 import { blockedWork } from './sync-dependencies.mjs';
@@ -934,6 +935,42 @@ export default function App() {
       },
     } as never);
   }
+  /** A partner change (partners.mjs), signed by whoever is using the app. */
+  const partnerEvent = (kind: string, data: Record<string, unknown>) => ({
+    id: crypto.randomUUID(),
+    kind,
+    data: {
+      ...data,
+      modifiedBy: catalogueActor.id,
+      modifiedByLabel: catalogueActor.label,
+      modifiedAt: new Date().toISOString(),
+    },
+  });
+  /** Mark a service as made for a partner: its price stays fixed, its materials are taken in production. */
+  async function markPartnerService(service: Service, partnerOf: string) {
+    await saveCatalogue({
+      id: crypto.randomUUID(),
+      kind: 'service.updated',
+      data: {
+        id: service.id,
+        baseVersion: service.version,
+        description: service.description,
+        materialId: service.materialId,
+        materialOptions: service.materialOptions ?? [],
+        price: service.price,
+        shelfItem: false,
+        private: service.private ?? false,
+        costing: service.costing ?? null,
+        packPrices: service.packPrices ?? [],
+        priceTiers: service.priceTiers ?? [],
+        customPrice: false,
+        production: { ...(service.production ?? {}), partnerOf, materialsAt: 'production' },
+        modifiedBy: catalogueActor.id,
+        modifiedByLabel: catalogueActor.label,
+        modifiedAt: new Date().toISOString(),
+      },
+    } as never);
+  }
   const setMaterialShelf = (materialId: string, shelf: string) =>
     saveCount('count.shelf_set', { id: materialId, shelf });
   async function saveCatalogueMany(operations: (MaterialEvent | ServiceEvent | FieldEvent)[]) {
@@ -1058,6 +1095,16 @@ export default function App() {
         ];
         if (assign.length) next = await saveEvents(target, assign as TeamEvent[], !demo);
       }
+      // Partners: what each partner job takes from the partner's stock (partners.mjs).
+      const fromStock = next.ledger.jobs.filter(
+        (j) => operation.data.jobs.some((x) => x.id === j.id) && (j.partner?.fromStock ?? 0) > 0,
+      );
+      if (fromStock.length)
+        next = await saveEvents(
+          target,
+          fromStock.map((j) => partnerEvent('partner.stock_taken', { id: j.partner!.itemId, jobId: j.id })) as never,
+          !demo,
+        );
       setState(next);
       channel.current?.postMessage('changed');
       let syncProblem = '';
@@ -3072,6 +3119,15 @@ export default function App() {
                                   />
                                 ) : undefined
                               }
+                            />
+                          ) : page === 'Partners' ? (
+                            <PartnersPage
+                              ledger={ledger}
+                              level={demo ? 5 : (shop?.accessLevel ?? 0)}
+                              busy={busy || hasConflict}
+                              canSave={demo || online}
+                              onSave={saveCount}
+                              onSaveService={markPartnerService}
                             />
                           ) : page === 'Stock Count' ? (
                             <>

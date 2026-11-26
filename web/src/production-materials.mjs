@@ -24,7 +24,7 @@ export function validProduction(value) {
   if (value === null) return {};
   if (typeof value !== 'object' || Array.isArray(value)) throw Error('Invalid production settings.');
   for (const key of Object.keys(value))
-    if (!['extraMaterials', 'costCovered', 'perItem', 'workflowId', 'steps', 'materialsAt'].includes(key))
+    if (!['extraMaterials', 'costCovered', 'perItem', 'workflowId', 'steps', 'materialsAt', 'partnerOf'].includes(key))
       throw Error('Invalid production settings.');
   if (
     value.workflowId !== undefined &&
@@ -48,6 +48,8 @@ export function validProduction(value) {
     ...(value.workflowId ? { workflowId: value.workflowId } : {}),
     ...(value.steps ? { steps: validSteps(value.steps, 'Production steps') } : {}),
     ...(value.materialsAt ? { materialsAt: value.materialsAt } : {}),
+    // Made for one partner (partners.mjs): the customer's id.
+    ...(typeof value.partnerOf === 'string' && value.partnerOf ? { partnerOf: value.partnerOf } : {}),
   };
 }
 /** How much of its material one item of a service uses. */

@@ -281,6 +281,8 @@ export default function ServicesPage({
             : {}),
           ...(!privateItem && steps ? { steps } : {}),
           ...(!privateItem && leaveAt ? { materialsAt: leaveAt } : {}),
+          // A partner item stays one (Partners page).
+          ...(editing?.production?.partnerOf ? { partnerOf: editing.production.partnerOf } : {}),
         },
       };
       const event: ServiceEvent = {
