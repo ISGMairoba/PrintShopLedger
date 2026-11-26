@@ -1075,11 +1075,7 @@ export default function ServicesPage({
                 </label>
               )}
               {!privateItem && (
-                <ItemSteps
-                  value={steps}
-                  onChange={setSteps}
-                  kind={source?.shelfItem ? 'shelf' : 'service'}
-                />
+                <ItemSteps value={steps} onChange={setSteps} kind={source?.shelfItem ? 'shelf' : 'service'} />
               )}
               {!privateItem && (
                 <fieldset className="choice-materials">
