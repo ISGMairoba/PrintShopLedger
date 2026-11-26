@@ -249,6 +249,7 @@ import {
   withTrialMember,
   workEvents,
 } from './team.mjs';
+import { assignDraft, type AssignDraft } from './TeamAssign';
 
 const DashboardPage = lazy(() => import('./DashboardPage'));
 const ReportsPage = lazy(() => import('./ReportsPage'));
@@ -1063,18 +1064,20 @@ export default function App() {
           operation.data.termsAndConditions ?? branding.settings.documents.invoiceTerms ?? '',
       },
     };
-    // "Assign to" chosen at checkout: assigned after the sale, not kept on the job itself.
+    // "Assign to" chosen at checkout ('' the whole job, or a stage): assigned after the sale, not kept
+    // on the job itself.
+    type Picked = { assignTo?: AssignDraft | string[] };
     const assignTo = new Map(
       operation.data.jobs
-        .filter((j) => (j as { assignTo?: string[] }).assignTo?.length)
-        .map((j) => [j.id, (j as { assignTo?: string[] }).assignTo as string[]]),
+        .map((j) => [j.id, assignDraft((j as Picked).assignTo)] as const)
+        .filter(([, draft]) => Object.values(draft).some((ids) => ids.length)),
     );
     operation = {
       ...operation,
       data: {
         ...operation.data,
         jobs: operation.data.jobs.map(
-          ({ assignTo: _a, ...j }: (typeof operation.data.jobs)[number] & { assignTo?: string[] }) => j,
+          ({ assignTo: _a, ...j }: (typeof operation.data.jobs)[number] & Picked) => j,
         ),
       },
     };
@@ -1087,11 +1090,18 @@ export default function App() {
       if (teamWork.on) {
         const ids = new Set(operation.data.jobs.map((j) => j.id));
         const sold = next.ledger.jobs.filter((j) => ids.has(j.id));
+        // Who was chosen at checkout replaces the usual people for that stage.
+        const chosen = sold.flatMap((j) =>
+          Object.entries(assignTo.get(j.id) ?? {})
+            .filter(([, ids]) => ids.length)
+            .map(([stage, ids]) => assignEvent(next.ledger, j, stage, ids, teamWork.actor)),
+        );
+        const taken = new Set(chosen.map((e) => e.data.id));
         const assign = [
-          ...usualAssignEvents(next.ledger, sold, branding.settings, teamWork.actor),
-          ...sold
-            .filter((j) => assignTo.has(j.id))
-            .map((j) => assignEvent(next.ledger, j, '', assignTo.get(j.id) as string[], teamWork.actor)),
+          ...usualAssignEvents(next.ledger, sold, branding.settings, teamWork.actor).filter(
+            (e: { data: { id: string } }) => !taken.has(e.data.id),
+          ),
+          ...chosen,
         ];
         if (assign.length) next = await saveEvents(target, assign as TeamEvent[], !demo);
       }

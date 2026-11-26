@@ -602,15 +602,14 @@ try {
       await nav('Business Settings');
       await settingsSection(page, /Dropdowns & workflow/);
       await page.getByRole('button', { name: 'Add workflow', exact: true }).click();
-      await page.getByLabel('Workflow 1 name', { exact: true }).fill('Logo');
-      await page.getByLabel('Logo: Design time', { exact: true }).fill('5');
-      await page.getByLabel('Logo: Design unit', { exact: true }).selectOption('d');
-      await page.locator('details.workflow-row').first().scrollIntoViewIfNeeded();
-      await page
-        .locator('fieldset.stage-hours')
-        .last()
-        .screenshot({ path: `${out}/${mode}-88-workflow-open.png` });
-      await page.locator('details.workflow-row > summary').first().click();
+      const flow = page.getByRole('dialog', { name: 'Add workflow' });
+      await flow.getByLabel('Workflow name', { exact: true }).fill('Logo');
+      await flow.getByLabel('Logo: Design time', { exact: true }).fill('5');
+      await flow.getByLabel('Logo: Design unit', { exact: true }).selectOption('d');
+      await flow.screenshot({ path: `${out}/${mode}-88-workflow-open.png` });
+      await flow.getByRole('button', { name: 'Save steps', exact: true }).click();
+      await flow.waitFor({ state: 'detached' });
+      await page.locator('ul.workflow-list').scrollIntoViewIfNeeded();
       await page
         .locator('fieldset.stage-hours')
         .last()
@@ -619,7 +618,10 @@ try {
       await page.getByRole('button', { name: 'Add job', exact: true }).first().click();
       const c = page.getByRole('dialog').first();
       await c.getByRole('button', { name: 'Edit steps', exact: true }).first().click();
-      await c.screenshot({ path: `${out}/${mode}-88-checkout-steps.png` });
+      await page
+        .getByRole('dialog')
+        .last()
+        .screenshot({ path: `${out}/${mode}-88-checkout-steps.png` });
       await closeDialogs();
     } catch (e) {
       failures.push(`${mode} workflows: ${e.message.split('\n')[0]}`);

@@ -1,7 +1,7 @@
 import { PERIOD_CHOICES } from './expense-periods.mjs';
 import SearchSelect from './SearchSelect';
 import Icon from './Icon';
-import { StepBuilder } from './StepBuilder';
+import { StepsDialog, StepsSummary } from './StepBuilder';
 import { useFeedbackMessage } from './Feedback';
 import { useState, type ReactNode } from 'react';
 import { defaultOptions, methodKey, orderMethods } from './business-options.mjs';
@@ -27,8 +27,8 @@ export default function BusinessOptionsEditor({
   const [error, setError] = useFeedbackMessage('error'),
     [payment, setPayment] = useState(''),
     [kind, setKind] = useState('Transfer'),
-    // Saved workflows start collapsed; one just added opens.
-    [openFlows, setOpenFlows] = useState<string[]>([]);
+    // The workflow open in the Steps window: an index, or 'new' for one being added.
+    [flowOpen, setFlowOpen] = useState<number | 'new' | null>(null);
   function update(key: keyof Options, next: unknown) {
     onChange({ ...value, [key]: next });
     setError('');
@@ -372,47 +372,45 @@ export default function BusinessOptionsEditor({
                 </label>
               ))}
             </div>
-            {(value.workflows ?? []).map((wf, i) => {
-              const setWf = (patch: Partial<typeof wf>) =>
-                onChange({
-                  ...value,
-                  workflows: value.workflows.map((x, j) => (j === i ? { ...x, ...patch } : x)),
-                });
-              const open = openFlows.includes(wf.id);
-              return (
-                <details
-                  key={wf.id}
-                  className="workflow-row"
-                  open={open}
-                  onToggle={(e) => {
-                    const now = e.currentTarget.open;
-                    if (now !== open)
-                      setOpenFlows((ids) => (now ? [...ids, wf.id] : ids.filter((x) => x !== wf.id)));
-                  }}
-                >
-                  <summary>
+            <ul className="workflow-list">
+              {(value.workflows ?? []).map((wf, i) => (
+                <li key={wf.id} className="workflow-row">
+                  <div>
                     <strong>{wf.name || `Workflow ${i + 1}`}</strong>
-                    <span className="muted">
-                      {' '}
-                      · {wf.steps.length} {wf.steps.length === 1 ? 'step' : 'steps'}
-                      {value.defaultWorkflowId === wf.id ? ' · usual steps' : ''}
-                    </span>
-                  </summary>
-                  <div className="workflow-body">
-                    <label>
-                      {w('Workflow name')}
-                      <input
-                        aria-label={`Workflow ${i + 1} name`}
-                        maxLength={60}
-                        value={wf.name}
-                        onChange={(e) => setWf({ name: e.target.value })}
-                      />
-                    </label>
-                    <StepBuilder
-                      steps={wf.steps}
-                      onChange={(steps) => setWf({ steps })}
-                      label={wf.name || `Workflow ${i + 1}`}
-                    />
+                    {value.defaultWorkflowId === wf.id && <span className="badge">usual steps</span>}
+                    <br />
+                    <StepsSummary steps={wf.steps} />
+                  </div>
+                  <div className="material-actions">
+                    <button
+                      type="button"
+                      className="text-button"
+                      data-opens-dialog
+                      onClick={() => setFlowOpen(i)}
+                    >
+                      <Icon name="edit" /> Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="text-button"
+                      disabled={(value.workflows?.length ?? 0) >= 30}
+                      onClick={() =>
+                        onChange({
+                          ...value,
+                          workflows: [
+                            ...value.workflows.slice(0, i + 1),
+                            {
+                              id: crypto.randomUUID(),
+                              name: `${wf.name || `Workflow ${i + 1}`} (copy)`.slice(0, 60),
+                              steps: wf.steps.map((s) => ({ ...s })),
+                            },
+                            ...value.workflows.slice(i + 1),
+                          ],
+                        })
+                      }
+                    >
+                      <Icon name="add" /> Duplicate
+                    </button>
                     <button
                       type="button"
                       className="text-button danger-text"
@@ -425,30 +423,42 @@ export default function BusinessOptionsEditor({
                         })
                       }
                     >
-                      Remove workflow
+                      <Icon name="close" /> Remove
                     </button>
                   </div>
-                </details>
-              );
-            })}
+                </li>
+              ))}
+            </ul>
             <button
               type="button"
               className="secondary"
               disabled={(value.workflows?.length ?? 0) >= 30}
-              onClick={() => {
-                const id = crypto.randomUUID();
-                setOpenFlows((ids) => [...ids, id]);
-                onChange({
-                  ...value,
-                  workflows: [
-                    ...(value.workflows ?? []),
-                    { id, name: '', steps: [{ name: 'Design' }, { name: 'Approval' }] },
-                  ],
-                });
-              }}
+              data-opens-dialog
+              onClick={() => setFlowOpen('new')}
             >
               <Icon name="add" /> {w('Add workflow')}
             </button>
+            {flowOpen !== null && (
+              <StepsDialog
+                title={flowOpen === 'new' ? w('Add workflow') : w('Edit workflow')}
+                name={flowOpen === 'new' ? '' : value.workflows[flowOpen].name}
+                steps={
+                  flowOpen === 'new'
+                    ? [{ name: 'Design' }, { name: 'Approval' }]
+                    : value.workflows[flowOpen].steps
+                }
+                onSave={(steps, name) =>
+                  onChange({
+                    ...value,
+                    workflows:
+                      flowOpen === 'new'
+                        ? [...(value.workflows ?? []), { id: crypto.randomUUID(), name, steps }]
+                        : value.workflows.map((x, j) => (j === flowOpen ? { ...x, name, steps } : x)),
+                  })
+                }
+                onClose={() => setFlowOpen(null)}
+              />
+            )}
             <small className="muted">
               {w(
                 'Jobs keep the steps they were sold with, and items keep their copies: changes here apply to new jobs of items that follow the usual steps.',
