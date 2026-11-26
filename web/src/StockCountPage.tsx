@@ -439,7 +439,9 @@ function CountSheet({
         ];
       }),
     ];
-    const text = rows.map((r: string[]) => r.map((c: string) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const text = rows
+      .map((r: string[]) => r.map((c: string) => `"${String(c).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
     const url = URL.createObjectURL(new Blob([text], { type: 'text/csv' }));
     const a = document.createElement('a');
     a.href = url;
