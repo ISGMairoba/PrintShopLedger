@@ -1039,7 +1039,7 @@ export default function App() {
             .filter((j) => assignTo.has(j.id))
             .map((j) => assignEvent(next.ledger, j, '', assignTo.get(j.id) as string[], teamWork.actor)),
         ];
-        if (assign.length) next = await saveEvents(target, assign, !demo);
+        if (assign.length) next = await saveEvents(target, assign as TeamEvent[], !demo);
       }
       setState(next);
       channel.current?.postMessage('changed');
