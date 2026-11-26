@@ -428,39 +428,40 @@ export default function TeamPage({
                           <Icon name="edit" /> Terms
                         </button>
                       )}
-                      {setsTerms && (() => {
-                        const b = commissionBalance(ledger, p.id);
-                        if (!b.earned && !b.paid && !b.deducted) return null;
-                        return (
-                          <>
-                            <small>
-                              {b.balance >= 0
-                                ? `Owed ${currency(b.balance)}`
-                                : `Advance ${currency(-b.balance)} (paid back from commission)`}
-                            </small>
-                            <span className="material-actions">
-                              <button
-                                type="button"
-                                className="text-button"
-                                disabled={busy}
-                                data-opens-dialog
-                                onClick={() => setPaying({ person: p, kind: 'payout' })}
-                              >
-                                <Icon name="payments" /> Pay
-                              </button>
-                              <button
-                                type="button"
-                                className="text-button"
-                                disabled={busy}
-                                data-opens-dialog
-                                onClick={() => setPaying({ person: p, kind: 'deduction' })}
-                              >
-                                Deduct
-                              </button>
-                            </span>
-                          </>
-                        );
-                      })()}
+                      {setsTerms &&
+                        (() => {
+                          const b = commissionBalance(ledger, p.id);
+                          if (!b.earned && !b.paid && !b.deducted) return null;
+                          return (
+                            <>
+                              <small>
+                                {b.balance >= 0
+                                  ? `Owed ${currency(b.balance)}`
+                                  : `Advance ${currency(-b.balance)} (paid back from commission)`}
+                              </small>
+                              <span className="material-actions">
+                                <button
+                                  type="button"
+                                  className="text-button"
+                                  disabled={busy}
+                                  data-opens-dialog
+                                  onClick={() => setPaying({ person: p, kind: 'payout' })}
+                                >
+                                  <Icon name="payments" /> Pay
+                                </button>
+                                <button
+                                  type="button"
+                                  className="text-button"
+                                  disabled={busy}
+                                  data-opens-dialog
+                                  onClick={() => setPaying({ person: p, kind: 'deduction' })}
+                                >
+                                  Deduct
+                                </button>
+                              </span>
+                            </>
+                          );
+                        })()}
                     </td>
                   )}
                   {branches && <td>{p.member ? '—' : branchName(p.branchId)}</td>}
@@ -519,7 +520,9 @@ export default function TeamPage({
           kind={paying.kind}
           onClose={() => setPaying(null)}
           onSave={(input) =>
-            team.save(payoutEvents(ledger, paying.person.id, input, actor) as TeamEvent[]).then(() => setPaying(null))
+            team
+              .save(payoutEvents(ledger, paying.person.id, input, actor) as TeamEvent[])
+              .then(() => setPaying(null))
           }
         />
       )}
@@ -865,7 +868,9 @@ function PayCommissionDialog({
   const team = useTeam();
   const formId = useId();
   const ledger = team?.ledger;
-  const balance = ledger ? commissionBalance(ledger, person.id) : { earned: 0, paid: 0, deducted: 0, balance: 0 };
+  const balance = ledger
+    ? commissionBalance(ledger, person.id)
+    : { earned: 0, paid: 0, deducted: 0, balance: 0 };
   const options = usePaidFromOptions(ledger?.moneyAccounts ?? []);
   const [amount, setAmount] = useState(balance.balance > 0 ? String(balance.balance / 100) : '');
   const [from, setFrom] = useState(options[0]?.key ?? '');

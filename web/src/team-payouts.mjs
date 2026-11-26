@@ -24,7 +24,8 @@ export function commissionBalance(ledger, personId) {
  * @param {{ kind: 'payout' | 'deduction', amount: number, paidFrom?: { kind: string, label: string, source?: string, accountId?: string } | null, note?: string }} input
  */
 export function payoutEvents(ledger, personId, input, actor, now = new Date().toISOString()) {
-  if (!(input.amount > 0) || !Number.isSafeInteger(input.amount)) throw Error('Enter an amount greater than zero.');
+  if (!(input.amount > 0) || !Number.isSafeInteger(input.amount))
+    throw Error('Enter an amount greater than zero.');
   const note = String(input.note ?? '').trim();
   if (note.length > 200) throw Error('Keep the note to 200 characters.');
   const paidOn = saleDay(now);
@@ -41,7 +42,11 @@ export function payoutEvents(ledger, personId, input, actor, now = new Date().to
         'expense.created',
         {
           id: expenseId,
-          description: `Commission: ${name}${input.amount > Math.max(0, balanceBefore) ? ' (includes an advance)' : ''}`.slice(0, 200),
+          description:
+            `Commission: ${name}${input.amount > Math.max(0, balanceBefore) ? ' (includes an advance)' : ''}`.slice(
+              0,
+              200,
+            ),
           category: 'Commission',
           incurredOn: paidOn,
           incurredAt: now,
