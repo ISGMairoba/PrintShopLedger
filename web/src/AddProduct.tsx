@@ -2,8 +2,8 @@ import { useState, type FormEvent } from 'react';
 import Modal from './Modal';
 import Icon from './Icon';
 import CurrencyInput from './CurrencyInput';
-import PackPricesField, { packPricesFrom, type PackDraft } from './PackPricesField';
-import PriceTiersField, { tiersFrom, type TierDraft } from './PriceTiersField';
+import PackPricesField, { packDraft, packPricesFrom, type PackDraft } from './PackPricesField';
+import PriceTiersField, { tierDraft, tiersFrom, type TierDraft } from './PriceTiersField';
 import { useFeedbackMessage } from './Feedback';
 import { useBusinessOptions } from './BusinessOptionsContext';
 import { useWords } from './Words';
@@ -30,6 +30,7 @@ export default function AddProduct({
   actor,
   onSaveMany,
   onClose,
+  from,
 }: {
   services: Service[];
   materials: Material[];
@@ -37,20 +38,34 @@ export default function AddProduct({
   actor: { id: string; label: string };
   onSaveMany: (events: (MaterialEvent | ServiceEvent | FieldEvent)[]) => Promise<void>;
   onClose: () => void;
+  /** Duplicate: a new product filled in from this one, with its own new stock item (opening stock 0). */
+  from?: Service;
 }) {
   const { w } = useWords();
   const units = useBusinessOptions().materialUnits;
   const [error, setError] = useFeedbackMessage('error');
-  const [packs, setPacks] = useState<PackDraft>([]);
-  const [tiers, setTiers] = useState<TierDraft>([]);
-  const [pricing, setPricing] = useState<'packs' | 'ranges'>('packs');
-  const [priceText, setPriceText] = useState('');
+  const fromMaterial = from ? materials.find((m) => m.id === from.materialId) : undefined;
+  const [packs, setPacks] = useState<PackDraft>(() => packDraft(from?.packPrices));
+  const [tiers, setTiers] = useState<TierDraft>(() => tierDraft(from?.priceTiers));
+  const [pricing, setPricing] = useState<'packs' | 'ranges'>(from?.priceTiers?.length ? 'ranges' : 'packs');
+  const [priceText, setPriceText] = useState(from ? (from.price / 100).toFixed(2) : '');
   const [withVariants, setWithVariants] = useState(false);
   const [variantRows, setVariantRows] = useState(blankVariants);
   // Icon, category, code and tags (optional): how it shows on the Quick sale screen.
-  const [look, setLook] = useState<ItemLook>(blankLook);
+  // A code belongs to one item, so the copy starts without one.
+  const [look, setLook] = useState<ItemLook>(() =>
+    from
+      ? {
+          ...blankLook(),
+          icon: from.icon ?? '',
+          category: from.category ?? '',
+          tags: from.tags ?? [],
+          minQuantity: from.minQuantity ? String(from.minQuantity) : '',
+        }
+      : blankLook(),
+  );
   const [tagText, setTagText] = useState('');
-  const [name, setName] = useState('');
+  const [name, setName] = useState(from ? `${from.description} (copy)`.slice(0, 160) : '');
   /** The new item(s) with their look: a display event after each item it creates. */
   const withLook = (events: (MaterialEvent | ServiceEvent)[]) => {
     const tags = tagText.trim() ? cleanTags([...look.tags, tagText]) : look.tags;
@@ -130,7 +145,7 @@ export default function AddProduct({
               name,
               available: Math.round(stock * 1000) / 1000,
               measurementUnit: String(data.get('unit')).trim(),
-              requireSize: false,
+              requireSize: !!fromMaterial?.requireSize,
               minimumStock: Math.round(minimum * 1000) / 1000,
               reason: 'Opening stock',
               ...audit,
@@ -158,7 +173,7 @@ export default function AddProduct({
     }
   }
   return (
-    <Modal title="Add product" busy={busy} onClose={onClose}>
+    <Modal title={from ? 'Duplicate product' : 'Add product'} busy={busy} onClose={onClose}>
       {error && (
         <div className="notice" role="alert">
           {error}
@@ -185,15 +200,25 @@ export default function AddProduct({
             </label>
             <label>
               Unit
-              <select name="unit" defaultValue={units.includes('piece') ? 'piece' : units[0]}>
-                {units.map((unit) => (
-                  <option key={unit}>{unit}</option>
-                ))}
+              <select
+                name="unit"
+                defaultValue={fromMaterial?.measurementUnit ?? (units.includes('piece') ? 'piece' : units[0])}
+              >
+                {[...new Set([...(fromMaterial ? [fromMaterial.measurementUnit] : []), ...units])].map(
+                  (unit) => (
+                    <option key={unit}>{unit}</option>
+                  ),
+                )}
               </select>
             </label>
             <label>
               Price (₦)
-              <CurrencyInput name="price" required onValueChange={setPriceText} />
+              <CurrencyInput
+                name="price"
+                required
+                defaultValue={from ? (from.price / 100).toFixed(2) : undefined}
+                onValueChange={setPriceText}
+              />
             </label>
             {!withVariants && (
               <>
@@ -203,7 +228,13 @@ export default function AddProduct({
                 </label>
                 <label>
                   Minimum stock
-                  <input name="minimumStock" type="number" min="0" step="0.001" defaultValue="0" />
+                  <input
+                    name="minimumStock"
+                    type="number"
+                    min="0"
+                    step="0.001"
+                    defaultValue={String(fromMaterial?.minimumStock ?? 0)}
+                  />
                   <small>Shows a low-stock warning at or below this.</small>
                 </label>
               </>

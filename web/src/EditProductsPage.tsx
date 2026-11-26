@@ -60,6 +60,8 @@ export default function EditProductsPage({
   const live = (m: Material) => ledger.materials.find((x) => x.id === m.id) ?? m;
   const { w } = useWords();
   const [adding, setAdding] = useState(false);
+  // Duplicate: a new product filled in from this one, with its own new stock item.
+  const [copying, setCopying] = useState<Service | null>(null);
   const [query, setQuery] = useState('');
   const [stockOnly, setStockOnly] = useState(true);
   const products = useMemo(() => editableProducts(ledger), [ledger]);
@@ -111,6 +113,18 @@ export default function EditProductsPage({
           actor={actor}
           onSaveMany={onSaveMany}
           onClose={() => setAdding(false)}
+        />
+      )}
+      {copying && onSaveMany && actor && (
+        <AddProduct
+          key={copying.id}
+          from={copying}
+          services={ledger.services}
+          materials={ledger.materials}
+          busy={busy}
+          actor={actor}
+          onSaveMany={onSaveMany}
+          onClose={() => setCopying(null)}
         />
       )}
       {!ready ? (
@@ -181,6 +195,17 @@ export default function EditProductsPage({
                           <button className="text-button" disabled={busy} onClick={() => onEdit(service.id)}>
                             <Icon name="edit" /> Edit
                           </button>
+                          {onSaveMany && actor && service.shelfItem && material && (
+                            <button
+                              className="text-button"
+                              disabled={busy}
+                              data-opens-dialog
+                              title={w('A new product filled in from this one, with its own stock')}
+                              onClick={() => setCopying(service)}
+                            >
+                              <Icon name="add" /> Duplicate
+                            </button>
+                          )}
                           {onSaveMany && actor && (
                             <button className="text-button" disabled={busy} onClick={() => setLook(service)}>
                               <Icon name="edit" /> Icon, code & tags
