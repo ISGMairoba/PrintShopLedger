@@ -42,7 +42,13 @@ export function messageFor(job, now = Date.now()) {
 const dueWords = (job) => {
   const due = job.dueAt && !Number.isNaN(Date.parse(job.dueAt)) ? new Date(job.dueAt) : null;
   return due
-    ? due.toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
+    ? due.toLocaleString('en-GB', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+        hour: 'numeric',
+        minute: '2-digit',
+      })
     : '';
 };
 
@@ -221,24 +227,47 @@ export function collectedMessage(ledger, job, { business, terms, messages }) {
  * with its stage and progress, when it should be ready, and what is left to pay.
  * stage: the business's own stage names.
  */
-export function progressMessage(ledger, job, kind, { business, terms, messages, stage = (s) => s }, now = Date.now()) {
+export function progressMessage(
+  ledger,
+  job,
+  kind,
+  { business, terms, messages, stage = (s) => s },
+  now = Date.now(),
+) {
   const customer = ledger.customers.find((c) => c.id === job.customerId);
   const open = (j) => !['Cancelled', 'Collected'].includes(j.productionStatus ?? 'Added');
   const jobs =
     kind === 'update' && job.checkoutId
-      ? [job, ...ledger.jobs.filter((j) => j.id !== job.id && j.checkoutId === job.checkoutId && j.customerId === job.customerId && open(j))]
+      ? [
+          job,
+          ...ledger.jobs.filter(
+            (j) =>
+              j.id !== job.id &&
+              j.checkoutId === job.checkoutId &&
+              j.customerId === job.customerId &&
+              open(j),
+          ),
+        ]
       : [job];
   const line = (j) => {
     const { total, done } = jobParts(j);
     const name = (j.description || j.service || '').trim();
     const qty = total > 1 ? `${name} × ${total}` : name;
-    const where = j.hold ? 'on hold' : j.productionStatus === 'Completed' ? 'ready for collection' : `at ${stage(j.productionStatus ?? 'Added')}`;
+    const where = j.hold
+      ? 'on hold'
+      : j.productionStatus === 'Completed'
+        ? 'ready for collection'
+        : `at ${stage(j.productionStatus ?? 'Added')}`;
     const progress = done > 0 && done < total ? `, ${done} done, ${total - done} left` : '';
     return `${qty} ${where}${progress}`;
   };
   const { total, done } = jobParts(job);
   const owed = jobs.reduce((n, j) => n + jobBalanceFast(ledger, j).outstanding, 0);
-  const latest = jobs.map((j) => j.dueAt).filter((d) => d && !Number.isNaN(Date.parse(d))).sort().at(-1);
+  const latest = jobs
+    .map((j) => j.dueAt)
+    .filter((d) => d && !Number.isNaN(Date.parse(d)))
+    .sort()
+    .at(-1);
   const due = latest ? `Expected ready: ${dueWords({ dueAt: latest })}.` : '';
   const last = (job.holdHistory ?? []).at(-1);
   const word = jobs.length > 1 ? (terms?.jobs ?? 'orders') : (terms?.job ?? 'order');
@@ -254,7 +283,10 @@ export function progressMessage(ledger, job, kind, { business, terms, messages, 
     total: String(total),
     due,
     late: latest && Date.parse(latest) < now ? 'Sorry, it is running late.' : '',
-    moved: kind === 'resumed' && last?.extendDeadline && job.dueAt ? `Your collection date moved to ${dueWords(job)}.` : '',
+    moved:
+      kind === 'resumed' && last?.extendDeadline && job.dueAt
+        ? `Your collection date moved to ${dueWords(job)}.`
+        : '',
     balance: owed > 0 ? `Balance to pay: ${currency(owed)}.` : 'It is fully paid.',
     business: business || 'our shop',
   };

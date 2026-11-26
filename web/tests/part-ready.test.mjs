@@ -64,7 +64,10 @@ test('Order update any time: each item with its stage and progress, when it shou
   const at = jotters({ quantity: 40, productionStatus: 'Binding', progress: { done: 0, handovers: [] } });
   assert.equal(messageFor(at), 'update');
   const msg = readyMessage(ledger(at), at, { business: 'Mairoba Studio', stage: (s) => s.toUpperCase() });
-  assert.match(msg.text, /^Hello Sara, an update on your order #3222F0C8 at Mairoba Studio: Jotter soft cover × 40 at BINDING\. /);
+  assert.match(
+    msg.text,
+    /^Hello Sara, an update on your order #3222F0C8 at Mairoba Studio: Jotter soft cover × 40 at BINDING\. /,
+  );
   assert.match(msg.text, /Balance to pay: ₦200,000\.00\.$/);
   // Done so far shows as "20 done, 20 left" in the update (part ready has its own message).
   assert.equal(messageFor(job), 'part_ready');
@@ -87,7 +90,10 @@ test('Work continues: just back from a hold and no stage moved since', async () 
   });
   assert.equal(messageFor(job, now), 'resumed');
   const msg = readyMessage(ledger(job), job, { business: 'Mairoba Studio' });
-  assert.match(msg.text, /good news: work on your order #3222F0C8 \(Jotter soft cover × 200\) has continued at Mairoba Studio\. It is now at Printing\./);
+  assert.match(
+    msg.text,
+    /good news: work on your order #3222F0C8 \(Jotter soft cover × 200\) has continued at Mairoba Studio\. It is now at Printing\./,
+  );
   // Moved on to the next stage since: an update instead.
   assert.equal(messageFor({ ...job, stageAt: new Date(now).toISOString() }, now), 'update');
   assert.equal(messageFor(job, now + 2 * 86400000), 'update');
