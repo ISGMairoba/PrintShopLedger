@@ -151,13 +151,15 @@ try {
       await nav.getByRole('button', { name: 'Point of Service', exact: true }).waitFor();
       assert.deepEqual(
         await nav.getByRole('button').allTextContents(),
-        // Material Waste is a tab inside Materials when both are allowed.
+        // Material Waste and Stock Count are tabs inside Materials when it is allowed.
         navigationPages
           .filter(
             (p) =>
               p !== 'Pricing Templates' &&
               canAccessPage(p, rank) &&
-              !(p === 'Material Waste' && canAccessPage('Materials', rank)),
+              !((p === 'Material Waste' || p === 'Stock Count') && canAccessPage('Materials', rank)) &&
+              // Partners is a feature that starts off.
+              p !== 'Partners',
           )
           .map((p) => pageName(p))
           .concat('Help'),
@@ -218,7 +220,11 @@ try {
           .filter(
             (p) =>
               canAccessPage(p, rank, customSettings.pageAccess) &&
-              !(p === 'Material Waste' && canAccessPage('Materials', rank, customSettings.pageAccess)),
+              !(
+                (p === 'Material Waste' || p === 'Stock Count') &&
+                canAccessPage('Materials', rank, customSettings.pageAccess)
+              ) &&
+              p !== 'Partners',
           )
           .map((p) => pageName(p))
           .concat('Help'),
