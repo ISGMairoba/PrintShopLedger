@@ -45,8 +45,10 @@ export default function PartnersPage({
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [history, setHistory] = useState<string | null>(null);
-  const items = [...(ledger.partnerItems ?? [])].sort((a, b) =>
-    (a.status === 'ended' ? 1 : 0) - (b.status === 'ended' ? 1 : 0) || name(ledger, a).localeCompare(name(ledger, b)),
+  const items = [...(ledger.partnerItems ?? [])].sort(
+    (a, b) =>
+      (a.status === 'ended' ? 1 : 0) - (b.status === 'ended' ? 1 : 0) ||
+      name(ledger, a).localeCompare(name(ledger, b)),
   );
   const ready = readyToStock(ledger) as Job[];
   const off = busy || !canSave;
@@ -94,7 +96,11 @@ export default function PartnersPage({
                 disabled={off}
                 onClick={() =>
                   void run(
-                    () => onSave('partner.stock_built', { id: job.partnerBuild?.itemId ?? job.partner?.itemId, jobId: job.id }),
+                    () =>
+                      onSave('partner.stock_built', {
+                        id: job.partnerBuild?.itemId ?? job.partner?.itemId,
+                        jobId: job.id,
+                      }),
                     `${stockFrom(job)} added to stock.`,
                   )
                 }
@@ -107,9 +113,9 @@ export default function PartnersPage({
       )}
       {items.length === 0 ? (
         <p className="muted">
-          No partner items yet. A partner item is a service made for one regular client at a fixed price: you keep
-          an agreed stock ready, use it first, and make the rest in the best batch size. Add one with “Add partner
-          item”.
+          No partner items yet. A partner item is a service made for one regular client at a fixed price: you
+          keep an agreed stock ready, use it first, and make the rest in the best batch size. Add one with
+          “Add partner item”.
         </p>
       ) : (
         <div className="card-grid">
@@ -250,7 +256,8 @@ export default function PartnersPage({
           onClose={() => setDialog(null)}
           onSave={(quantity) =>
             run(
-              () => onSave('partner.build_started', { id: dialog.item.id, jobId: crypto.randomUUID(), quantity }),
+              () =>
+                onSave('partner.build_started', { id: dialog.item.id, jobId: crypto.randomUUID(), quantity }),
               `A job to prepare ${quantity} is on the Jobs page.`,
             )
           }
@@ -416,7 +423,10 @@ function AgreementDialog({
           >
             <option value="">Choose a service</option>
             {services
-              .filter((s) => !taken.has(s.id) && (!s.production?.partnerOf || s.production.partnerOf === customerId))
+              .filter(
+                (s) =>
+                  !taken.has(s.id) && (!s.production?.partnerOf || s.production.partnerOf === customerId),
+              )
               .map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.description} · {currency(s.price)}
@@ -424,8 +434,8 @@ function AgreementDialog({
               ))}
           </select>
           <small>
-            Its price is the fixed price; its own steps (Services) leave out stages like Design. Its materials are
-            taken in production, when they are confirmed.
+            Its price is the fixed price; its own steps (Services) leave out stages like Design. Its materials
+            are taken in production, when they are confirmed.
           </small>
         </label>
         <label>
@@ -442,7 +452,11 @@ function AgreementDialog({
         </label>
         <label>
           If the agreement ends, the stock left is
-          <select name="endRule" aria-label="If the agreement ends" defaultValue={item?.endRule ?? 'partnerPays'}>
+          <select
+            name="endRule"
+            aria-label="If the agreement ends"
+            defaultValue={item?.endRule ?? 'partnerPays'}
+          >
             {END_RULES.map(([k, label]) => (
               <option key={k} value={k}>
                 {label}
@@ -459,7 +473,11 @@ function AgreementDialog({
         </label>
         <label>
           When stock gets low
-          <select name="refillPrompt" aria-label="When stock gets low" defaultValue={item?.refillPrompt ?? 'ask'}>
+          <select
+            name="refillPrompt"
+            aria-label="When stock gets low"
+            defaultValue={item?.refillPrompt ?? 'ask'}
+          >
             <option value="ask">Ask to prepare more</option>
             <option value="auto">Prepare a batch</option>
             <option value="never">Do nothing</option>
@@ -604,7 +622,8 @@ function EndDialog({
         </label>
       </form>
       <p className="muted">
-        The agreement's choice is selected. Record the money (a sale to the partner, or the write-off) as usual.
+        The agreement's choice is selected. Record the money (a sale to the partner, or the write-off) as
+        usual.
       </p>
     </Modal>
   );

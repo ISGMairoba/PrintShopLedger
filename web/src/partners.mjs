@@ -42,11 +42,14 @@ export function readyToStock(ledger) {
 }
 /** What a ready job adds to stock. */
 export const stockFrom = (job) =>
-  job.partnerBuild ? job.partnerBuild.quantity : Math.max(0, (job.partner?.made ?? 0) - (job.partner?.toMake ?? 0));
+  job.partnerBuild
+    ? job.partnerBuild.quantity
+    : Math.max(0, (job.partner?.made ?? 0) - (job.partner?.toMake ?? 0));
 
 const audit = (event) => {
   const d = event.data;
-  if (!event.id || !d?.id || !d.modifiedBy || !d.modifiedAt) throw Error('Partner identity and audit information are required.');
+  if (!event.id || !d?.id || !d.modifiedBy || !d.modifiedAt)
+    throw Error('Partner identity and audit information are required.');
   return d;
 };
 const whole = (n, label, min = 0) => {
@@ -102,11 +105,15 @@ export function applyPartnerEvent(ledger, event) {
   if (!item) throw Error('Partner item not found.');
   if (item.status === 'ended') throw Error('This partner agreement has ended.');
   if (event.kind === 'partner.ended')
-    return put(moved({ ...item, status: 'ended', endRule: d.endRule }, { kind: 'ended', endRule: d.endRule }));
+    return put(
+      moved({ ...item, status: 'ended', endRule: d.endRule }, { kind: 'ended', endRule: d.endRule }),
+    );
   if (event.kind === 'partner.stock_adjusted') {
     const qty = whole(d.quantity, 'the stock on hand');
     if (!String(d.reason ?? '').trim()) throw Error('Enter a reason.');
-    return put(moved({ ...item, onHand: qty }, { kind: 'set', quantity: qty - item.onHand, reason: d.reason.trim() }));
+    return put(
+      moved({ ...item, onHand: qty }, { kind: 'set', quantity: qty - item.onHand, reason: d.reason.trim() }),
+    );
   }
   if (event.kind === 'partner.design_changed')
     return put(

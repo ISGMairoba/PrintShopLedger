@@ -1102,7 +1102,9 @@ export default function App() {
       if (fromStock.length)
         next = await saveEvents(
           target,
-          fromStock.map((j) => partnerEvent('partner.stock_taken', { id: j.partner!.itemId, jobId: j.id })) as never,
+          fromStock.map((j) =>
+            partnerEvent('partner.stock_taken', { id: j.partner!.itemId, jobId: j.id }),
+          ) as never,
           !demo,
         );
       setState(next);

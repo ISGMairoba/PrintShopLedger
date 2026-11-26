@@ -24,7 +24,17 @@ export function validProduction(value) {
   if (value === null) return {};
   if (typeof value !== 'object' || Array.isArray(value)) throw Error('Invalid production settings.');
   for (const key of Object.keys(value))
-    if (!['extraMaterials', 'costCovered', 'perItem', 'workflowId', 'steps', 'materialsAt', 'partnerOf'].includes(key))
+    if (
+      ![
+        'extraMaterials',
+        'costCovered',
+        'perItem',
+        'workflowId',
+        'steps',
+        'materialsAt',
+        'partnerOf',
+      ].includes(key)
+    )
       throw Error('Invalid production settings.');
   if (
     value.workflowId !== undefined &&

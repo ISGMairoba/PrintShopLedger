@@ -3,7 +3,14 @@ import assert from 'node:assert/strict';
 import { applyPartnerEvent, partnerSplit, readyToStock, refillNeeded, stockFrom } from '../src/partners.mjs';
 import { featureOn } from '../src/business-type.mjs';
 
-const item = { id: 's1', customerId: 'sara', agreedStock: 200, refillAt: 80, batchSize: 250, refillPrompt: 'ask' };
+const item = {
+  id: 's1',
+  customerId: 'sara',
+  agreedStock: 200,
+  refillAt: 80,
+  batchSize: 250,
+  refillPrompt: 'ask',
+};
 const who = { modifiedBy: 'u', modifiedByLabel: 'Ada', modifiedAt: '2026-11-26T10:00:00Z' };
 
 test('An order: from stock first, the rest made in the best batch size while stock is below agreed', () => {
@@ -38,16 +45,29 @@ test('Partner stock moves: agreement, sale from stock, leftover back, count; Par
       partner: { itemId: 's1', fromStock: 200, toMake: 100, made: 250 },
     },
   ];
-  l = applyPartnerEvent(l, { id: 'e2', kind: 'partner.stock_taken', data: { id: 's1', jobId: 'j1', ...who } });
+  l = applyPartnerEvent(l, {
+    id: 'e2',
+    kind: 'partner.stock_taken',
+    data: { id: 's1', jobId: 'j1', ...who },
+  });
   assert.equal(l.partnerItems[0].onHand, 0);
   assert.throws(
-    () => applyPartnerEvent(l, { id: 'e3', kind: 'partner.stock_taken', data: { id: 's1', jobId: 'j1', ...who } }),
+    () =>
+      applyPartnerEvent(l, {
+        id: 'e3',
+        kind: 'partner.stock_taken',
+        data: { id: 's1', jobId: 'j1', ...who },
+      }),
     /Already taken/,
   );
   l = { ...l, jobs: l.jobs.map((j) => ({ ...j, productionStatus: 'Completed' })) };
   assert.equal(readyToStock(l).length, 1);
   assert.equal(stockFrom(l.jobs[0]), 150);
-  l = applyPartnerEvent(l, { id: 'e4', kind: 'partner.stock_built', data: { id: 's1', jobId: 'j1', ...who } });
+  l = applyPartnerEvent(l, {
+    id: 'e4',
+    kind: 'partner.stock_built',
+    data: { id: 's1', jobId: 'j1', ...who },
+  });
   assert.equal(l.partnerItems[0].onHand, 150);
   assert.equal(readyToStock(l).length, 0);
   l = applyPartnerEvent(l, {
