@@ -34,6 +34,9 @@ import type {
   WorkRecord,
 } from './types';
 import { currency } from './receipts.mjs';
+import { commissionBalance, payoutEvents } from './team-payouts.mjs';
+import { usePaidFromOptions } from './paid-from';
+import { money } from './domain.mjs';
 import { roleNames } from './page-access.mjs';
 import { useWords } from './Words';
 
@@ -144,6 +147,7 @@ export default function TeamPage({
   const [editing, setEditing] = useState<TeamPerson | 'new' | null>(null);
   const [removing, setRemoving] = useState<TeamPerson | null>(null);
   const [terms, setTerms] = useState<TeamPerson | null>(null);
+  const [paying, setPaying] = useState<{ person: TeamPerson; kind: 'payout' | 'deduction' } | null>(null);
   const [picked, setPicked] = useState<string[]>([]);
   const [error, setError] = useState('');
   if (!team) return null;
@@ -424,6 +428,40 @@ export default function TeamPage({
                           <Icon name="edit" /> Terms
                         </button>
                       )}
+                      {setsTerms &&
+                        (() => {
+                          const b = commissionBalance(ledger, p.id);
+                          if (!b.earned && !b.paid && !b.deducted) return null;
+                          return (
+                            <>
+                              <small>
+                                {b.balance >= 0
+                                  ? `Owed ${currency(b.balance)}`
+                                  : `Advance ${currency(-b.balance)} (paid back from commission)`}
+                              </small>
+                              <span className="material-actions">
+                                <button
+                                  type="button"
+                                  className="text-button"
+                                  disabled={busy}
+                                  data-opens-dialog
+                                  onClick={() => setPaying({ person: p, kind: 'payout' })}
+                                >
+                                  <Icon name="payments" /> Pay
+                                </button>
+                                <button
+                                  type="button"
+                                  className="text-button"
+                                  disabled={busy}
+                                  data-opens-dialog
+                                  onClick={() => setPaying({ person: p, kind: 'deduction' })}
+                                >
+                                  Deduct
+                                </button>
+                              </span>
+                            </>
+                          );
+                        })()}
                     </td>
                   )}
                   {branches && <td>{p.member ? '—' : branchName(p.branchId)}</td>}
@@ -473,6 +511,18 @@ export default function TeamPage({
           onClose={() => setEditing(null)}
           onSave={(fields) =>
             team.save([personEvent(editing === 'new' ? null : editing, fields, actor) as TeamEvent])
+          }
+        />
+      )}
+      {paying && (
+        <PayCommissionDialog
+          person={paying.person}
+          kind={paying.kind}
+          onClose={() => setPaying(null)}
+          onSave={(input) =>
+            team
+              .save(payoutEvents(ledger, paying.person.id, input, actor) as TeamEvent[])
+              .then(() => setPaying(null))
           }
         />
       )}
@@ -793,6 +843,122 @@ function TermsDialog({
       <p className="muted">
         Work counts once the job is completed. A job&apos;s value is split equally between the people who did
         it.
+      </p>
+    </Modal>
+  );
+}
+
+/** Pay a person's commission (from a money account, an expense) or deduct from it (no money moves). */
+function PayCommissionDialog({
+  person,
+  kind,
+  onClose,
+  onSave,
+}: {
+  person: TeamPerson;
+  kind: 'payout' | 'deduction';
+  onClose: () => void;
+  onSave: (input: {
+    kind: 'payout' | 'deduction';
+    amount: number;
+    paidFrom: { kind: string; label: string; source?: string; accountId?: string } | null;
+    note: string;
+  }) => Promise<void>;
+}) {
+  const team = useTeam();
+  const formId = useId();
+  const ledger = team?.ledger;
+  const balance = ledger
+    ? commissionBalance(ledger, person.id)
+    : { earned: 0, paid: 0, deducted: 0, balance: 0 };
+  const options = usePaidFromOptions(ledger?.moneyAccounts ?? []);
+  const [amount, setAmount] = useState(balance.balance > 0 ? String(balance.balance / 100) : '');
+  const [from, setFrom] = useState(options[0]?.key ?? '');
+  const [note, setNote] = useState('');
+  const [error, setError] = useState('');
+  const busy = !!team?.busy;
+  let kobo = 0;
+  try {
+    kobo = money(amount || '0');
+  } catch {
+    kobo = 0;
+  }
+  const advance = kind === 'payout' ? Math.max(0, kobo - Math.max(0, balance.balance)) : 0;
+  return (
+    <Modal
+      title={kind === 'payout' ? `Pay ${person.name}` : `Deduct from ${person.name}`}
+      busy={busy}
+      onClose={onClose}
+      footer={
+        <DialogActions form={formId} busy={busy} onCancel={onClose}>
+          {kind === 'payout' ? `Pay ${currency(kobo)}` : `Deduct ${currency(kobo)}`}
+        </DialogActions>
+      }
+    >
+      <p className="muted">
+        Earned {currency(balance.earned)} on confirmed work · paid {currency(balance.paid)}
+        {balance.deducted ? ` · deducted ${currency(balance.deducted)}` : ''} ·{' '}
+        {balance.balance >= 0 ? `owed ${currency(balance.balance)}` : `advance ${currency(-balance.balance)}`}
+      </p>
+      {error && (
+        <p className="notice notice-error" role="alert">
+          {error}
+        </p>
+      )}
+      <form
+        id={formId}
+        className="form-grid"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setError('');
+          const paidFrom = options.find((o) => o.key === from) ?? null;
+          onSave({ kind, amount: kobo, paidFrom: kind === 'payout' ? paidFrom : null, note }).catch((cause) =>
+            setError(cause instanceof Error ? cause.message : String(cause)),
+          );
+        }}
+      >
+        <label>
+          Amount (₦)
+          <input
+            inputMode="decimal"
+            required
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            aria-label="Amount"
+          />
+        </label>
+        {kind === 'payout' && (
+          <label>
+            Paid from
+            <select aria-label="Paid from" value={from} onChange={(e) => setFrom(e.target.value)}>
+              {options.map((o) => (
+                <option key={o.key} value={o.key}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <label>
+          {kind === 'payout' ? 'Note' : 'Reason'}
+          <input
+            maxLength={200}
+            required={kind === 'deduction'}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            aria-label={kind === 'payout' ? 'Note' : 'Reason'}
+          />
+        </label>
+      </form>
+      {advance > 0 && (
+        <p className="notice" role="status">
+          {currency(advance)} of this is an advance: it is paid back from {person.name}'s later commission.
+        </p>
+      )}
+      <p className="muted">
+        {kind === 'payout'
+          ? 'Recorded as an expense (Commission) paid from the account chosen. Work corrected after it is paid shows as a plus or minus on the next payment.'
+          : 'A deduction lowers what is owed (for example spoilt work). No money moves.'}
       </p>
     </Modal>
   );

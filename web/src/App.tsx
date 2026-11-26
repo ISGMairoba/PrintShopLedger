@@ -244,6 +244,7 @@ import {
   teamReady,
   teamSettings,
   usualAssignEvents,
+  assignEvent,
   withTrialMember,
   workEvents,
 } from './team.mjs';
@@ -1025,6 +1026,21 @@ export default function App() {
           operation.data.termsAndConditions ?? branding.settings.documents.invoiceTerms ?? '',
       },
     };
+    // "Assign to" chosen at checkout: assigned after the sale, not kept on the job itself.
+    const assignTo = new Map(
+      operation.data.jobs
+        .filter((j) => (j as { assignTo?: string[] }).assignTo?.length)
+        .map((j) => [j.id, (j as { assignTo?: string[] }).assignTo as string[]]),
+    );
+    operation = {
+      ...operation,
+      data: {
+        ...operation.data,
+        jobs: operation.data.jobs.map(
+          ({ assignTo: _a, ...j }: (typeof operation.data.jobs)[number] & { assignTo?: string[] }) => j,
+        ),
+      },
+    };
     setBusy(true);
     try {
       let next = await saveEvent(target, operation, !demo);
@@ -1033,13 +1049,14 @@ export default function App() {
       // Team work: the usual people for each stage are assigned to the new jobs.
       if (teamWork.on) {
         const ids = new Set(operation.data.jobs.map((j) => j.id));
-        const assign = usualAssignEvents(
-          next.ledger,
-          next.ledger.jobs.filter((j) => ids.has(j.id)),
-          branding.settings,
-          teamWork.actor,
-        );
-        if (assign.length) next = await saveEvents(target, assign, !demo);
+        const sold = next.ledger.jobs.filter((j) => ids.has(j.id));
+        const assign = [
+          ...usualAssignEvents(next.ledger, sold, branding.settings, teamWork.actor),
+          ...sold
+            .filter((j) => assignTo.has(j.id))
+            .map((j) => assignEvent(next.ledger, j, '', assignTo.get(j.id) as string[], teamWork.actor)),
+        ];
+        if (assign.length) next = await saveEvents(target, assign as TeamEvent[], !demo);
       }
       setState(next);
       channel.current?.postMessage('changed');

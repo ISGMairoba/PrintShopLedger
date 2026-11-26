@@ -536,5 +536,32 @@ export function applyTeamEvent(ledger, event) {
       ),
     };
   }
+  if (event.kind === 'team.payout_recorded') {
+    // Commission paid out or deducted (team-payouts.mjs); the server checks who may.
+    if (!(d.amount > 0) || !Number.isSafeInteger(d.amount)) throw Error('Enter an amount greater than zero.');
+    if (!['payout', 'deduction'].includes(d.kind)) throw Error('Invalid commission payment.');
+    const list = ledger.teamPayouts ?? [];
+    if (list.some((p) => p.id === d.id)) return ledger;
+    return {
+      ...ledger,
+      teamPayouts: [
+        ...list,
+        {
+          id: d.id,
+          personId: d.personId,
+          kind: d.kind,
+          amount: d.amount,
+          paidOn: d.paidOn,
+          note: (d.note ?? '').trim(),
+          ...(d.expenseId ? { expenseId: d.expenseId } : {}),
+          ...(d.balanceBefore !== undefined ? { balanceBefore: d.balanceBefore } : {}),
+          recordedBy: d.modifiedBy,
+          recordedByLabel: d.modifiedByLabel,
+          recordedAt: now,
+          version: 1,
+        },
+      ],
+    };
+  }
   throw Error('Unknown team change.');
 }

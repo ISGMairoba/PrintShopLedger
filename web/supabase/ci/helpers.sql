@@ -136,7 +136,7 @@ begin
           a := jsonb_set(a, '{materials}', (select coalesce(jsonb_agg(x - 'costPrice' order by i), '[]'::jsonb)
             from jsonb_array_elements(a->'materials') with ordinality m(x, i)));
           a := jsonb_set(a, '{materialHistory}', (select coalesce(jsonb_agg(x - 'unitCost' - 'costActual' order by i), '[]'::jsonb)
-            from jsonb_array_elements(a->'materialHistory') with ordinality m(x, i))) - 'stockValues' - 'lateCosts' - 'teamPeople' - 'jobAssignments' - 'workRecords' - 'workCorrections' - 'teamTerms' - 'stockCounts' - 'materialShelves';
+            from jsonb_array_elements(a->'materialHistory') with ordinality m(x, i))) - 'stockValues' - 'lateCosts' - 'teamPeople' - 'jobAssignments' - 'workRecords' - 'workCorrections' - 'teamTerms' - 'teamPayouts' - 'stockCounts' - 'materialShelves';
         end if;
         begin o := private.get_ledger_layered(s.id); exception when others then o := to_jsonb('refused: ' || sqlerrm); end;
         if a::text is distinct from o::text then
