@@ -4,7 +4,22 @@ import { useWords } from './Words';
 import { currency as formatNaira } from './receipts.mjs';
 import { defaultStockCount } from './production-materials.mjs';
 import { canFinish, countMaterials, countReview, shelfOf, shelves as allShelves } from './stock-count.mjs';
-import type { Ledger, StockCount, StockCountLine } from './types';
+import type { Ledger, Material, StockCount, StockCountLine } from './types';
+
+type ReviewLine = StockCountLine & {
+  material?: Material;
+  uncounted?: boolean;
+  value?: number | null;
+  big?: boolean;
+};
+type Review = {
+  lines: ReviewLine[];
+  counted: number;
+  uncounted: number;
+  differences: number;
+  value: number;
+  big: boolean;
+};
 
 type Settings = ReturnType<typeof defaultStockCount>;
 const qty = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 3 });
@@ -195,7 +210,7 @@ function NewCount({
       : kind === 'picked'
         ? { kind, materialIds: picked }
         : { kind };
-  const materials = countMaterials(ledger, scope);
+  const materials = countMaterials(ledger, scope) as Material[];
   const toggle = (list: string[], value: string) =>
     list.includes(value) ? list.filter((x) => x !== value) : [...list, value];
   return (
@@ -371,11 +386,11 @@ function CountSheet({
     timer.current = setTimeout(() => void save(), 1500);
   };
   const review = useMemo(
-    () => countReview(ledger, { ...count, lines }, settings),
+    () => countReview(ledger, { ...count, lines }, settings) as Review,
     [ledger, count, lines, settings],
   );
   const groups = useMemo(() => {
-    const out = new Map<string, typeof review.lines>();
+    const out = new Map<string, ReviewLine[]>();
     for (const line of review.lines) {
       const shelf = shelfOf(ledger, line.materialId);
       out.set(shelf, [...(out.get(shelf) ?? []), line]);
@@ -424,7 +439,7 @@ function CountSheet({
         ];
       }),
     ];
-    const text = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const text = rows.map((r: string[]) => r.map((c: string) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
     const url = URL.createObjectURL(new Blob([text], { type: 'text/csv' }));
     const a = document.createElement('a');
     a.href = url;
