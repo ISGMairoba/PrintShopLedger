@@ -8,6 +8,13 @@ export const setStockBelowZeroBlocked = (value) => {
   blocked = !!value;
 };
 export const stockBelowZeroBlocked = () => blocked;
+// When materials leave stock (Business Settings → Jobs & payments): at the sale, or in production.
+let atSale = 'checkout';
+/** Follow the business setting (production.materialsAt). */
+export const setMaterialsAtSale = (value) => {
+  atSale = value === 'production' ? 'production' : 'checkout';
+};
+export const materialsAtSale = () => atSale;
 const amount = (n) => String(Math.round(n * 1000) / 1000);
 /** The message for taking `needed` of a material that has `available`. */
 export const notEnoughStock = (material, available, needed) =>

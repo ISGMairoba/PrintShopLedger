@@ -1,6 +1,8 @@
+import { reservedStock } from './stock-count.mjs';
+import { materialsAtSale, notEnoughStock, stockBelowZeroBlocked } from './stock-rule.mjs';
 import { minOrderRule } from './min-order.mjs';
 import { counts } from './branches.mjs';
-import { perItem } from './production-materials.mjs';
+import { materialsAt, perItem } from './production-materials.mjs';
 import { validStageHours, validStageShares } from './stage-time.mjs';
 import { validDocumentTerms } from './document-terms.mjs';
 import { tierLabel, tierPrice, usesTiers } from './price-tiers.mjs';
@@ -100,6 +102,7 @@ export function quoteLine(ledger, line, notCollected = false) {
       sourceNote: String(line.sourceNote ?? '').trim(),
       stockCountEventId: null,
       ...workflowFields(line),
+      ...(materialsAtSale() === 'production' ? { materialsAt: 'production' } : {}),
       ...(dueAt ? { dueAt } : {}),
       ...(discount ? { discount } : {}),
       grossAmount: priced.amount,
@@ -186,6 +189,10 @@ export function quoteLine(ledger, line, notCollected = false) {
     ...(discount ? { discount } : {}),
     stockCountEventId: material && !choice ? stockCountEvent(ledger, material.id) : null,
     ...workflowFields(line),
+    // In production (a setting): the sale takes nothing, the job reserves its materials.
+    ...(materialsAt(service, { materialsAt: materialsAtSale() }) === 'production'
+      ? { materialsAt: 'production' }
+      : {}),
     ...(shelfItem ? { shelfItem: true } : {}),
     description: line.description.trim(),
     quantity,
@@ -649,6 +656,17 @@ export function applyCheckout(ledger, event) {
           stockEventId: s.stockEventId,
         }))
       : [{ ...job, stockEventId: job.id }];
+    if (job.materialsAt === 'production') {
+      // Taken by its materials check; with "Stock below zero: block", what is free must cover it.
+      for (const usage of usages) {
+        if (!usage.materialId || !usage.materialNeeded || !stockBelowZeroBlocked()) continue;
+        const material = materials.find((m) => m.id === usage.materialId);
+        const free = material.available - reservedStock(next, usage.materialId);
+        if (free - usage.materialNeeded < 0)
+          throw Error(notEnoughStock(material, free, usage.materialNeeded));
+      }
+      continue;
+    }
     for (const usage of usages) {
       if (usage.materialId === null || usage.materialNeeded === 0) continue;
       const material = materials.find((m) => m.id === usage.materialId);

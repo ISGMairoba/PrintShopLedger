@@ -220,9 +220,10 @@ export const defaultBranding = () => ({
    * extraMaterialsRank: the lowest rank that may add materials to a job in production.
    * confirmMaterialsRank: the lowest rank whose materials check applies without approval (default 2).
    */
-  production: /** @type {{ extraMaterialsRank: 1 | 2 | 3, confirmMaterialsRank?: 1 | 2 | 3 }} */ ({
-    extraMaterialsRank: 1,
-  }),
+  production:
+    /** @type {{ extraMaterialsRank: 1 | 2 | 3, confirmMaterialsRank?: 1 | 2 | 3, materialsAt?: 'checkout' | 'production', stockCount?: ReturnType<typeof import('./production-materials.mjs').defaultStockCount> }} */ ({
+      extraMaterialsRank: 1,
+    }),
   // syncMinutes: how often devices check for changes made on other devices.
   // historyKeep: how much history devices keep by default (left out = Everything).
   security:

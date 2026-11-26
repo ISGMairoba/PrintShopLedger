@@ -24,7 +24,7 @@ export function validProduction(value) {
   if (value === null) return {};
   if (typeof value !== 'object' || Array.isArray(value)) throw Error('Invalid production settings.');
   for (const key of Object.keys(value))
-    if (!['extraMaterials', 'costCovered', 'perItem', 'workflowId', 'steps'].includes(key))
+    if (!['extraMaterials', 'costCovered', 'perItem', 'workflowId', 'steps', 'materialsAt'].includes(key))
       throw Error('Invalid production settings.');
   if (
     value.workflowId !== undefined &&
@@ -32,6 +32,9 @@ export function validProduction(value) {
     (typeof value.workflowId !== 'string' || !/^[0-9a-z-]{8,40}$/i.test(value.workflowId))
   )
     throw Error('Choose a workflow.');
+  // When this item's materials leave stock: the business's choice ('' or missing), or its own.
+  if (value.materialsAt !== undefined && !['', 'checkout', 'production'].includes(value.materialsAt))
+    throw Error('Choose when the materials leave stock.');
   for (const key of ['extraMaterials', 'costCovered'])
     if (value[key] !== undefined && typeof value[key] !== 'boolean')
       throw Error('Invalid production settings.');
@@ -44,6 +47,7 @@ export function validProduction(value) {
     ...(per !== 1 ? { perItem: per } : {}),
     ...(value.workflowId ? { workflowId: value.workflowId } : {}),
     ...(value.steps ? { steps: validSteps(value.steps, 'Production steps') } : {}),
+    ...(value.materialsAt ? { materialsAt: value.materialsAt } : {}),
   };
 }
 /** How much of its material one item of a service uses. */
@@ -68,14 +72,72 @@ export const confirmMaterialsRank = (settings) => settings?.production?.confirmM
 export function validProductionSettings(value) {
   const rank = value?.extraMaterialsRank ?? 1;
   const confirm = value?.confirmMaterialsRank ?? 2;
+  const at = value?.materialsAt ?? 'checkout';
   if (
     (value !== undefined && (typeof value !== 'object' || value === null || Array.isArray(value))) ||
-    Object.keys(value ?? {}).some((k) => !['extraMaterialsRank', 'confirmMaterialsRank'].includes(k)) ||
+    Object.keys(value ?? {}).some(
+      (k) => !['extraMaterialsRank', 'confirmMaterialsRank', 'materialsAt', 'stockCount'].includes(k),
+    ) ||
     ![1, 2, 3].includes(rank) ||
-    ![1, 2, 3].includes(confirm)
+    ![1, 2, 3].includes(confirm) ||
+    !['checkout', 'production'].includes(at)
   )
     throw Error('Invalid production settings.');
-  return { extraMaterialsRank: rank, ...(confirm !== 2 ? { confirmMaterialsRank: confirm } : {}) };
+  return {
+    extraMaterialsRank: rank,
+    ...(confirm !== 2 ? { confirmMaterialsRank: confirm } : {}),
+    ...(at === 'production' ? { materialsAt: at } : {}),
+    stockCount: validStockCountSettings(value?.stockCount),
+  };
+}
+
+/** Stock counts (Business Settings → Jobs & payments), with their defaults. */
+export const defaultStockCount = () => ({
+  /** Staff count without seeing the expected quantities. */
+  blind: true,
+  /** A difference is big above this percent of the expected quantity… */
+  flagPercent: 5,
+  /** …or this value (kobo). */
+  flagValue: 500000,
+  /** The lowest rank that may finish a count with big differences (Admin). */
+  approveRank: 2,
+  /** A count reminder on the Dashboard: off, weekly, month-end or every N days. */
+  reminder: 'off',
+  reminderDays: 30,
+});
+export function validStockCountSettings(value) {
+  const v = { ...defaultStockCount(), ...(value && typeof value === 'object' ? value : {}) };
+  if (
+    typeof v.blind !== 'boolean' ||
+    !(v.flagPercent >= 0 && v.flagPercent <= 100) ||
+    !Number.isSafeInteger(v.flagValue) ||
+    v.flagValue < 0 ||
+    ![2, 3, 4, 5].includes(v.approveRank) ||
+    !['off', 'weekly', 'monthEnd', 'days'].includes(v.reminder) ||
+    !Number.isInteger(v.reminderDays) ||
+    v.reminderDays < 1 ||
+    v.reminderDays > 365
+  )
+    throw Error('Check the stock count settings.');
+  return {
+    blind: v.blind,
+    flagPercent: v.flagPercent,
+    flagValue: v.flagValue,
+    approveRank: v.approveRank,
+    reminder: v.reminder,
+    reminderDays: v.reminderDays,
+  };
+}
+/**
+ * When a job's materials leave stock: at the sale ('checkout', as before) or when its materials check
+ * is confirmed ('production'). Shelf items always leave at the sale; a service may choose its own.
+ * The server decides the same way (private.materials_at).
+ */
+export function materialsAt(service, settingsProduction) {
+  if (service?.shelfItem) return 'checkout';
+  const own = service?.production?.materialsAt;
+  if (own === 'checkout' || own === 'production') return own;
+  return settingsProduction?.materialsAt === 'production' ? 'production' : 'checkout';
 }
 
 /** Materials a job may not take as extras: its fixed material and its choice of materials. */

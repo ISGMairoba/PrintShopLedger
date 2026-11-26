@@ -39,6 +39,8 @@ export default function DashboardPage({
   branchControl,
   branches,
   onReceipt,
+  countDue = false,
+  onCount,
 }: {
   ledger: Ledger;
   ready: boolean;
@@ -52,6 +54,9 @@ export default function DashboardPage({
   branches?: { id: string; name: string; ledger: Ledger }[];
   /** Open a sale's receipt (Recent sales). */
   onReceipt?: (record: CheckoutRecord) => void;
+  /** The stock count reminder (Business Settings → Jobs & payments), and opening Stock → Count. */
+  countDue?: boolean;
+  onCount?: () => void;
 }) {
   const { w, stage } = useWords();
   const team = useTeam();
@@ -124,6 +129,16 @@ export default function DashboardPage({
         <PeriodFilter value={period} onChange={setPeriod} />
         <small>Dates use Africa/Lagos.</small>
       </section>
+      {countDue && (
+        <div className="dashboard-warning" role="status">
+          A stock count is due.{' '}
+          {onCount && (
+            <button type="button" className="text-button" onClick={onCount}>
+              Count stock
+            </button>
+          )}
+        </div>
+      )}
       {!online || pending > 0 ? (
         <div className="dashboard-warning" role="status">
           {!online ? 'Offline — showing saved device records. ' : ''}

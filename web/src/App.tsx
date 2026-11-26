@@ -32,7 +32,8 @@ import { setWritesBlocked } from './subscription-rule.mjs';
 import { confirmSignedOut, reportDevice, sendProblems } from './device-report';
 import { historyCheckIfDue } from './history-check-store';
 import { recordProblem } from './problem-log.mjs';
-import { setStockBelowZeroBlocked } from './stock-rule.mjs';
+import { setMaterialsAtSale, setStockBelowZeroBlocked } from './stock-rule.mjs';
+import { countReminderDue, reservedMap } from './stock-count.mjs';
 import { setMinOrderRule } from './min-order.mjs';
 import useSyncConflicts from './app/useSyncConflicts';
 import BatchJobProgressDialog from './BatchJobProgressDialog';
@@ -42,6 +43,7 @@ import { BusinessSignup, DeveloperActivation, registrationError } from './Busine
 import { validateBusinessRegistration, validActivationToken } from './registration.mjs';
 import SaleAdjustmentsPage, { SaleAdjustmentEditor } from './SaleAdjustmentsPage';
 import MaterialWastePage from './MaterialWastePage';
+import StockCountPage from './StockCountPage';
 import { useFeedbackMessage, FeedbackBanner } from './Feedback';
 import ConflictInbox from './ConflictInbox';
 import { blockedWork } from './sync-dependencies.mjs';
@@ -484,13 +486,13 @@ export default function App() {
     (demo || canAccessPage(item, shop?.accessLevel ?? 0, pageAccess));
   // Stock and waste share one screen with two tabs when the user may see both.
   const materialTabs =
-    allowed('Materials') && allowed('Material Waste') ? (
+    allowed('Materials') && (allowed('Material Waste') || allowed('Stock Count')) ? (
       <div
         className="settings-tabs material-tabs"
         role="group"
         aria-label={pageName('Materials', branding.settings.terms) + ' sections'}
       >
-        {(['Materials', 'Material Waste'] as const).map((item) => (
+        {(['Materials', 'Material Waste', 'Stock Count'] as const).filter(allowed).map((item) => (
           <button
             key={item}
             type="button"
@@ -498,7 +500,7 @@ export default function App() {
             aria-pressed={page === item}
             onClick={() => setPage(item)}
           >
-            {item === 'Materials' ? 'Stock' : 'Waste & reprints'}
+            {item === 'Materials' ? 'Stock' : item === 'Stock Count' ? 'Count' : 'Waste & reprints'}
           </button>
         ))}
       </div>
@@ -919,6 +921,21 @@ export default function App() {
     }
   }
   // Several catalogue events saved together, applied in order (a new product: stock item, then service).
+  // Stock counts and shelves (Stock → Count; stock-count.mjs).
+  async function saveCount(kind: string, data: Record<string, unknown>) {
+    await saveCatalogue({
+      id: crypto.randomUUID(),
+      kind,
+      data: {
+        ...data,
+        modifiedBy: catalogueActor.id,
+        modifiedByLabel: catalogueActor.label,
+        modifiedAt: new Date().toISOString(),
+      },
+    } as never);
+  }
+  const setMaterialShelf = (materialId: string, shelf: string) =>
+    saveCount('count.shelf_set', { id: materialId, shelf });
   async function saveCatalogueMany(operations: (MaterialEvent | ServiceEvent | FieldEvent)[]) {
     if (
       busy ||
@@ -1854,6 +1871,7 @@ export default function App() {
   // stays signed in, so the staff sign-in appears with empty fields.
   // Saving refuses work that takes stock below zero when the business blocks it.
   setStockBelowZeroBlocked(branding.settings.jobs.stockBelowZero === 'block');
+  setMaterialsAtSale(branding.settings.production.materialsAt);
   setMinOrderRule(branding.settings.jobs.minOrder);
   const lockMinutes = branding.settings.security.autoLockMinutes;
   const lockChoices = lockSettings(branding.settings);
@@ -2541,7 +2559,10 @@ export default function App() {
                             (item) =>
                               // Material Waste lives inside Materials; it has its own menu entry only for
                               // someone who can record waste but not open Materials.
-                              !(item === 'Material Waste' && allowed('Materials')) &&
+                              !(
+                                (item === 'Material Waste' || item === 'Stock Count') &&
+                                allowed('Materials')
+                              ) &&
                               (allowed(item) || (item === 'Conflict Inbox' && !!supervisor)),
                           )
                           .map((item, index, shown) => (
@@ -2553,7 +2574,9 @@ export default function App() {
                               )}
                               <button
                                 className={
-                                  page === item || (item === 'Materials' && page === 'Material Waste')
+                                  page === item ||
+                                  (item === 'Materials' &&
+                                    (page === 'Material Waste' || page === 'Stock Count'))
                                     ? 'active'
                                     : ''
                                 }
@@ -2996,6 +3019,11 @@ export default function App() {
                             >
                               <DashboardPage
                                 onReceipt={setReceipt}
+                                countDue={
+                                  allowed('Stock Count') &&
+                                  countReminderDue(ledger, branding.settings.production.stockCount)
+                                }
+                                onCount={() => setPage('Stock Count')}
                                 ledger={masterLedger}
                                 branchControl={branchControl}
                                 branches={masterBranches}
@@ -3045,6 +3073,19 @@ export default function App() {
                                 ) : undefined
                               }
                             />
+                          ) : page === 'Stock Count' ? (
+                            <>
+                              {materialTabs}
+                              <StockCountPage
+                                ledger={ledger}
+                                level={demo ? 5 : (shop?.accessLevel ?? 0)}
+                                actor={catalogueActor}
+                                settings={branding.settings.production.stockCount}
+                                busy={busy || hasConflict}
+                                canSave={demo || online}
+                                onSave={saveCount}
+                              />
+                            </>
                           ) : page === 'Material Waste' ? (
                             <>
                               {materialTabs}
@@ -3569,6 +3610,13 @@ export default function App() {
                                 busy={(!demo && shop?.role === 'cashier') || busy || hasConflict}
                                 actor={catalogueActor}
                                 onSave={saveCatalogue}
+                                reserved={reservedMap(ledger)}
+                                shelves={Object.fromEntries(
+                                  (ledger.materialShelves ?? []).map((x) => [x.id, x.shelf]),
+                                )}
+                                onSetShelf={
+                                  demo || (shop?.accessLevel ?? 0) >= 2 ? setMaterialShelf : undefined
+                                }
                                 expenses={ledger.expenses}
                                 payees={ledger.payees}
                                 accounts={ledger.moneyAccounts}

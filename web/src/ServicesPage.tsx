@@ -109,6 +109,7 @@ export default function ServicesPage({
   const [confirmStage, setConfirmStage] = useState('Printing');
   // Materials in production: added materials, their cost covered, material per item.
   const [extraMaterials, setExtraMaterials] = useState(false);
+  const [leaveAt, setLeaveAt] = useState<'' | 'checkout' | 'production'>('');
   const [costCovered, setCostCovered] = useState(false);
   const [perItemText, setPerItemText] = useState('1');
   const [steps, setSteps] = useState<Step[] | undefined>(undefined);
@@ -152,6 +153,7 @@ export default function ServicesPage({
     setChoicesOpen(!s?.materialOptions?.length);
     setConfirmStage(s?.confirmStage ?? defaultConfirmStage);
     setExtraMaterials(!!s?.production?.extraMaterials);
+    setLeaveAt(s?.production?.materialsAt ?? '');
     setCostCovered(!!s?.production?.costCovered);
     setPerItemText(String(s?.production?.perItem ?? 1));
     setSteps(s?.production?.steps);
@@ -278,6 +280,7 @@ export default function ServicesPage({
             ? { perItem: Number(perItemText) }
             : {}),
           ...(!privateItem && steps ? { steps } : {}),
+          ...(!privateItem && leaveAt ? { materialsAt: leaveAt } : {}),
         },
       };
       const event: ServiceEvent = {
@@ -1070,6 +1073,20 @@ export default function ServicesPage({
                       'In production, staff can add any material from stock with the amount used (for example board, lamination and glue for a paper bag). Stock is taken when added; the price does not change.',
                     )}
                   </small>
+                  {!editing?.shelfItem && (
+                    <label>
+                      {w('Materials leave stock')}
+                      <select
+                        aria-label="Materials leave stock"
+                        value={leaveAt}
+                        onChange={(e) => setLeaveAt(e.target.value as typeof leaveAt)}
+                      >
+                        <option value="">As the business does (Business Settings)</option>
+                        <option value="checkout">At checkout</option>
+                        <option value="production">In production (at the materials check)</option>
+                      </select>
+                    </label>
+                  )}
                 </fieldset>
               )}
               {!privateItem && (
