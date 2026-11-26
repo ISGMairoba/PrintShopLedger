@@ -18,12 +18,33 @@ export function partReady(job) {
   return jobParts(job).ready;
 }
 
-/** Whether "Tell customer" can be used: the job is ready, collected or on hold, or part of it is ready. */
-export const canTellCustomer = (job) =>
-  !!job.hold ||
-  job.productionStatus === 'Completed' ||
-  job.productionStatus === 'Collected' ||
-  partReady(job) > 0;
+/**
+ * Whether "Tell customer" can be used: any job not cancelled (owner, 26 Nov). Ready, collected, on
+ * hold and part ready have their own message; otherwise "work continues" just after a hold, else an
+ * order update (where it is, how much is done, when it should be ready).
+ */
+export const canTellCustomer = (job) => job.productionStatus !== 'Cancelled';
+
+/** The message a job gets now: 'held', 'collected', 'part_ready', 'ready', 'resumed' or 'update'. */
+export function messageFor(job, now = Date.now()) {
+  if (job.hold) return 'held';
+  if (job.productionStatus === 'Collected') return 'collected';
+  if (job.productionStatus === 'Completed') return 'ready';
+  if (partReady(job) > 0) return 'part_ready';
+  // Back from a hold in the last day, and no stage moved since: "work continues".
+  const last = (job.holdHistory ?? []).at(-1);
+  const resumed = last?.resumedAt ? Date.parse(last.resumedAt) : NaN;
+  const moved = Date.parse(job.stageAt ?? job.createdAt ?? '');
+  if (now - resumed < 86400000 && !(moved > resumed)) return 'resumed';
+  return 'update';
+}
+
+const dueWords = (job) => {
+  const due = job.dueAt && !Number.isNaN(Date.parse(job.dueAt)) ? new Date(job.dueAt) : null;
+  return due
+    ? due.toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
+    : '';
+};
 
 /** How each hold reason reads to the customer. */
 const HOLD_WORDS = {
@@ -134,7 +155,10 @@ function partReadyMessage(ledger, job, { business, messages }) {
  * Messages; the older Jobs & payments wording still counts until Messages has its own).
  * @param {{ business: string, template?: string, terms?: { job: string, jobs: string }, messages?: any }} options
  */
-export function readyMessage(ledger, job, { business, template, terms, messages }) {
+export function readyMessage(ledger, job, { business, template, terms, messages, stage }) {
+  const kind = messageFor(job);
+  if (kind === 'resumed' || kind === 'update')
+    return progressMessage(ledger, job, kind, { business, terms, messages, stage });
   if (job.hold) return heldMessage(ledger, job, { business, terms, messages });
   if (job.productionStatus === 'Collected')
     return collectedMessage(ledger, job, { business, terms, messages });
@@ -189,5 +213,57 @@ export function collectedMessage(ledger, job, { business, terms, messages }) {
     phone: customer?.phone ?? '',
     jobs: [job],
     mode: messageMode(messages, 'collected'),
+  };
+}
+
+/**
+ * "Work continues" (just back from a hold) or "order update" (any time): each open job of the sale
+ * with its stage and progress, when it should be ready, and what is left to pay.
+ * stage: the business's own stage names.
+ */
+export function progressMessage(ledger, job, kind, { business, terms, messages, stage = (s) => s }, now = Date.now()) {
+  const customer = ledger.customers.find((c) => c.id === job.customerId);
+  const open = (j) => !['Cancelled', 'Collected'].includes(j.productionStatus ?? 'Added');
+  const jobs =
+    kind === 'update' && job.checkoutId
+      ? [job, ...ledger.jobs.filter((j) => j.id !== job.id && j.checkoutId === job.checkoutId && j.customerId === job.customerId && open(j))]
+      : [job];
+  const line = (j) => {
+    const { total, done } = jobParts(j);
+    const name = (j.description || j.service || '').trim();
+    const qty = total > 1 ? `${name} × ${total}` : name;
+    const where = j.hold ? 'on hold' : j.productionStatus === 'Completed' ? 'ready for collection' : `at ${stage(j.productionStatus ?? 'Added')}`;
+    const progress = done > 0 && done < total ? `, ${done} done, ${total - done} left` : '';
+    return `${qty} ${where}${progress}`;
+  };
+  const { total, done } = jobParts(job);
+  const owed = jobs.reduce((n, j) => n + jobBalanceFast(ledger, j).outstanding, 0);
+  const latest = jobs.map((j) => j.dueAt).filter((d) => d && !Number.isNaN(Date.parse(d))).sort().at(-1);
+  const due = latest ? `Expected ready: ${dueWords({ dueAt: latest })}.` : '';
+  const last = (job.holdHistory ?? []).at(-1);
+  const word = jobs.length > 1 ? (terms?.jobs ?? 'orders') : (terms?.job ?? 'order');
+  const values = {
+    ...customerNames(customer?.name, customer?.calledAs),
+    job: word,
+    number: jobs.map((j) => `#${j.id.slice(0, 8).toUpperCase()}`).join(', '),
+    items: kind === 'resumed' ? itemText(job) : jobs.map(line).join('; '),
+    stage: stage(job.productionStatus ?? 'Added'),
+    progress: done > 0 && done < total ? `${done} done, ${total - done} left` : '',
+    done: String(done),
+    left: String(Math.max(0, total - done)),
+    total: String(total),
+    due,
+    late: latest && Date.parse(latest) < now ? 'Sorry, it is running late.' : '',
+    moved: kind === 'resumed' && last?.extendDeadline && job.dueAt ? `Your collection date moved to ${dueWords(job)}.` : '',
+    balance: owed > 0 ? `Balance to pay: ${currency(owed)}.` : 'It is fully paid.',
+    business: business || 'our shop',
+  };
+  const text = messageText(messages, kind, values);
+  return {
+    text,
+    link: whatsappLink(customer?.phone, text),
+    phone: customer?.phone ?? '',
+    jobs,
+    mode: messageMode(messages, kind),
   };
 }

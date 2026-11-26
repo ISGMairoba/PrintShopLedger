@@ -122,7 +122,7 @@ import { initialsFor } from './item-fields.mjs';
 import { readyMessage } from './ready-message.mjs';
 import { TemplateAuditContext, TemplateDocumentContext, type TemplateStart } from './TemplateFields';
 import { canSeeTemplateCosts } from './pricing-templates.mjs';
-import { pageName, renameTerms } from './terms.mjs';
+import { pageName, renameTerms, stageName } from './terms.mjs';
 import {
   CustomerConflictReview,
   ExpenseConflictReview,
@@ -2206,6 +2206,7 @@ export default function App() {
         template: branding.settings.jobs.readyMessage,
         terms: branding.settings.terms,
         messages: branding.settings.messages,
+        stage: (value: string) => stageName(value, branding.settings.terms),
       }),
     [
       ledger,
