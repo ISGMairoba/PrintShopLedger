@@ -220,7 +220,11 @@ try {
           .filter(
             (p) =>
               canAccessPage(p, rank, customSettings.pageAccess) &&
-              !(p === 'Material Waste' && canAccessPage('Materials', rank, customSettings.pageAccess)),
+              !(
+                (p === 'Material Waste' || p === 'Stock Count') &&
+                canAccessPage('Materials', rank, customSettings.pageAccess)
+              ) &&
+              p !== 'Partners',
           )
           .map((p) => pageName(p))
           .concat('Help'),
