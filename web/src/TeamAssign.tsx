@@ -104,9 +104,11 @@ export function AssignDraftButton({
     <div className="assign-draft">
       <span>
         <strong>Assign to:</strong>{' '}
-        {chosen.length
-          ? chosen.map(([s, ids]) => (s ? `${stageName(s)}: ${names(ids)}` : names(ids))).join(' · ')
-          : <span className="muted">no one yet (optional)</span>}
+        {chosen.length ? (
+          chosen.map(([s, ids]) => (s ? `${stageName(s)}: ${names(ids)}` : names(ids))).join(' · ')
+        ) : (
+          <span className="muted">no one yet (optional)</span>
+        )}
       </span>{' '}
       <button type="button" className="text-button" data-opens-dialog onClick={() => setOpen(true)}>
         <Icon name="users" /> {chosen.length ? 'Change' : 'Assign to'}
@@ -190,7 +192,8 @@ export function AssignDialog({
             <Icon name="close" /> Cancel
           </button>
           <button type="button" disabled={team.busy} onClick={() => void save()}>
-            <Icon name="save" /> {draft ? 'Done' : anyone || ids.length ? 'Save assignment' : 'Clear assignment'}
+            <Icon name="save" />{' '}
+            {draft ? 'Done' : anyone || ids.length ? 'Save assignment' : 'Clear assignment'}
           </button>
         </div>
       }

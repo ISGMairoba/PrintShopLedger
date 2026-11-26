@@ -1076,7 +1076,9 @@ export default function App() {
       ...operation,
       data: {
         ...operation.data,
-        jobs: operation.data.jobs.map(({ assignTo: _a, ...j }: (typeof operation.data.jobs)[number] & Picked) => j),
+        jobs: operation.data.jobs.map(
+          ({ assignTo: _a, ...j }: (typeof operation.data.jobs)[number] & Picked) => j,
+        ),
       },
     };
     setBusy(true);

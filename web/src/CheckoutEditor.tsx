@@ -1204,10 +1204,15 @@ export default function CheckoutEditor({
                           {canChooseWorkflow && stepsFor === item.id && (
                             <StepsDialog
                               title={`${w('Job')} ${index + 1} steps`}
-                              steps={item.steps ?? stagesToSteps(item.workflow ?? options.jobStages, item.stageHours)}
+                              steps={
+                                item.steps ??
+                                stagesToSteps(item.workflow ?? options.jobStages, item.stageHours)
+                              }
                               copyFrom={options.workflows ?? []}
                               onSave={(steps) =>
-                                setLines((items) => items.map((l) => (l.id === item.id ? { ...l, steps } : l)))
+                                setLines((items) =>
+                                  items.map((l) => (l.id === item.id ? { ...l, steps } : l)),
+                                )
                               }
                               onClose={() => setStepsFor(null)}
                             />

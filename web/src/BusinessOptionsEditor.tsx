@@ -382,7 +382,12 @@ export default function BusinessOptionsEditor({
                     <StepsSummary steps={wf.steps} />
                   </div>
                   <div className="material-actions">
-                    <button type="button" className="text-button" data-opens-dialog onClick={() => setFlowOpen(i)}>
+                    <button
+                      type="button"
+                      className="text-button"
+                      data-opens-dialog
+                      onClick={() => setFlowOpen(i)}
+                    >
                       <Icon name="edit" /> Edit
                     </button>
                     <button
@@ -413,7 +418,8 @@ export default function BusinessOptionsEditor({
                         onChange({
                           ...value,
                           workflows: value.workflows.filter((_, j) => j !== i),
-                          defaultWorkflowId: value.defaultWorkflowId === wf.id ? null : value.defaultWorkflowId,
+                          defaultWorkflowId:
+                            value.defaultWorkflowId === wf.id ? null : value.defaultWorkflowId,
                         })
                       }
                     >
@@ -437,7 +443,9 @@ export default function BusinessOptionsEditor({
                 title={flowOpen === 'new' ? w('Add workflow') : w('Edit workflow')}
                 name={flowOpen === 'new' ? '' : value.workflows[flowOpen].name}
                 steps={
-                  flowOpen === 'new' ? [{ name: 'Design' }, { name: 'Approval' }] : value.workflows[flowOpen].steps
+                  flowOpen === 'new'
+                    ? [{ name: 'Design' }, { name: 'Approval' }]
+                    : value.workflows[flowOpen].steps
                 }
                 onSave={(steps, name) =>
                   onChange({
