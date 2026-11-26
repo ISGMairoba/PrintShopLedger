@@ -172,6 +172,21 @@ export default function ServicesPage({
     setItemName(name);
     // A cost name is unique: the copy gets its own.
     if (service.costing?.key) setCostKey(suggestCostKey(name, services));
+    // The copy starts with its own new base material, set up like the original's (owner, 26 Nov):
+    // choose the original's material in Base material to share it instead.
+    const original = !service.materialOptions?.length && materials.find((m) => m.id === service.materialId);
+    if (original) {
+      setMaterialValue(CREATE);
+      setStockDraft({
+        name: '',
+        unit: original.measurementUnit,
+        minimum: String(original.minimumStock ?? 0),
+        requireSize: !!original.requireSize,
+        mode: 'none',
+        quantity: '0',
+        reason: '',
+      });
+    }
     setCopyOf(service);
     setEditor('new');
   };
